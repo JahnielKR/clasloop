@@ -23,7 +23,8 @@ const i18n = {
     pageTitle: "Sessions", yourClasses: "Your Classes", yourClassesSub: "Select a class to create a session, or create a new one.",
     createNewClass: "Create new class", className: "Class name", classPlaceholder: "e.g. 8th Grade History",
     grade: "Grade", subject: "Subject", createClass: "Create Class", creating: "Creating...",
-    suggestedToday: "Suggested for today", reviewNow: "Review now", reviewWithAI: "AI", reviewWithDeck: "Deck", today: "today", daysAgo: "d ago", more: "more",
+    suggestedToday: "Suggested for today", reviewNow: "Review now", reviewWithAI: "Practice with AI", reviewWithDeck: "Use saved deck", today: "today", daysAgo: "d ago", more: "more",
+    tapToReview: "Tap to review",
     newSession: "New Session", backToClasses: "Back to classes", topic: "Topic",
     topicPlaceholder: "e.g. French Revolution, Photosynthesis...", keyPoints: "Key points (optional)",
     keyPointsPlaceholder: "Main concepts covered, one per line", numQuestions: "Number of questions",
@@ -47,7 +48,8 @@ const i18n = {
     pageTitle: "Sesiones", yourClasses: "Tus Clases", yourClassesSub: "Selecciona una clase para crear una sesión, o crea una nueva.",
     createNewClass: "Crear nueva clase", className: "Nombre de la clase", classPlaceholder: "ej. Historia 8° Grado",
     grade: "Grado", subject: "Materia", createClass: "Crear Clase", creating: "Creando...",
-    suggestedToday: "Sugerido para hoy", reviewNow: "Repasar ahora", reviewWithAI: "IA", reviewWithDeck: "Deck", today: "hoy", daysAgo: "d atrás", more: "más",
+    suggestedToday: "Sugerido para hoy", reviewNow: "Repasar ahora", reviewWithAI: "Practicar con IA", reviewWithDeck: "Usar deck guardado", today: "hoy", daysAgo: "d atrás", more: "más",
+    tapToReview: "Toca para repasar",
     newSession: "Nueva Sesión", backToClasses: "Volver a clases", topic: "Tema",
     topicPlaceholder: "ej. Revolución Francesa, Fotosíntesis...", keyPoints: "Puntos clave (opcional)",
     keyPointsPlaceholder: "Conceptos principales, uno por línea", numQuestions: "Número de preguntas",
@@ -71,7 +73,8 @@ const i18n = {
     pageTitle: "세션", yourClasses: "내 수업", yourClassesSub: "수업을 선택하여 세션을 만들거나 새 수업을 만드세요.",
     createNewClass: "새 수업 만들기", className: "수업 이름", classPlaceholder: "예: 중2 역사",
     grade: "학년", subject: "과목", createClass: "수업 만들기", creating: "생성 중...",
-    suggestedToday: "오늘 추천 복습", reviewNow: "지금 복습", reviewWithAI: "AI", reviewWithDeck: "덱", today: "오늘", daysAgo: "일 전", more: "더보기",
+    suggestedToday: "오늘 추천 복습", reviewNow: "지금 복습", reviewWithAI: "AI로 연습", reviewWithDeck: "저장된 덱 사용", today: "오늘", daysAgo: "일 전", more: "더보기",
+    tapToReview: "탭하여 복습",
     newSession: "새 세션", backToClasses: "수업 목록으로", topic: "주제",
     topicPlaceholder: "예: 프랑스 혁명, 광합성...", keyPoints: "핵심 포인트 (선택)",
     keyPointsPlaceholder: "다룬 주요 개념, 줄당 하나", numQuestions: "문제 수",
@@ -127,6 +130,15 @@ const interactiveCSS = `
   .cl-action-delete { transition: all .15s ease; }
   .cl-action-delete:hover { background: #FDECEC !important; color: #E03E3E !important; border-color: #E03E3E44 !important; }
   .cl-action-delete:active { transform: scale(.96); }
+  .cl-suggested-row { transition: all .15s ease; cursor: pointer; }
+  .cl-suggested-row:hover { background: #F5F9FF !important; border-color: #2383E2 !important; box-shadow: 0 2px 8px rgba(35,131,226,0.10); }
+  .cl-suggested-row:hover .cl-suggested-arrow { transform: translateX(3px); color: #2383E2 !important; }
+  .cl-suggested-row:active { transform: scale(.99); }
+  .cl-suggested-arrow { transition: all .15s ease; }
+  .cl-cta { transition: all .15s ease; cursor: pointer; }
+  .cl-cta:hover { transform: translateY(-1px); filter: brightness(1.06); box-shadow: 0 3px 8px rgba(35,131,226,0.18); }
+  .cl-cta:active { transform: translateY(0) scale(.97); }
+  .cl-cta-deck:hover { box-shadow: 0 3px 8px rgba(105,64,165,0.22) !important; }
   .cl-participant { transition: all .15s ease; animation: fadeIn .3s ease; }
   .cl-participant:hover { background: #E8F0FE !important; border-color: #2383E244 !important; color: #2383E2 !important; }
   .cl-result-card { transition: all .2s ease; animation: slideIn .3s ease; }
@@ -280,26 +292,82 @@ function ClassSetup({ userId, onClassReady, t }) {
             <div style={{ fontSize: 13, fontWeight: 600, color: C.orange, marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
               <CIcon name="clock" size={16} inline /> {t.suggestedToday} — {cls.name}
             </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {sug.slice(0, 3).map((st, i) => {
                 // Find deck matching this topic (case-insensitive title match)
                 const matchingDeck = decksForClass.find(d => d.title.toLowerCase().includes(st.topic.toLowerCase()) || st.topic.toLowerCase().includes(d.title.toLowerCase()));
+                const dayLabel = st.days_since_review === 0 ? t.today : `${st.days_since_review}${t.daysAgo}`;
+
+                // ── Single-CTA row: whole row is the button (AI only) ──
+                if (!matchingDeck) {
+                  return (
+                    <button
+                      key={i}
+                      className="cl-suggested-row"
+                      onClick={() => onClassReady(cls, st.topic, "create")}
+                      style={{
+                        display: "flex", alignItems: "center", gap: 10,
+                        padding: "12px 14px", borderRadius: 8,
+                        background: C.bg, border: `1px solid ${C.border}`,
+                        textAlign: "left", width: "100%",
+                        fontFamily: "'Outfit',sans-serif",
+                      }}
+                      title={t.tapToReview}
+                    >
+                      <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 2 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                          <span style={{ fontSize: 14, fontWeight: 600, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{st.topic}</span>
+                          <span style={{ fontSize: 11, color: C.textMuted, flexShrink: 0 }}>· {dayLabel}</span>
+                        </div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: C.accent, fontWeight: 600 }}>
+                          <CIcon name="brain" size={12} inline /> {t.reviewWithAI}
+                        </div>
+                      </div>
+                      <span style={{ fontSize: 13, fontWeight: 700, fontFamily: MONO, color: retCol(st.current_retention), minWidth: 36, textAlign: "right", flexShrink: 0 }}>{st.current_retention}%</span>
+                      <span className="cl-suggested-arrow" style={{ fontSize: 18, color: C.textMuted, flexShrink: 0, lineHeight: 1 }}>→</span>
+                    </button>
+                  );
+                }
+
+                // ── Two-CTA row: AI + Deck side by side ──
                 return (
-                  <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 10px", borderRadius: 6, background: C.bg, gap: 8 }}>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <span style={{ fontSize: 14, fontWeight: 500 }}>{st.topic}</span>
-                      <span style={{ fontSize: 11, color: C.textMuted, marginLeft: 8 }}>{st.days_since_review === 0 ? t.today : `${st.days_since_review}${t.daysAgo}`}</span>
+                  <div key={i} style={{
+                    display: "flex", flexDirection: "column", gap: 8,
+                    padding: 12, borderRadius: 8,
+                    background: C.bg, border: `1px solid ${C.border}`,
+                  }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 14, fontWeight: 600, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{st.topic}</div>
+                        <div style={{ fontSize: 11, color: C.textMuted, marginTop: 1 }}>{dayLabel}</div>
+                      </div>
+                      <span style={{ fontSize: 13, fontWeight: 700, fontFamily: MONO, color: retCol(st.current_retention), minWidth: 36, textAlign: "right", flexShrink: 0 }}>{st.current_retention}%</span>
                     </div>
-                    <span style={{ fontSize: 13, fontWeight: 700, fontFamily: MONO, color: retCol(st.current_retention), minWidth: 36, textAlign: "right" }}>{st.current_retention}%</span>
-                    <div style={{ display: "flex", gap: 4 }}>
-                      <button className="cl-pill" onClick={() => onClassReady(cls, st.topic, "create")} style={{ padding: "4px 10px", borderRadius: 6, fontSize: 11, fontWeight: 600, background: C.accentSoft, color: C.accent, border: "none", cursor: "pointer", fontFamily: "'Outfit',sans-serif", display: "flex", alignItems: "center", gap: 4 }}>
-                        <CIcon name="brain" size={11} inline /> {t.reviewWithAI}
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+                      <button
+                        className="cl-cta"
+                        onClick={() => onClassReady(cls, st.topic, "create")}
+                        style={{
+                          padding: "9px 12px", borderRadius: 7, fontSize: 13, fontWeight: 600,
+                          background: C.accent, color: "#fff", border: "none",
+                          fontFamily: "'Outfit',sans-serif",
+                          display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+                        }}
+                      >
+                        <CIcon name="brain" size={14} inline /> {t.reviewWithAI}
                       </button>
-                      {matchingDeck && (
-                        <button className="cl-pill" onClick={() => onClassReady(cls, null, "deckPreview", matchingDeck)} style={{ padding: "4px 10px", borderRadius: 6, fontSize: 11, fontWeight: 600, background: C.purpleSoft, color: C.purple, border: "none", cursor: "pointer", fontFamily: "'Outfit',sans-serif", display: "flex", alignItems: "center", gap: 4 }}>
-                          <CIcon name="book" size={11} inline /> {t.reviewWithDeck}
-                        </button>
-                      )}
+                      <button
+                        className="cl-cta cl-cta-deck"
+                        onClick={() => onClassReady(cls, null, "deckPreview", matchingDeck)}
+                        style={{
+                          padding: "9px 12px", borderRadius: 7, fontSize: 13, fontWeight: 600,
+                          background: C.purple, color: "#fff", border: "none",
+                          fontFamily: "'Outfit',sans-serif",
+                          display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+                        }}
+                      >
+                        <CIcon name="book" size={14} inline /> {t.reviewWithDeck}
+                      </button>
                     </div>
                   </div>
                 );
