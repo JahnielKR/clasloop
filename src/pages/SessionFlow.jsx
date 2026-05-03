@@ -35,7 +35,7 @@ const i18n = {
     launchSession: "Launch Session", questions: "questions", saveAsDeck: "Save as deck", deckSaved: "Deck saved!",
     selectDeck: "Select a deck", noDecks: "No decks yet. Create one in Community or save from AI Generator.",
     sharePin: "Share this PIN with your students", studentsJoined: "students joined",
-    cancel: "Cancel", startQuiz: "Start Quiz",
+    cancel: "Cancel", startQuiz: "Start Quiz", backToDecks: "Back to decks",
     liveResults: "Live Results", endSession: "End Session", students: "students", average: "average",
     waitingResponses: "Waiting for responses...", loadingClasses: "Loading classes...", loading: "Loading...",
     fileTooLarge: "File too large. Max",
@@ -59,7 +59,7 @@ const i18n = {
     launchSession: "Lanzar Sesión", questions: "preguntas", saveAsDeck: "Guardar como deck", deckSaved: "¡Deck guardado!",
     selectDeck: "Seleccionar un deck", noDecks: "Sin decks aún. Crea uno en Comunidad o guarda del Generador IA.",
     sharePin: "Comparte este PIN con tus estudiantes", studentsJoined: "estudiantes unidos",
-    cancel: "Cancelar", startQuiz: "Iniciar Quiz",
+    cancel: "Cancelar", startQuiz: "Iniciar Quiz", backToDecks: "Volver a decks",
     liveResults: "Resultados en Vivo", endSession: "Terminar Sesión", students: "estudiantes", average: "promedio",
     waitingResponses: "Esperando respuestas...", loadingClasses: "Cargando clases...", loading: "Cargando...",
     fileTooLarge: "Archivo muy grande. Máx",
@@ -83,7 +83,7 @@ const i18n = {
     launchSession: "세션 시작", questions: "문제", saveAsDeck: "덱으로 저장", deckSaved: "덱 저장됨!",
     selectDeck: "덱 선택", noDecks: "아직 덱이 없습니다. 커뮤니티에서 만들거나 AI 생성기에서 저장하세요.",
     sharePin: "이 PIN을 학생들과 공유하세요", studentsJoined: "명 참여",
-    cancel: "취소", startQuiz: "퀴즈 시작",
+    cancel: "취소", startQuiz: "퀴즈 시작", backToDecks: "덱으로 돌아가기",
     liveResults: "실시간 결과", endSession: "세션 종료", students: "학생", average: "평균",
     waitingResponses: "응답 대기 중...", loadingClasses: "수업 로딩 중...", loading: "로딩...",
     fileTooLarge: "파일이 너무 큽니다. 최대",
@@ -469,7 +469,7 @@ function CreateSession({ cls, userId, onSessionCreated, onBack, t, lang, reviewT
     <div style={{ maxWidth: 560, margin: "0 auto" }}>
       <button className="cl-back" onClick={() => deckData ? onBack() : setStep("form")} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 8, fontSize: 13, fontWeight: 500, color: C.accent, background: C.accentSoft, border: "none", cursor: "pointer", fontFamily: "'Outfit',sans-serif", marginBottom: 16 }}>
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M19 12H5M5 12L11 6M5 12L11 18" stroke={C.accent} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-        {deckData ? t.backToClasses : t.edit}
+        {deckData ? t.backToDecks : t.edit}
       </button>
       <h2 style={{ fontFamily: "'Outfit'", fontSize: 20, fontWeight: 700, marginBottom: 4 }}>{topic}</h2>
       <p style={{ fontSize: 13, color: C.textSecondary, marginBottom: 16 }}>{questions.length} {t.questions} · {ACTIVITY_TYPES.find(a => a.id === activityType)?.label[lang] || activityType} · {cls.name}</p>
