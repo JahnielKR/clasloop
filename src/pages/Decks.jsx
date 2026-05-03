@@ -54,6 +54,9 @@ const i18n = {
     incomplete: "Incomplete", complete: "Complete", emptyQ: "(no question text yet)",
     drag: "Drag to reorder",
     addAnother: "+ Add another question",
+    chooseType: "Choose a question type", cancel: "Cancel",
+    questionsEmpty: "No questions yet. Click \u201cAdd question\u201d below to get started.",
+    questionsHint: "Drag to reorder · Click any row to edit",
   },
   es: {
     pageTitle: "Decks", subtitle: "Crea y gestiona tus colecciones de preguntas",
@@ -84,6 +87,9 @@ const i18n = {
     incomplete: "Incompleta", complete: "Lista", emptyQ: "(sin texto de pregunta)",
     drag: "Arrastra para reordenar",
     addAnother: "+ Agregar otra pregunta",
+    chooseType: "Elige un tipo de pregunta", cancel: "Cancelar",
+    questionsEmpty: "Aún no hay preguntas. Haz click en \u201cAgregar pregunta\u201d abajo para empezar.",
+    questionsHint: "Arrastra para reordenar · Haz click en una fila para editarla",
   },
   ko: {
     pageTitle: "덱", subtitle: "문제 모음을 만들고 관리하세요",
@@ -114,6 +120,9 @@ const i18n = {
     incomplete: "미완성", complete: "완성", emptyQ: "(문제 텍스트 없음)",
     drag: "드래그하여 순서 변경",
     addAnother: "+ 문제 추가",
+    chooseType: "문제 유형 선택", cancel: "취소",
+    questionsEmpty: "아직 문제가 없습니다. 아래 \u201c문제 추가\u201d를 눌러 시작하세요.",
+    questionsHint: "드래그하여 순서 변경 · 행을 클릭하여 편집",
   },
 };
 
@@ -137,15 +146,30 @@ const css = `
   .dk-mode-btn:active { transform: scale(.97); }
   .dk-preset-btn:hover { transform: scale(1.04); box-shadow: 0 4px 12px rgba(0,0,0,0.15) !important; }
   .dk-preset-btn:active { transform: scale(.97); }
-  .dk-q-row { transition: background .15s ease, border-color .15s ease, box-shadow .2s ease, transform .12s ease; }
-  .dk-q-row:hover { border-color: #2383E244 !important; }
-  .dk-q-row[data-dragging="true"] { opacity: .4; }
-  .dk-q-row[data-drop-target="true"] { border-color: #2383E2 !important; box-shadow: 0 0 0 2px #E8F0FE; }
-  .dk-q-handle { cursor: grab; opacity: .55; transition: opacity .15s ease; }
-  .dk-q-handle:hover { opacity: 1; }
+  .dk-q-row { transition: background .15s ease, border-color .15s ease, box-shadow .2s ease, transform .12s ease; position: relative; }
+  .dk-q-row:hover { border-color: #2383E266 !important; box-shadow: 0 4px 14px rgba(35,131,226,0.10); transform: translateY(-1px); }
+  .dk-q-row[data-expanded="true"] { border-color: #2383E2 !important; box-shadow: 0 6px 18px rgba(35,131,226,0.15); }
+  .dk-q-row[data-dragging="true"] { opacity: .4; transform: scale(.98); }
+  .dk-q-row[data-drop-target="true"]::before {
+    content: "";
+    position: absolute;
+    top: -4px; left: 0; right: 0;
+    height: 3px;
+    background: #2383E2;
+    border-radius: 2px;
+    box-shadow: 0 0 8px #2383E266;
+  }
+  .dk-q-header { cursor: pointer; user-select: none; }
+  .dk-q-handle { cursor: grab; color: #9B9B9B; transition: color .15s ease, transform .15s ease; }
+  .dk-q-row:hover .dk-q-handle { color: #2383E2; }
+  .dk-q-handle:hover { color: #2383E2 !important; transform: scale(1.15); }
   .dk-q-handle:active { cursor: grabbing; }
   .dk-q-toggle:hover { background: #E8F0FE !important; color: #2383E2 !important; }
   .dk-q-delete:hover { background: #FDECEC !important; color: #E03E3E !important; }
+  .dk-type-card:hover { border-color: #2383E2 !important; background: #F5F9FF !important; transform: translateY(-2px); box-shadow: 0 4px 14px rgba(35,131,226,0.15); }
+  .dk-type-card:active { transform: scale(.97); }
+  .dk-add-another:hover { background: #E8F0FE !important; border-color: #2383E2 !important; }
+  .dk-add-another:active { transform: scale(.99); }
   @keyframes flashGlow {
     0%   { box-shadow: 0 0 0 0 #2383E266, 0 0 18px 6px #2383E244; }
     100% { box-shadow: 0 0 0 0 transparent, 0 0 0 0 transparent; }
@@ -245,20 +269,25 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
   const [dragIndex, setDragIndex] = useState(null);
   const [dragOverIndex, setDragOverIndex] = useState(null);
   const [flashIndex, setFlashIndex] = useState(null); // briefly highlights newly added question
+  const [showTypeSelector, setShowTypeSelector] = useState(false);
   const questionRefs = useRef({});
+  const typeSelectorRef = useRef(null);
 
-  const addQuestion = () => {
-    let newQ;
-    if (activityType === "mcq") newQ = { type: "mcq", q: "", options: ["", "", "", ""], correct: 0 };
-    else if (activityType === "tf") newQ = { type: "tf", q: "", correct: true };
-    else if (activityType === "fill") newQ = { type: "fill", q: "", answer: "" };
-    else if (activityType === "order") newQ = { type: "order", q: "", items: ["", "", "", ""] };
-    else if (activityType === "match") newQ = { type: "match", q: "", pairs: [{ left: "", right: "" }, { left: "", right: "" }, { left: "", right: "" }] };
+  // Build a blank question of the given type (defaults to mcq).
+  const blankQuestion = (type) => {
+    if (type === "tf")    return { type: "tf",    q: "", correct: true };
+    if (type === "fill")  return { type: "fill",  q: "", answer: "" };
+    if (type === "order") return { type: "order", q: "", items: ["", "", "", ""] };
+    if (type === "match") return { type: "match", q: "", pairs: [{ left: "", right: "" }, { left: "", right: "" }, { left: "", right: "" }] };
+    return { type: "mcq", q: "", options: ["", "", "", ""], correct: 0 };
+  };
+
+  const addQuestion = (type) => {
+    const newQ = blankQuestion(type);
     setQuestions(prev => {
       const newIdx = prev.length;
       setExpandedQ(newIdx);
       setFlashIndex(newIdx);
-      // Scroll + clear flash on next frame, after the row mounts.
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
           questionRefs.current[newIdx]?.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -266,6 +295,17 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
       });
       setTimeout(() => setFlashIndex(null), 1400);
       return [...prev, newQ];
+    });
+    setShowTypeSelector(false);
+  };
+
+  const openTypeSelector = () => {
+    setShowTypeSelector(true);
+    // Scroll to the selector after it mounts so user sees it without effort.
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        typeSelectorRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      });
     });
   };
 
@@ -300,7 +340,7 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
   // Validate completeness of a question (all required fields filled).
   const isQComplete = (q) => {
     if (!q?.q?.trim()) return false;
-    const type = q.type || activityType;
+    const type = q.type || "mcq";
     if (type === "mcq")   return Array.isArray(q.options) && q.options.length >= 2 && q.options.every(o => o?.trim());
     if (type === "tf")    return typeof q.correct === "boolean";
     if (type === "fill")  return !!q.answer?.trim();
@@ -311,7 +351,7 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
 
   // Short preview text for a question type chip.
   const shortType = (q) => {
-    const id = q.type || activityType;
+    const id = q.type || "mcq";
     return ACTIVITY_TYPES.find(a => a.id === id)?.label[l] || id;
   };
 
@@ -337,6 +377,22 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
     setDragIndex(null);
     setDragOverIndex(null);
   };
+
+  // Keyboard: ESC closes type selector first, then collapses the expanded question.
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key !== "Escape") return;
+      if (showTypeSelector) { setShowTypeSelector(false); return; }
+      if (expandedQ !== null) {
+        // Don't trigger if user is in a multiline input or textarea — let them dismiss naturally.
+        const tag = (document.activeElement?.tagName || "").toLowerCase();
+        if (tag === "textarea") return;
+        setExpandedQ(null);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [showTypeSelector, expandedQ]);
 
   // ── Cover image handlers ──
   const handleImagePick = () => fileInputRef.current?.click();
@@ -700,24 +756,10 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
 
         {/* ── Tab: Questions ── */}
         {editorTab === "questions" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-          <div>
-            <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: C.textSecondary, marginBottom: 8 }}>{t.activityType}</label>
-            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-              {ACTIVITY_TYPES.map(at => (
-                <button key={at.id} className="dk-pill" onClick={() => { setActivityType(at.id); }} style={{
-                  padding: "7px 14px", borderRadius: 8, fontSize: 12, fontWeight: 500,
-                  background: activityType === at.id ? C.accentSoft : C.bg,
-                  color: activityType === at.id ? C.accent : C.textSecondary,
-                  border: `1px solid ${activityType === at.id ? C.accent + "33" : C.border}`,
-                  cursor: "pointer", fontFamily: "'Outfit',sans-serif",
-                  display: "flex", alignItems: "center", gap: 5,
-                }}>
-                  <CIcon name={at.icon} size={14} inline /> {at.label[l]}
-                </button>
-              ))}
-            </div>
-          </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <p style={{ fontSize: 12, color: C.textMuted, margin: 0 }}>
+            {questions.length === 0 ? t.questionsEmpty : t.questionsHint}
+          </p>
         </div>
         )}
       </div>
@@ -727,7 +769,7 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
       <div className="fade-up" style={{ animationDelay: ".1s" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
           <h3 style={{ fontSize: 15, fontWeight: 600 }}>{t.questions} ({questions.length})</h3>
-          <button className="dk-btn" onClick={addQuestion} style={{ padding: "8px 16px", borderRadius: 8, fontSize: 13, fontWeight: 600, background: C.accentSoft, color: C.accent }}>{t.addQuestion}</button>
+          <button className="dk-btn" onClick={openTypeSelector} disabled={showTypeSelector} style={{ padding: "8px 16px", borderRadius: 8, fontSize: 13, fontWeight: 600, background: showTypeSelector ? C.bgSoft : C.accentSoft, color: showTypeSelector ? C.textMuted : C.accent, opacity: showTypeSelector ? 0.6 : 1 }}>{t.addQuestion}</button>
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -735,7 +777,7 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
             const isExpanded = expandedQ === qi;
             const complete = isQComplete(q);
             const dragging = dragIndex === qi;
-            const dropTarget = dragOverIndex === qi && dragIndex !== qi;
+            const dropTarget = dragOverIndex === qi && dragIndex !== null && dragIndex !== qi;
             return (
               <div
                 key={qi}
@@ -743,6 +785,7 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
                 className={`dk-q-row ${flashIndex === qi ? "dk-q-flash" : ""}`}
                 data-dragging={dragging}
                 data-drop-target={dropTarget}
+                data-expanded={isExpanded}
                 onDragOver={onDragOver(qi)}
                 onDrop={onDrop(qi)}
                 style={{
@@ -751,19 +794,24 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
                   overflow: "hidden",
                 }}
               >
-                {/* ── Compact row (always visible) ── */}
-                <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px" }}>
+                {/* ── Compact row (whole header is clickable to expand) ── */}
+                <div
+                  className="dk-q-header"
+                  onClick={() => setExpandedQ(isExpanded ? null : qi)}
+                  style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px" }}
+                >
                   <span
                     className="dk-q-handle"
                     draggable
                     onDragStart={onDragStart(qi)}
                     onDragEnd={onDragEnd}
+                    onClick={(e) => e.stopPropagation()}
                     title={t.drag}
                     aria-label={t.drag}
                     style={{
                       width: 22, height: 22,
                       display: "flex", alignItems: "center", justifyContent: "center",
-                      color: C.textMuted, flexShrink: 0,
+                      flexShrink: 0,
                       userSelect: "none",
                     }}
                   >
@@ -811,27 +859,24 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
                     <CIcon name={complete ? "check" : "warning"} size={11} inline />
                   </span>
 
-                  <button
-                    className="dk-q-toggle"
-                    onClick={() => setExpandedQ(isExpanded ? null : qi)}
-                    aria-label={isExpanded ? "Collapse" : "Expand"}
+                  {/* Chevron is a visual indicator only — entire header is clickable */}
+                  <span
+                    aria-hidden="true"
                     style={{
-                      width: 28, height: 28, borderRadius: 7,
-                      background: "transparent", color: C.textSecondary,
-                      border: "none", cursor: "pointer",
+                      width: 22, height: 22, borderRadius: 6,
+                      color: C.textMuted,
                       display: "flex", alignItems: "center", justifyContent: "center",
-                      flexShrink: 0, padding: 0,
-                      transition: "all .15s ease",
+                      flexShrink: 0,
                     }}
                   >
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style={{ transform: isExpanded ? "rotate(180deg)" : "rotate(0deg)", transition: "transform .2s ease" }}>
                       <path d="M6 9L12 15L18 9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                     </svg>
-                  </button>
+                  </span>
 
                   <button
                     className="dk-q-delete"
-                    onClick={() => removeQ(qi)}
+                    onClick={(e) => { e.stopPropagation(); removeQ(qi); }}
                     aria-label={t.removeQuestion}
                     title={t.removeQuestion}
                     style={{
@@ -928,11 +973,63 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
           })}
         </div>
 
-        {/* Add another button at the bottom — Quizlet-style */}
-        {questions.length > 0 && (
+        {/* Type Selector — appears below the list when triggered */}
+        {showTypeSelector && (
+          <div ref={typeSelectorRef} className="fade-up dk-type-picker" style={{
+            marginTop: questions.length > 0 ? 12 : 0,
+            padding: 18,
+            borderRadius: 12,
+            background: C.bg,
+            border: `2px solid ${C.accent}`,
+            boxShadow: `0 6px 20px ${C.accent}22`,
+          }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+              <h4 style={{ fontSize: 14, fontWeight: 700, margin: 0, color: C.text }}>{t.chooseType}</h4>
+              <button
+                className="dk-btn-secondary"
+                onClick={() => setShowTypeSelector(false)}
+                style={{
+                  padding: "5px 10px", borderRadius: 6, fontSize: 12, fontWeight: 500,
+                  background: "transparent", color: C.textMuted, border: "none",
+                  cursor: "pointer", fontFamily: "'Outfit',sans-serif",
+                }}
+              >{t.cancel}</button>
+            </div>
+            <div style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))",
+              gap: 8,
+            }}>
+              {ACTIVITY_TYPES.map(at => (
+                <button
+                  key={at.id}
+                  className="dk-type-card"
+                  onClick={() => addQuestion(at.id)}
+                  style={{
+                    padding: "16px 10px",
+                    borderRadius: 10,
+                    background: C.bg,
+                    border: `1.5px solid ${C.border}`,
+                    cursor: "pointer",
+                    fontFamily: "'Outfit',sans-serif",
+                    display: "flex", flexDirection: "column", alignItems: "center", gap: 8,
+                    transition: "all .15s ease",
+                    minHeight: 80,
+                  }}
+                >
+                  <CIcon name={at.icon} size={28} />
+                  <span style={{ fontSize: 12, fontWeight: 600, color: C.text, textAlign: "center", lineHeight: 1.2 }}>{at.label[l]}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Add another button at the bottom — opens selector */}
+        {questions.length > 0 && !showTypeSelector && (
           <button
-            className="dk-btn"
-            onClick={addQuestion}
+            className="dk-add-another"
+            onClick={openTypeSelector}
             style={{
               width: "100%",
               marginTop: 12,
@@ -946,17 +1043,24 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
               display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
               transition: "all .15s ease",
             }}
-            onMouseEnter={e => { e.currentTarget.style.background = C.accentSoft; e.currentTarget.style.borderColor = C.accent; }}
-            onMouseLeave={e => { e.currentTarget.style.background = C.bg; e.currentTarget.style.borderColor = C.accent + "66"; }}
           >
             <CIcon name="plus" size={16} inline /> {t.addAnother}
           </button>
         )}
 
-        {questions.length === 0 && (
-          <div style={{ textAlign: "center", padding: 32, background: C.bgSoft, borderRadius: 12, border: `1px dashed ${C.border}` }}>
-            <CIcon name="plus" size={28} />
-            <p style={{ fontSize: 13, color: C.textMuted, marginTop: 8 }}>{t.addQuestion}</p>
+        {/* Empty state — full friendly call to action */}
+        {questions.length === 0 && !showTypeSelector && (
+          <div style={{ textAlign: "center", padding: 36, background: C.bgSoft, borderRadius: 12, border: `1px dashed ${C.border}` }}>
+            <CIcon name="question" size={32} />
+            <p style={{ fontSize: 13, color: C.textMuted, marginTop: 10, marginBottom: 14 }}>{t.questionsEmpty}</p>
+            <button
+              className="dk-btn"
+              onClick={openTypeSelector}
+              style={{
+                padding: "10px 20px", borderRadius: 8, fontSize: 13, fontWeight: 600,
+                background: `linear-gradient(135deg, ${C.accent}, ${C.purple})`, color: "#fff",
+              }}
+            >{t.addQuestion}</button>
           </div>
         )}
       </div>
