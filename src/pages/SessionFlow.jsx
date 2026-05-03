@@ -90,6 +90,39 @@ const i18n = {
 };
 
 // ─── Shared Components ──────────────────────────────
+const interactiveCSS = `
+  .cl-btn { transition: all .15s ease; }
+  .cl-btn:hover { transform: translateY(-1px); filter: brightness(1.05); }
+  .cl-btn:active { transform: translateY(0) scale(.97); filter: brightness(.95); }
+  .cl-btn-secondary:hover { background: #F7F7F5 !important; border-color: #2383E2 !important; color: #2383E2 !important; }
+  .cl-btn-danger:hover { background: #E03E3E !important; color: #fff !important; }
+  .cl-btn-ghost:hover { background: #F7F7F5 !important; }
+  .cl-card { transition: all .2s ease; }
+  .cl-card:hover { border-color: #E8E8E4; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+  .cl-card-clickable:hover { border-color: #2383E244; box-shadow: 0 4px 12px rgba(35,131,226,0.08); transform: translateY(-1px); }
+  .cl-card-clickable:active { transform: translateY(0); box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+  .cl-pill { transition: all .15s ease; }
+  .cl-pill:hover { transform: translateY(-1px); filter: brightness(.95); }
+  .cl-pill:active { transform: scale(.95); }
+  .cl-input:focus { border-color: #2383E2 !important; box-shadow: 0 0 0 3px #E8F0FE !important; }
+  .cl-select:focus { border-color: #2383E2 !important; box-shadow: 0 0 0 3px #E8F0FE !important; }
+  .cl-back:hover { background: #2383E233 !important; }
+  .cl-back:active { transform: scale(.96); }
+  .cl-tag { transition: all .15s ease; }
+  .cl-tag:hover { filter: brightness(.92); transform: scale(1.03); }
+  .cl-num:hover { border-color: #2383E244 !important; background: #E8F0FE !important; color: #2383E2 !important; }
+  .cl-action { transition: all .15s ease; }
+  .cl-action:hover { transform: translateY(-1px); }
+  .cl-action:active { transform: translateY(0) scale(.97); }
+  .cl-participant { transition: all .15s ease; animation: fadeIn .3s ease; }
+  .cl-participant:hover { background: #E8F0FE !important; border-color: #2383E244 !important; }
+  .cl-result-card { transition: all .2s ease; animation: slideIn .3s ease; }
+  .cl-result-card:hover { transform: translateX(4px); border-color: #2383E244; }
+  @keyframes fadeIn { from { opacity: 0; transform: scale(.9); } to { opacity: 1; transform: scale(1); } }
+  @keyframes slideIn { from { opacity: 0; transform: translateX(-8px); } to { opacity: 1; transform: translateX(0); } }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .4; } }
+`;
+
 const Btn = ({ children, v = "primary", onClick, disabled, style = {}, full }) => {
   const base = { padding: "10px 20px", borderRadius: 8, fontSize: 14, fontWeight: 600, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6, width: full ? "100%" : "auto", opacity: disabled ? 0.4 : 1, pointerEvents: disabled ? "none" : "auto", border: "none", cursor: "pointer", fontFamily: "'Outfit',sans-serif" };
   const vs = {
@@ -98,11 +131,12 @@ const Btn = ({ children, v = "primary", onClick, disabled, style = {}, full }) =
     danger: { background: C.redSoft, color: C.red },
     ghost: { background: "transparent", color: C.textSecondary },
   };
-  return <button onClick={onClick} disabled={disabled} style={{ ...base, ...vs[v], ...style }}>{children}</button>;
+  const className = `cl-btn ${v === "secondary" ? "cl-btn-secondary" : v === "danger" ? "cl-btn-danger" : v === "ghost" ? "cl-btn-ghost" : ""}`;
+  return <button className={className} onClick={onClick} disabled={disabled} style={{ ...base, ...vs[v], ...style }}>{children}</button>;
 };
 
-const Card = ({ children, style = {}, onClick }) => (
-  <div onClick={onClick} style={{ background: C.bg, borderRadius: 12, border: `1px solid ${C.border}`, padding: 20, boxShadow: C.shadow, cursor: onClick ? "pointer" : "default", ...style }}>{children}</div>
+const Card = ({ children, style = {}, onClick, className: cx = "" }) => (
+  <div className={`cl-card ${onClick ? "cl-card-clickable" : ""} ${cx}`} onClick={onClick} style={{ background: C.bg, borderRadius: 12, border: `1px solid ${C.border}`, padding: 20, boxShadow: C.shadow, cursor: onClick ? "pointer" : "default", ...style }}>{children}</div>
 );
 
 const Bar = ({ value, max = 100, color = C.accent, h = 6 }) => (
@@ -264,10 +298,10 @@ function ClassSetup({ userId, onClassReady, t }) {
               <Card key={cls.id} style={{ padding: 16, borderLeft: `3px solid ${C.accent}` }}>
                 <p style={{ fontSize: 13, fontWeight: 600, color: C.accent, marginBottom: 12 }}>{t.editingClass}</p>
                 <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                  <input value={editName} onChange={e => setEditName(e.target.value)} style={inp} />
+                  <input value={editName} onChange={e => setEditName(e.target.value)} className="cl-input" style={inp} />
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                    <select value={editGrade} onChange={e => setEditGrade(e.target.value)} style={sel}>{GRADES.map(g => <option key={g}>{g}</option>)}</select>
-                    <select value={editSubject} onChange={e => setEditSubject(e.target.value)} style={sel}>{SUBJECTS.map(s => <option key={s}>{s}</option>)}</select>
+                    <select value={editGrade} onChange={e => setEditGrade(e.target.value)} className="cl-select" style={sel}>{GRADES.map(g => <option key={g}>{g}</option>)}</select>
+                    <select value={editSubject} onChange={e => setEditSubject(e.target.value)} className="cl-select" style={sel}>{SUBJECTS.map(s => <option key={s}>{s}</option>)}</select>
                   </div>
                   <div style={{ display: "flex", gap: 8 }}>
                     <button onClick={() => setEditing(null)} style={{ flex: 1, padding: "8px", borderRadius: 8, fontSize: 13, fontWeight: 500, background: C.bg, color: C.textSecondary, border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: "'Outfit',sans-serif" }}>{t.cancelDelete}</button>
@@ -293,7 +327,7 @@ function ClassSetup({ userId, onClassReady, t }) {
                 {ret && ret.topics.length > 0 && (
                   <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 10 }}>
                     {ret.topics.slice(0, 5).map((tp, i) => (
-                      <div key={i} style={{ padding: "3px 8px", borderRadius: 4, fontSize: 11, background: tp.status === "strong" ? C.greenSoft : tp.status === "medium" ? C.orangeSoft : C.redSoft, color: tp.status === "strong" ? C.green : tp.status === "medium" ? C.orange : C.red, fontWeight: 500 }}>{tp.topic} {tp.current_retention}%</div>
+                      <div key={i} className="cl-tag" style={{ padding: "3px 8px", borderRadius: 4, fontSize: 11, background: tp.status === "strong" ? C.greenSoft : tp.status === "medium" ? C.orangeSoft : C.redSoft, color: tp.status === "strong" ? C.green : tp.status === "medium" ? C.orange : C.red, fontWeight: 500, cursor: "default" }}>{tp.topic} {tp.current_retention}%</div>
                     ))}
                     {ret.topics.length > 5 && <span style={{ fontSize: 11, color: C.textMuted, padding: "3px 4px" }}>+{ret.topics.length - 5} {t.more}</span>}
                   </div>
@@ -302,8 +336,8 @@ function ClassSetup({ userId, onClassReady, t }) {
                   <Btn onClick={() => onClassReady(cls)} style={{ flex: 1, fontSize: 13, padding: "7px 12px" }}>
                     <CIcon name="rocket" size={14} inline /> {t.newSessionBtn}
                   </Btn>
-                  <button onClick={(e) => startEdit(cls, e)} style={{ padding: "7px 12px", borderRadius: 8, fontSize: 12, fontWeight: 500, background: C.bg, color: C.textSecondary, border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: "'Outfit',sans-serif" }}>{t.editClass}</button>
-                  <button onClick={(e) => confirmDelete(cls.id, e)} style={{ padding: "7px 12px", borderRadius: 8, fontSize: 12, fontWeight: 500, background: C.bg, color: C.red, border: `1px solid ${C.redSoft}`, cursor: "pointer", fontFamily: "'Outfit',sans-serif" }}>{t.deleteClass}</button>
+                  <button onClick={(e) => startEdit(cls, e)} style={{ padding: "7px 12px", borderRadius: 8, fontSize: 12, fontWeight: 500, background: C.bg, color: C.textSecondary, border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: "'Outfit',sans-serif", transition: "all .15s" }}>{t.editClass}</button>
+                  <button onClick={(e) => confirmDelete(cls.id, e)} style={{ padding: "7px 12px", borderRadius: 8, fontSize: 12, fontWeight: 500, background: C.bg, color: C.red, border: `1px solid ${C.redSoft}`, cursor: "pointer", fontFamily: "'Outfit',sans-serif", transition: "all .15s" }}>{t.deleteClass}</button>
                 </div>
               </Card>
             );
@@ -317,10 +351,10 @@ function ClassSetup({ userId, onClassReady, t }) {
           <CIcon name="plus" size={18} inline /> {t.createNewClass}
         </h3>
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          <input value={name} onChange={e => setName(e.target.value)} placeholder={t.classPlaceholder} style={inp} />
+          <input value={name} onChange={e => setName(e.target.value)} placeholder={t.classPlaceholder} className="cl-input" style={inp} />
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-            <select value={grade} onChange={e => setGrade(e.target.value)} style={sel}><option value="">{t.grade}...</option>{GRADES.map(g => <option key={g}>{g}</option>)}</select>
-            <select value={subject} onChange={e => setSubject(e.target.value)} style={sel}><option value="">{t.subject}...</option>{SUBJECTS.map(s => <option key={s}>{s}</option>)}</select>
+            <select value={grade} onChange={e => setGrade(e.target.value)} className="cl-select" style={sel}><option value="">{t.grade}...</option>{GRADES.map(g => <option key={g}>{g}</option>)}</select>
+            <select value={subject} onChange={e => setSubject(e.target.value)} className="cl-select" style={sel}><option value="">{t.subject}...</option>{SUBJECTS.map(s => <option key={s}>{s}</option>)}</select>
           </div>
           <Btn full onClick={createClass} disabled={!name || !grade || !subject || creating}>{creating ? t.creating : t.createClass}</Btn>
         </div>
@@ -379,7 +413,7 @@ function CreateSession({ cls, userId, onSessionCreated, onBack, t, lang }) {
 
   if (step === "preview") return (
     <div style={{ maxWidth: 560, margin: "0 auto" }}>
-      <button onClick={() => setStep("form")} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 8, fontSize: 13, fontWeight: 500, color: C.accent, background: C.accentSoft, border: "none", cursor: "pointer", fontFamily: "'Outfit',sans-serif", marginBottom: 16 }}>
+      <button onClick={() => setStep("form")} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 8, fontSize: 13, fontWeight: 500, color: C.accent, background: C.accentSoft, border: "none", cursor: "pointer", fontFamily: "'Outfit',sans-serif", marginBottom: 16, transition: "all .15s" }}>
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M19 12H5M5 12L11 6M5 12L11 18" stroke={C.accent} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
         {t.edit}
       </button>
@@ -407,7 +441,7 @@ function CreateSession({ cls, userId, onSessionCreated, onBack, t, lang }) {
 
   return (
     <div style={{ maxWidth: 480, margin: "0 auto" }}>
-      <button onClick={onBack} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 8, fontSize: 13, fontWeight: 500, color: C.accent, background: C.accentSoft, border: "none", cursor: "pointer", fontFamily: "'Outfit',sans-serif", marginBottom: 16 }}>
+      <button onClick={onBack} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 8, fontSize: 13, fontWeight: 500, color: C.accent, background: C.accentSoft, border: "none", cursor: "pointer", fontFamily: "'Outfit',sans-serif", marginBottom: 16, transition: "all .15s" }}>
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M19 12H5M5 12L11 6M5 12L11 18" stroke={C.accent} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
         {t.backToClasses}
       </button>
@@ -418,7 +452,7 @@ function CreateSession({ cls, userId, onSessionCreated, onBack, t, lang }) {
 
       <div style={{ display: "flex", gap: 6, marginBottom: 18 }}>
         {[["warmup", "warmup", t.warmup], ["exitTicket", "ticket", t.exitTicket]].map(([val, icon, label]) => (
-          <button key={val} onClick={() => setSessionType(val)} style={{ flex: 1, padding: 10, borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: "pointer", background: sessionType === val ? C.accentSoft : C.bg, color: sessionType === val ? C.accent : C.textSecondary, border: `1px solid ${sessionType === val ? C.accent + "33" : C.border}`, fontFamily: "'Outfit',sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+          <button key={val} className="cl-pill" onClick={() => setSessionType(val)} style={{ flex: 1, padding: 10, borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: "pointer", background: sessionType === val ? C.accentSoft : C.bg, color: sessionType === val ? C.accent : C.textSecondary, border: `1px solid ${sessionType === val ? C.accent + "33" : C.border}`, fontFamily: "'Outfit',sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
             <CIcon name={icon} size={16} inline /> {label}
           </button>
         ))}
@@ -426,7 +460,7 @@ function CreateSession({ cls, userId, onSessionCreated, onBack, t, lang }) {
 
       <div style={{ display: "flex", gap: 6, marginBottom: 16 }}>
         {[["text", "book", t.typeTopic], ["file", "plus", t.uploadFile]].map(([mode, icon, label]) => (
-          <button key={mode} onClick={() => setInputMode(mode)} style={{ flex: 1, padding: "8px 12px", borderRadius: 8, fontSize: 13, fontWeight: 500, background: inputMode === mode ? C.bg : "transparent", color: inputMode === mode ? C.text : C.textMuted, border: `1px solid ${inputMode === mode ? C.border : "transparent"}`, boxShadow: inputMode === mode ? C.shadow : "none", cursor: "pointer", fontFamily: "'Outfit',sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+          <button key={mode} className="cl-pill" onClick={() => setInputMode(mode)} style={{ flex: 1, padding: "8px 12px", borderRadius: 8, fontSize: 13, fontWeight: 500, background: inputMode === mode ? C.bg : "transparent", color: inputMode === mode ? C.text : C.textMuted, border: `1px solid ${inputMode === mode ? C.border : "transparent"}`, boxShadow: inputMode === mode ? C.shadow : "none", cursor: "pointer", fontFamily: "'Outfit',sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
             <CIcon name={icon} size={15} inline /> {label}
           </button>
         ))}
@@ -461,19 +495,19 @@ function CreateSession({ cls, userId, onSessionCreated, onBack, t, lang }) {
 
         <div>
           <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: C.textSecondary, marginBottom: 5 }}>{inputMode === "file" ? t.topicFromFile : t.topic}</label>
-          <input value={topic} onChange={e => setTopic(e.target.value)} placeholder={t.topicPlaceholder} style={inp} />
+          <input value={topic} onChange={e => setTopic(e.target.value)} placeholder={t.topicPlaceholder} className="cl-input" style={inp} />
         </div>
         {inputMode === "text" && (
           <div>
             <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: C.textSecondary, marginBottom: 5 }}>{t.keyPoints}</label>
-            <textarea value={keyPoints} onChange={e => setKeyPoints(e.target.value)} placeholder={t.keyPointsPlaceholder} style={{ ...inp, minHeight: 80, resize: "vertical" }} />
+            <textarea value={keyPoints} onChange={e => setKeyPoints(e.target.value)} placeholder={t.keyPointsPlaceholder} className="cl-input" style={{ ...inp, minHeight: 80, resize: "vertical" }} />
           </div>
         )}
         <div>
           <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: C.textSecondary, marginBottom: 5 }}>{t.numQuestions}</label>
           <div style={{ display: "flex", gap: 4 }}>
             {[3, 5, 8, 10].map(n => (
-              <button key={n} onClick={() => setNumQuestions(n)} style={{ flex: 1, padding: 8, borderRadius: 6, fontSize: 14, fontWeight: 600, background: numQuestions === n ? C.accentSoft : C.bg, color: numQuestions === n ? C.accent : C.textMuted, border: `1px solid ${numQuestions === n ? C.accent + "33" : C.border}`, fontFamily: MONO, cursor: "pointer" }}>{n}</button>
+              <button key={n} className="cl-num" onClick={() => setNumQuestions(n)} style={{ flex: 1, padding: 8, borderRadius: 6, fontSize: 14, fontWeight: 600, background: numQuestions === n ? C.accentSoft : C.bg, color: numQuestions === n ? C.accent : C.textMuted, border: `1px solid ${numQuestions === n ? C.accent + "33" : C.border}`, fontFamily: MONO, cursor: "pointer" }}>{n}</button>
             ))}
           </div>
         </div>
@@ -519,7 +553,7 @@ function SessionLobby({ session, onStart, onEnd, t }) {
         <p style={{ fontSize: 13, color: C.textSecondary }}>{t.studentsJoined}</p>
         {participants.length > 0 && (
           <div style={{ display: "flex", flexWrap: "wrap", gap: 4, justifyContent: "center", marginTop: 14 }}>
-            {participants.map((p, i) => <span key={i} style={{ padding: "3px 10px", borderRadius: 20, fontSize: 12, background: C.bgSoft, color: C.textSecondary, border: `1px solid ${C.border}` }}>{p.student_name}</span>)}
+            {participants.map((p, i) => <span key={i} style={{ padding: "3px 10px", borderRadius: 20, fontSize: 12, background: C.bgSoft, color: C.textSecondary, border: `1px solid ${C.border}`, transition: "all .15s" }}>{p.student_name}</span>)}
           </div>
         )}
       </Card>
@@ -586,7 +620,7 @@ function LiveResults({ session, onEnd, t }) {
         {results.map((s, i) => {
           const pct = totalQ > 0 ? (s.correct / totalQ) * 100 : 0;
           return (
-            <Card key={i} style={{ padding: "12px 16px", display: "flex", alignItems: "center", gap: 12 }}>
+            <Card key={i} className="cl-result-card" style={{ padding: "12px 16px", display: "flex", alignItems: "center", gap: 12 }}>
               <span style={{ fontSize: 13, fontWeight: 600, color: C.textMuted, width: 20, textAlign: "center" }}>{i + 1}</span>
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 4 }}>{s.student_name}</div>
@@ -616,6 +650,7 @@ export default function SessionFlow({ lang = "en", setLang }) {
 
   return (
     <div style={{ padding: "28px 20px" }}>
+      <style>{interactiveCSS}</style>
       <PageHeader title={t.pageTitle} icon="pin" lang={lang} setLang={setLang || (() => {})} />
 
       {step === "classes" && <ClassSetup userId={user.id} onClassReady={(cls) => { setSelectedClass(cls); setStep("create"); }} t={t} />}
