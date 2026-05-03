@@ -37,6 +37,9 @@ const i18n = {
     liveResults: "Live Results", endSession: "End Session", students: "students", average: "average",
     waitingResponses: "Waiting for responses...", loadingClasses: "Loading classes...", loading: "Loading...",
     fileTooLarge: "File too large. Max",
+    editClass: "Edit", deleteClass: "Delete", deleteConfirm: "Delete this class? This cannot be undone.",
+    confirmDelete: "Yes, delete", cancelDelete: "Cancel", saveClass: "Save", newSessionBtn: "New session",
+    editingClass: "Edit class", students: "students",
   },
   es: {
     pageTitle: "Sesiones", yourClasses: "Tus Clases", yourClassesSub: "Selecciona una clase para crear una sesión, o crea una nueva.",
@@ -57,6 +60,9 @@ const i18n = {
     liveResults: "Resultados en Vivo", endSession: "Terminar Sesión", students: "estudiantes", average: "promedio",
     waitingResponses: "Esperando respuestas...", loadingClasses: "Cargando clases...", loading: "Cargando...",
     fileTooLarge: "Archivo muy grande. Máx",
+    editClass: "Editar", deleteClass: "Eliminar", deleteConfirm: "¿Eliminar esta clase? No se puede deshacer.",
+    confirmDelete: "Sí, eliminar", cancelDelete: "Cancelar", saveClass: "Guardar", newSessionBtn: "Nueva sesión",
+    editingClass: "Editar clase", students: "estudiantes",
   },
   ko: {
     pageTitle: "세션", yourClasses: "내 수업", yourClassesSub: "수업을 선택하여 세션을 만들거나 새 수업을 만드세요.",
@@ -77,6 +83,9 @@ const i18n = {
     liveResults: "실시간 결과", endSession: "세션 종료", students: "학생", average: "평균",
     waitingResponses: "응답 대기 중...", loadingClasses: "수업 로딩 중...", loading: "로딩...",
     fileTooLarge: "파일이 너무 큽니다. 최대",
+    editClass: "편집", deleteClass: "삭제", deleteConfirm: "이 수업을 삭제하시겠습니까? 되돌릴 수 없습니다.",
+    confirmDelete: "네, 삭제", cancelDelete: "취소", saveClass: "저장", newSessionBtn: "새 세션",
+    editingClass: "수업 편집", students: "학생",
   },
 };
 
@@ -140,6 +149,11 @@ function ClassSetup({ userId, onClassReady, t }) {
   const [subject, setSubject] = useState("");
   const [retention, setRetention] = useState({});
   const [suggestions, setSuggestions] = useState({});
+  const [editing, setEditing] = useState(null); // class id being edited
+  const [editName, setEditName] = useState("");
+  const [editGrade, setEditGrade] = useState("");
+  const [editSubject, setEditSubject] = useState("");
+  const [deleting, setDeleting] = useState(null); // class id confirming delete
 
   useEffect(() => { loadClasses(); }, [userId]);
 
@@ -164,6 +178,32 @@ function ClassSetup({ userId, onClassReady, t }) {
     const { data, error } = await supabase.from("classes").insert({ teacher_id: userId, name, grade, subject, class_code: code }).select().single();
     if (!error && data) { setClasses(prev => [data, ...prev]); setName(""); setGrade(""); setSubject(""); }
     setCreating(false);
+  };
+
+  const startEdit = (cls, e) => {
+    e.stopPropagation();
+    setEditing(cls.id);
+    setEditName(cls.name);
+    setEditGrade(cls.grade);
+    setEditSubject(cls.subject);
+  };
+
+  const saveEdit = async (classId) => {
+    if (!editName || !editGrade || !editSubject) return;
+    await supabase.from("classes").update({ name: editName, grade: editGrade, subject: editSubject }).eq("id", classId);
+    setClasses(prev => prev.map(c => c.id === classId ? { ...c, name: editName, grade: editGrade, subject: editSubject } : c));
+    setEditing(null);
+  };
+
+  const confirmDelete = (classId, e) => {
+    e.stopPropagation();
+    setDeleting(classId);
+  };
+
+  const doDelete = async (classId) => {
+    await supabase.from("classes").delete().eq("id", classId);
+    setClasses(prev => prev.filter(c => c.id !== classId));
+    setDeleting(null);
   };
 
   if (loading) return <p style={{ color: C.textMuted, textAlign: "center", padding: 40 }}>{t.loadingClasses}</p>;
@@ -204,9 +244,43 @@ function ClassSetup({ userId, onClassReady, t }) {
         <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 20 }}>
           {classes.map(cls => {
             const ret = retention[cls.id];
+            const isEditing = editing === cls.id;
+            const isDeleting = deleting === cls.id;
+
+            // Delete confirmation
+            if (isDeleting) return (
+              <Card key={cls.id} style={{ padding: 16, borderLeft: `3px solid ${C.red}` }}>
+                <p style={{ fontSize: 14, fontWeight: 500, marginBottom: 12 }}>{t.deleteConfirm}</p>
+                <p style={{ fontSize: 13, color: C.textMuted, marginBottom: 14 }}>{cls.name} · {cls.grade} · {cls.subject}</p>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button onClick={() => setDeleting(null)} style={{ flex: 1, padding: "8px", borderRadius: 8, fontSize: 13, fontWeight: 500, background: C.bg, color: C.textSecondary, border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: "'Outfit',sans-serif" }}>{t.cancelDelete}</button>
+                  <button onClick={() => doDelete(cls.id)} style={{ flex: 1, padding: "8px", borderRadius: 8, fontSize: 13, fontWeight: 600, background: C.red, color: "#fff", border: "none", cursor: "pointer", fontFamily: "'Outfit',sans-serif" }}>{t.confirmDelete}</button>
+                </div>
+              </Card>
+            );
+
+            // Edit form
+            if (isEditing) return (
+              <Card key={cls.id} style={{ padding: 16, borderLeft: `3px solid ${C.accent}` }}>
+                <p style={{ fontSize: 13, fontWeight: 600, color: C.accent, marginBottom: 12 }}>{t.editingClass}</p>
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  <input value={editName} onChange={e => setEditName(e.target.value)} style={inp} />
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                    <select value={editGrade} onChange={e => setEditGrade(e.target.value)} style={sel}>{GRADES.map(g => <option key={g}>{g}</option>)}</select>
+                    <select value={editSubject} onChange={e => setEditSubject(e.target.value)} style={sel}>{SUBJECTS.map(s => <option key={s}>{s}</option>)}</select>
+                  </div>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button onClick={() => setEditing(null)} style={{ flex: 1, padding: "8px", borderRadius: 8, fontSize: 13, fontWeight: 500, background: C.bg, color: C.textSecondary, border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: "'Outfit',sans-serif" }}>{t.cancelDelete}</button>
+                    <Btn onClick={() => saveEdit(cls.id)} style={{ flex: 1, padding: "8px", fontSize: 13 }}>{t.saveClass}</Btn>
+                  </div>
+                </div>
+              </Card>
+            );
+
+            // Normal card
             return (
-              <Card key={cls.id} style={{ padding: 16 }} onClick={() => onClassReady(cls)}>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: ret?.topics?.length > 0 ? 12 : 0 }}>
+              <Card key={cls.id} style={{ padding: 16 }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
                   <div>
                     <div style={{ fontSize: 15, fontWeight: 600 }}>{cls.name}</div>
                     <div style={{ fontSize: 12, color: C.textMuted, marginTop: 2 }}>{cls.grade} · {cls.subject}</div>
@@ -217,13 +291,20 @@ function ClassSetup({ userId, onClassReady, t }) {
                   </div>
                 </div>
                 {ret && ret.topics.length > 0 && (
-                  <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+                  <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 10 }}>
                     {ret.topics.slice(0, 5).map((tp, i) => (
                       <div key={i} style={{ padding: "3px 8px", borderRadius: 4, fontSize: 11, background: tp.status === "strong" ? C.greenSoft : tp.status === "medium" ? C.orangeSoft : C.redSoft, color: tp.status === "strong" ? C.green : tp.status === "medium" ? C.orange : C.red, fontWeight: 500 }}>{tp.topic} {tp.current_retention}%</div>
                     ))}
                     {ret.topics.length > 5 && <span style={{ fontSize: 11, color: C.textMuted, padding: "3px 4px" }}>+{ret.topics.length - 5} {t.more}</span>}
                   </div>
                 )}
+                <div style={{ display: "flex", gap: 6, borderTop: `1px solid ${C.border}`, paddingTop: 10 }}>
+                  <Btn onClick={() => onClassReady(cls)} style={{ flex: 1, fontSize: 13, padding: "7px 12px" }}>
+                    <CIcon name="rocket" size={14} inline /> {t.newSessionBtn}
+                  </Btn>
+                  <button onClick={(e) => startEdit(cls, e)} style={{ padding: "7px 12px", borderRadius: 8, fontSize: 12, fontWeight: 500, background: C.bg, color: C.textSecondary, border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: "'Outfit',sans-serif" }}>{t.editClass}</button>
+                  <button onClick={(e) => confirmDelete(cls.id, e)} style={{ padding: "7px 12px", borderRadius: 8, fontSize: 12, fontWeight: 500, background: C.bg, color: C.red, border: `1px solid ${C.redSoft}`, cursor: "pointer", fontFamily: "'Outfit',sans-serif" }}>{t.deleteClass}</button>
+                </div>
               </Card>
             );
           })}
