@@ -12,7 +12,7 @@ import Activities from './pages/Activities';
 import Settings from './pages/Settings';
 import Director from './pages/Director';
 import Notifications from './pages/Notifications';
-import AIGenerator from './pages/AIGenerator';
+import Decks from './pages/Decks';
 
 const C = {
   bg: "#FFFFFF", bgSoft: "#F7F7F5", accent: "#2383E2", accentSoft: "#E8F0FE",
@@ -20,7 +20,7 @@ const C = {
   red: "#E03E3E", redSoft: "#FDECEC", purple: "#6940A5", purpleSoft: "#F3EEFB",
   text: "#191919", textSecondary: "#6B6B6B", textMuted: "#9B9B9B", border: "#E8E8E4",
 };
-const COMPONENTS = { sessions: SessionFlow, studentJoin: StudentJoin, mainApp: MainApp, landing: Landing, onboarding: Onboarding, community: Community, achievements: Achievements, activities: Activities, settings: Settings, director: Director, notifications: Notifications, aiGenerator: AIGenerator };
+const COMPONENTS = { sessions: SessionFlow, studentJoin: StudentJoin, mainApp: MainApp, landing: Landing, onboarding: Onboarding, community: Community, achievements: Achievements, activities: Activities, settings: Settings, director: Director, notifications: Notifications, decks: Decks };
 
 function AuthScreen() {
   const [mode, setMode] = useState("select");
@@ -101,9 +101,9 @@ function AuthScreen() {
 function Sidebar({ page, setPage, profile, lang, setLang, open, setOpen, onSignOut, onNavClick }) {
   // Default to teacher unless we know for sure they're a student
   // This prevents the sidebar from flipping during token refresh
-  const isT = profile ? profile.role === "teacher" : (page === "sessions" || page === "aiGenerator" || page === "director");
+  const isT = profile ? profile.role === "teacher" : (page === "sessions" || page === "decks" || page === "director");
   const nav = isT
-    ? [{ id:"sessions",icon:(a)=><SessionsIcon size={28} active={a}/>,l:"Sessions" },{ id:"aiGenerator",icon:(a)=><AIGenIcon size={28} active={a}/>,l:"AI Generator" },{ id:"director",icon:(a)=><SchoolIcon size={28} active={a}/>,l:"School" },{ id:"community",icon:(a)=><CommunityIcon size={28} active={a}/>,l:"Community" },{ id:"notifications",icon:(a)=><NotificationsIcon size={28} active={a}/>,l:"Notifications" },{ id:"settings",icon:(a)=><SettingsIcon size={28} active={a}/>,l:"Settings" }]
+    ? [{ id:"sessions",icon:(a)=><SessionsIcon size={28} active={a}/>,l:"Sessions" },{ id:"decks",icon:(a)=><CommunityIcon size={28} active={a}/>,l:"Decks" },{ id:"director",icon:(a)=><SchoolIcon size={28} active={a}/>,l:"School" },{ id:"community",icon:(a)=><CommunityIcon size={28} active={a}/>,l:"Community" },{ id:"notifications",icon:(a)=><NotificationsIcon size={28} active={a}/>,l:"Notifications" },{ id:"settings",icon:(a)=><SettingsIcon size={28} active={a}/>,l:"Settings" }]
     : [{ id:"studentJoin",icon:(a)=><JoinSessionIcon size={28} active={a}/>,l:"Join Session" },{ id:"mainApp",icon:(a)=><ProgressIcon size={28} active={a}/>,l:"My Progress" },{ id:"achievements",icon:(a)=><AchievementsIcon size={28} active={a}/>,l:"Achievements" },{ id:"activities",icon:(a)=><ActivitiesIcon size={28} active={a}/>,l:"Activities" },{ id:"community",icon:(a)=><CommunityIcon size={28} active={a}/>,l:"Community" },{ id:"settings",icon:(a)=><SettingsIcon size={28} active={a}/>,l:"Settings" }];
 
   return (
