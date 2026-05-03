@@ -152,80 +152,38 @@ export default function App() {
   const [open, setOpen] = useState(true);
 
   useEffect(() => {
-    let mounted = true;
-
-    const initAuth = async () => {
-      try {
-        const { data: { session }, error } = await supabase.auth.getSession();
-        
-        if (!mounted) return;
-        
-        if (error || !session) {
-          // No valid session — show login
-          setUser(null);
-          setProfile(null);
-          setLoading(false);
-          return;
-        }
-
-        setUser(session.user);
-        await fetchProfile(session.user.id);
-        
-        // Clean OAuth hash if present
-        if (window.location.hash.includes("access_token")) {
-          window.history.replaceState(null, "", window.location.pathname);
-        }
-      } catch (err) {
-        console.error("Auth init error:", err);
-        setUser(null);
-        setProfile(null);
-      }
-      if (mounted) setLoading(false);
-    };
-
-    initAuth();
-
-    // Safety timeout — if auth takes more than 5 seconds, stop loading
-    const timeout = setTimeout(() => {
-      if (mounted && loading) {
-        console.warn("Auth timeout — clearing session");
-        setLoading(false);
-      }
-    }, 5000);
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (!mounted) return;
-
-      if (event === "SIGNED_OUT" || !session) {
-        setUser(null);
-        setProfile(null);
-        setLoading(false);
-        return;
-      }
-
-      if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
-        setUser(session.user);
-        // Only fetch profile if we don't have one yet, or if this is a new sign in
-        if (event === "SIGNED_IN" || !profile) {
-          try {
-            await fetchProfile(session.user.id);
-          } catch (err) {
-            console.error("Profile fetch error:", err);
-            // Don't clear existing profile on error — keep what we have
-          }
-        }
-        if (window.location.hash.includes("access_token")) {
-          window.history.replaceState(null, "", window.location.pathname);
-        }
-        setLoading(false);
-      }
+    // Initial session check
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      const u = session?.user ?? null;
+      setUser(u);
+      if (u) fetchProfile(u.id);
+      setLoading(false);
+    }).catch(() => {
+      setLoading(false);
     });
 
-    return () => {
-      mounted = false;
-      clearTimeout(timeout);
-      subscription.unsubscribe();
-    };
+    // Listen for auth changes (login, logout, token refresh)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      const u = session?.user ?? null;
+      setUser(u);
+
+      if (u && (event === "SIGNED_IN" || event === "INITIAL_SESSION")) {
+        fetchProfile(u.id);
+      }
+
+      if (event === "SIGNED_OUT") {
+        setProfile(null);
+      }
+
+      // Clean OAuth hash
+      if (window.location.hash.includes("access_token")) {
+        window.history.replaceState(null, "", window.location.pathname);
+      }
+
+      setLoading(false);
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   const fetchProfile = async (id) => {
