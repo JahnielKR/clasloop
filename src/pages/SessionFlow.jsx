@@ -696,14 +696,13 @@ function CreateSession({ cls, userId, onSessionCreated, onBack, t, lang, reviewT
             <input className="cl-input" value={customNum} onChange={e => { const v = e.target.value.replace(/\D/g, ""); setCustomNum(v); if (v) setNumQuestions(parseInt(v) || 5); }} placeholder="#" style={{ ...inp, width: 52, flex: "none", textAlign: "center", fontFamily: MONO, fontWeight: 600, fontSize: 14, padding: 8 }} />
           </div>
         </div>
-      </div>
 
-      <div style={{ marginTop: 20 }}>
-        <Btn full onClick={handleGenerate} disabled={!topic.trim() && !file}>
-          <CIcon name="brain" size={16} inline /> {inputMode === "file" && file ? t.generateFromFile : t.generateWithAI}
-        </Btn>
-        {inputMode === "file" && file && <p style={{ fontSize: 11, color: C.textMuted, textAlign: "center", marginTop: 8 }}>{t.aiWillAnalyze} {file.name.split(".").pop().toUpperCase()}</p>}
-      </div>
+        <div style={{ marginTop: 20 }}>
+          <Btn full onClick={handleGenerate} disabled={!topic.trim() && !file}>
+            <CIcon name="brain" size={16} inline /> {inputMode === "file" && file ? t.generateFromFile : t.generateWithAI}
+          </Btn>
+          {inputMode === "file" && file && <p style={{ fontSize: 11, color: C.textMuted, textAlign: "center", marginTop: 8 }}>{t.aiWillAnalyze} {file.name.split(".").pop().toUpperCase()}</p>}
+        </div>
       </div>
       )}
     </div>
