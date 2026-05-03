@@ -775,8 +775,8 @@ function DeckSelect({ cls, userId, onDeckSelected, onBack, t, lang }) {
 
   useEffect(() => {
     const load = async () => {
-      // Load user's own decks
-      const { data: mine } = await supabase.from("decks").select("*").eq("author_id", userId).order("created_at", { ascending: false });
+      // Load user's own decks matching this class subject
+      const { data: mine } = await supabase.from("decks").select("*").eq("author_id", userId).eq("subject", cls.subject).order("created_at", { ascending: false });
       // Load public decks matching class subject
       const { data: pub } = await supabase.from("decks").select("*, profiles(full_name)").eq("is_public", true).eq("subject", cls.subject).order("uses_count", { ascending: false }).limit(20);
       const all = [...(mine || [])];
