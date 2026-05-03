@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabase";
 import { CIcon } from "../components/Icons";
+import { DeckCover, SUBJ_ICON } from "../lib/deck-cover";
 
 const C = {
   bg: "#FFFFFF", bgSoft: "#F7F7F5", accent: "#2383E2", accentSoft: "#E8F0FE",
@@ -11,7 +12,6 @@ const C = {
   border: "#E8E8E4", shadow: "0 1px 3px rgba(0,0,0,0.04)",
 };
 const MONO = "'JetBrains Mono', monospace";
-const SUBJ_ICON = { Math: "math", Science: "science", History: "history", Language: "language", Geography: "geo", Art: "art", Music: "music", Other: "book" };
 const SUBJECTS = ["Math", "Science", "History", "Language", "Geography", "Art", "Music", "Other"];
 
 const i18n = {
@@ -136,6 +136,7 @@ export default function Community({ lang: pageLang = "en", setLang: pageSetLang 
       title: deck.title, description: deck.description,
       subject: cls?.subject || deck.subject, grade: cls?.grade || deck.grade,
       language: deck.language, questions: deck.questions, tags: deck.tags, is_public: false,
+      cover_color: deck.cover_color, cover_icon: deck.cover_icon,
     });
     if (!error) {
       await supabase.from("decks").update({ uses_count: (deck.uses_count || 0) + 1 }).eq("id", deck.id);
@@ -155,7 +156,6 @@ export default function Community({ lang: pageLang = "en", setLang: pageSetLang 
 
   if (selectedDeck) {
     const dk = selectedDeck;
-    const icon = SUBJ_ICON[dk.subject] || "book";
     const qs = dk.questions || [];
     return (
       <div style={{ padding: "28px 20px" }}>
@@ -168,8 +168,8 @@ export default function Community({ lang: pageLang = "en", setLang: pageSetLang 
           </button>
 
           <div className="fade-up" style={{ background: C.bg, borderRadius: 14, border: `1px solid ${C.border}`, padding: 24, marginBottom: 16 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
-              <CIcon name={icon} size={28} />
+            <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 14 }}>
+              <DeckCover deck={dk} size={64} radius={14} />
               <div>
                 <span style={{ fontSize: 12, color: C.textMuted }}>{dk.subject} · {dk.grade}</span>
                 <div style={{ marginTop: 2 }}><LangBadge lang={dk.language} /></div>
@@ -265,22 +265,27 @@ export default function Community({ lang: pageLang = "en", setLang: pageSetLang 
         filtered.length === 0 ? (
           <div className="fade-up" style={{ textAlign: "center", padding: 48 }}><CIcon name="other" size={36} /><p style={{ fontSize: 15, color: C.textMuted, marginTop: 12 }}>{t.noResults}</p></div>
         ) : (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 14 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 14 }}>
             {filtered.map((dk, i) => {
-              const icon = SUBJ_ICON[dk.subject] || "book";
               const qs = dk.questions || [];
               return (
-                <div key={dk.id} className="cm-card fade-up" onClick={() => setSelectedDeck(dk)} style={{ background: C.bg, borderRadius: 12, border: `1px solid ${C.border}`, padding: 18, boxShadow: C.shadow, animationDelay: `${i * .04}s` }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-                    <CIcon name={icon} size={20} inline />
-                    <span style={{ fontSize: 12, color: C.textMuted }}>{dk.subject} · {dk.grade}</span>
-                    <div style={{ marginLeft: "auto" }}><LangBadge lang={dk.language} /></div>
+                <div key={dk.id} className="cm-card fade-up" onClick={() => setSelectedDeck(dk)} style={{ background: C.bg, borderRadius: 14, border: `1px solid ${C.border}`, overflow: "hidden", boxShadow: C.shadow, animationDelay: `${i * .04}s`, display: "flex", flexDirection: "column" }}>
+                  <div style={{ padding: 18, paddingBottom: 14 }}>
+                    <div style={{ display: "flex", alignItems: "flex-start", gap: 12, marginBottom: 12 }}>
+                      <DeckCover deck={dk} size={52} radius={12} />
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <h3 style={{ fontSize: 15, fontWeight: 600, marginBottom: 4, lineHeight: 1.3, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{dk.title}</h3>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: C.textMuted }}>
+                          <span>{dk.subject} · {dk.grade}</span>
+                          <LangBadge lang={dk.language} />
+                        </div>
+                      </div>
+                    </div>
+                    {dk.description && <p style={{ fontSize: 12, color: C.textSecondary, lineHeight: 1.4, marginBottom: 0, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{dk.description}</p>}
                   </div>
-                  <h3 style={{ fontSize: 15, fontWeight: 600, marginBottom: 6, lineHeight: 1.3 }}>{dk.title}</h3>
-                  {dk.description && <p style={{ fontSize: 12, color: C.textSecondary, lineHeight: 1.4, marginBottom: 10, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{dk.description}</p>}
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingTop: 10, borderTop: `1px solid ${C.border}`, fontSize: 12, color: C.textMuted }}>
-                    <span>{t.by} {dk.profiles?.full_name || "Unknown"}</span>
-                    <span>{qs.length} {t.questions}</span>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 18px", background: C.bgSoft, borderTop: `1px solid ${C.border}`, fontSize: 12, color: C.textMuted, marginTop: "auto" }}>
+                    <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.by} {dk.profiles?.full_name || "Unknown"}</span>
+                    <span style={{ flexShrink: 0, marginLeft: 8, fontWeight: 600 }}>{qs.length} {t.questions}</span>
                   </div>
                 </div>
               );

@@ -3,6 +3,7 @@ import { supabase } from "../lib/supabase";
 import { generateQuestions, SUPPORTED_FILES } from "../lib/ai";
 import { processSessionResults, getReviewSuggestions, getClassRetentionOverview } from "../lib/spaced-repetition";
 import { CIcon } from "../components/Icons";
+import { DeckCover } from "../lib/deck-cover";
 
 // ─── Theme ──────────────────────────────────────────
 const C = {
@@ -15,6 +16,7 @@ const C = {
 const MONO = "'JetBrains Mono', monospace";
 const SUBJECTS = ["Math", "Science", "History", "Language", "Geography", "Art", "Music", "Other"];
 const SUBJ_ICON = { Math: "math", Science: "science", History: "history", Language: "language", Geography: "geo", Art: "art", Music: "music", Other: "book" };
+const SUBJ_COLOR = { Math: "blue", Science: "green", History: "amber", Language: "indigo", Geography: "teal", Art: "pink", Music: "purple", Other: "slate" };
 const GRADES = ["6th", "7th", "8th", "9th", "10th", "11th", "12th"];
 
 // ─── i18n ───────────────────────────────────────────
@@ -536,6 +538,8 @@ function CreateSession({ cls, userId, onSessionCreated, onBack, t, lang, reviewT
       subject: cls.subject, grade: cls.grade, language: lang,
       questions: questions.map(q => ({ ...q, type: activityType })),
       tags: [cls.subject.toLowerCase(), activityType], is_public: false,
+      cover_color: SUBJ_COLOR[cls.subject] || "blue",
+      cover_icon: SUBJ_ICON[cls.subject] || "book",
     });
     if (!error) setDeckSaved(true);
   };
@@ -910,18 +914,17 @@ function DeckSelect({ cls, userId, onDeckSelected, onBack, t, lang }) {
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {decks.map(dk => {
             const qs = dk.questions || [];
-            const icon = SUBJ_ICON[dk.subject] || "book";
             return (
-              <Card key={dk.id} onClick={() => onDeckSelected(dk)} style={{ padding: 16, cursor: "pointer" }}>
+              <Card key={dk.id} onClick={() => onDeckSelected(dk)} style={{ padding: 14, cursor: "pointer" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                  <CIcon name={icon} size={24} />
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 15, fontWeight: 600 }}>{dk.title}</div>
+                  <DeckCover deck={dk} size={48} radius={11} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 15, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{dk.title}</div>
                     <div style={{ fontSize: 12, color: C.textMuted, marginTop: 2 }}>
                       {dk.subject} · {dk.grade} · {qs.length} {t.questions}
                       {dk.profiles?.full_name ? ` · by ${dk.profiles.full_name}` : dk.author_id === userId ? " · yours" : ""}
                     </div>
-                    {dk.description && <p style={{ fontSize: 12, color: C.textSecondary, marginTop: 4, lineHeight: 1.3 }}>{dk.description}</p>}
+                    {dk.description && <p style={{ fontSize: 12, color: C.textSecondary, marginTop: 4, lineHeight: 1.3, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{dk.description}</p>}
                   </div>
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M9 6L15 12L9 18" stroke={C.textMuted} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
                 </div>

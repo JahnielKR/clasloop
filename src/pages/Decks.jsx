@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabase";
 import { CIcon } from "../components/Icons";
+import { DeckCover, DECK_COLORS, DECK_ICONS, DEFAULT_DECK_COLOR, DEFAULT_DECK_ICON, SUBJ_ICON } from "../lib/deck-cover";
 
 const C = {
   bg: "#FFFFFF", bgSoft: "#F7F7F5", accent: "#2383E2", accentSoft: "#E8F0FE",
@@ -11,7 +12,6 @@ const C = {
   border: "#E8E8E4", shadow: "0 1px 3px rgba(0,0,0,0.04)",
 };
 const MONO = "'JetBrains Mono', monospace";
-const SUBJ_ICON = { Math: "math", Science: "science", History: "history", Language: "language", Geography: "geo", Art: "art", Music: "music", Other: "book" };
 const SUBJECTS = ["Math", "Science", "History", "Language", "Geography", "Art", "Music", "Other"];
 const GRADES = ["6th-7th", "7th-8th", "8th-9th", "9th-10th", "10th-11th", "11th-12th"];
 
@@ -42,6 +42,8 @@ const i18n = {
     questionCount: "questions", launchSession: "Launch in class",
     deleteConfirm: "Delete this deck? This cannot be undone.",
     by: "by",
+    customize: "Customize", coverColor: "Cover color", coverIcon: "Cover icon",
+    preview: "Preview",
   },
   es: {
     pageTitle: "Decks", subtitle: "Crea y gestiona tus colecciones de preguntas",
@@ -61,6 +63,8 @@ const i18n = {
     questionCount: "preguntas", launchSession: "Lanzar en clase",
     deleteConfirm: "¿Eliminar este deck? No se puede deshacer.",
     by: "por",
+    customize: "Personalizar", coverColor: "Color de portada", coverIcon: "Icono de portada",
+    preview: "Vista previa",
   },
   ko: {
     pageTitle: "덱", subtitle: "문제 모음을 만들고 관리하세요",
@@ -80,6 +84,8 @@ const i18n = {
     questionCount: "문제", launchSession: "수업에서 시작",
     deleteConfirm: "이 덱을 삭제하시겠습니까?",
     by: "",
+    customize: "커스터마이즈", coverColor: "커버 색상", coverIcon: "커버 아이콘",
+    preview: "미리보기",
   },
 };
 
@@ -94,6 +100,10 @@ const css = `
   .dk-btn-danger:hover { background: #E03E3E !important; color: #fff !important; }
   .dk-pill { transition: all .15s ease; cursor: pointer; }
   .dk-pill:hover { background: #E8F0FE !important; border-color: #2383E244 !important; color: #2383E2 !important; }
+  .dk-color-swatch:hover { transform: scale(1.1); }
+  .dk-color-swatch:active { transform: scale(.95); }
+  .dk-icon-btn:hover { background: #F5F9FF !important; border-color: #2383E2 !important; transform: translateY(-1px); }
+  .dk-icon-btn:active { transform: scale(.95); }
   .dk-input { transition: border-color .15s, box-shadow .15s; }
   .dk-input:hover { border-color: #2383E266 !important; }
   .dk-input:focus { border-color: #2383E2 !important; box-shadow: 0 0 0 3px #E8F0FE !important; }
@@ -147,6 +157,8 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
   const [activityType, setActivityType] = useState(existingDeck?.questions?.[0]?.type || "mcq");
   const [questions, setQuestions] = useState(existingDeck?.questions || []);
   const [saving, setSaving] = useState(false);
+  const [coverColor, setCoverColor] = useState(existingDeck?.cover_color || DEFAULT_DECK_COLOR);
+  const [coverIcon, setCoverIcon] = useState(existingDeck?.cover_icon || (existingDeck?.subject && SUBJ_ICON[existingDeck.subject]) || DEFAULT_DECK_ICON);
 
   const addQuestion = () => {
     let newQ;
@@ -173,6 +185,7 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
     const payload = {
       author_id: userId, class_id: classId || null, title: title.trim(), description: desc.trim(),
       subject, grade, language: deckLang, questions, tags: tagArr, is_public: makePublic,
+      cover_color: coverColor, cover_icon: coverIcon,
     };
     if (existingDeck) {
       await supabase.from("decks").update(payload).eq("id", existingDeck.id);
@@ -242,6 +255,68 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
           <div>
             <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: C.textSecondary, marginBottom: 5 }}>{t.tags}</label>
             <input className="dk-input" value={tags} onChange={e => setTags(e.target.value)} placeholder={t.tagsPlaceholder} style={inp} />
+          </div>
+
+          {/* ── Customize: Cover color + icon ── */}
+          <div style={{ background: C.bgSoft, borderRadius: 10, padding: 14, border: `1px solid ${C.border}` }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
+              <DeckCover deck={{ cover_color: coverColor, cover_icon: coverIcon }} size={56} radius={12} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{t.customize}</div>
+                <div style={{ fontSize: 12, color: C.textMuted, marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{title || t.titlePlaceholder}</div>
+              </div>
+            </div>
+
+            <div style={{ marginBottom: 10 }}>
+              <label style={{ display: "block", fontSize: 12, fontWeight: 500, color: C.textSecondary, marginBottom: 6 }}>{t.coverColor}</label>
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                {DECK_COLORS.map(col => (
+                  <button
+                    key={col.id}
+                    type="button"
+                    aria-label={col.label}
+                    title={col.label}
+                    onClick={() => setCoverColor(col.id)}
+                    className="dk-color-swatch"
+                    style={{
+                      width: 30, height: 30, borderRadius: 8,
+                      background: col.value,
+                      border: coverColor === col.id ? `2.5px solid ${C.text}` : `2px solid transparent`,
+                      cursor: "pointer", padding: 0,
+                      boxShadow: coverColor === col.id ? `0 0 0 2px ${C.bg}, 0 2px 6px ${col.value}55` : `0 1px 3px ${col.value}33`,
+                      transition: "all .15s ease",
+                    }}
+                  />
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label style={{ display: "block", fontSize: 12, fontWeight: 500, color: C.textSecondary, marginBottom: 6 }}>{t.coverIcon}</label>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(10, 1fr)", gap: 4 }}>
+                {DECK_ICONS.map(ic => (
+                  <button
+                    key={ic}
+                    type="button"
+                    aria-label={ic}
+                    title={ic}
+                    onClick={() => setCoverIcon(ic)}
+                    className="dk-icon-btn"
+                    style={{
+                      aspectRatio: "1 / 1",
+                      borderRadius: 8,
+                      background: coverIcon === ic ? C.accentSoft : C.bg,
+                      border: `1.5px solid ${coverIcon === ic ? C.accent : C.border}`,
+                      cursor: "pointer", padding: 0,
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      transition: "all .15s ease",
+                    }}
+                  >
+                    <CIcon name={ic} size={18} />
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
 
           <div>
@@ -472,9 +547,9 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang }) {
                 return (
                   <div key={dk.id} className="dk-card fade-up" style={{ background: C.bg, borderRadius: 12, border: `1px solid ${C.border}`, padding: 16, animationDelay: `${i * .04}s` }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                      <CIcon name={SUBJ_ICON[dk.subject] || "book"} size={26} />
-                      <div style={{ flex: 1, cursor: "pointer" }} onClick={() => { setEditing(dk); setView("edit"); }}>
-                        <div style={{ fontSize: 15, fontWeight: 600 }}>{dk.title}</div>
+                      <DeckCover deck={dk} size={48} radius={11} />
+                      <div style={{ flex: 1, cursor: "pointer", minWidth: 0 }} onClick={() => { setEditing(dk); setView("edit"); }}>
+                        <div style={{ fontSize: 15, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{dk.title}</div>
                         <div style={{ fontSize: 12, color: C.textMuted, marginTop: 2 }}>
                           {dk.subject} · {dk.grade} · {qs.length} {t.questionCount}
                           {cls && <> · <strong style={{ color: C.accent }}>{cls.name}</strong></>}
