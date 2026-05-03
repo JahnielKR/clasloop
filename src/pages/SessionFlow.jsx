@@ -446,7 +446,7 @@ function CreateSession({ cls, userId, onSessionCreated, onBack, t, lang, reviewT
 
   const handleSaveAsDeck = async () => {
     const { error } = await supabase.from("decks").insert({
-      author_id: userId, title: topic, description: keyPoints || "",
+      author_id: userId, class_id: cls.id, title: topic, description: keyPoints || "",
       subject: cls.subject, grade: cls.grade, language: lang,
       questions: questions.map(q => ({ ...q, type: activityType })),
       tags: [cls.subject.toLowerCase(), activityType], is_public: false,
@@ -775,8 +775,12 @@ function DeckSelect({ cls, userId, onDeckSelected, onBack, t, lang }) {
 
   useEffect(() => {
     const load = async () => {
-      // Load user's own decks matching this class subject
-      const { data: mine } = await supabase.from("decks").select("*").eq("author_id", userId).eq("subject", cls.subject).order("created_at", { ascending: false });
+      // Load user's own decks: linked to THIS class OR matching subject
+      const { data: mine } = await supabase.from("decks")
+        .select("*")
+        .eq("author_id", userId)
+        .or(`class_id.eq.${cls.id},and(class_id.is.null,subject.eq.${cls.subject})`)
+        .order("created_at", { ascending: false });
       // Load public decks matching class subject
       const { data: pub } = await supabase.from("decks").select("*, profiles(full_name)").eq("is_public", true).eq("subject", cls.subject).order("uses_count", { ascending: false }).limit(20);
       const all = [...(mine || [])];
