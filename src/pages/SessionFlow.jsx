@@ -885,7 +885,7 @@ export default function SessionFlow({ lang = "en", setLang }) {
       <style>{interactiveCSS}</style>
       <PageHeader title={t.pageTitle} icon="pin" lang={lang} setLang={setLang || (() => {})} />
 
-      {step === "classes" && <ClassSetup userId={user.id} onClassReady={(cls, topic, mode, deck) => { setSelectedClass(cls); setReviewTopic(topic || null); if (deck) setDeckQuestions(deck); setStep(mode || "create"); }} t={t} />}}
+      {step === "classes" && <ClassSetup userId={user.id} onClassReady={(cls, topic, mode, deck) => { setSelectedClass(cls); setReviewTopic(topic || null); if (deck) setDeckQuestions(deck); setStep(mode || "create"); }} t={t} />}
       {step === "create" && selectedClass && <CreateSession cls={selectedClass} userId={user.id} onSessionCreated={(s) => { setSession(s); setStep("lobby"); }} onBack={() => { setStep("classes"); setReviewTopic(null); }} t={t} lang={lang} reviewTopic={reviewTopic} />}
       {step === "deckSelect" && selectedClass && <DeckSelect cls={selectedClass} userId={user.id} onDeckSelected={(dk) => { setDeckQuestions(dk); setStep("deckPreview"); }} onBack={() => setStep("classes")} t={t} lang={lang} />}
       {step === "deckPreview" && selectedClass && deckQuestions && <CreateSession cls={selectedClass} userId={user.id} onSessionCreated={(s) => { setSession(s); setStep("lobby"); }} onBack={() => setStep("deckSelect")} t={t} lang={lang} deckData={deckQuestions} />}
