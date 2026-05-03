@@ -51,6 +51,9 @@ const i18n = {
     uploadHint: "JPG, PNG or WebP — up to 2 MB",
     uploading: "Uploading...", uploadFailed: "Upload failed. Try a smaller image.",
     presetPatterns: "Choose a pattern",
+    incomplete: "Incomplete", complete: "Complete", emptyQ: "(no question text yet)",
+    drag: "Drag to reorder",
+    addAnother: "+ Add another question",
   },
   es: {
     pageTitle: "Decks", subtitle: "Crea y gestiona tus colecciones de preguntas",
@@ -78,6 +81,9 @@ const i18n = {
     uploadHint: "JPG, PNG o WebP — hasta 2 MB",
     uploading: "Subiendo...", uploadFailed: "Falló la subida. Intenta con una imagen más pequeña.",
     presetPatterns: "Elige un patrón",
+    incomplete: "Incompleta", complete: "Lista", emptyQ: "(sin texto de pregunta)",
+    drag: "Arrastra para reordenar",
+    addAnother: "+ Agregar otra pregunta",
   },
   ko: {
     pageTitle: "덱", subtitle: "문제 모음을 만들고 관리하세요",
@@ -105,6 +111,9 @@ const i18n = {
     uploadHint: "JPG, PNG, WebP — 최대 2 MB",
     uploading: "업로드 중...", uploadFailed: "업로드 실패. 더 작은 이미지를 시도하세요.",
     presetPatterns: "패턴 선택",
+    incomplete: "미완성", complete: "완성", emptyQ: "(문제 텍스트 없음)",
+    drag: "드래그하여 순서 변경",
+    addAnother: "+ 문제 추가",
   },
 };
 
@@ -128,6 +137,20 @@ const css = `
   .dk-mode-btn:active { transform: scale(.97); }
   .dk-preset-btn:hover { transform: scale(1.04); box-shadow: 0 4px 12px rgba(0,0,0,0.15) !important; }
   .dk-preset-btn:active { transform: scale(.97); }
+  .dk-q-row { transition: background .15s ease, border-color .15s ease, box-shadow .2s ease, transform .12s ease; }
+  .dk-q-row:hover { border-color: #2383E244 !important; }
+  .dk-q-row[data-dragging="true"] { opacity: .4; }
+  .dk-q-row[data-drop-target="true"] { border-color: #2383E2 !important; box-shadow: 0 0 0 2px #E8F0FE; }
+  .dk-q-handle { cursor: grab; opacity: .55; transition: opacity .15s ease; }
+  .dk-q-handle:hover { opacity: 1; }
+  .dk-q-handle:active { cursor: grabbing; }
+  .dk-q-toggle:hover { background: #E8F0FE !important; color: #2383E2 !important; }
+  .dk-q-delete:hover { background: #FDECEC !important; color: #E03E3E !important; }
+  @keyframes flashGlow {
+    0%   { box-shadow: 0 0 0 0 #2383E266, 0 0 18px 6px #2383E244; }
+    100% { box-shadow: 0 0 0 0 transparent, 0 0 0 0 transparent; }
+  }
+  .dk-q-flash { animation: flashGlow 1.4s ease-out; }
   .dk-input { transition: border-color .15s, box-shadow .15s; }
   .dk-input:hover { border-color: #2383E266 !important; }
   .dk-input:focus { border-color: #2383E2 !important; box-shadow: 0 0 0 3px #E8F0FE !important; }
@@ -217,6 +240,13 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
   const [editorTab, setEditorTab] = useState("general");
   const fileInputRef = useRef(null);
 
+  // ── Question list UX (expand/drag/scroll) ──
+  const [expandedQ, setExpandedQ] = useState(null); // index of currently expanded question
+  const [dragIndex, setDragIndex] = useState(null);
+  const [dragOverIndex, setDragOverIndex] = useState(null);
+  const [flashIndex, setFlashIndex] = useState(null); // briefly highlights newly added question
+  const questionRefs = useRef({});
+
   const addQuestion = () => {
     let newQ;
     if (activityType === "mcq") newQ = { type: "mcq", q: "", options: ["", "", "", ""], correct: 0 };
@@ -224,14 +254,89 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
     else if (activityType === "fill") newQ = { type: "fill", q: "", answer: "" };
     else if (activityType === "order") newQ = { type: "order", q: "", items: ["", "", "", ""] };
     else if (activityType === "match") newQ = { type: "match", q: "", pairs: [{ left: "", right: "" }, { left: "", right: "" }, { left: "", right: "" }] };
-    setQuestions(prev => [...prev, newQ]);
+    setQuestions(prev => {
+      const newIdx = prev.length;
+      setExpandedQ(newIdx);
+      setFlashIndex(newIdx);
+      // Scroll + clear flash on next frame, after the row mounts.
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          questionRefs.current[newIdx]?.scrollIntoView({ behavior: "smooth", block: "center" });
+        });
+      });
+      setTimeout(() => setFlashIndex(null), 1400);
+      return [...prev, newQ];
+    });
   };
 
   const updateQ = (idx, field, val) => setQuestions(prev => prev.map((q, i) => i === idx ? { ...q, [field]: val } : q));
   const updateOption = (qIdx, optIdx, val) => setQuestions(prev => prev.map((q, i) => i === qIdx ? { ...q, options: q.options.map((o, j) => j === optIdx ? val : o) } : q));
   const updateItem = (qIdx, itemIdx, val) => setQuestions(prev => prev.map((q, i) => i === qIdx ? { ...q, items: q.items.map((it, j) => j === itemIdx ? val : it) } : q));
   const updatePair = (qIdx, pairIdx, side, val) => setQuestions(prev => prev.map((q, i) => i === qIdx ? { ...q, pairs: q.pairs.map((p, j) => j === pairIdx ? { ...p, [side]: val } : p) } : q));
-  const removeQ = (idx) => setQuestions(prev => prev.filter((_, i) => i !== idx));
+  const removeQ = (idx) => {
+    setQuestions(prev => prev.filter((_, i) => i !== idx));
+    setExpandedQ(curr => curr === idx ? null : (curr !== null && curr > idx ? curr - 1 : curr));
+  };
+
+  // Move question from `from` index to `to` index (drag-to-reorder).
+  const moveQuestion = (from, to) => {
+    if (from === to || from < 0 || to < 0) return;
+    setQuestions(prev => {
+      const next = [...prev];
+      const [moved] = next.splice(from, 1);
+      next.splice(to, 0, moved);
+      return next;
+    });
+    // Keep expansion stable: follow the dragged item to its new index.
+    setExpandedQ(curr => {
+      if (curr === null) return null;
+      if (curr === from) return to;
+      if (from < curr && to >= curr) return curr - 1;
+      if (from > curr && to <= curr) return curr + 1;
+      return curr;
+    });
+  };
+
+  // Validate completeness of a question (all required fields filled).
+  const isQComplete = (q) => {
+    if (!q?.q?.trim()) return false;
+    const type = q.type || activityType;
+    if (type === "mcq")   return Array.isArray(q.options) && q.options.length >= 2 && q.options.every(o => o?.trim());
+    if (type === "tf")    return typeof q.correct === "boolean";
+    if (type === "fill")  return !!q.answer?.trim();
+    if (type === "order") return Array.isArray(q.items) && q.items.length >= 2 && q.items.every(it => it?.trim());
+    if (type === "match") return Array.isArray(q.pairs) && q.pairs.length >= 2 && q.pairs.every(p => p?.left?.trim() && p?.right?.trim());
+    return true;
+  };
+
+  // Short preview text for a question type chip.
+  const shortType = (q) => {
+    const id = q.type || activityType;
+    return ACTIVITY_TYPES.find(a => a.id === id)?.label[l] || id;
+  };
+
+  // Drag handlers (HTML5 drag-and-drop).
+  const onDragStart = (idx) => (e) => {
+    setDragIndex(idx);
+    e.dataTransfer.effectAllowed = "move";
+    // Required for Firefox to start a drag.
+    try { e.dataTransfer.setData("text/plain", String(idx)); } catch {}
+  };
+  const onDragOver = (idx) => (e) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    if (dragOverIndex !== idx) setDragOverIndex(idx);
+  };
+  const onDrop = (idx) => (e) => {
+    e.preventDefault();
+    if (dragIndex !== null && dragIndex !== idx) moveQuestion(dragIndex, idx);
+    setDragIndex(null);
+    setDragOverIndex(null);
+  };
+  const onDragEnd = () => {
+    setDragIndex(null);
+    setDragOverIndex(null);
+  };
 
   // ── Cover image handlers ──
   const handleImagePick = () => fileInputRef.current?.click();
@@ -625,76 +730,228 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
           <button className="dk-btn" onClick={addQuestion} style={{ padding: "8px 16px", borderRadius: 8, fontSize: 13, fontWeight: 600, background: C.accentSoft, color: C.accent }}>{t.addQuestion}</button>
         </div>
 
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {questions.map((q, qi) => (
-            <div key={qi} className="dk-q-card" style={{ background: C.bg, borderRadius: 12, border: `1px solid ${C.border}`, padding: 16 }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-                <span style={{ fontSize: 12, color: C.textMuted }}>Q{qi + 1} · {ACTIVITY_TYPES.find(a => a.id === (q.type || activityType))?.label[l]}</span>
-                <button className="dk-btn-danger" onClick={() => removeQ(qi)} style={{ fontSize: 11, color: C.red, background: "transparent", border: "none", padding: "2px 8px", borderRadius: 4, cursor: "pointer", fontFamily: "'Outfit',sans-serif" }}>{t.removeQuestion}</button>
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          {questions.map((q, qi) => {
+            const isExpanded = expandedQ === qi;
+            const complete = isQComplete(q);
+            const dragging = dragIndex === qi;
+            const dropTarget = dragOverIndex === qi && dragIndex !== qi;
+            return (
+              <div
+                key={qi}
+                ref={(el) => { questionRefs.current[qi] = el; }}
+                className={`dk-q-row ${flashIndex === qi ? "dk-q-flash" : ""}`}
+                data-dragging={dragging}
+                data-drop-target={dropTarget}
+                onDragOver={onDragOver(qi)}
+                onDrop={onDrop(qi)}
+                style={{
+                  background: C.bg, borderRadius: 10,
+                  border: `1px solid ${C.border}`,
+                  overflow: "hidden",
+                }}
+              >
+                {/* ── Compact row (always visible) ── */}
+                <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px" }}>
+                  <span
+                    className="dk-q-handle"
+                    draggable
+                    onDragStart={onDragStart(qi)}
+                    onDragEnd={onDragEnd}
+                    title={t.drag}
+                    aria-label={t.drag}
+                    style={{
+                      width: 22, height: 22,
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      color: C.textMuted, flexShrink: 0,
+                      userSelect: "none",
+                    }}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                      <circle cx="9" cy="6"  r="1.6" fill="currentColor"/>
+                      <circle cx="15" cy="6" r="1.6" fill="currentColor"/>
+                      <circle cx="9" cy="12" r="1.6" fill="currentColor"/>
+                      <circle cx="15" cy="12" r="1.6" fill="currentColor"/>
+                      <circle cx="9" cy="18" r="1.6" fill="currentColor"/>
+                      <circle cx="15" cy="18" r="1.6" fill="currentColor"/>
+                    </svg>
+                  </span>
+
+                  <span style={{
+                    width: 28, textAlign: "center", fontSize: 12, fontWeight: 700,
+                    color: C.textMuted, fontFamily: MONO, flexShrink: 0,
+                  }}>{qi + 1}</span>
+
+                  <span style={{
+                    fontSize: 11, fontWeight: 600,
+                    padding: "2px 8px", borderRadius: 5,
+                    background: C.accentSoft, color: C.accent,
+                    flexShrink: 0,
+                    fontFamily: "'Outfit',sans-serif",
+                  }}>{shortType(q)}</span>
+
+                  <span style={{
+                    flex: 1, minWidth: 0,
+                    fontSize: 13,
+                    color: q.q?.trim() ? C.text : C.textMuted,
+                    overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                  }}>{q.q?.trim() || t.emptyQ}</span>
+
+                  <span
+                    title={complete ? t.complete : t.incomplete}
+                    aria-label={complete ? t.complete : t.incomplete}
+                    style={{
+                      width: 18, height: 18, borderRadius: "50%",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      background: complete ? C.greenSoft : C.orangeSoft,
+                      color: complete ? C.green : C.orange,
+                      flexShrink: 0,
+                    }}
+                  >
+                    <CIcon name={complete ? "check" : "warning"} size={11} inline />
+                  </span>
+
+                  <button
+                    className="dk-q-toggle"
+                    onClick={() => setExpandedQ(isExpanded ? null : qi)}
+                    aria-label={isExpanded ? "Collapse" : "Expand"}
+                    style={{
+                      width: 28, height: 28, borderRadius: 7,
+                      background: "transparent", color: C.textSecondary,
+                      border: "none", cursor: "pointer",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      flexShrink: 0, padding: 0,
+                      transition: "all .15s ease",
+                    }}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style={{ transform: isExpanded ? "rotate(180deg)" : "rotate(0deg)", transition: "transform .2s ease" }}>
+                      <path d="M6 9L12 15L18 9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </button>
+
+                  <button
+                    className="dk-q-delete"
+                    onClick={() => removeQ(qi)}
+                    aria-label={t.removeQuestion}
+                    title={t.removeQuestion}
+                    style={{
+                      width: 28, height: 28, borderRadius: 7,
+                      background: "transparent", color: C.textMuted,
+                      border: "none", cursor: "pointer",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      flexShrink: 0, padding: 0,
+                      transition: "all .15s ease",
+                    }}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                      <path d="M3 6H21M8 6V4C8 3.4 8.4 3 9 3H15C15.6 3 16 3.4 16 4V6M19 6L18 20C18 20.6 17.6 21 17 21H7C6.4 21 6 20.6 6 20L5 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </button>
+                </div>
+
+                {/* ── Expanded editor ── */}
+                {isExpanded && (
+                  <div style={{ padding: "4px 14px 14px 14px", borderTop: `1px solid ${C.border}`, background: C.bgSoft }}>
+                    <div style={{ marginTop: 12 }}>
+                      <input
+                        className="dk-input"
+                        value={q.q}
+                        onChange={e => updateQ(qi, "q", e.target.value)}
+                        placeholder={t.questionText}
+                        autoFocus
+                        style={{ ...inp, marginBottom: 10 }}
+                      />
+
+                      {/* MCQ */}
+                      {(q.type === "mcq" || (!q.type && activityType === "mcq")) && q.options && (
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+                          {q.options.map((o, oi) => (
+                            <div key={oi} style={{ position: "relative" }}>
+                              <input className="dk-input" value={o} onChange={e => updateOption(qi, oi, e.target.value)} placeholder={`${t.option} ${oi + 1}`} style={{ ...inp, paddingRight: 36, background: q.correct === oi ? C.greenSoft : C.bg, borderColor: q.correct === oi ? C.green + "44" : C.border }} />
+                              <button onClick={() => updateQ(qi, "correct", oi)} style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", width: 20, height: 20, borderRadius: "50%", border: `2px solid ${q.correct === oi ? C.green : C.border}`, background: q.correct === oi ? C.green : "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, color: "#fff" }}>
+                                {q.correct === oi && "✓"}
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* True/False */}
+                      {(q.type === "tf" || (!q.type && activityType === "tf")) && (
+                        <div style={{ display: "flex", gap: 6 }}>
+                          {[true, false].map(v => (
+                            <button key={String(v)} className="dk-pill" onClick={() => updateQ(qi, "correct", v)} style={{
+                              flex: 1, padding: "10px 14px", borderRadius: 8, fontSize: 14, fontWeight: 600,
+                              background: q.correct === v ? C.greenSoft : C.bg,
+                              color: q.correct === v ? C.green : C.textMuted,
+                              border: `1px solid ${q.correct === v ? C.green + "44" : C.border}`,
+                              cursor: "pointer", fontFamily: "'Outfit',sans-serif",
+                            }}>{v ? "True" : "False"}</button>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Fill */}
+                      {(q.type === "fill" || (!q.type && activityType === "fill")) && (
+                        <input className="dk-input" value={q.answer || ""} onChange={e => updateQ(qi, "answer", e.target.value)} placeholder="Correct answer" style={{ ...inp, background: C.greenSoft, borderColor: C.green + "44" }} />
+                      )}
+
+                      {/* Order */}
+                      {(q.type === "order" || (!q.type && activityType === "order")) && q.items && (
+                        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                          {q.items.map((it, ii) => (
+                            <div key={ii} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                              <span style={{ width: 22, height: 22, borderRadius: 5, background: C.accent, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, flexShrink: 0 }}>{ii + 1}</span>
+                              <input className="dk-input" value={it} onChange={e => updateItem(qi, ii, e.target.value)} placeholder={`Step ${ii + 1}`} style={inp} />
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Match */}
+                      {(q.type === "match" || (!q.type && activityType === "match")) && q.pairs && (
+                        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                          {q.pairs.map((p, pi) => (
+                            <div key={pi} style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                              <input className="dk-input" value={p.left} onChange={e => updatePair(qi, pi, "left", e.target.value)} placeholder="Left" style={{ ...inp, fontFamily: MONO, fontWeight: 600 }} />
+                              <span style={{ color: C.textMuted }}>→</span>
+                              <input className="dk-input" value={p.right} onChange={e => updatePair(qi, pi, "right", e.target.value)} placeholder="Right" style={inp} />
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
-              <input className="dk-input" value={q.q} onChange={e => updateQ(qi, "q", e.target.value)} placeholder={t.questionText} style={{ ...inp, marginBottom: 10 }} />
-
-              {/* MCQ */}
-              {(q.type === "mcq" || (!q.type && activityType === "mcq")) && q.options && (
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
-                  {q.options.map((o, oi) => (
-                    <div key={oi} style={{ position: "relative" }}>
-                      <input className="dk-input" value={o} onChange={e => updateOption(qi, oi, e.target.value)} placeholder={`${t.option} ${oi + 1}`} style={{ ...inp, paddingRight: 36, background: q.correct === oi ? C.greenSoft : C.bg, borderColor: q.correct === oi ? C.green + "44" : C.border }} />
-                      <button onClick={() => updateQ(qi, "correct", oi)} style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", width: 20, height: 20, borderRadius: "50%", border: `2px solid ${q.correct === oi ? C.green : C.border}`, background: q.correct === oi ? C.green : "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, color: "#fff" }}>
-                        {q.correct === oi && "✓"}
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* True/False */}
-              {(q.type === "tf" || (!q.type && activityType === "tf")) && (
-                <div style={{ display: "flex", gap: 6 }}>
-                  {[true, false].map(v => (
-                    <button key={String(v)} className="dk-pill" onClick={() => updateQ(qi, "correct", v)} style={{
-                      flex: 1, padding: "10px 14px", borderRadius: 8, fontSize: 14, fontWeight: 600,
-                      background: q.correct === v ? C.greenSoft : C.bgSoft,
-                      color: q.correct === v ? C.green : C.textMuted,
-                      border: `1px solid ${q.correct === v ? C.green + "44" : C.border}`,
-                      cursor: "pointer", fontFamily: "'Outfit',sans-serif",
-                    }}>{v ? "True" : "False"}</button>
-                  ))}
-                </div>
-              )}
-
-              {/* Fill */}
-              {(q.type === "fill" || (!q.type && activityType === "fill")) && (
-                <input className="dk-input" value={q.answer || ""} onChange={e => updateQ(qi, "answer", e.target.value)} placeholder="Correct answer" style={{ ...inp, background: C.greenSoft, borderColor: C.green + "44" }} />
-              )}
-
-              {/* Order */}
-              {(q.type === "order" || (!q.type && activityType === "order")) && q.items && (
-                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                  {q.items.map((it, ii) => (
-                    <div key={ii} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <span style={{ width: 22, height: 22, borderRadius: 5, background: C.accent, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, flexShrink: 0 }}>{ii + 1}</span>
-                      <input className="dk-input" value={it} onChange={e => updateItem(qi, ii, e.target.value)} placeholder={`Step ${ii + 1}`} style={inp} />
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Match */}
-              {(q.type === "match" || (!q.type && activityType === "match")) && q.pairs && (
-                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                  {q.pairs.map((p, pi) => (
-                    <div key={pi} style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                      <input className="dk-input" value={p.left} onChange={e => updatePair(qi, pi, "left", e.target.value)} placeholder="Left" style={{ ...inp, fontFamily: MONO, fontWeight: 600 }} />
-                      <span style={{ color: C.textMuted }}>→</span>
-                      <input className="dk-input" value={p.right} onChange={e => updatePair(qi, pi, "right", e.target.value)} placeholder="Right" style={inp} />
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          ))}
+            );
+          })}
         </div>
+
+        {/* Add another button at the bottom — Quizlet-style */}
+        {questions.length > 0 && (
+          <button
+            className="dk-btn"
+            onClick={addQuestion}
+            style={{
+              width: "100%",
+              marginTop: 12,
+              padding: "14px 16px",
+              borderRadius: 10,
+              fontSize: 14, fontWeight: 600,
+              background: C.bg, color: C.accent,
+              border: `1.5px dashed ${C.accent}66`,
+              cursor: "pointer",
+              fontFamily: "'Outfit',sans-serif",
+              display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+              transition: "all .15s ease",
+            }}
+            onMouseEnter={e => { e.currentTarget.style.background = C.accentSoft; e.currentTarget.style.borderColor = C.accent; }}
+            onMouseLeave={e => { e.currentTarget.style.background = C.bg; e.currentTarget.style.borderColor = C.accent + "66"; }}
+          >
+            <CIcon name="plus" size={16} inline /> {t.addAnother}
+          </button>
+        )}
 
         {questions.length === 0 && (
           <div style={{ textAlign: "center", padding: 32, background: C.bgSoft, borderRadius: 12, border: `1px dashed ${C.border}` }}>
