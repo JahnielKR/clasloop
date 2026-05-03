@@ -333,7 +333,7 @@ export default function App() {
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 20 }}>
             {d.problems.map((p, i) => (
               <div key={i} style={{ background: C.bg, borderRadius: 14, border: `1px solid ${C.border}`, padding: 28 }}>
-                <span style={{ fontSize: 32, display: "block", marginBottom: 14 }}><CIcon name={p.icon} size={28} inline />/span>
+                <span style={{ fontSize: 32, display: "block", marginBottom: 14 }}><CIcon name={p.icon} size={28} inline /></span>
                 <h3 style={{ fontSize: 17, fontWeight: 600, marginBottom: 8 }}>{p.title}</h3>
                 <p style={{ fontSize: 14, color: C.textSecondary, lineHeight: 1.6 }}>{p.desc}</p>
               </div>
@@ -357,7 +357,7 @@ export default function App() {
           {d.steps.map((s, i) => (
             <div key={i} style={{ padding: 28, borderRadius: 14, background: C.bgSoft, border: `1px solid ${C.border}`, position: "relative" }}>
               <span style={{ fontSize: 40, fontFamily: "'Instrument Serif',serif", color: C.accent, opacity: .3, position: "absolute", top: 16, right: 20, fontWeight: 400 }}>{s.num}</span>
-              <span style={{ fontSize: 32, display: "block", marginBottom: 14 }}><CIcon name={s.icon} size={28} inline />/span>
+              <span style={{ fontSize: 32, display: "block", marginBottom: 14 }}><CIcon name={s.icon} size={28} inline /></span>
               <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>{s.title}</h3>
               <p style={{ fontSize: 14, color: C.textSecondary, lineHeight: 1.6 }}>{s.desc}</p>
             </div>
@@ -372,7 +372,7 @@ export default function App() {
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 16 }}>
             {d.features.map((f, i) => (
               <div key={i} style={{ background: C.bg, borderRadius: 14, border: `1px solid ${C.border}`, padding: 24, display: "flex", gap: 14, alignItems: "flex-start" }}>
-                <span style={{ fontSize: 24, flexShrink: 0, marginTop: 2 }}><CIcon name={f.icon} size={20} inline />/span>
+                <span style={{ fontSize: 24, flexShrink: 0, marginTop: 2 }}><CIcon name={f.icon} size={20} inline /></span>
                 <div>
                   <h3 style={{ fontSize: 15, fontWeight: 600, marginBottom: 6 }}>{f.title}</h3>
                   <p style={{ fontSize: 14, color: C.textSecondary, lineHeight: 1.55 }}>{f.desc}</p>

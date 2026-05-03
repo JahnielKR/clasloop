@@ -390,7 +390,7 @@ export default function App() {
           {step === "form" && (
             <>
               <div className="fi" style={{ marginBottom: 24 }}>
-                <h1 style={{ fontFamily: "'Instrument Serif',serif", fontSize: 26, fontWeight: 400, marginBottom: 4, letterSpacing: "-.01em" }}>><CIcon name="brain" size={20} inline /> {d.title}</h1>
+                <h1 style={{ fontFamily: "'Instrument Serif',serif", fontSize: 26, fontWeight: 400, marginBottom: 4, letterSpacing: "-.01em" }}><CIcon name="brain" size={20} inline /> {d.title}</h1>
                 <p style={{ fontSize: 14, color: C.textSecondary }}>{d.subtitle}</p>
               </div>
 

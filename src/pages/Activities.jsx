@@ -537,14 +537,14 @@ export default function App() {
             }}>
               {!active ? (
                 <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", color: C.textMuted }}>
-                  <span style={{ fontSize: 40, marginBottom: 12 }}><CIcon name="levelup" size={32} inline />/span>
+                  <span style={{ fontSize: 40, marginBottom: 12 }}><CIcon name="levelup" size={32} inline /></span>
                   <p style={{ fontSize: 15 }}>{d.selectMode}</p>
                 </div>
               ) : (
                 <>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <span style={{ fontSize: 20 }}><CIcon name={activeMode.icon} size={16} inline />/span>
+                      <span style={{ fontSize: 20 }}><CIcon name={activeMode.icon} size={16} inline /></span>
                       <span style={{ fontSize: 15, fontWeight: 600, color: activeMode.color }}>{activeMode.name[lang]}</span>
                     </div>
                     <Btn v="secondary" onClick={() => setDemoKey(k => k + 1)} style={{ fontSize: 12, padding: "6px 12px" }}>↻ {d.lang === "en" ? "Reset" : d.lang === "es" ? "Reiniciar" : "초기화"}</Btn>

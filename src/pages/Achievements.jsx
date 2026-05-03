@@ -290,7 +290,7 @@ const AchievementModal = ({ ach, lang, d, onClose }) => {
           </p>
 
           <div style={{ display: "flex", alignItems: "center", gap: 6, justifyContent: "center", marginBottom: 16 }}>
-            <span style={{ fontSize: 14 }}><CIcon name={cat.icon} size={14} inline />/span>
+            <span style={{ fontSize: 14 }}><CIcon name={cat.icon} size={14} inline /></span>
             <span style={{ fontSize: 13, color: C.textSecondary }}>{cat.label[lang]}</span>
           </div>
 
@@ -429,7 +429,7 @@ export default function App() {
 
           {filtered.length === 0 && (
             <div style={{ textAlign: "center", padding: 48, color: C.textMuted }}>
-              <span style={{ fontSize: 32, display: "block", marginBottom: 8 }}><CIcon name="trophy" size={28} inline />/span>
+              <span style={{ fontSize: 32, display: "block", marginBottom: 8 }}><CIcon name="trophy" size={28} inline /></span>
               {lang === "en" ? "No achievements in this category yet" : lang === "es" ? "Sin logros en esta categoría aún" : "이 카테고리에 아직 업적이 없습니다"}
             </div>
           )}

@@ -135,7 +135,7 @@ export default function App() {
         <div style={{ maxWidth: 600, margin: "0 auto", padding: "28px 20px" }}>
           <div className="fi" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <h1 style={{ fontSize: 22, fontWeight: 700 }}>><CIcon name="bell" size={18} inline /> {d.notifications}</h1>
+              <h1 style={{ fontSize: 22, fontWeight: 700 }}><CIcon name="bell" size={18} inline /> {d.notifications}</h1>
               {unreadCount > 0 && <span style={{ padding: "2px 8px", borderRadius: 10, background: C.red, color: "#fff", fontSize: 12, fontWeight: 700 }}>{unreadCount}</span>}
             </div>
             {unreadCount > 0 && (

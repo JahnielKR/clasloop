@@ -212,10 +212,10 @@ const DeckCard = ({ deck, lang, d, onClick }) => {
       onMouseEnter={e => { e.currentTarget.style.borderColor = C.accent; e.currentTarget.style.boxShadow = "0 4px 16px rgba(35,131,226,.1)"; }}
       onMouseLeave={e => { e.currentTarget.style.borderColor = C.border; e.currentTarget.style.boxShadow = C.shadow; }}
     >
-      {deck.featured && <div style={{ position: "absolute", top: 12, right: 12, fontSize: 10, fontWeight: 600, padding: "3px 8px", borderRadius: 4, background: C.yellowSoft, color: C.yellow }}>><CIcon name="star" size={12} inline /> {d.featured}</div>}
+      {deck.featured && <div style={{ position: "absolute", top: 12, right: 12, fontSize: 10, fontWeight: 600, padding: "3px 8px", borderRadius: 4, background: C.yellowSoft, color: C.yellow }}><CIcon name="star" size={12} inline /> {d.featured}</div>}
 
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-        <span style={{ fontSize: 22 }}><CIcon name={icon} size={18} inline />/span>
+        <span style={{ fontSize: 22 }}><CIcon name={icon} size={18} inline /></span>
         <div>
           <span style={{ fontSize: 12, color: C.textMuted, fontWeight: 500 }}>{subj}</span>
           <span style={{ fontSize: 11, color: C.textMuted, marginLeft: 6 }}>· {deck.grade[lang]}</span>
@@ -268,10 +268,10 @@ const DeckDetail = ({ deck, lang, d, onBack }) => {
         {/* Header */}
         <div className="fi" style={{ marginBottom: 24 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-            <span style={{ fontSize: 28 }}><CIcon name={icon} size={22} inline />/span>
+            <span style={{ fontSize: 28 }}><CIcon name={icon} size={22} inline /></span>
             <span style={{ fontSize: 13, color: C.textMuted }}>{subj} · {deck.grade[lang]}</span>
             <LangBadge lang={deck.lang} />
-            {deck.featured && <span style={{ fontSize: 11, fontWeight: 600, padding: "3px 8px", borderRadius: 4, background: C.yellowSoft, color: C.yellow }}>><CIcon name="star" size={12} inline /> {d.featured}</span>}
+            {deck.featured && <span style={{ fontSize: 11, fontWeight: 600, padding: "3px 8px", borderRadius: 4, background: C.yellowSoft, color: C.yellow }}><CIcon name="star" size={12} inline /> {d.featured}</span>}
           </div>
           <h1 style={{ fontFamily: "'Instrument Serif',serif", fontSize: 28, fontWeight: 400, marginBottom: 8, letterSpacing: "-.01em" }}>{deck.title[lang]}</h1>
           <p style={{ fontSize: 15, color: C.textSecondary, lineHeight: 1.6, marginBottom: 16 }}>{deck.desc[lang]}</p>

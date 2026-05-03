@@ -311,7 +311,7 @@ const TeacherRegister = ({ d, onNext, onBack }) => {
   return (
     <div style={{ maxWidth: 400, width: "100%" }}>
       <h2 className="fi" style={{ fontFamily: "'Instrument Serif',serif", fontSize: 26, fontWeight: 400, marginBottom: 4, letterSpacing: "-.01em" }}>{d.createAccount}</h2>
-      <p className="fi" style={{ color: C.textSecondary, fontSize: 14, marginBottom: 24 }}>><CIcon name="teacher" size={14} inline /> {d.iAmTeacher}</p>
+      <p className="fi" style={{ color: C.textSecondary, fontSize: 14, marginBottom: 24 }}><CIcon name="teacher" size={14} inline /> {d.iAmTeacher}</p>
 
       <div className="f1" style={{ marginBottom: 16 }}>
         <Btn v="google" full style={{ padding: "12px" }}>
@@ -457,7 +457,7 @@ const TeacherComplete = ({ d, teacher, classInfo, onFinish }) => (
       textAlign: "left", marginBottom: 24, boxShadow: C.shadow,
     }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
-        <div style={{ width: 36, height: 36, borderRadius: 8, background: C.accentSoft, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}><CIcon name="book" size={16} inline />/div>
+        <div style={{ width: 36, height: 36, borderRadius: 8, background: C.accentSoft, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}><CIcon name="book" size={16} inline /></div>
         <div>
           <div style={{ fontSize: 15, fontWeight: 600 }}>{classInfo.className}</div>
           <div style={{ fontSize: 12, color: C.textSecondary }}>{classInfo.grade} · {classInfo.subject}</div>
@@ -568,7 +568,7 @@ const StudentComplete = ({ d, studentInfo, avatar, onFinish }) => {
         marginBottom: 24, boxShadow: C.shadow,
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, justifyContent: "center", marginBottom: 10 }}>
-          <div style={{ width: 36, height: 36, borderRadius: 8, background: C.accentSoft, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}><CIcon name="book" size={16} inline />/div>
+          <div style={{ width: 36, height: 36, borderRadius: 8, background: C.accentSoft, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}><CIcon name="book" size={16} inline /></div>
           <div style={{ textAlign: "left" }}>
             <div style={{ fontSize: 15, fontWeight: 600 }}>
               {d.lang === "en" ? "8th Grade History" : d.lang === "es" ? "Historia 8° Grado" : "중2 역사"}
@@ -579,7 +579,7 @@ const StudentComplete = ({ d, studentInfo, avatar, onFinish }) => {
         <div style={{ display: "flex", gap: 8, justifyContent: "center", marginTop: 12 }}>
           <div style={{ padding: "6px 12px", borderRadius: 8, background: C.purpleSoft, fontSize: 13, fontWeight: 600, color: C.purple }}>Lv.1</div>
           <div style={{ padding: "6px 12px", borderRadius: 8, background: C.orangeSoft, fontSize: 13, fontWeight: 600, color: C.orange }}>0 XP</div>
-          <div style={{ padding: "6px 12px", borderRadius: 8, background: C.greenSoft, fontSize: 13, fontWeight: 600, color: C.green }}>><CIcon name="fire" size={12} inline /> 0</div>
+          <div style={{ padding: "6px 12px", borderRadius: 8, background: C.greenSoft, fontSize: 13, fontWeight: 600, color: C.green }}><CIcon name="fire" size={12} inline /> 0</div>
         </div>
       </div>
 

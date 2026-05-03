@@ -529,7 +529,7 @@ const Dash = ({ t, lang, setLang, onBack, onCreate }) => {
 
         {d.suggested.length > 0 && (
           <Card className="f2" style={{ marginBottom: 16, borderLeft: `3px solid ${C.orange}` }}>
-            <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>><CIcon name="speed" size={14} inline /> {t.suggestedReview}</h3>
+            <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}><CIcon name="speed" size={14} inline /> {t.suggestedReview}</h3>
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {d.suggested.map((s, i) => (
                 <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 12px", borderRadius: 8, background: C.bgSoft }}>
@@ -856,7 +856,7 @@ const StudentDash = ({ t, lang, setLang, onBack, onStudy, onJoinSession }) => {
               <span style={{ fontSize: 13, fontWeight: 700, color: C.purple }}>Lv.{d.level}</span>
             </div>
             <div style={{ padding: "6px 12px", borderRadius: 20, background: C.orangeSoft, display: "flex", alignItems: "center", gap: 4 }}>
-              <span style={{ fontSize: 13, fontWeight: 700, color: C.orange }}>><CIcon name="fire" size={12} inline /> {d.streak}</span>
+              <span style={{ fontSize: 13, fontWeight: 700, color: C.orange }}><CIcon name="fire" size={12} inline /> {d.streak}</span>
             </div>
           </div>
         </div>
@@ -923,7 +923,7 @@ const StudentDash = ({ t, lang, setLang, onBack, onStudy, onJoinSession }) => {
         {/* Weak topics — needs practice */}
         {weak.length > 0 && (
           <Card className="f2" style={{ marginBottom: 16, borderLeft: `3px solid ${C.red}` }}>
-            <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 10 }}>><CIcon name="target" size={14} inline /> {t.weakTopics}</h3>
+            <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 10 }}><CIcon name="target" size={14} inline /> {t.weakTopics}</h3>
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               {weak.map((tp, i) => (
                 <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 12px", borderRadius: 8, background: C.redSoft }}>
@@ -979,7 +979,7 @@ const StudentDash = ({ t, lang, setLang, onBack, onStudy, onJoinSession }) => {
               const timeLabel = a.time < 60 ? `${a.time} ${t.minutesAgo}` : `${Math.round(a.time / 60)} ${t.hoursAgo}`;
               return (
                 <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 8, background: i % 2 === 0 ? C.bgSoft : "transparent" }}>
-                  <span style={{ fontSize: 18 }}><CIcon name={icon} size={16} inline />/span>
+                  <span style={{ fontSize: 18 }}><CIcon name={icon} size={16} inline /></span>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: 13, fontWeight: 500 }}>{a.topic[lang]}</div>
                     <div style={{ fontSize: 12, color: C.textMuted }}>{label} · {timeLabel}</div>

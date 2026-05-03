@@ -217,7 +217,7 @@ export default function App() {
 
               {/* Top performers */}
               <div className="f2" style={{ background: C.bg, borderRadius: 12, border: `1px solid ${C.border}`, padding: 20 }}>
-                <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>><CIcon name="trophy" size={16} inline /> {d.topPerformers}</h3>
+                <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}><CIcon name="trophy" size={16} inline /> {d.topPerformers}</h3>
                 <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                   {[...TEACHERS].sort((a, b) => b.retention - a.retention).slice(0, 3).map((t, i) => (
                     <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 8, background: C.bgSoft }}>
@@ -285,7 +285,7 @@ export default function App() {
             <div className="f2" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
               {/* At-risk students */}
               <div style={{ background: C.bg, borderRadius: 12, border: `1px solid ${C.border}`, padding: 20, borderLeft: `3px solid ${C.red}` }}>
-                <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>><CIcon name="alert" size={16} inline /> {d.atRiskStudents}</h3>
+                <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}><CIcon name="alert" size={16} inline /> {d.atRiskStudents}</h3>
                 <p style={{ fontSize: 12, color: C.textMuted, marginBottom: 12 }}>{d.atRiskDesc}</p>
                 {ALERTS_DATA.atRisk.map((s, i) => (
                   <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 12px", borderRadius: 8, background: C.redSoft, marginBottom: 6 }}>
@@ -300,7 +300,7 @@ export default function App() {
 
               {/* Low retention topics */}
               <div style={{ background: C.bg, borderRadius: 12, border: `1px solid ${C.border}`, padding: 20, borderLeft: `3px solid ${C.orange}` }}>
-                <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>><CIcon name="warning" size={16} inline /> {d.lowRetentionTopics}</h3>
+                <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}><CIcon name="warning" size={16} inline /> {d.lowRetentionTopics}</h3>
                 <p style={{ fontSize: 12, color: C.textMuted, marginBottom: 12 }}>{d.lowRetentionDesc}</p>
                 {ALERTS_DATA.lowTopics.map((t, i) => (
                   <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 12px", borderRadius: 8, background: C.orangeSoft, marginBottom: 6 }}>
@@ -316,7 +316,7 @@ export default function App() {
               {/* Inactive teachers */}
               {ALERTS_DATA.inactive.length > 0 && (
                 <div style={{ background: C.bg, borderRadius: 12, border: `1px solid ${C.border}`, padding: 20, borderLeft: `3px solid ${C.textMuted}` }}>
-                  <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>><CIcon name="sleep" size={16} inline /> {d.inactiveTeachers}</h3>
+                  <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}><CIcon name="sleep" size={16} inline /> {d.inactiveTeachers}</h3>
                   <p style={{ fontSize: 12, color: C.textMuted, marginBottom: 12 }}>{d.inactiveDesc}</p>
                   {ALERTS_DATA.inactive.map((t, i) => (
                     <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 12px", borderRadius: 8, background: C.bgSoft }}>
