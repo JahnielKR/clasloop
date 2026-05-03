@@ -150,46 +150,85 @@ export default function App() {
   const [open, setOpen] = useState(true);
 
   useEffect(() => {
-    // Process OAuth callback hash if present
-    const hash = window.location.hash;
-    if (hash && hash.includes("access_token")) {
-      // Supabase will pick up the token from the URL hash
-      supabase.auth.getSession().then(({ data: { session } }) => {
-        if (session?.user) {
-          setUser(session.user);
-          fetchProfile(session.user.id);
-          // Clean the URL
-          window.history.replaceState(null, "", window.location.pathname);
-        }
-        setLoading(false);
-      });
-    } else {
-      supabase.auth.getSession().then(({ data: { session } }) => {
-        setUser(session?.user ?? null);
-        if (session?.user) fetchProfile(session.user.id);
-        setLoading(false);
-      });
-    }
+    let mounted = true;
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      setUser(session?.user ?? null);
-      if (session?.user) {
+    const initAuth = async () => {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (!mounted) return;
+        
+        if (error || !session) {
+          // No valid session — show login
+          setUser(null);
+          setProfile(null);
+          setLoading(false);
+          return;
+        }
+
+        setUser(session.user);
         await fetchProfile(session.user.id);
-        // Clean URL after OAuth
+        
+        // Clean OAuth hash if present
         if (window.location.hash.includes("access_token")) {
           window.history.replaceState(null, "", window.location.pathname);
         }
-      } else {
+      } catch (err) {
+        console.error("Auth init error:", err);
+        setUser(null);
         setProfile(null);
       }
-      setLoading(false);
+      if (mounted) setLoading(false);
+    };
+
+    initAuth();
+
+    // Safety timeout — if auth takes more than 5 seconds, stop loading
+    const timeout = setTimeout(() => {
+      if (mounted && loading) {
+        console.warn("Auth timeout — clearing session");
+        setLoading(false);
+      }
+    }, 5000);
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (!mounted) return;
+
+      if (event === "SIGNED_OUT" || !session) {
+        setUser(null);
+        setProfile(null);
+        setLoading(false);
+        return;
+      }
+
+      if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
+        setUser(session.user);
+        try {
+          await fetchProfile(session.user.id);
+        } catch (err) {
+          console.error("Profile fetch error:", err);
+        }
+        if (window.location.hash.includes("access_token")) {
+          window.history.replaceState(null, "", window.location.pathname);
+        }
+        setLoading(false);
+      }
     });
-    return () => subscription.unsubscribe();
+
+    return () => {
+      mounted = false;
+      clearTimeout(timeout);
+      subscription.unsubscribe();
+    };
   }, []);
 
   const fetchProfile = async (id) => {
-    const { data } = await supabase.from("profiles").select("*").eq("id", id).single();
-    if (data) { setProfile(data); setLang(data.language || "en"); }
+    try {
+      const { data, error } = await supabase.from("profiles").select("*").eq("id", id).single();
+      if (!error && data) { setProfile(data); setLang(data.language || "en"); }
+    } catch (err) {
+      console.error("fetchProfile error:", err);
+    }
   };
 
   const handleSignOut = async () => { await supabase.auth.signOut(); setUser(null); setProfile(null); };
