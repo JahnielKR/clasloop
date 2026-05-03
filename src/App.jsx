@@ -190,7 +190,16 @@ export default function App() {
   const fetchProfile = async (id) => {
     try {
       const { data, error } = await supabase.from("profiles").select("*").eq("id", id).single();
-      if (!error && data) { setProfile(data); setLang(data.language || "en"); }
+      if (!error && data) {
+        setProfile(data);
+        setLang(data.language || "en");
+        // Set default page based on role
+        if (data.role === "student") {
+          setPage("mainApp");
+        } else {
+          setPage("sessions");
+        }
+      }
     } catch (err) {
       console.error("fetchProfile error:", err);
     }
