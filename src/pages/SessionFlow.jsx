@@ -467,9 +467,9 @@ function CreateSession({ cls, userId, onSessionCreated, onBack, t, lang, reviewT
 
   if (step === "preview") return (
     <div style={{ maxWidth: 560, margin: "0 auto" }}>
-      <button className="cl-back" onClick={() => setStep("form")} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 8, fontSize: 13, fontWeight: 500, color: C.accent, background: C.accentSoft, border: "none", cursor: "pointer", fontFamily: "'Outfit',sans-serif", marginBottom: 16 }}>
+      <button className="cl-back" onClick={() => deckData ? onBack() : setStep("form")} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 8, fontSize: 13, fontWeight: 500, color: C.accent, background: C.accentSoft, border: "none", cursor: "pointer", fontFamily: "'Outfit',sans-serif", marginBottom: 16 }}>
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M19 12H5M5 12L11 6M5 12L11 18" stroke={C.accent} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-        {t.edit}
+        {deckData ? t.backToClasses : t.edit}
       </button>
       <h2 style={{ fontFamily: "'Outfit'", fontSize: 20, fontWeight: 700, marginBottom: 4 }}>{topic}</h2>
       <p style={{ fontSize: 13, color: C.textSecondary, marginBottom: 16 }}>{questions.length} {t.questions} · {ACTIVITY_TYPES.find(a => a.id === activityType)?.label[lang] || activityType} · {cls.name}</p>
@@ -539,15 +539,23 @@ function CreateSession({ cls, userId, onSessionCreated, onBack, t, lang, reviewT
           </Card>
         ))}
       </div>
-      <div style={{ display: "flex", gap: 10 }}>
-        <Btn v="secondary" onClick={handleGenerate} style={{ flex: 1 }}><CIcon name="refresh" size={14} inline /> {t.regenerate}</Btn>
-        <Btn onClick={handleLaunch} style={{ flex: 2 }}><CIcon name="rocket" size={16} inline /> {t.launchSession}</Btn>
-      </div>
-      <div style={{ marginTop: 10 }}>
-        <button className="cl-pill" onClick={handleSaveAsDeck} disabled={deckSaved} style={{ width: "100%", padding: 10, borderRadius: 8, fontSize: 13, fontWeight: 500, background: deckSaved ? C.greenSoft : C.bgSoft, color: deckSaved ? C.green : C.textSecondary, border: `1px solid ${deckSaved ? C.green + "33" : C.border}`, cursor: "pointer", fontFamily: "'Outfit',sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
-          {deckSaved ? <><CIcon name="check" size={14} inline /> {t.deckSaved}</> : <><CIcon name="book" size={14} inline /> {t.saveAsDeck}</>}
-        </button>
-      </div>
+      {deckData ? (
+        <div style={{ display: "flex", gap: 10 }}>
+          <Btn onClick={handleLaunch} full style={{ padding: "12px 24px" }}><CIcon name="rocket" size={16} inline /> {t.launchSession}</Btn>
+        </div>
+      ) : (
+        <>
+          <div style={{ display: "flex", gap: 10 }}>
+            <Btn v="secondary" onClick={handleGenerate} style={{ flex: 1 }}><CIcon name="refresh" size={14} inline /> {t.regenerate}</Btn>
+            <Btn onClick={handleLaunch} style={{ flex: 2 }}><CIcon name="rocket" size={16} inline /> {t.launchSession}</Btn>
+          </div>
+          <div style={{ marginTop: 10 }}>
+            <button className="cl-pill" onClick={handleSaveAsDeck} disabled={deckSaved} style={{ width: "100%", padding: 10, borderRadius: 8, fontSize: 13, fontWeight: 500, background: deckSaved ? C.greenSoft : C.bgSoft, color: deckSaved ? C.green : C.textSecondary, border: `1px solid ${deckSaved ? C.green + "33" : C.border}`, cursor: "pointer", fontFamily: "'Outfit',sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+              {deckSaved ? <><CIcon name="check" size={14} inline /> {t.deckSaved}</> : <><CIcon name="book" size={14} inline /> {t.saveAsDeck}</>}
+            </button>
+          </div>
+        </>
+      )}
     </div>
   );
 

@@ -81,7 +81,7 @@ function PageHeader({ title, icon, lang, setLang }) {
 }
 
 // ─── Create Deck Form ───────────────────────────────
-function CreateDeck({ t, onBack, onCreated, userId }) {
+function CreateDeck({ t, onBack, onCreated, userId, userClasses }) {
   const [title, setTitle] = useState("");
   const [desc, setDesc] = useState("");
   const [subject, setSubject] = useState("");
@@ -89,6 +89,7 @@ function CreateDeck({ t, onBack, onCreated, userId }) {
   const [deckLang, setDeckLang] = useState("en");
   const [tags, setTags] = useState("");
   const [isPublic, setIsPublic] = useState(true);
+  const [classId, setClassId] = useState("");
   const [questions, setQuestions] = useState([]);
   const [saving, setSaving] = useState(false);
 
@@ -113,7 +114,7 @@ function CreateDeck({ t, onBack, onCreated, userId }) {
     setSaving(true);
     const tagArr = tags.split(",").map(t => t.trim()).filter(Boolean);
     const { data, error } = await supabase.from("decks").insert({
-      author_id: userId, title: title.trim(), description: desc.trim(),
+      author_id: userId, class_id: classId || null, title: title.trim(), description: desc.trim(),
       subject, grade, language: deckLang, questions, tags: tagArr, is_public: isPublic,
     }).select().single();
     setSaving(false);
@@ -138,6 +139,20 @@ function CreateDeck({ t, onBack, onCreated, userId }) {
           <div>
             <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: C.textSecondary, marginBottom: 5 }}>{t.description}</label>
             <textarea className="cm-input" value={desc} onChange={e => setDesc(e.target.value)} placeholder={t.descPlaceholder} style={{ ...inp, minHeight: 60, resize: "vertical" }} />
+          </div>
+          <div>
+            <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: C.textSecondary, marginBottom: 5 }}>Add to class (optional)</label>
+            <select className="cm-input" value={classId} onChange={e => {
+              const id = e.target.value;
+              setClassId(id);
+              if (id) {
+                const cls = userClasses.find(c => c.id === id);
+                if (cls) { setSubject(cls.subject); setGrade(cls.grade); }
+              }
+            }} style={sel}>
+              <option value="">No class — general deck</option>
+              {userClasses.map(c => <option key={c.id} value={c.id}>{c.name} ({c.subject} · {c.grade})</option>)}
+            </select>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
             <div>
@@ -236,6 +251,8 @@ export default function Community({ lang: pageLang = "en", setLang: pageSetLang 
   const [userId, setUserId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [added, setAdded] = useState({});
+  const [userClasses, setUserClasses] = useState([]);
+  const [addingDeck, setAddingDeck] = useState(null); // deck being added to a class
   const t = i18n[l] || i18n.en;
 
   useEffect(() => { loadDecks(); }, []);
@@ -243,6 +260,10 @@ export default function Community({ lang: pageLang = "en", setLang: pageSetLang 
   const loadDecks = async () => {
     const { data: { user } } = await supabase.auth.getUser();
     setUserId(user?.id);
+    if (user) {
+      const { data: cls } = await supabase.from("classes").select("*").eq("teacher_id", user.id).order("created_at", { ascending: false });
+      setUserClasses(cls || []);
+    }
 
     // Public decks
     const { data: pub } = await supabase.from("decks").select("*, profiles(full_name)").eq("is_public", true).order("uses_count", { ascending: false });
@@ -269,6 +290,24 @@ export default function Community({ lang: pageLang = "en", setLang: pageSetLang 
     if (newPublic) loadDecks();
   };
 
+  const handleAddToClass = async (deck, classId) => {
+    if (!classId) return;
+    const cls = userClasses.find(c => c.id === classId);
+    if (!cls) return;
+    // Create a copy of the deck linked to this class
+    const { error } = await supabase.from("decks").insert({
+      author_id: userId, class_id: classId, title: deck.title, description: deck.description,
+      subject: cls.subject, grade: cls.grade, language: deck.language,
+      questions: deck.questions, tags: deck.tags, is_public: false,
+    });
+    if (!error) {
+      // Increment uses_count on original deck
+      await supabase.from("decks").update({ uses_count: (deck.uses_count || 0) + 1 }).eq("id", deck.id);
+      setAdded(prev => ({ ...prev, [deck.id]: true }));
+      setAddingDeck(null);
+    }
+  };
+
   const filtered = decks
     .filter(dk => {
       if (search && !dk.title.toLowerCase().includes(search.toLowerCase()) && !(dk.tags || []).some(tg => tg.toLowerCase().includes(search.toLowerCase()))) return false;
@@ -282,7 +321,7 @@ export default function Community({ lang: pageLang = "en", setLang: pageSetLang 
     <div style={{ padding: "28px 20px" }}>
       <style>{css}</style>
       <PageHeader title={t.pageTitle} icon="globe" lang={l} setLang={setLang} />
-      <CreateDeck t={t} onBack={() => setView("browse")} userId={userId} onCreated={(d) => { setMyDecks(prev => [d, ...prev]); if (d.is_public) setDecks(prev => [d, ...prev]); setView("browse"); setTab("myDecks"); }} />
+      <CreateDeck t={t} onBack={() => setView("browse")} userId={userId} userClasses={userClasses} onCreated={(d) => { setMyDecks(prev => [d, ...prev]); if (d.is_public) setDecks(prev => [d, ...prev]); setView("browse"); setTab("myDecks"); }} />
     </div>
   );
 
@@ -317,7 +356,7 @@ export default function Community({ lang: pageLang = "en", setLang: pageSetLang 
                 {dk.tags.map((tag, i) => <span key={i} style={{ padding: "3px 8px", borderRadius: 6, background: C.bgSoft, border: `1px solid ${C.border}`, fontSize: 11, color: C.textSecondary }}>#{tag}</span>)}
               </div>
             )}
-            <button className="cm-btn" onClick={() => setAdded(prev => ({ ...prev, [dk.id]: true }))} style={{
+            <button className="cm-btn" onClick={() => setAddingDeck(dk)} style={{
               width: "100%", padding: 14, borderRadius: 10, fontSize: 15, fontWeight: 600,
               background: added[dk.id] ? C.greenSoft : C.accent, color: added[dk.id] ? C.green : "#fff",
               border: added[dk.id] ? `1px solid ${C.green}33` : "none",
@@ -453,6 +492,32 @@ export default function Community({ lang: pageLang = "en", setLang: pageSetLang 
           </div>
         )}
       </div>
+
+      {/* Add to class modal */}
+      {addingDeck && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, padding: 20 }} onClick={() => setAddingDeck(null)}>
+          <div onClick={e => e.stopPropagation()} style={{ background: C.bg, borderRadius: 14, padding: 24, maxWidth: 400, width: "100%" }}>
+            <h3 style={{ fontSize: 17, fontWeight: 700, marginBottom: 6 }}>Add to which class?</h3>
+            <p style={{ fontSize: 13, color: C.textSecondary, marginBottom: 16 }}>{addingDeck.title}</p>
+            {userClasses.length === 0 ? (
+              <p style={{ fontSize: 13, color: C.textMuted, padding: 20, textAlign: "center" }}>You don't have any classes yet. Create one in Sessions first.</p>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 16 }}>
+                {userClasses.map(c => (
+                  <button key={c.id} onClick={() => handleAddToClass(addingDeck, c.id)} className="cm-card" style={{ padding: 12, borderRadius: 10, background: C.bg, border: `1px solid ${C.border}`, cursor: "pointer", textAlign: "left", display: "flex", alignItems: "center", gap: 10, fontFamily: "'Outfit',sans-serif" }}>
+                    <CIcon name={SUBJ_ICON[c.subject] || "book"} size={20} inline />
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 14, fontWeight: 600 }}>{c.name}</div>
+                      <div style={{ fontSize: 11, color: C.textMuted }}>{c.subject} · {c.grade}</div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+            <button onClick={() => setAddingDeck(null)} style={{ width: "100%", padding: 10, borderRadius: 8, fontSize: 13, fontWeight: 500, background: C.bgSoft, color: C.textSecondary, border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: "'Outfit',sans-serif" }}>Cancel</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
