@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { supabase } from "../lib/supabase";
 import { LogoMark, CIcon } from "../components/Icons";
 
@@ -24,6 +24,11 @@ const i18n = {
     keepPracticing: "Keep practicing!", correctLabel: "correct", incorrectLabel: "incorrect",
     joinAnother: "Join another session", noQuestions: "No questions available",
     timeUp: "Time's up!",
+    true_: "True", false_: "False",
+    typeAnswer: "Type your answer...", submit: "Submit",
+    tapToOrder: "Tap items in the correct order",
+    tapMatch: "Tap a left item, then its match",
+    correctAnswer: "Correct answer", undo: "Undo",
   },
   es: {
     joinSession: "Unirse a Sesión", sessionPin: "PIN de Sesión", yourName: "Tu nombre",
@@ -36,6 +41,11 @@ const i18n = {
     keepPracticing: "¡Sigue practicando!", correctLabel: "correctas", incorrectLabel: "incorrectas",
     joinAnother: "Unirse a otra sesión", noQuestions: "No hay preguntas",
     timeUp: "¡Tiempo!",
+    true_: "Verdadero", false_: "Falso",
+    typeAnswer: "Escribe tu respuesta...", submit: "Enviar",
+    tapToOrder: "Toca los elementos en el orden correcto",
+    tapMatch: "Toca un elemento de la izquierda, luego su par",
+    correctAnswer: "Respuesta correcta", undo: "Deshacer",
   },
   ko: {
     joinSession: "세션 참여", sessionPin: "세션 PIN", yourName: "이름",
@@ -48,6 +58,11 @@ const i18n = {
     keepPracticing: "계속 연습하세요!", correctLabel: "정답", incorrectLabel: "오답",
     joinAnother: "다른 세션 참여", noQuestions: "문제가 없습니다",
     timeUp: "시간 초과!",
+    true_: "참", false_: "거짓",
+    typeAnswer: "답을 입력하세요...", submit: "제출",
+    tapToOrder: "올바른 순서로 항목을 탭하세요",
+    tapMatch: "왼쪽 항목을 탭한 다음 짝을 탭하세요",
+    correctAnswer: "정답", undo: "되돌리기",
   },
 };
 
@@ -62,6 +77,9 @@ const css = `
   .sj-input { transition: border-color .15s, box-shadow .15s; }
   .sj-input:hover { border-color: #2383E266 !important; }
   .sj-input:focus { border-color: #2383E2 !important; box-shadow: 0 0 0 3px #E8F0FE !important; }
+  .sj-chip { transition: all .15s ease; cursor: pointer; border: none; font-family: 'Outfit',sans-serif; }
+  .sj-chip:hover:not(:disabled) { transform: translateY(-1px); filter: brightness(1.03); }
+  .sj-chip:active:not(:disabled) { transform: translateY(0) scale(.98); }
   @keyframes fadeUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
   @keyframes slideIn { from { opacity: 0; transform: translateX(-20px); } to { opacity: 1; transform: translateX(0); } }
   @keyframes popIn { from { opacity: 0; transform: scale(.8); } to { opacity: 1; transform: scale(1); } }
@@ -76,6 +94,49 @@ const css = `
 
 const inp = { fontFamily: "'Outfit',sans-serif", background: C.bg, border: `1px solid ${C.border}`, color: C.text, padding: "11px 14px", borderRadius: 8, fontSize: 14, width: "100%", outline: "none" };
 
+// ─── Helpers ──────────────────────────────────────────────────────────────
+// Resolve question type, falling back to session.activity_type then "mcq".
+const getQType = (q, session) => q?.type || session?.activity_type || "mcq";
+
+// Fisher-Yates shuffle (used to randomise order/match positions per question)
+const shuffle = (arr) => {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+};
+
+// Loose comparison for fill-in-the-blank: trim, lowercase, collapse whitespace.
+const normFill = (s) => String(s ?? "").trim().toLowerCase().replace(/\s+/g, " ");
+
+// Evaluate correctness + return value to persist in responses.answer (jsonb).
+const evaluateAnswer = (q, type, raw) => {
+  if (raw === null || raw === undefined || (Array.isArray(raw) && raw.length === 0)) {
+    return { isCorrect: false, stored: null };
+  }
+  switch (type) {
+    case "tf":
+      return { isCorrect: raw === q.correct, stored: raw };
+    case "fill":
+      return { isCorrect: normFill(raw) === normFill(q.answer), stored: String(raw) };
+    case "order": {
+      const items = q.items || [];
+      const ok = Array.isArray(raw) && raw.length === items.length && raw.every((v, i) => v === items[i]);
+      return { isCorrect: ok, stored: raw };
+    }
+    case "match": {
+      const pairs = q.pairs || [];
+      const ok = pairs.length > 0 && pairs.every((p) => raw && raw[p.left] === p.right);
+      return { isCorrect: ok, stored: raw };
+    }
+    case "mcq":
+    default:
+      return { isCorrect: raw === q.correct, stored: raw };
+  }
+};
+
 export default function StudentJoin({ lang: pageLang = "en" }) {
   const [step, setStep] = useState("join");
   const [pin, setPin] = useState("");
@@ -84,16 +145,48 @@ export default function StudentJoin({ lang: pageLang = "en" }) {
   const [session, setSession] = useState(null);
   const [participant, setParticipant] = useState(null);
   const [current, setCurrent] = useState(0);
-  const [answers, setAnswers] = useState([]);
-  const [selected, setSelected] = useState(null);
+  const [answers, setAnswers] = useState([]); // [{ isCorrect, raw }]
   const [showResult, setShowResult] = useState(false);
-  const [timeLeft, setTimeLeft] = useState(15);
   const [resultAnim, setResultAnim] = useState("");
+  const [timeLeft, setTimeLeft] = useState(20);
+  const [lastIsCorrect, setLastIsCorrect] = useState(false);
+
+  // Per-question working state (cleared when `current` changes)
+  const [mcqSelected, setMcqSelected] = useState(null);
+  const [tfSelected, setTfSelected] = useState(null);
+  const [fillText, setFillText] = useState("");
+  const [orderPicked, setOrderPicked] = useState([]); // ordered list of items
+  const [matchPicks, setMatchPicks] = useState({}); // { [left]: right }
+  const [matchActiveLeft, setMatchActiveLeft] = useState(null);
 
   const l = pageLang || "en";
   const t = i18n[l] || i18n.en;
 
-  // Listen for session status changes
+  const questions = session?.questions || [];
+  const q = questions[current];
+  const qType = getQType(q, session);
+
+  // Per-type time limits — typed/order/match need more thinking time.
+  const timeLimit = useMemo(() => {
+    if (qType === "fill") return 30;
+    if (qType === "order" || qType === "match") return 40;
+    return 20;
+  }, [qType]);
+
+  // Stable shuffles per question. Re-shuffle when `current` changes.
+  const shuffledItems = useMemo(() => {
+    if (qType !== "order" || !Array.isArray(q?.items)) return [];
+    return shuffle(q.items);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [current, qType]);
+
+  const shuffledRights = useMemo(() => {
+    if (qType !== "match" || !Array.isArray(q?.pairs)) return [];
+    return shuffle(q.pairs.map(p => p.right));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [current, qType]);
+
+  // ── Realtime: react to session status changes ──
   useEffect(() => {
     if (!session) return;
     const ch = supabase.channel(`student-session:${session.id}`)
@@ -103,7 +196,7 @@ export default function StudentJoin({ lang: pageLang = "en" }) {
     return () => supabase.removeChannel(ch);
   }, [session?.id, step]);
 
-  // Timer
+  // ── Timer ──
   useEffect(() => {
     if (step !== "quiz" || showResult || timeLeft <= 0) return;
     const tm = setTimeout(() => setTimeLeft(s => s - 1), 1000);
@@ -111,12 +204,22 @@ export default function StudentJoin({ lang: pageLang = "en" }) {
   }, [timeLeft, showResult, step]);
 
   useEffect(() => {
-    if (timeLeft === 0 && !showResult && step === "quiz") handleSelect(-1);
+    if (timeLeft === 0 && !showResult && step === "quiz") submitAnswer(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [timeLeft, showResult, step]);
 
+  // ── Reset per-question state on question change ──
   useEffect(() => {
-    setTimeLeft(15); setSelected(null); setShowResult(false); setResultAnim("");
-  }, [current]);
+    setTimeLeft(timeLimit);
+    setShowResult(false);
+    setResultAnim("");
+    setMcqSelected(null);
+    setTfSelected(null);
+    setFillText("");
+    setOrderPicked([]);
+    setMatchPicks({});
+    setMatchActiveLeft(null);
+  }, [current, timeLimit]);
 
   const handleJoin = async () => {
     if (pin.length !== 6 || !name.trim()) return;
@@ -134,26 +237,71 @@ export default function StudentJoin({ lang: pageLang = "en" }) {
     setStep(sess.status === "active" ? "quiz" : "waiting");
   };
 
-  const handleSelect = async (idx) => {
+  // Single submit path used by every activity type (and timeout).
+  const submitAnswer = async (raw) => {
     if (showResult) return;
-    setSelected(idx);
+    const { isCorrect, stored } = evaluateAnswer(q, qType, raw);
+    setLastIsCorrect(isCorrect);
     setShowResult(true);
-    const questions = session.questions || [];
-    const q = questions[current];
-    const isCorrect = idx === q?.correct;
     setResultAnim(isCorrect ? "bounce" : "shake");
-    setAnswers(prev => [...prev, idx]);
+    setAnswers(prev => [...prev, { isCorrect, raw }]);
     if (participant) {
-      await supabase.from("responses").insert({
-        session_id: session.id, participant_id: participant.id,
-        question_index: current, answer: idx,
-        is_correct: isCorrect, time_taken_ms: (15 - timeLeft) * 1000,
-      });
+      try {
+        await supabase.from("responses").insert({
+          session_id: session.id,
+          participant_id: participant.id,
+          question_index: current,
+          answer: stored,
+          is_correct: isCorrect,
+          time_taken_ms: (timeLimit - timeLeft) * 1000,
+        });
+      } catch (_) { /* swallow – UI already reflects state */ }
     }
   };
 
+  // ── Per-type handlers ──
+  const handleMcq = (idx) => { if (showResult) return; setMcqSelected(idx); submitAnswer(idx); };
+  const handleTf  = (val) => { if (showResult) return; setTfSelected(val);  submitAnswer(val); };
+
+  const handleFillSubmit = () => {
+    if (showResult || !fillText.trim()) return;
+    submitAnswer(fillText);
+  };
+
+  const handleOrderPick = (item) => {
+    if (showResult) return;
+    if (orderPicked.includes(item)) return;
+    const next = [...orderPicked, item];
+    setOrderPicked(next);
+    if (next.length === (q.items?.length || 0)) submitAnswer(next);
+  };
+  const handleOrderUndo = () => {
+    if (showResult) return;
+    setOrderPicked(prev => prev.slice(0, -1));
+  };
+
+  const handleMatchLeft = (left) => {
+    if (showResult) return;
+    if (matchPicks[left]) return;
+    setMatchActiveLeft(left === matchActiveLeft ? null : left);
+  };
+  const handleMatchRight = (right) => {
+    if (showResult) return;
+    if (!matchActiveLeft) return;
+    if (Object.values(matchPicks).includes(right)) return;
+    const next = { ...matchPicks, [matchActiveLeft]: right };
+    setMatchPicks(next);
+    setMatchActiveLeft(null);
+    if (Object.keys(next).length === (q.pairs?.length || 0)) submitAnswer(next);
+  };
+  const handleMatchUndo = (left) => {
+    if (showResult) return;
+    const { [left]: _, ...rest } = matchPicks;
+    setMatchPicks(rest);
+  };
+
   const handleNext = () => {
-    if (current + 1 >= (session?.questions || []).length) setStep("results");
+    if (current + 1 >= questions.length) setStep("results");
     else setCurrent(c => c + 1);
   };
 
@@ -216,12 +364,9 @@ export default function StudentJoin({ lang: pageLang = "en" }) {
 
   // ── Quiz ──
   if (step === "quiz") {
-    const questions = session?.questions || [];
-    const q = questions[current];
     if (!q) return <><style>{css}</style><p style={{ textAlign: "center", padding: 40, color: C.textMuted }}>{t.noQuestions}</p></>;
     const isLast = current === questions.length - 1;
-    const isCorrect = selected === q.correct;
-    const pct = timeLeft > 0 ? (timeLeft / 15) * 100 : 0;
+    const pct = timeLeft > 0 ? (timeLeft / timeLimit) * 100 : 0;
     const timerCol = pct > 50 ? C.green : pct > 25 ? C.orange : C.red;
 
     return (
@@ -247,30 +392,229 @@ export default function StudentJoin({ lang: pageLang = "en" }) {
           <div className="fade-up" key={current}>
             <h2 style={{ fontSize: 20, fontWeight: 600, textAlign: "center", marginBottom: 28, lineHeight: 1.5 }}>{q.q}</h2>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-              {q.options.map((o, i) => {
-                let bg = OPT_C[i], op = 1;
-                if (showResult) { bg = i === q.correct ? C.green : i === selected ? C.red : "#ccc"; op = i === q.correct || i === selected ? 1 : .3; }
-                return (
-                  <button key={i} className="sj-option" onClick={() => handleSelect(i)} disabled={showResult} style={{
-                    padding: "18px 14px", borderRadius: 12, fontSize: 15, fontWeight: 600, color: "#fff",
-                    background: bg, opacity: op, lineHeight: 1.3, minHeight: 64,
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    cursor: showResult ? "default" : "pointer",
-                  }}>{o}</button>
-                );
-              })}
-            </div>
+            {/* ── MCQ ── */}
+            {qType === "mcq" && Array.isArray(q.options) && (
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                {q.options.map((o, i) => {
+                  let bg = OPT_C[i % OPT_C.length], op = 1;
+                  if (showResult) {
+                    bg = i === q.correct ? C.green : i === mcqSelected ? C.red : "#ccc";
+                    op = i === q.correct || i === mcqSelected ? 1 : .3;
+                  }
+                  return (
+                    <button key={i} className="sj-option" onClick={() => handleMcq(i)} disabled={showResult} style={{
+                      padding: "18px 14px", borderRadius: 12, fontSize: 15, fontWeight: 600, color: "#fff",
+                      background: bg, opacity: op, lineHeight: 1.3, minHeight: 64,
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      cursor: showResult ? "default" : "pointer",
+                    }}>{o}</button>
+                  );
+                })}
+              </div>
+            )}
 
+            {/* ── True / False ── */}
+            {qType === "tf" && (
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                {[
+                  { val: true,  label: t.true_,  baseColor: C.green },
+                  { val: false, label: t.false_, baseColor: C.red   },
+                ].map(({ val, label, baseColor }) => {
+                  let bg = baseColor, op = 1;
+                  if (showResult) {
+                    bg = val === q.correct ? C.green : val === tfSelected ? C.red : "#ccc";
+                    op = val === q.correct || val === tfSelected ? 1 : .3;
+                  }
+                  return (
+                    <button key={String(val)} className="sj-option" onClick={() => handleTf(val)} disabled={showResult} style={{
+                      padding: "22px 14px", borderRadius: 12, fontSize: 17, fontWeight: 700, color: "#fff",
+                      background: bg, opacity: op, minHeight: 80,
+                      display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                      cursor: showResult ? "default" : "pointer",
+                    }}>
+                      <CIcon name={val ? "check" : "cross"} size={20} inline />
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* ── Fill in the Blank ── */}
+            {qType === "fill" && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                <input
+                  className="sj-input"
+                  value={fillText}
+                  onChange={e => setFillText(e.target.value)}
+                  onKeyDown={e => e.key === "Enter" && handleFillSubmit()}
+                  placeholder={t.typeAnswer}
+                  disabled={showResult}
+                  autoFocus
+                  style={{
+                    ...inp,
+                    fontSize: 18, padding: "14px 16px", textAlign: "center", fontWeight: 500,
+                    background: showResult ? (lastIsCorrect ? C.greenSoft : C.redSoft) : C.bg,
+                    borderColor: showResult ? (lastIsCorrect ? C.green : C.red) : C.border,
+                    color: showResult ? (lastIsCorrect ? C.green : C.red) : C.text,
+                  }}
+                />
+                {!showResult && (
+                  <button className="sj-btn" onClick={handleFillSubmit} disabled={!fillText.trim()} style={{
+                    width: "100%", padding: 14, borderRadius: 10, fontSize: 15, fontWeight: 600,
+                    background: fillText.trim() ? `linear-gradient(135deg, ${C.accent}, ${C.purple})` : C.border,
+                    color: "#fff", opacity: fillText.trim() ? 1 : .5,
+                  }}>{t.submit}</button>
+                )}
+                {showResult && !lastIsCorrect && q.answer && (
+                  <div style={{ padding: "10px 14px", borderRadius: 8, background: C.greenSoft, fontSize: 13, color: C.green, textAlign: "center" }}>
+                    <strong>{t.correctAnswer}:</strong> {q.answer}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ── Order ── */}
+            {qType === "order" && Array.isArray(q.items) && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                <p style={{ fontSize: 12, color: C.textMuted, textAlign: "center", margin: 0 }}>{t.tapToOrder}</p>
+
+                {/* Picked area (in pick order) */}
+                <div style={{ display: "flex", flexDirection: "column", gap: 6, minHeight: 40 }}>
+                  {orderPicked.map((item, j) => {
+                    const correctItem = q.items[j];
+                    const ok = showResult ? item === correctItem : null;
+                    return (
+                      <div key={`${item}-${j}`} className="pop-in" style={{
+                        display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", borderRadius: 8,
+                        background: showResult ? (ok ? C.greenSoft : C.redSoft) : C.accentSoft,
+                        border: `1px solid ${showResult ? (ok ? C.green + "55" : C.red + "55") : C.accent + "33"}`,
+                        fontSize: 14, fontWeight: 500,
+                      }}>
+                        <span style={{ width: 22, height: 22, borderRadius: 6, background: showResult ? (ok ? C.green : C.red) : C.accent, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, flexShrink: 0 }}>{j + 1}</span>
+                        <span style={{ flex: 1 }}>{item}</span>
+                        {showResult && !ok && <span style={{ fontSize: 12, color: C.textMuted }}>→ {correctItem}</span>}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Pool of remaining items */}
+                {!showResult && (
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                    {shuffledItems.filter(it => !orderPicked.includes(it)).map((item) => (
+                      <button key={item} className="sj-chip" onClick={() => handleOrderPick(item)} style={{
+                        padding: "10px 14px", borderRadius: 8, fontSize: 14, fontWeight: 500,
+                        background: C.bg, color: C.text, border: `1px solid ${C.border}`,
+                      }}>{item}</button>
+                    ))}
+                  </div>
+                )}
+
+                {!showResult && orderPicked.length > 0 && (
+                  <button className="sj-btn sj-btn-secondary" onClick={handleOrderUndo} style={{
+                    alignSelf: "center", padding: "8px 16px", borderRadius: 8, fontSize: 13, fontWeight: 500,
+                    background: C.bg, color: C.textSecondary, border: `1px solid ${C.border}`,
+                  }}>↶ {t.undo}</button>
+                )}
+              </div>
+            )}
+
+            {/* ── Match ── */}
+            {qType === "match" && Array.isArray(q.pairs) && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                <p style={{ fontSize: 12, color: C.textMuted, textAlign: "center", margin: 0 }}>{t.tapMatch}</p>
+
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                  {/* Left column */}
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    {q.pairs.map((p) => {
+                      const picked = matchPicks[p.left];
+                      const isActive = matchActiveLeft === p.left;
+                      let bg = C.bg, color = C.text, border = C.border;
+                      if (showResult) {
+                        const ok = picked === p.right;
+                        bg = ok ? C.greenSoft : C.redSoft;
+                        color = ok ? C.green : C.red;
+                        border = ok ? C.green + "55" : C.red + "55";
+                      } else if (isActive) {
+                        bg = C.accentSoft; color = C.accent; border = C.accent;
+                      } else if (picked) {
+                        bg = C.purpleSoft; color = C.purple; border = C.purple + "55";
+                      }
+                      return (
+                        <button
+                          key={p.left}
+                          className="sj-chip"
+                          onClick={() => picked ? handleMatchUndo(p.left) : handleMatchLeft(p.left)}
+                          disabled={showResult}
+                          style={{
+                            padding: "10px 12px", borderRadius: 8, fontSize: 13, fontWeight: 600,
+                            background: bg, color, border: `1.5px solid ${border}`,
+                            textAlign: "left", fontFamily: MONO,
+                            cursor: showResult ? "default" : "pointer",
+                          }}
+                        >
+                          {p.left}
+                          {picked && !showResult && <span style={{ fontSize: 10, marginLeft: 6, opacity: .7 }}>✕</span>}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Right column */}
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    {shuffledRights.map((right) => {
+                      const used = Object.values(matchPicks).includes(right);
+                      let bg = C.bg, color = C.text, border = C.border, op = 1;
+                      if (showResult) {
+                        const pairedLeft = Object.entries(matchPicks).find(([_, r]) => r === right)?.[0];
+                        const correctLeft = q.pairs.find(p => p.right === right)?.left;
+                        const ok = pairedLeft && pairedLeft === correctLeft;
+                        if (pairedLeft) {
+                          bg = ok ? C.greenSoft : C.redSoft;
+                          color = ok ? C.green : C.red;
+                          border = ok ? C.green + "55" : C.red + "55";
+                        } else {
+                          op = .4;
+                        }
+                      } else if (used) {
+                        op = .35;
+                      } else if (matchActiveLeft) {
+                        border = C.accent + "55";
+                      }
+                      return (
+                        <button
+                          key={right}
+                          className="sj-chip"
+                          onClick={() => handleMatchRight(right)}
+                          disabled={showResult || used || !matchActiveLeft}
+                          style={{
+                            padding: "10px 12px", borderRadius: 8, fontSize: 13, fontWeight: 500,
+                            background: bg, color, border: `1.5px solid ${border}`, opacity: op,
+                            textAlign: "left",
+                            cursor: (showResult || used || !matchActiveLeft) ? "default" : "pointer",
+                          }}
+                        >
+                          {right}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ── Result banner + Next ── */}
             {showResult && (
               <div className={`pop-in ${resultAnim}`} style={{ textAlign: "center", marginTop: 24 }}>
                 <div style={{
                   display: "inline-flex", alignItems: "center", gap: 6, padding: "10px 20px", borderRadius: 10,
-                  background: isCorrect ? C.greenSoft : C.redSoft,
-                  color: isCorrect ? C.green : C.red, fontSize: 15, fontWeight: 600, marginBottom: 16,
+                  background: lastIsCorrect ? C.greenSoft : C.redSoft,
+                  color: lastIsCorrect ? C.green : C.red, fontSize: 15, fontWeight: 600, marginBottom: 16,
                 }}>
-                  <CIcon name={isCorrect ? "check" : "cross"} size={16} inline />
-                  {isCorrect ? t.correct : t.incorrect}
+                  <CIcon name={lastIsCorrect ? "check" : "cross"} size={16} inline />
+                  {lastIsCorrect ? t.correct : t.incorrect}
                 </div>
                 <br />
                 <button className="sj-btn" onClick={handleNext} style={{
@@ -291,9 +635,8 @@ export default function StudentJoin({ lang: pageLang = "en" }) {
 
   // ── Results ──
   if (step === "results") {
-    const questions = session?.questions || [];
-    const correct = answers.filter((a, i) => a === questions[i]?.correct).length;
-    const pct = Math.round((correct / questions.length) * 100);
+    const correct = answers.filter(a => a?.isCorrect).length;
+    const pct = Math.round((correct / Math.max(questions.length, 1)) * 100);
 
     return (
       <>
@@ -320,12 +663,12 @@ export default function StudentJoin({ lang: pageLang = "en" }) {
             </div>
 
             {/* Per-question breakdown */}
-            <div style={{ display: "flex", gap: 4, justifyContent: "center", marginTop: 16 }}>
-              {questions.map((q, i) => (
+            <div style={{ display: "flex", gap: 4, justifyContent: "center", marginTop: 16, flexWrap: "wrap" }}>
+              {questions.map((_, i) => (
                 <div key={i} style={{
                   width: 24, height: 24, borderRadius: 6, fontSize: 11, fontWeight: 600,
-                  background: answers[i] === q.correct ? C.greenSoft : C.redSoft,
-                  color: answers[i] === q.correct ? C.green : C.red,
+                  background: answers[i]?.isCorrect ? C.greenSoft : C.redSoft,
+                  color: answers[i]?.isCorrect ? C.green : C.red,
                   display: "flex", alignItems: "center", justifyContent: "center",
                 }}>{i + 1}</div>
               ))}
