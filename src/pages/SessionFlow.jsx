@@ -26,12 +26,13 @@ const i18n = {
     newSession: "New Session", backToClasses: "Back to classes", topic: "Topic",
     topicPlaceholder: "e.g. French Revolution, Photosynthesis...", keyPoints: "Key points (optional)",
     keyPointsPlaceholder: "Main concepts covered, one per line", numQuestions: "Number of questions",
-    warmup: "Warmup", exitTicket: "Exit Ticket", typeTopic: "Type topic", uploadFile: "Upload file",
+    warmup: "Warmup", exitTicket: "Exit Ticket", typeTopic: "Type topic", uploadFile: "Upload file", useDeck: "Use a deck",
     dropHere: "Drop your class material here", orBrowse: "or click to browse", clickToChange: "Click to change",
     topicFromFile: "Topic (auto-filled from file)", generateFromFile: "Generate from file",
     generateWithAI: "Generate with AI", aiWillAnalyze: "AI will analyze your",
     generating: "AI is generating questions...", edit: "Edit", regenerate: "Regenerate",
-    launchSession: "Launch Session", questions: "questions",
+    launchSession: "Launch Session", questions: "questions", saveAsDeck: "Save as deck", deckSaved: "Deck saved!",
+    selectDeck: "Select a deck", noDecks: "No decks yet. Create one in Community or save from AI Generator.",
     sharePin: "Share this PIN with your students", studentsJoined: "students joined",
     cancel: "Cancel", startQuiz: "Start Quiz",
     liveResults: "Live Results", endSession: "End Session", students: "students", average: "average",
@@ -49,12 +50,13 @@ const i18n = {
     newSession: "Nueva Sesión", backToClasses: "Volver a clases", topic: "Tema",
     topicPlaceholder: "ej. Revolución Francesa, Fotosíntesis...", keyPoints: "Puntos clave (opcional)",
     keyPointsPlaceholder: "Conceptos principales, uno por línea", numQuestions: "Número de preguntas",
-    warmup: "Warmup", exitTicket: "Exit Ticket", typeTopic: "Escribir tema", uploadFile: "Subir archivo",
+    warmup: "Warmup", exitTicket: "Exit Ticket", typeTopic: "Escribir tema", uploadFile: "Subir archivo", useDeck: "Usar un deck",
     dropHere: "Arrastra tu material de clase aquí", orBrowse: "o haz click para buscar", clickToChange: "Click para cambiar",
     topicFromFile: "Tema (auto-completado del archivo)", generateFromFile: "Generar del archivo",
     generateWithAI: "Generar con IA", aiWillAnalyze: "La IA analizará tu",
     generating: "La IA está generando preguntas...", edit: "Editar", regenerate: "Regenerar",
-    launchSession: "Lanzar Sesión", questions: "preguntas",
+    launchSession: "Lanzar Sesión", questions: "preguntas", saveAsDeck: "Guardar como deck", deckSaved: "¡Deck guardado!",
+    selectDeck: "Seleccionar un deck", noDecks: "Sin decks aún. Crea uno en Comunidad o guarda del Generador IA.",
     sharePin: "Comparte este PIN con tus estudiantes", studentsJoined: "estudiantes unidos",
     cancel: "Cancelar", startQuiz: "Iniciar Quiz",
     liveResults: "Resultados en Vivo", endSession: "Terminar Sesión", students: "estudiantes", average: "promedio",
@@ -72,12 +74,13 @@ const i18n = {
     newSession: "새 세션", backToClasses: "수업 목록으로", topic: "주제",
     topicPlaceholder: "예: 프랑스 혁명, 광합성...", keyPoints: "핵심 포인트 (선택)",
     keyPointsPlaceholder: "다룬 주요 개념, 줄당 하나", numQuestions: "문제 수",
-    warmup: "워밍업", exitTicket: "마무리 퀴즈", typeTopic: "주제 입력", uploadFile: "파일 업로드",
+    warmup: "워밍업", exitTicket: "마무리 퀴즈", typeTopic: "주제 입력", uploadFile: "파일 업로드", useDeck: "덱 사용",
     dropHere: "수업 자료를 여기에 드롭하세요", orBrowse: "또는 클릭하여 찾기", clickToChange: "클릭하여 변경",
     topicFromFile: "주제 (파일에서 자동 입력)", generateFromFile: "파일에서 생성",
     generateWithAI: "AI로 생성", aiWillAnalyze: "AI가 분석합니다:",
     generating: "AI가 문제를 생성하고 있습니다...", edit: "편집", regenerate: "재생성",
-    launchSession: "세션 시작", questions: "문제",
+    launchSession: "세션 시작", questions: "문제", saveAsDeck: "덱으로 저장", deckSaved: "덱 저장됨!",
+    selectDeck: "덱 선택", noDecks: "아직 덱이 없습니다. 커뮤니티에서 만들거나 AI 생성기에서 저장하세요.",
     sharePin: "이 PIN을 학생들과 공유하세요", studentsJoined: "명 참여",
     cancel: "취소", startQuiz: "퀴즈 시작",
     liveResults: "실시간 결과", endSession: "세션 종료", students: "학생", average: "평균",
@@ -378,18 +381,29 @@ function ClassSetup({ userId, onClassReady, t }) {
   );
 }
 
+const ACTIVITY_TYPES = [
+  { id: "mcq", icon: "mcq", label: { en: "Multiple Choice", es: "Opción Múltiple", ko: "객관식" } },
+  { id: "tf", icon: "truefalse", label: { en: "True / False", es: "Verdadero / Falso", ko: "참 / 거짓" } },
+  { id: "fill", icon: "fillblank", label: { en: "Fill in the Blank", es: "Completar", ko: "빈칸 채우기" } },
+  { id: "order", icon: "ordering", label: { en: "Put in Order", es: "Ordenar", ko: "순서 맞추기" } },
+  { id: "match", icon: "matching", label: { en: "Matching Pairs", es: "Emparejar", ko: "짝 맞추기" } },
+];
+
 // ─── Step 2: Create Session ─────────────────────────
 function CreateSession({ cls, userId, onSessionCreated, onBack, t, lang, reviewTopic }) {
   const [topic, setTopic] = useState(reviewTopic || "");
   const [keyPoints, setKeyPoints] = useState("");
   const [sessionType, setSessionType] = useState("warmup");
+  const [activityType, setActivityType] = useState("mcq");
   const [numQuestions, setNumQuestions] = useState(5);
+  const [customNum, setCustomNum] = useState("");
   const [step, setStep] = useState("form");
   const [questions, setQuestions] = useState([]);
   const [error, setError] = useState("");
   const [inputMode, setInputMode] = useState("text");
   const [file, setFile] = useState(null);
   const [dragOver, setDragOver] = useState(false);
+  const [deckSaved, setDeckSaved] = useState(false);
   const fileRef = useRef(null);
 
   // Auto-generate if reviewTopic is provided
@@ -407,7 +421,7 @@ function CreateSession({ cls, userId, onSessionCreated, onBack, t, lang, reviewT
   const handleGenerate = async () => {
     setStep("generating"); setError("");
     try {
-      const qs = await generateQuestions({ topic, keyPoints, grade: cls.grade, subject: cls.subject, activityType: "mcq", numQuestions, language: lang, file: inputMode === "file" ? file : null });
+      const qs = await generateQuestions({ topic, keyPoints, grade: cls.grade, subject: cls.subject, activityType, numQuestions, language: lang, file: inputMode === "file" ? file : null });
       setQuestions(qs); setStep("preview");
     } catch (err) { setError(err.message); setStep("form"); }
   };
@@ -422,8 +436,18 @@ function CreateSession({ cls, userId, onSessionCreated, onBack, t, lang, reviewT
 
   const handleLaunch = async () => {
     const pin = String(Math.floor(100000 + Math.random() * 900000));
-    const { data, error: err } = await supabase.from("sessions").insert({ class_id: cls.id, teacher_id: userId, topic, key_points: keyPoints, session_type: sessionType, activity_type: "mcq", pin, status: "lobby", questions }).select().single();
+    const { data, error: err } = await supabase.from("sessions").insert({ class_id: cls.id, teacher_id: userId, topic, key_points: keyPoints, session_type: sessionType, activity_type: activityType, pin, status: "lobby", questions }).select().single();
     if (!err && data) onSessionCreated(data);
+  };
+
+  const handleSaveAsDeck = async () => {
+    const { error } = await supabase.from("decks").insert({
+      author_id: userId, title: topic, description: keyPoints || "",
+      subject: cls.subject, grade: cls.grade, language: lang,
+      questions: questions.map(q => ({ ...q, type: activityType })),
+      tags: [cls.subject.toLowerCase(), activityType], is_public: false,
+    });
+    if (!error) setDeckSaved(true);
   };
 
   if (step === "generating") return (
@@ -462,6 +486,11 @@ function CreateSession({ cls, userId, onSessionCreated, onBack, t, lang, reviewT
         <Btn v="secondary" onClick={handleGenerate} style={{ flex: 1 }}><CIcon name="refresh" size={14} inline /> {t.regenerate}</Btn>
         <Btn onClick={handleLaunch} style={{ flex: 2 }}><CIcon name="rocket" size={16} inline /> {t.launchSession}</Btn>
       </div>
+      <div style={{ marginTop: 10 }}>
+        <button className="cl-pill" onClick={handleSaveAsDeck} disabled={deckSaved} style={{ width: "100%", padding: 10, borderRadius: 8, fontSize: 13, fontWeight: 500, background: deckSaved ? C.greenSoft : C.bgSoft, color: deckSaved ? C.green : C.textSecondary, border: `1px solid ${deckSaved ? C.green + "33" : C.border}`, cursor: "pointer", fontFamily: "'Outfit',sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+          {deckSaved ? <><CIcon name="check" size={14} inline /> {t.deckSaved}</> : <><CIcon name="book" size={14} inline /> {t.saveAsDeck}</>}
+        </button>
+      </div>
     </div>
   );
 
@@ -490,6 +519,25 @@ function CreateSession({ cls, userId, onSessionCreated, onBack, t, lang, reviewT
             <CIcon name={icon} size={15} inline /> {label}
           </button>
         ))}
+      </div>
+
+      {/* Activity Type */}
+      <div style={{ marginBottom: 16 }}>
+        <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: C.textSecondary, marginBottom: 8 }}>Activity type</label>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+          {ACTIVITY_TYPES.map(at => (
+            <button key={at.id} className="cl-pill" onClick={() => setActivityType(at.id)} style={{
+              padding: "7px 14px", borderRadius: 8, fontSize: 12, fontWeight: 500,
+              background: activityType === at.id ? C.accentSoft : C.bg,
+              color: activityType === at.id ? C.accent : C.textSecondary,
+              border: `1px solid ${activityType === at.id ? C.accent + "33" : C.border}`,
+              cursor: "pointer", fontFamily: "'Outfit',sans-serif",
+              display: "flex", alignItems: "center", gap: 5,
+            }}>
+              <CIcon name={at.icon} size={14} inline /> {at.label[lang] || at.label.en}
+            </button>
+          ))}
+        </div>
       </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
@@ -532,9 +580,10 @@ function CreateSession({ cls, userId, onSessionCreated, onBack, t, lang, reviewT
         <div>
           <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: C.textSecondary, marginBottom: 5 }}>{t.numQuestions}</label>
           <div style={{ display: "flex", gap: 4 }}>
-            {[3, 5, 8, 10].map(n => (
-              <button key={n} className="cl-num" onClick={() => setNumQuestions(n)} style={{ flex: 1, padding: 8, borderRadius: 6, fontSize: 14, fontWeight: 600, background: numQuestions === n ? C.accentSoft : C.bg, color: numQuestions === n ? C.accent : C.textMuted, border: `1px solid ${numQuestions === n ? C.accent + "33" : C.border}`, fontFamily: MONO, cursor: "pointer" }}>{n}</button>
+            {[3, 5, 10, 15, 20].map(n => (
+              <button key={n} className="cl-num" onClick={() => { setNumQuestions(n); setCustomNum(""); }} style={{ flex: 1, padding: 8, borderRadius: 6, fontSize: 14, fontWeight: 600, background: numQuestions === n && !customNum ? C.accentSoft : C.bg, color: numQuestions === n && !customNum ? C.accent : C.textMuted, border: `1px solid ${numQuestions === n && !customNum ? C.accent + "33" : C.border}`, fontFamily: MONO, cursor: "pointer" }}>{n}</button>
             ))}
+            <input className="cl-input" value={customNum} onChange={e => { const v = e.target.value.replace(/\D/g, ""); setCustomNum(v); if (v) setNumQuestions(parseInt(v) || 5); }} placeholder="#" style={{ ...inp, width: 52, flex: "none", textAlign: "center", fontFamily: MONO, fontWeight: 600, fontSize: 14, padding: 8 }} />
           </div>
         </div>
       </div>
