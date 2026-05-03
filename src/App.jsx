@@ -98,7 +98,7 @@ function AuthScreen() {
   );
 }
 
-function Sidebar({ page, setPage, profile, lang, setLang, open, setOpen, onSignOut }) {
+function Sidebar({ page, setPage, profile, lang, setLang, open, setOpen, onSignOut, onNavClick }) {
   // Default to teacher unless we know for sure they're a student
   // This prevents the sidebar from flipping during token refresh
   const isT = profile ? profile.role === "teacher" : (page === "sessions" || page === "aiGenerator" || page === "director");
@@ -120,7 +120,7 @@ function Sidebar({ page, setPage, profile, lang, setLang, open, setOpen, onSignO
       <div style={{ flex: 1, overflow: "auto", padding: "0 6px" }}>
         {nav.map(n => {
           const isActive = page === n.id;
-          return <button key={n.id} className={isActive ? "cl-nav cl-nav-active" : "cl-nav"} onClick={() => { setPage(n.id); setPageKey(k => k + 1); }} style={{ display: "flex", alignItems: "center", gap: 10, padding: open?"9px 10px":"9px", borderRadius: 8, width: "100%", background: isActive?C.accentSoft:"transparent", fontSize: 13, fontWeight: isActive?600:500, color: isActive?C.accent:C.textSecondary, marginBottom: 2, textAlign: "left", justifyContent: open?"flex-start":"center", border: "none", cursor: "pointer" }}>
+          return <button key={n.id} className={isActive ? "cl-nav cl-nav-active" : "cl-nav"} onClick={() => { setPage(n.id); if (onNavClick) onNavClick(); }} style={{ display: "flex", alignItems: "center", gap: 10, padding: open?"9px 10px":"9px", borderRadius: 8, width: "100%", background: isActive?C.accentSoft:"transparent", fontSize: 13, fontWeight: isActive?600:500, color: isActive?C.accent:C.textSecondary, marginBottom: 2, textAlign: "left", justifyContent: open?"flex-start":"center", border: "none", cursor: "pointer" }}>
             <span style={{ flexShrink: 0, display: "flex", alignItems: "center" }}>{n.icon(isActive)}</span>{open && n.l}
           </button>;
         })}
@@ -226,7 +226,7 @@ export default function App() {
   return (
     <div style={{ display: "flex", minHeight: "100vh" }}>
       <style>{sidebarCSS}</style>
-      <Sidebar page={page} setPage={setPage} profile={profile} lang={lang} setLang={setLang} open={open} setOpen={setOpen} onSignOut={handleSignOut} />
+      <Sidebar page={page} setPage={setPage} profile={profile} lang={lang} setLang={setLang} open={open} setOpen={setOpen} onSignOut={handleSignOut} onNavClick={() => setPageKey(k => k + 1)} />
       <div style={{ marginLeft: open ? 210 : 56, flex: 1, transition: "margin-left .2s", minHeight: "100vh", background: C.bgSoft }}>
         {P && <P key={pageKey} lang={lang} setLang={setLang} />}
       </div>
