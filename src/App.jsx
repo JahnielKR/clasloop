@@ -99,7 +99,9 @@ function AuthScreen() {
 }
 
 function Sidebar({ page, setPage, profile, lang, setLang, open, setOpen, onSignOut }) {
-  const isT = profile?.role === "teacher";
+  // Default to teacher unless we know for sure they're a student
+  // This prevents the sidebar from flipping during token refresh
+  const isT = profile ? profile.role === "teacher" : (page === "sessions" || page === "aiGenerator" || page === "director");
   const nav = isT
     ? [{ id:"sessions",icon:(a)=><SessionsIcon size={28} active={a}/>,l:"Sessions" },{ id:"aiGenerator",icon:(a)=><AIGenIcon size={28} active={a}/>,l:"AI Generator" },{ id:"director",icon:(a)=><SchoolIcon size={28} active={a}/>,l:"School" },{ id:"community",icon:(a)=><CommunityIcon size={28} active={a}/>,l:"Community" },{ id:"notifications",icon:(a)=><NotificationsIcon size={28} active={a}/>,l:"Notifications" },{ id:"settings",icon:(a)=><SettingsIcon size={28} active={a}/>,l:"Settings" }]
     : [{ id:"studentJoin",icon:(a)=><JoinSessionIcon size={28} active={a}/>,l:"Join Session" },{ id:"mainApp",icon:(a)=><ProgressIcon size={28} active={a}/>,l:"My Progress" },{ id:"achievements",icon:(a)=><AchievementsIcon size={28} active={a}/>,l:"Achievements" },{ id:"activities",icon:(a)=><ActivitiesIcon size={28} active={a}/>,l:"Activities" },{ id:"community",icon:(a)=><CommunityIcon size={28} active={a}/>,l:"Community" },{ id:"settings",icon:(a)=><SettingsIcon size={28} active={a}/>,l:"Settings" }];
@@ -203,10 +205,14 @@ export default function App() {
 
       if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
         setUser(session.user);
-        try {
-          await fetchProfile(session.user.id);
-        } catch (err) {
-          console.error("Profile fetch error:", err);
+        // Only fetch profile if we don't have one yet, or if this is a new sign in
+        if (event === "SIGNED_IN" || !profile) {
+          try {
+            await fetchProfile(session.user.id);
+          } catch (err) {
+            console.error("Profile fetch error:", err);
+            // Don't clear existing profile on error — keep what we have
+          }
         }
         if (window.location.hash.includes("access_token")) {
           window.history.replaceState(null, "", window.location.pathname);
@@ -233,7 +239,7 @@ export default function App() {
 
   const handleSignOut = async () => { await supabase.auth.signOut(); setUser(null); setProfile(null); };
 
-  if (loading) return (
+  if (loading && !user) return (
     <div style={{ minHeight: "100vh", background: C.bgSoft, display: "flex", alignItems: "center", justifyContent: "center" }}>
       <div style={{ textAlign: "center" }}>
         <div style={{ width: 44, height: 44, borderRadius: 11, background: `linear-gradient(135deg,${C.accent},${C.purple})`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 12px" }}>
