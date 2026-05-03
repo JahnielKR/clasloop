@@ -94,30 +94,45 @@ const interactiveCSS = `
   .cl-btn { transition: all .15s ease; }
   .cl-btn:hover { transform: translateY(-1px); filter: brightness(1.05); }
   .cl-btn:active { transform: translateY(0) scale(.97); filter: brightness(.95); }
-  .cl-btn-secondary:hover { background: #F7F7F5 !important; border-color: #2383E2 !important; color: #2383E2 !important; }
-  .cl-btn-danger:hover { background: #E03E3E !important; color: #fff !important; }
-  .cl-btn-ghost:hover { background: #F7F7F5 !important; }
+  .cl-btn-secondary:hover { background: #E8F0FE !important; border-color: #2383E2 !important; color: #2383E2 !important; }
+  .cl-btn-danger:hover { background: #E03E3E !important; color: #fff !important; border-color: #E03E3E !important; }
+  .cl-btn-ghost:hover { background: #E8F0FE !important; color: #2383E2 !important; }
   .cl-card { transition: all .2s ease; }
-  .cl-card:hover { border-color: #E8E8E4; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
-  .cl-card-clickable:hover { border-color: #2383E244; box-shadow: 0 4px 12px rgba(35,131,226,0.08); transform: translateY(-1px); }
-  .cl-card-clickable:active { transform: translateY(0); box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
-  .cl-pill { transition: all .15s ease; }
-  .cl-pill:hover { transform: translateY(-1px); filter: brightness(.95); }
-  .cl-pill:active { transform: scale(.95); }
+  .cl-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+  .cl-card-clickable:hover { background: #FAFBFF !important; border-color: #2383E244 !important; box-shadow: 0 4px 12px rgba(35,131,226,0.08); }
+  .cl-card-clickable:active { transform: scale(.995); box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+  .cl-pill { transition: all .15s ease; cursor: pointer; }
+  .cl-pill:hover { background: #E8F0FE !important; border-color: #2383E244 !important; color: #2383E2 !important; }
+  .cl-pill:active { transform: scale(.96); }
+  .cl-input { transition: all .15s ease; }
+  .cl-input:hover { border-color: #2383E266 !important; }
   .cl-input:focus { border-color: #2383E2 !important; box-shadow: 0 0 0 3px #E8F0FE !important; }
+  .cl-select { transition: all .15s ease; }
+  .cl-select:hover { border-color: #2383E266 !important; }
   .cl-select:focus { border-color: #2383E2 !important; box-shadow: 0 0 0 3px #E8F0FE !important; }
-  .cl-back:hover { background: #2383E233 !important; }
+  .cl-back { transition: all .15s ease; }
+  .cl-back:hover { background: #E8F0FE !important; color: #2383E2 !important; }
   .cl-back:active { transform: scale(.96); }
-  .cl-tag { transition: all .15s ease; }
-  .cl-tag:hover { filter: brightness(.92); transform: scale(1.03); }
-  .cl-num:hover { border-color: #2383E244 !important; background: #E8F0FE !important; color: #2383E2 !important; }
+  .cl-tag { transition: all .15s ease; cursor: default; }
+  .cl-tag:hover { filter: brightness(.93); transform: scale(1.04); }
+  .cl-num { transition: all .15s ease; }
+  .cl-num:hover { background: #E8F0FE !important; border-color: #2383E244 !important; color: #2383E2 !important; }
   .cl-action { transition: all .15s ease; }
-  .cl-action:hover { transform: translateY(-1px); }
-  .cl-action:active { transform: translateY(0) scale(.97); }
+  .cl-action:hover { background: #E8F0FE !important; color: #2383E2 !important; border-color: #2383E244 !important; }
+  .cl-action:active { transform: scale(.96); }
+  .cl-action-delete { transition: all .15s ease; }
+  .cl-action-delete:hover { background: #FDECEC !important; color: #E03E3E !important; border-color: #E03E3E44 !important; }
+  .cl-action-delete:active { transform: scale(.96); }
   .cl-participant { transition: all .15s ease; animation: fadeIn .3s ease; }
-  .cl-participant:hover { background: #E8F0FE !important; border-color: #2383E244 !important; }
+  .cl-participant:hover { background: #E8F0FE !important; border-color: #2383E244 !important; color: #2383E2 !important; }
   .cl-result-card { transition: all .2s ease; animation: slideIn .3s ease; }
-  .cl-result-card:hover { transform: translateX(4px); border-color: #2383E244; }
+  .cl-result-card:hover { background: #FAFBFF !important; border-color: #2383E233 !important; }
+  .cl-lang { transition: all .12s ease; }
+  .cl-lang:hover { background: #E8F0FE !important; color: #2383E2 !important; }
+  .cl-file-zone { transition: all .2s ease; }
+  .cl-file-zone:hover { border-color: #2383E2 !important; background: #FAFBFF !important; }
+  .cl-option { transition: all .15s ease; }
+  .cl-option:hover { border-color: #2383E244 !important; background: #FAFBFF !important; }
   @keyframes fadeIn { from { opacity: 0; transform: scale(.9); } to { opacity: 1; transform: scale(1); } }
   @keyframes slideIn { from { opacity: 0; transform: translateX(-8px); } to { opacity: 1; transform: translateX(0); } }
   @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .4; } }
@@ -161,7 +176,7 @@ function PageHeader({ title, icon, lang, setLang }) {
         </div>
         <div style={{ display: "flex", gap: 2, background: C.bg, borderRadius: 8, padding: 3 }}>
           {[["en", "EN"], ["es", "ES"], ["ko", "한"]].map(([c, l]) => (
-            <button key={c} onClick={() => setLang(c)} style={{
+            <button key={c} className="cl-lang" onClick={() => setLang(c)} style={{
               padding: "5px 10px", borderRadius: 6, fontSize: 12, fontWeight: 600,
               background: lang === c ? C.bg : "transparent", color: lang === c ? C.text : C.textMuted,
               border: "none", cursor: "pointer", boxShadow: lang === c ? "0 1px 2px rgba(0,0,0,0.06)" : "none",
@@ -336,8 +351,8 @@ function ClassSetup({ userId, onClassReady, t }) {
                   <Btn onClick={() => onClassReady(cls)} style={{ flex: 1, fontSize: 13, padding: "7px 12px" }}>
                     <CIcon name="rocket" size={14} inline /> {t.newSessionBtn}
                   </Btn>
-                  <button onClick={(e) => startEdit(cls, e)} style={{ padding: "7px 12px", borderRadius: 8, fontSize: 12, fontWeight: 500, background: C.bg, color: C.textSecondary, border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: "'Outfit',sans-serif", transition: "all .15s" }}>{t.editClass}</button>
-                  <button onClick={(e) => confirmDelete(cls.id, e)} style={{ padding: "7px 12px", borderRadius: 8, fontSize: 12, fontWeight: 500, background: C.bg, color: C.red, border: `1px solid ${C.redSoft}`, cursor: "pointer", fontFamily: "'Outfit',sans-serif", transition: "all .15s" }}>{t.deleteClass}</button>
+                  <button className="cl-action" onClick={(e) => startEdit(cls, e)} style={{ padding: "7px 12px", borderRadius: 8, fontSize: 12, fontWeight: 500, background: C.bg, color: C.textSecondary, border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: "'Outfit',sans-serif" }}>{t.editClass}</button>
+                  <button className="cl-action-delete" onClick={(e) => confirmDelete(cls.id, e)} style={{ padding: "7px 12px", borderRadius: 8, fontSize: 12, fontWeight: 500, background: C.bg, color: C.red, border: `1px solid ${C.redSoft}`, cursor: "pointer", fontFamily: "'Outfit',sans-serif" }}>{t.deleteClass}</button>
                 </div>
               </Card>
             );
@@ -413,7 +428,7 @@ function CreateSession({ cls, userId, onSessionCreated, onBack, t, lang }) {
 
   if (step === "preview") return (
     <div style={{ maxWidth: 560, margin: "0 auto" }}>
-      <button onClick={() => setStep("form")} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 8, fontSize: 13, fontWeight: 500, color: C.accent, background: C.accentSoft, border: "none", cursor: "pointer", fontFamily: "'Outfit',sans-serif", marginBottom: 16, transition: "all .15s" }}>
+      <button className="cl-back" onClick={() => setStep("form")} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 8, fontSize: 13, fontWeight: 500, color: C.accent, background: C.accentSoft, border: "none", cursor: "pointer", fontFamily: "'Outfit',sans-serif", marginBottom: 16 }}>
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M19 12H5M5 12L11 6M5 12L11 18" stroke={C.accent} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
         {t.edit}
       </button>
@@ -426,7 +441,7 @@ function CreateSession({ cls, userId, onSessionCreated, onBack, t, lang }) {
             <p style={{ fontSize: 14, fontWeight: 500, marginBottom: 10, lineHeight: 1.4 }}>{q.q}</p>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
               {q.options.map((o, j) => (
-                <div key={j} style={{ padding: "7px 10px", borderRadius: 6, fontSize: 13, background: j === q.correct ? C.greenSoft : C.bgSoft, color: j === q.correct ? C.green : C.textSecondary, fontWeight: j === q.correct ? 500 : 400, border: `1px solid ${j === q.correct ? C.green + "33" : "transparent"}` }}>{o}</div>
+                <div key={j} className="cl-option" style={{ padding: "7px 10px", borderRadius: 6, fontSize: 13, background: j === q.correct ? C.greenSoft : C.bgSoft, color: j === q.correct ? C.green : C.textSecondary, fontWeight: j === q.correct ? 500 : 400, border: `1px solid ${j === q.correct ? C.green + "33" : "transparent"}` }}>{o}</div>
               ))}
             </div>
           </Card>
@@ -441,7 +456,7 @@ function CreateSession({ cls, userId, onSessionCreated, onBack, t, lang }) {
 
   return (
     <div style={{ maxWidth: 480, margin: "0 auto" }}>
-      <button onClick={onBack} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 8, fontSize: 13, fontWeight: 500, color: C.accent, background: C.accentSoft, border: "none", cursor: "pointer", fontFamily: "'Outfit',sans-serif", marginBottom: 16, transition: "all .15s" }}>
+      <button className="cl-back" onClick={onBack} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 8, fontSize: 13, fontWeight: 500, color: C.accent, background: C.accentSoft, border: "none", cursor: "pointer", fontFamily: "'Outfit',sans-serif", marginBottom: 16 }}>
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M19 12H5M5 12L11 6M5 12L11 18" stroke={C.accent} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
         {t.backToClasses}
       </button>
@@ -553,7 +568,7 @@ function SessionLobby({ session, onStart, onEnd, t }) {
         <p style={{ fontSize: 13, color: C.textSecondary }}>{t.studentsJoined}</p>
         {participants.length > 0 && (
           <div style={{ display: "flex", flexWrap: "wrap", gap: 4, justifyContent: "center", marginTop: 14 }}>
-            {participants.map((p, i) => <span key={i} style={{ padding: "3px 10px", borderRadius: 20, fontSize: 12, background: C.bgSoft, color: C.textSecondary, border: `1px solid ${C.border}`, transition: "all .15s" }}>{p.student_name}</span>)}
+            {participants.map((p, i) => <span key={i} className="cl-participant" style={{ padding: "3px 10px", borderRadius: 20, fontSize: 12, background: C.bgSoft, color: C.textSecondary, border: `1px solid ${C.border}` }}>{p.student_name}</span>)}
           </div>
         )}
       </Card>
