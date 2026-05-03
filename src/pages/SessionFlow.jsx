@@ -23,7 +23,7 @@ const i18n = {
     pageTitle: "Sessions", yourClasses: "Your Classes", yourClassesSub: "Select a class to create a session, or create a new one.",
     createNewClass: "Create new class", className: "Class name", classPlaceholder: "e.g. 8th Grade History",
     grade: "Grade", subject: "Subject", createClass: "Create Class", creating: "Creating...",
-    suggestedToday: "Suggested for today", reviewNow: "Review now", today: "today", daysAgo: "d ago", more: "more",
+    suggestedToday: "Suggested for today", reviewNow: "Review now", reviewWithAI: "AI", reviewWithDeck: "Deck", today: "today", daysAgo: "d ago", more: "more",
     newSession: "New Session", backToClasses: "Back to classes", topic: "Topic",
     topicPlaceholder: "e.g. French Revolution, Photosynthesis...", keyPoints: "Key points (optional)",
     keyPointsPlaceholder: "Main concepts covered, one per line", numQuestions: "Number of questions",
@@ -47,7 +47,7 @@ const i18n = {
     pageTitle: "Sesiones", yourClasses: "Tus Clases", yourClassesSub: "Selecciona una clase para crear una sesión, o crea una nueva.",
     createNewClass: "Crear nueva clase", className: "Nombre de la clase", classPlaceholder: "ej. Historia 8° Grado",
     grade: "Grado", subject: "Materia", createClass: "Crear Clase", creating: "Creando...",
-    suggestedToday: "Sugerido para hoy", reviewNow: "Repasar ahora", today: "hoy", daysAgo: "d atrás", more: "más",
+    suggestedToday: "Sugerido para hoy", reviewNow: "Repasar ahora", reviewWithAI: "IA", reviewWithDeck: "Deck", today: "hoy", daysAgo: "d atrás", more: "más",
     newSession: "Nueva Sesión", backToClasses: "Volver a clases", topic: "Tema",
     topicPlaceholder: "ej. Revolución Francesa, Fotosíntesis...", keyPoints: "Puntos clave (opcional)",
     keyPointsPlaceholder: "Conceptos principales, uno por línea", numQuestions: "Número de preguntas",
@@ -71,7 +71,7 @@ const i18n = {
     pageTitle: "세션", yourClasses: "내 수업", yourClassesSub: "수업을 선택하여 세션을 만들거나 새 수업을 만드세요.",
     createNewClass: "새 수업 만들기", className: "수업 이름", classPlaceholder: "예: 중2 역사",
     grade: "학년", subject: "과목", createClass: "수업 만들기", creating: "생성 중...",
-    suggestedToday: "오늘 추천 복습", reviewNow: "지금 복습", today: "오늘", daysAgo: "일 전", more: "더보기",
+    suggestedToday: "오늘 추천 복습", reviewNow: "지금 복습", reviewWithAI: "AI", reviewWithDeck: "덱", today: "오늘", daysAgo: "일 전", more: "더보기",
     newSession: "새 세션", backToClasses: "수업 목록으로", topic: "주제",
     topicPlaceholder: "예: 프랑스 혁명, 광합성...", keyPoints: "핵심 포인트 (선택)",
     keyPointsPlaceholder: "다룬 주요 개념, 줄당 하나", numQuestions: "문제 수",
@@ -202,6 +202,7 @@ function ClassSetup({ userId, onClassReady, t }) {
   const [subject, setSubject] = useState("");
   const [retention, setRetention] = useState({});
   const [suggestions, setSuggestions] = useState({});
+  const [classDecks, setClassDecks] = useState({});
   const [editing, setEditing] = useState(null); // class id being edited
   const [editName, setEditName] = useState("");
   const [editGrade, setEditGrade] = useState("");
@@ -220,6 +221,8 @@ function ClassSetup({ userId, onClassReady, t }) {
         setRetention(prev => ({ ...prev, [cls.id]: overview }));
         const sug = await getReviewSuggestions(cls.id);
         setSuggestions(prev => ({ ...prev, [cls.id]: sug }));
+        const { data: decks } = await supabase.from("decks").select("*").eq("class_id", cls.id);
+        setClassDecks(prev => ({ ...prev, [cls.id]: decks || [] }));
       }
     }
   };
@@ -271,23 +274,37 @@ function ClassSetup({ userId, onClassReady, t }) {
         if (!sug || sug.length === 0) return null;
         const cls = classes.find(c => c.id === classId);
         if (!cls) return null;
+        const decksForClass = classDecks[classId] || [];
         return (
           <Card key={`sug-${classId}`} style={{ marginBottom: 16, padding: 16, borderLeft: `3px solid ${C.orange}`, background: C.orangeSoft + "33" }}>
             <div style={{ fontSize: 13, fontWeight: 600, color: C.orange, marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
               <CIcon name="clock" size={16} inline /> {t.suggestedToday} — {cls.name}
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              {sug.slice(0, 3).map((st, i) => (
-                <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 10px", borderRadius: 6, background: C.bg }}>
-                  <div>
-                    <span style={{ fontSize: 14, fontWeight: 500 }}>{st.topic}</span>
-                    <span style={{ fontSize: 11, color: C.textMuted, marginLeft: 8 }}>{st.days_since_review === 0 ? t.today : `${st.days_since_review}${t.daysAgo}`}</span>
+              {sug.slice(0, 3).map((st, i) => {
+                // Find deck matching this topic (case-insensitive title match)
+                const matchingDeck = decksForClass.find(d => d.title.toLowerCase().includes(st.topic.toLowerCase()) || st.topic.toLowerCase().includes(d.title.toLowerCase()));
+                return (
+                  <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 10px", borderRadius: 6, background: C.bg, gap: 8 }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <span style={{ fontSize: 14, fontWeight: 500 }}>{st.topic}</span>
+                      <span style={{ fontSize: 11, color: C.textMuted, marginLeft: 8 }}>{st.days_since_review === 0 ? t.today : `${st.days_since_review}${t.daysAgo}`}</span>
+                    </div>
+                    <span style={{ fontSize: 13, fontWeight: 700, fontFamily: MONO, color: retCol(st.current_retention), minWidth: 36, textAlign: "right" }}>{st.current_retention}%</span>
+                    <div style={{ display: "flex", gap: 4 }}>
+                      <button className="cl-pill" onClick={() => onClassReady(cls, st.topic, "create")} style={{ padding: "4px 10px", borderRadius: 6, fontSize: 11, fontWeight: 600, background: C.accentSoft, color: C.accent, border: "none", cursor: "pointer", fontFamily: "'Outfit',sans-serif", display: "flex", alignItems: "center", gap: 4 }}>
+                        <CIcon name="brain" size={11} inline /> {t.reviewWithAI}
+                      </button>
+                      {matchingDeck && (
+                        <button className="cl-pill" onClick={() => onClassReady(cls, null, "deckPreview", matchingDeck)} style={{ padding: "4px 10px", borderRadius: 6, fontSize: 11, fontWeight: 600, background: C.purpleSoft, color: C.purple, border: "none", cursor: "pointer", fontFamily: "'Outfit',sans-serif", display: "flex", alignItems: "center", gap: 4 }}>
+                          <CIcon name="book" size={11} inline /> {t.reviewWithDeck}
+                        </button>
+                      )}
+                    </div>
                   </div>
-                  <span style={{ fontSize: 13, fontWeight: 700, fontFamily: MONO, color: retCol(st.current_retention), minWidth: 36, textAlign: "right" }}>{st.current_retention}%</span>
-                </div>
-              ))}
+                );
+              })}
             </div>
-            <Btn onClick={() => onClassReady(cls, sug[0]?.topic, "create")} style={{ marginTop: 10, fontSize: 12, padding: "6px 14px" }}>{t.reviewNow}</Btn>
           </Card>
         );
       })}
@@ -401,6 +418,7 @@ function CreateSession({ cls, userId, onSessionCreated, onBack, t, lang, reviewT
   const [activityType, setActivityType] = useState(deckData?.questions?.[0]?.type || "mcq");
   const [numQuestions, setNumQuestions] = useState(5);
   const [customNum, setCustomNum] = useState("");
+  const [questionLang, setQuestionLang] = useState(lang);
   const [step, setStep] = useState(deckData ? "preview" : "form");
   const [questions, setQuestions] = useState(deckData?.questions || []);
   const [error, setError] = useState("");
@@ -425,7 +443,7 @@ function CreateSession({ cls, userId, onSessionCreated, onBack, t, lang, reviewT
   const handleGenerate = async () => {
     setStep("generating"); setError("");
     try {
-      const qs = await generateQuestions({ topic, keyPoints, grade: cls.grade, subject: cls.subject, activityType, numQuestions, language: lang, file: inputMode === "file" ? file : null });
+      const qs = await generateQuestions({ topic, keyPoints, grade: cls.grade, subject: cls.subject, activityType, numQuestions, language: questionLang, file: inputMode === "file" ? file : null });
       setQuestions(qs); setStep("preview");
     } catch (err) { setError(err.message); setStep("form"); }
   };
@@ -642,13 +660,23 @@ function CreateSession({ cls, userId, onSessionCreated, onBack, t, lang, reviewT
             <textarea value={keyPoints} onChange={e => setKeyPoints(e.target.value)} placeholder={t.keyPointsPlaceholder} className="cl-input" style={{ ...inp, minHeight: 80, resize: "vertical" }} />
           </div>
         )}
-        <div>
-          <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: C.textSecondary, marginBottom: 5 }}>{t.numQuestions}</label>
-          <div style={{ display: "flex", gap: 4 }}>
-            {[3, 5, 10, 15, 20].map(n => (
-              <button key={n} className="cl-num" onClick={() => { setNumQuestions(n); setCustomNum(""); }} style={{ flex: 1, padding: 8, borderRadius: 6, fontSize: 14, fontWeight: 600, background: numQuestions === n && !customNum ? C.accentSoft : C.bg, color: numQuestions === n && !customNum ? C.accent : C.textMuted, border: `1px solid ${numQuestions === n && !customNum ? C.accent + "33" : C.border}`, fontFamily: MONO, cursor: "pointer" }}>{n}</button>
-            ))}
-            <input className="cl-input" value={customNum} onChange={e => { const v = e.target.value.replace(/\D/g, ""); setCustomNum(v); if (v) setNumQuestions(parseInt(v) || 5); }} placeholder="#" style={{ ...inp, width: 52, flex: "none", textAlign: "center", fontFamily: MONO, fontWeight: 600, fontSize: 14, padding: 8 }} />
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          <div>
+            <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: C.textSecondary, marginBottom: 5 }}>{t.numQuestions}</label>
+            <div style={{ display: "flex", gap: 4 }}>
+              {[3, 5, 10, 15].map(n => (
+                <button key={n} className="cl-num" onClick={() => { setNumQuestions(n); setCustomNum(""); }} style={{ flex: 1, padding: 8, borderRadius: 6, fontSize: 14, fontWeight: 600, background: numQuestions === n && !customNum ? C.accentSoft : C.bg, color: numQuestions === n && !customNum ? C.accent : C.textMuted, border: `1px solid ${numQuestions === n && !customNum ? C.accent + "33" : C.border}`, fontFamily: MONO, cursor: "pointer" }}>{n}</button>
+              ))}
+              <input className="cl-input" value={customNum} onChange={e => { const v = e.target.value.replace(/\D/g, ""); setCustomNum(v); if (v) setNumQuestions(parseInt(v) || 5); }} placeholder="#" style={{ ...inp, width: 44, flex: "none", textAlign: "center", fontFamily: MONO, fontWeight: 600, fontSize: 14, padding: 8 }} />
+            </div>
+          </div>
+          <div>
+            <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: C.textSecondary, marginBottom: 5 }}>Question language</label>
+            <div style={{ display: "flex", gap: 4 }}>
+              {[["en", "EN"], ["es", "ES"], ["ko", "한"]].map(([c, lb]) => (
+                <button key={c} className="cl-num" onClick={() => setQuestionLang(c)} style={{ flex: 1, padding: 8, borderRadius: 6, fontSize: 13, fontWeight: 600, background: questionLang === c ? C.accentSoft : C.bg, color: questionLang === c ? C.accent : C.textMuted, border: `1px solid ${questionLang === c ? C.accent + "33" : C.border}`, fontFamily: MONO, cursor: "pointer" }}>{lb}</button>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -857,7 +885,7 @@ export default function SessionFlow({ lang = "en", setLang }) {
       <style>{interactiveCSS}</style>
       <PageHeader title={t.pageTitle} icon="pin" lang={lang} setLang={setLang || (() => {})} />
 
-      {step === "classes" && <ClassSetup userId={user.id} onClassReady={(cls, topic, mode) => { setSelectedClass(cls); setReviewTopic(topic || null); setStep(mode || "create"); }} t={t} />}
+      {step === "classes" && <ClassSetup userId={user.id} onClassReady={(cls, topic, mode, deck) => { setSelectedClass(cls); setReviewTopic(topic || null); if (deck) setDeckQuestions(deck); setStep(mode || "create"); }} t={t} />}}
       {step === "create" && selectedClass && <CreateSession cls={selectedClass} userId={user.id} onSessionCreated={(s) => { setSession(s); setStep("lobby"); }} onBack={() => { setStep("classes"); setReviewTopic(null); }} t={t} lang={lang} reviewTopic={reviewTopic} />}
       {step === "deckSelect" && selectedClass && <DeckSelect cls={selectedClass} userId={user.id} onDeckSelected={(dk) => { setDeckQuestions(dk); setStep("deckPreview"); }} onBack={() => setStep("classes")} t={t} lang={lang} />}
       {step === "deckPreview" && selectedClass && deckQuestions && <CreateSession cls={selectedClass} userId={user.id} onSessionCreated={(s) => { setSession(s); setStep("lobby"); }} onBack={() => setStep("deckSelect")} t={t} lang={lang} deckData={deckQuestions} />}
