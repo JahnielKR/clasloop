@@ -283,7 +283,7 @@ function ClassSetup({ userId, onClassReady, t }) {
                 </div>
               ))}
             </div>
-            <Btn onClick={() => onClassReady(cls)} style={{ marginTop: 10, fontSize: 12, padding: "6px 14px" }}>{t.reviewNow}</Btn>
+            <Btn onClick={() => onClassReady(cls, sug[0]?.topic)} style={{ marginTop: 10, fontSize: 12, padding: "6px 14px" }}>{t.reviewNow}</Btn>
           </Card>
         );
       })}
@@ -379,8 +379,8 @@ function ClassSetup({ userId, onClassReady, t }) {
 }
 
 // ─── Step 2: Create Session ─────────────────────────
-function CreateSession({ cls, userId, onSessionCreated, onBack, t, lang }) {
-  const [topic, setTopic] = useState("");
+function CreateSession({ cls, userId, onSessionCreated, onBack, t, lang, reviewTopic }) {
+  const [topic, setTopic] = useState(reviewTopic || "");
   const [keyPoints, setKeyPoints] = useState("");
   const [sessionType, setSessionType] = useState("warmup");
   const [numQuestions, setNumQuestions] = useState(5);
@@ -391,6 +391,9 @@ function CreateSession({ cls, userId, onSessionCreated, onBack, t, lang }) {
   const [file, setFile] = useState(null);
   const [dragOver, setDragOver] = useState(false);
   const fileRef = useRef(null);
+
+  // Auto-generate if reviewTopic is provided
+  const [autoGenerate, setAutoGenerate] = useState(!!reviewTopic);
 
   const handleFile = (f) => {
     if (!f) return;
@@ -408,6 +411,14 @@ function CreateSession({ cls, userId, onSessionCreated, onBack, t, lang }) {
       setQuestions(qs); setStep("preview");
     } catch (err) { setError(err.message); setStep("form"); }
   };
+
+  // Auto-generate when coming from "Review now"
+  useEffect(() => {
+    if (autoGenerate && topic.trim()) {
+      setAutoGenerate(false);
+      handleGenerate();
+    }
+  }, [autoGenerate]);
 
   const handleLaunch = async () => {
     const pin = String(Math.floor(100000 + Math.random() * 900000));
@@ -657,6 +668,7 @@ export default function SessionFlow({ lang = "en", setLang }) {
   const [step, setStep] = useState("classes");
   const [selectedClass, setSelectedClass] = useState(null);
   const [session, setSession] = useState(null);
+  const [reviewTopic, setReviewTopic] = useState(null);
   const t = i18n[lang] || i18n.en;
 
   useEffect(() => { supabase.auth.getUser().then(({ data: { user } }) => setUser(user)); }, []);
@@ -668,8 +680,8 @@ export default function SessionFlow({ lang = "en", setLang }) {
       <style>{interactiveCSS}</style>
       <PageHeader title={t.pageTitle} icon="pin" lang={lang} setLang={setLang || (() => {})} />
 
-      {step === "classes" && <ClassSetup userId={user.id} onClassReady={(cls) => { setSelectedClass(cls); setStep("create"); }} t={t} />}
-      {step === "create" && selectedClass && <CreateSession cls={selectedClass} userId={user.id} onSessionCreated={(s) => { setSession(s); setStep("lobby"); }} onBack={() => setStep("classes")} t={t} lang={lang} />}
+      {step === "classes" && <ClassSetup userId={user.id} onClassReady={(cls, topic) => { setSelectedClass(cls); setReviewTopic(topic || null); setStep("create"); }} t={t} />}
+      {step === "create" && selectedClass && <CreateSession cls={selectedClass} userId={user.id} onSessionCreated={(s) => { setSession(s); setStep("lobby"); }} onBack={() => { setStep("classes"); setReviewTopic(null); }} t={t} lang={lang} reviewTopic={reviewTopic} />}
       {step === "lobby" && session && <SessionLobby session={session} onStart={() => setStep("live")} onEnd={() => { setSession(null); setStep("classes"); }} t={t} />}
       {step === "live" && session && <LiveResults session={session} onEnd={() => { setSession(null); setStep("classes"); }} t={t} />}
     </div>
