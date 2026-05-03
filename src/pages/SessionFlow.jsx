@@ -14,6 +14,7 @@ const C = {
 };
 const MONO = "'JetBrains Mono', monospace";
 const SUBJECTS = ["Math", "Science", "History", "Language", "Geography", "Art", "Music", "Other"];
+const SUBJ_ICON = { Math: "math", Science: "science", History: "history", Language: "language", Geography: "geo", Art: "art", Music: "music", Other: "book" };
 const GRADES = ["6th", "7th", "8th", "9th", "10th", "11th", "12th"];
 
 // ─── i18n ───────────────────────────────────────────
@@ -404,7 +405,20 @@ function CreateSession({ cls, userId, onSessionCreated, onBack, t, lang, reviewT
   const [file, setFile] = useState(null);
   const [dragOver, setDragOver] = useState(false);
   const [deckSaved, setDeckSaved] = useState(false);
+  const [decks, setDecks] = useState([]);
+  const [decksLoaded, setDecksLoaded] = useState(false);
   const fileRef = useRef(null);
+
+  // Load user's decks when deck mode selected
+  useEffect(() => {
+    if (inputMode === "deck" && !decksLoaded) {
+      supabase.from("decks").select("*").eq("author_id", userId).order("created_at", { ascending: false })
+        .then(({ data }) => { setDecks(data || []); setDecksLoaded(true); });
+      // Also load public decks matching this class subject
+      supabase.from("decks").select("*, profiles(full_name)").eq("is_public", true).eq("subject", cls.subject).order("uses_count", { ascending: false }).limit(10)
+        .then(({ data }) => { if (data) setDecks(prev => { const ids = new Set(prev.map(d => d.id)); return [...prev, ...data.filter(d => !ids.has(d.id))]; }); });
+    }
+  }, [inputMode]);
 
   // Auto-generate if reviewTopic is provided
   const [autoGenerate, setAutoGenerate] = useState(!!reviewTopic);
@@ -567,32 +581,75 @@ function CreateSession({ cls, userId, onSessionCreated, onBack, t, lang, reviewT
       </div>
 
       <div style={{ display: "flex", gap: 6, marginBottom: 16 }}>
-        {[["text", "book", t.typeTopic], ["file", "plus", t.uploadFile]].map(([mode, icon, label]) => (
+        {[["text", "book", t.typeTopic], ["file", "plus", t.uploadFile], ["deck", "book", t.useDeck]].map(([mode, icon, label]) => (
           <button key={mode} className="cl-pill" onClick={() => setInputMode(mode)} style={{ flex: 1, padding: "8px 12px", borderRadius: 8, fontSize: 13, fontWeight: 500, background: inputMode === mode ? C.bg : "transparent", color: inputMode === mode ? C.text : C.textMuted, border: `1px solid ${inputMode === mode ? C.border : "transparent"}`, boxShadow: inputMode === mode ? C.shadow : "none", cursor: "pointer", fontFamily: "'Outfit',sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
             <CIcon name={icon} size={15} inline /> {label}
           </button>
         ))}
       </div>
 
-      {/* Activity Type */}
-      <div style={{ marginBottom: 16 }}>
-        <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: C.textSecondary, marginBottom: 8 }}>Activity type</label>
-        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-          {ACTIVITY_TYPES.map(at => (
-            <button key={at.id} className="cl-pill" onClick={() => setActivityType(at.id)} style={{
-              padding: "7px 14px", borderRadius: 8, fontSize: 12, fontWeight: 500,
-              background: activityType === at.id ? C.accentSoft : C.bg,
-              color: activityType === at.id ? C.accent : C.textSecondary,
-              border: `1px solid ${activityType === at.id ? C.accent + "33" : C.border}`,
-              cursor: "pointer", fontFamily: "'Outfit',sans-serif",
-              display: "flex", alignItems: "center", gap: 5,
-            }}>
-              <CIcon name={at.icon} size={14} inline /> {at.label[lang] || at.label.en}
-            </button>
-          ))}
+      {/* Activity Type - hide in deck mode */}
+      {inputMode !== "deck" && (
+        <div style={{ marginBottom: 16 }}>
+          <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: C.textSecondary, marginBottom: 8 }}>Activity type</label>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            {ACTIVITY_TYPES.map(at => (
+              <button key={at.id} className="cl-pill" onClick={() => setActivityType(at.id)} style={{
+                padding: "7px 14px", borderRadius: 8, fontSize: 12, fontWeight: 500,
+                background: activityType === at.id ? C.accentSoft : C.bg,
+                color: activityType === at.id ? C.accent : C.textSecondary,
+                border: `1px solid ${activityType === at.id ? C.accent + "33" : C.border}`,
+                cursor: "pointer", fontFamily: "'Outfit',sans-serif",
+                display: "flex", alignItems: "center", gap: 5,
+              }}>
+                <CIcon name={at.icon} size={14} inline /> {at.label[lang] || at.label.en}
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
+      {/* Deck selector */}
+      {inputMode === "deck" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 16 }}>
+          {!decksLoaded ? (
+            <p style={{ textAlign: "center", color: C.textMuted, padding: 20 }}>{t.loading}</p>
+          ) : decks.length === 0 ? (
+            <div style={{ textAlign: "center", padding: 32, background: C.bgSoft, borderRadius: 12, border: `1px dashed ${C.border}` }}>
+              <CIcon name="book" size={28} />
+              <p style={{ fontSize: 13, color: C.textMuted, marginTop: 8 }}>{t.noDecks}</p>
+            </div>
+          ) : (
+            <>
+              <label style={{ fontSize: 13, fontWeight: 500, color: C.textSecondary }}>{t.selectDeck}</label>
+              {decks.map(dk => {
+                const qs = dk.questions || [];
+                const icon = SUBJ_ICON[dk.subject] || "book";
+                return (
+                  <div key={dk.id} className="cl-card cl-card-clickable" onClick={() => {
+                    setTopic(dk.title);
+                    setQuestions(qs);
+                    setActivityType(qs[0]?.type || "mcq");
+                    setStep("preview");
+                  }} style={{ padding: 14, borderRadius: 10, background: C.bg, border: `1px solid ${C.border}`, cursor: "pointer", display: "flex", alignItems: "center", gap: 12 }}>
+                    <CIcon name={icon} size={22} inline />
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 14, fontWeight: 600 }}>{dk.title}</div>
+                      <div style={{ fontSize: 12, color: C.textMuted, marginTop: 2 }}>
+                        {dk.subject} · {dk.grade} · {qs.length} {t.questions}
+                        {dk.profiles?.full_name ? ` · ${dk.profiles.full_name}` : ""}
+                      </div>
+                    </div>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M9 6L15 12L9 18" stroke={C.textMuted} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  </div>
+                );
+              })}
+            </>
+          )}
+        </div>
+      )}
+
+      {inputMode !== "deck" && (
       <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
         {inputMode === "file" && (
           <div onDragOver={e => { e.preventDefault(); setDragOver(true); }} onDragLeave={() => setDragOver(false)} onDrop={handleDrop} onClick={() => fileRef.current?.click()}
@@ -647,6 +704,8 @@ function CreateSession({ cls, userId, onSessionCreated, onBack, t, lang, reviewT
         </Btn>
         {inputMode === "file" && file && <p style={{ fontSize: 11, color: C.textMuted, textAlign: "center", marginTop: 8 }}>{t.aiWillAnalyze} {file.name.split(".").pop().toUpperCase()}</p>}
       </div>
+      </div>
+      )}
     </div>
   );
 }
