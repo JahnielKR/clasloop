@@ -237,7 +237,7 @@ export default function App() {
       <style>{sidebarCSS}</style>
       <Sidebar page={page} setPage={setPage} profile={profile} lang={lang} setLang={setLang} open={open} setOpen={setOpen} onSignOut={handleSignOut} onNavClick={() => setPageKey(k => k + 1)} />
       <div style={{ marginLeft: open ? 210 : 56, flex: 1, transition: "margin-left .2s", minHeight: "100vh", background: C.bgSoft }}>
-        {P && <P key={pageKey} lang={lang} setLang={setLang} />}
+        {P && <P key={pageKey} lang={lang} setLang={setLang} profile={profile} user={user} />}
       </div>
     </div>
   );

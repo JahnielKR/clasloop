@@ -29,6 +29,7 @@ const i18n = {
     tapToOrder: "Tap items in the correct order",
     tapMatch: "Tap a left item, then its match",
     correctAnswer: "Correct answer", undo: "Undo",
+    joiningAs: "Joining as",
   },
   es: {
     joinSession: "Unirse a Sesión", sessionPin: "PIN de Sesión", yourName: "Tu nombre",
@@ -46,6 +47,7 @@ const i18n = {
     tapToOrder: "Toca los elementos en el orden correcto",
     tapMatch: "Toca un elemento de la izquierda, luego su par",
     correctAnswer: "Respuesta correcta", undo: "Deshacer",
+    joiningAs: "Te unirás como",
   },
   ko: {
     joinSession: "세션 참여", sessionPin: "세션 PIN", yourName: "이름",
@@ -63,6 +65,7 @@ const i18n = {
     tapToOrder: "올바른 순서로 항목을 탭하세요",
     tapMatch: "왼쪽 항목을 탭한 다음 짝을 탭하세요",
     correctAnswer: "정답", undo: "되돌리기",
+    joiningAs: "참여자",
   },
 };
 
@@ -137,10 +140,11 @@ const evaluateAnswer = (q, type, raw) => {
   }
 };
 
-export default function StudentJoin({ lang: pageLang = "en" }) {
+export default function StudentJoin({ lang: pageLang = "en", profile = null }) {
   const [step, setStep] = useState("join");
   const [pin, setPin] = useState("");
-  const [name, setName] = useState("");
+  const [name, setName] = useState(profile?.full_name || "");
+  const isLoggedIn = Boolean(profile?.full_name);
   const [error, setError] = useState("");
   const [session, setSession] = useState(null);
   const [participant, setParticipant] = useState(null);
@@ -161,6 +165,12 @@ export default function StudentJoin({ lang: pageLang = "en" }) {
 
   const l = pageLang || "en";
   const t = i18n[l] || i18n.en;
+
+  // Keep `name` in sync with the logged-in profile
+  useEffect(() => {
+    if (profile?.full_name && step === "join") setName(profile.full_name);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profile?.full_name]);
 
   const questions = session?.questions || [];
   const q = questions[current];
@@ -324,13 +334,33 @@ export default function StudentJoin({ lang: pageLang = "en" }) {
             <div>
               <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: C.textSecondary, marginBottom: 5 }}>{t.sessionPin}</label>
               <input className="sj-input" value={pin} onChange={e => setPin(e.target.value.replace(/\D/g, "").slice(0, 6))} placeholder="000000"
+                onKeyDown={e => e.key === "Enter" && isLoggedIn && handleJoin()}
                 style={{ ...inp, textAlign: "center", fontSize: 32, fontFamily: MONO, fontWeight: 700, letterSpacing: ".15em", padding: 16 }} />
             </div>
-            <div>
-              <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: C.textSecondary, marginBottom: 5 }}>{t.yourName}</label>
-              <input className="sj-input" value={name} onChange={e => setName(e.target.value)} placeholder={t.namePlaceholder} style={inp}
-                onKeyDown={e => e.key === "Enter" && handleJoin()} />
-            </div>
+            {isLoggedIn ? (
+              <div style={{
+                display: "flex", alignItems: "center", gap: 10,
+                padding: "10px 14px", borderRadius: 10,
+                background: C.bgSoft, border: `1px solid ${C.border}`,
+              }}>
+                <div style={{
+                  width: 32, height: 32, borderRadius: "50%",
+                  background: `linear-gradient(135deg, ${C.accent}, ${C.purple})`,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  color: "#fff", fontWeight: 700, fontSize: 13, flexShrink: 0,
+                }}>{(profile.full_name || "?").trim().charAt(0).toUpperCase()}</div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 11, color: C.textMuted, lineHeight: 1.2 }}>{t.joiningAs}</div>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: C.text, lineHeight: 1.3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{profile.full_name}</div>
+                </div>
+              </div>
+            ) : (
+              <div>
+                <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: C.textSecondary, marginBottom: 5 }}>{t.yourName}</label>
+                <input className="sj-input" value={name} onChange={e => setName(e.target.value)} placeholder={t.namePlaceholder} style={inp}
+                  onKeyDown={e => e.key === "Enter" && handleJoin()} />
+              </div>
+            )}
             <button className="sj-btn" onClick={handleJoin} disabled={pin.length !== 6 || !name.trim()} style={{
               width: "100%", padding: 14, borderRadius: 10, fontSize: 16, fontWeight: 600,
               background: pin.length === 6 && name.trim() ? `linear-gradient(135deg, ${C.accent}, ${C.purple})` : C.border,
@@ -675,7 +705,7 @@ export default function StudentJoin({ lang: pageLang = "en" }) {
             </div>
           </div>
 
-          <button className="sj-btn sj-btn-secondary" onClick={() => { setStep("join"); setPin(""); setName(""); setAnswers([]); setCurrent(0); setSession(null); }} style={{
+          <button className="sj-btn sj-btn-secondary" onClick={() => { setStep("join"); setPin(""); setName(profile?.full_name || ""); setAnswers([]); setCurrent(0); setSession(null); }} style={{
             marginTop: 20, padding: "12px 24px", borderRadius: 10, fontSize: 14, fontWeight: 500,
             background: C.bg, color: C.textSecondary, border: `1px solid ${C.border}`,
           }}>{t.joinAnother}</button>
