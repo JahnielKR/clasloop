@@ -1,0 +1,608 @@
+import { useState, useEffect, useCallback, useRef } from "react";
+import { supabase } from "../lib/supabase";
+import { generateQuestions, SUPPORTED_FILES } from "../lib/ai";
+import { processSessionResults, getReviewSuggestions, getClassRetentionOverview } from "../lib/spaced-repetition";
+import { WarmupInline, ExitTicketInline, TypeInline, UploadInline, RocketInline, SpinnerInline, BackArrow, WarningInline, FileIcon, FolderIcon, LiveIcon, CheckInline, XInline } from "../components/Icons";
+
+const C = {
+  bg: "#FFFFFF", bgSoft: "#F7F7F5", accent: "#2383E2", accentSoft: "#E8F0FE",
+  green: "#0F7B6C", greenSoft: "#EEFBF5", orange: "#D9730D", orangeSoft: "#FFF3E0",
+  red: "#E03E3E", redSoft: "#FDECEC", purple: "#6940A5", purpleSoft: "#F3EEFB",
+  text: "#191919", textSecondary: "#6B6B6B", textMuted: "#9B9B9B",
+  border: "#E8E8E4", shadow: "0 1px 3px rgba(0,0,0,0.04)",
+};
+const MONO = "'JetBrains Mono', monospace";
+const OPT_C = ["#2383E2", "#0F7B6C", "#D9730D", "#6940A5"];
+
+const SUBJECTS = ["Math", "Science", "History", "Language", "Geography", "Art", "Music", "Other"];
+const GRADES = ["6th", "7th", "8th", "9th", "10th", "11th", "12th"];
+
+// ─── Shared Components ──────────────────────────────
+const Btn = ({ children, v = "primary", onClick, disabled, style = {}, full }) => {
+  const base = { padding: "10px 20px", borderRadius: 8, fontSize: 14, fontWeight: 600, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6, width: full ? "100%" : "auto", opacity: disabled ? .4 : 1, pointerEvents: disabled ? "none" : "auto", border: "none", cursor: "pointer", fontFamily: "'Outfit',sans-serif" };
+  const vs = {
+    primary: { background: `linear-gradient(135deg,${C.accent},${C.purple})`, color: "#fff" },
+    secondary: { background: C.bg, color: C.text, border: `1px solid ${C.border}` },
+    danger: { background: C.redSoft, color: C.red },
+    success: { background: C.greenSoft, color: C.green },
+    ghost: { background: "transparent", color: C.textSecondary },
+  };
+  return <button onClick={onClick} disabled={disabled} style={{ ...base, ...vs[v], ...style }}>{children}</button>;
+};
+
+const Card = ({ children, style = {}, onClick }) => (
+  <div onClick={onClick} style={{ background: C.bg, borderRadius: 12, border: `1px solid ${C.border}`, padding: 20, boxShadow: C.shadow, ...style }}>{children}</div>
+);
+
+const Bar = ({ value, max = 100, color = C.accent, h = 6 }) => (
+  <div style={{ width: "100%", height: h, background: C.bgSoft, borderRadius: h }}>
+    <div style={{ width: `${Math.min((value / max) * 100, 100)}%`, height: "100%", borderRadius: h, background: color, transition: "width .5s ease" }} />
+  </div>
+);
+
+const retCol = (v) => v >= 70 ? C.green : v >= 40 ? C.orange : C.red;
+
+// ─── Step 1: Class Setup ────────────────────────────
+function ClassSetup({ userId, onClassReady }) {
+  const [classes, setClasses] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [creating, setCreating] = useState(false);
+  const [name, setName] = useState("");
+  const [grade, setGrade] = useState("");
+  const [subject, setSubject] = useState("");
+  const [retention, setRetention] = useState({});
+  const [suggestions, setSuggestions] = useState({});
+
+  useEffect(() => {
+    loadClasses();
+  }, [userId]);
+
+  const loadClasses = async () => {
+    const { data } = await supabase.from("classes").select("*").eq("teacher_id", userId).order("created_at", { ascending: false });
+    setClasses(data || []);
+    setLoading(false);
+
+    // Load retention data for each class
+    if (data) {
+      for (const cls of data) {
+        const overview = await getClassRetentionOverview(cls.id);
+        setRetention(prev => ({ ...prev, [cls.id]: overview }));
+        const sug = await getReviewSuggestions(cls.id);
+        setSuggestions(prev => ({ ...prev, [cls.id]: sug }));
+      }
+    }
+  };
+
+  const createClass = async () => {
+    if (!name || !grade || !subject) return;
+    setCreating(true);
+    const code = subject.slice(0, 4).toUpperCase() + "-" + grade.replace(/[^0-9]/g, "") + String.fromCharCode(65 + Math.floor(Math.random() * 26));
+    const { data, error } = await supabase.from("classes").insert({ teacher_id: userId, name, grade, subject, class_code: code }).select().single();
+    if (!error && data) {
+      setClasses(prev => [data, ...prev]);
+      setName(""); setGrade(""); setSubject("");
+    }
+    setCreating(false);
+  };
+
+  const inp = { fontFamily: "'Outfit',sans-serif", background: C.bg, border: `1px solid ${C.border}`, color: C.text, padding: "10px 14px", borderRadius: 8, fontSize: 14, width: "100%", outline: "none" };
+  const sel = { ...inp, cursor: "pointer", appearance: "none", backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2 4l4 4 4-4' fill='none' stroke='%239B9B9B' stroke-width='1.5'/%3E%3C/svg%3E")`, backgroundRepeat: "no-repeat", backgroundPosition: "right 12px center", paddingRight: 32 };
+
+  if (loading) return <p style={{ color: C.textMuted, textAlign: "center", padding: 40 }}>Loading classes...</p>;
+
+  return (
+    <div style={{ maxWidth: 600, margin: "0 auto" }}>
+      <h2 style={{ fontFamily: "'Outfit'", fontSize: 22, fontWeight: 700, marginBottom: 4 }}>Your Classes</h2>
+      <p style={{ fontSize: 14, color: C.textSecondary, marginBottom: 20 }}>Select a class to create a session, or create a new one.</p>
+
+      {/* Review suggestions banner */}
+      {Object.entries(suggestions).map(([classId, sug]) => {
+        if (!sug || sug.length === 0) return null;
+        const cls = classes.find(c => c.id === classId);
+        if (!cls) return null;
+        return (
+          <Card key={`sug-${classId}`} style={{ marginBottom: 16, padding: 16, borderLeft: `3px solid ${C.orange}`, background: C.orangeSoft + "33" }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: C.orange, marginBottom: 8 }}>
+              Suggested for today — {cls.name}
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {sug.slice(0, 3).map((t, i) => (
+                <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 10px", borderRadius: 6, background: C.bg }}>
+                  <div>
+                    <span style={{ fontSize: 14, fontWeight: 500 }}>{t.topic}</span>
+                    <span style={{ fontSize: 11, color: C.textMuted, marginLeft: 8 }}>
+                      {t.days_since_review === 0 ? "today" : `${t.days_since_review}d ago`}
+                    </span>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <Bar value={t.current_retention} color={retCol(t.current_retention)} h={4} />
+                    <span style={{ fontSize: 13, fontWeight: 700, fontFamily: MONO, color: retCol(t.current_retention), minWidth: 36, textAlign: "right" }}>
+                      {t.current_retention}%
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <Btn onClick={() => onClassReady(cls)} style={{ marginTop: 10, fontSize: 12, padding: "6px 14px" }}>
+              Review now
+            </Btn>
+          </Card>
+        );
+      })}
+
+      {/* Existing classes */}
+      {classes.length > 0 && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 20 }}>
+          {classes.map(cls => {
+            const ret = retention[cls.id];
+            return (
+              <Card key={cls.id} style={{ padding: 16, cursor: "pointer", transition: "all .15s" }}
+                onClick={() => onClassReady(cls)}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: ret?.topics?.length > 0 ? 12 : 0 }}>
+                  <div>
+                    <div style={{ fontSize: 15, fontWeight: 600 }}>{cls.name}</div>
+                    <div style={{ fontSize: 12, color: C.textMuted, marginTop: 2 }}>{cls.grade} · {cls.subject}</div>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    {ret && ret.topics.length > 0 && (
+                      <span style={{ fontSize: 14, fontWeight: 700, fontFamily: MONO, color: retCol(ret.average) }}>{ret.average}%</span>
+                    )}
+                    <span style={{ fontFamily: MONO, fontSize: 12, fontWeight: 600, color: C.accent, padding: "3px 7px", background: C.accentSoft, borderRadius: 5 }}>{cls.class_code}</span>
+                    <span style={{ color: C.textMuted, fontSize: 13 }}>→</span>
+                  </div>
+                </div>
+
+                {/* Mini retention bar per topic */}
+                {ret && ret.topics.length > 0 && (
+                  <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+                    {ret.topics.slice(0, 5).map((t, i) => (
+                      <div key={i} style={{
+                        padding: "3px 8px", borderRadius: 4, fontSize: 11,
+                        background: t.status === "strong" ? C.greenSoft : t.status === "medium" ? C.orangeSoft : C.redSoft,
+                        color: t.status === "strong" ? C.green : t.status === "medium" ? C.orange : C.red,
+                        fontWeight: 500,
+                      }}>
+                        {t.topic} {t.current_retention}%
+                      </div>
+                    ))}
+                    {ret.topics.length > 5 && (
+                      <span style={{ fontSize: 11, color: C.textMuted, padding: "3px 4px" }}>+{ret.topics.length - 5} more</span>
+                    )}
+                  </div>
+                )}
+              </Card>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Create new class */}
+      <Card>
+        <h3 style={{ fontSize: 15, fontWeight: 600, marginBottom: 14 }}>+ Create new class</h3>
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <input value={name} onChange={e => setName(e.target.value)} placeholder="Class name (e.g. 8th Grade History)" style={inp} />
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+            <select value={grade} onChange={e => setGrade(e.target.value)} style={sel}>
+              <option value="">Grade...</option>
+              {GRADES.map(g => <option key={g}>{g}</option>)}
+            </select>
+            <select value={subject} onChange={e => setSubject(e.target.value)} style={sel}>
+              <option value="">Subject...</option>
+              {SUBJECTS.map(s => <option key={s}>{s}</option>)}
+            </select>
+          </div>
+          <Btn full onClick={createClass} disabled={!name || !grade || !subject || creating}>
+            {creating ? "Creating..." : "Create Class"}
+          </Btn>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+// ─── Step 2: Create Session ─────────────────────────
+function CreateSession({ cls, userId, onSessionCreated, onBack }) {
+  const [topic, setTopic] = useState("");
+  const [keyPoints, setKeyPoints] = useState("");
+  const [sessionType, setSessionType] = useState("warmup");
+  const [numQuestions, setNumQuestions] = useState(5);
+  const [step, setStep] = useState("form"); // form | generating | preview
+  const [questions, setQuestions] = useState([]);
+  const [error, setError] = useState("");
+  const [inputMode, setInputMode] = useState("text"); // text | file
+  const [file, setFile] = useState(null);
+  const [dragOver, setDragOver] = useState(false);
+  const fileRef = useRef(null);
+
+  const inp = { fontFamily: "'Outfit',sans-serif", background: C.bg, border: `1px solid ${C.border}`, color: C.text, padding: "10px 14px", borderRadius: 8, fontSize: 14, width: "100%", outline: "none" };
+
+  const handleFile = (f) => {
+    if (!f) return;
+    if (f.size > SUPPORTED_FILES.maxSizeMB * 1024 * 1024) {
+      setError(`File too large. Max ${SUPPORTED_FILES.maxSizeMB}MB.`);
+      return;
+    }
+    setFile(f);
+    if (!topic) setTopic(f.name.replace(/\.[^.]+$/, "").replace(/[-_]/g, " "));
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setDragOver(false);
+    handleFile(e.dataTransfer.files[0]);
+  };
+
+  const handleGenerate = async () => {
+    setStep("generating");
+    setError("");
+    try {
+      const qs = await generateQuestions({
+        topic, keyPoints, grade: cls.grade, subject: cls.subject,
+        activityType: "mcq", numQuestions, language: "en",
+        file: inputMode === "file" ? file : null,
+      });
+      setQuestions(qs);
+      setStep("preview");
+    } catch (err) {
+      setError(err.message);
+      setStep("form");
+    }
+  };
+
+  const handleLaunch = async () => {
+    const pin = String(Math.floor(100000 + Math.random() * 900000));
+    const { data, error: err } = await supabase.from("sessions").insert({
+      class_id: cls.id, teacher_id: userId, topic, key_points: keyPoints,
+      session_type: sessionType, activity_type: "mcq", pin,
+      status: "lobby", questions,
+    }).select().single();
+
+    if (!err && data) onSessionCreated(data);
+  };
+
+  if (step === "generating") return (
+    <div style={{ maxWidth: 480, margin: "0 auto", textAlign: "center", padding: "80px 20px" }}>
+      <div style={{ width: 56, height: 56, borderRadius: 14, background: C.accentSoft, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px", animation: "pulse 1.5s infinite" }}>
+        {SpinnerInline({ size: 28 })}
+      </div>
+      <p style={{ fontSize: 16, fontWeight: 600 }}>AI is generating questions...</p>
+      <p style={{ fontSize: 14, color: C.textSecondary, marginTop: 4 }}>{topic}</p>
+      <style>{`@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}`}</style>
+    </div>
+  );
+
+  if (step === "preview") return (
+    <div style={{ maxWidth: 560, margin: "0 auto" }}>
+      <Btn v="ghost" onClick={() => setStep("form")} style={{ marginBottom: 16 }}>← Edit</Btn>
+      <h2 style={{ fontFamily: "'Outfit'", fontSize: 20, fontWeight: 700, marginBottom: 4 }}>{topic}</h2>
+      <p style={{ fontSize: 13, color: C.textSecondary, marginBottom: 16 }}>{questions.length} questions · {sessionType} · {cls.name}</p>
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 20 }}>
+        {questions.map((q, i) => (
+          <Card key={i} style={{ padding: 16 }}>
+            <p style={{ fontSize: 12, color: C.textMuted, marginBottom: 6 }}>Q{i + 1}</p>
+            <p style={{ fontSize: 14, fontWeight: 500, marginBottom: 10, lineHeight: 1.4 }}>{q.q}</p>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+              {q.options.map((o, j) => (
+                <div key={j} style={{
+                  padding: "7px 10px", borderRadius: 6, fontSize: 13,
+                  background: j === q.correct ? C.greenSoft : C.bgSoft,
+                  color: j === q.correct ? C.green : C.textSecondary,
+                  fontWeight: j === q.correct ? 500 : 400,
+                  border: `1px solid ${j === q.correct ? C.green + "33" : "transparent"}`,
+                }}>{o}</div>
+              ))}
+            </div>
+          </Card>
+        ))}
+      </div>
+
+      <div style={{ display: "flex", gap: 10 }}>
+        <Btn v="secondary" onClick={handleGenerate} style={{ flex: 1 }}>↻ Regenerate</Btn>
+        <Btn onClick={handleLaunch} style={{ flex: 2 }}>{RocketInline({ size: 16 })} Launch Session</Btn>
+      </div>
+    </div>
+  );
+
+  return (
+    <div style={{ maxWidth: 480, margin: "0 auto" }}>
+      <Btn v="ghost" onClick={onBack} style={{ marginBottom: 16 }}>← Back to classes</Btn>
+      <h2 style={{ fontFamily: "'Outfit'", fontSize: 20, fontWeight: 700, marginBottom: 4 }}>New Session</h2>
+      <p style={{ fontSize: 13, color: C.textSecondary, marginBottom: 20 }}>{cls.name} · {cls.grade} · {cls.subject}</p>
+
+      {error && <div style={{ padding: "10px 14px", borderRadius: 8, background: C.redSoft, color: C.red, fontSize: 13, marginBottom: 14 }}>{WarningInline({ size: 14 })} {error}</div>}
+
+      <div style={{ display: "flex", gap: 6, marginBottom: 18 }}>
+        {["warmup", "exitTicket"].map(t => (
+          <button key={t} onClick={() => setSessionType(t)} style={{
+            flex: 1, padding: 10, borderRadius: 8, fontSize: 13, fontWeight: 500, border: "none", cursor: "pointer",
+            background: sessionType === t ? C.accentSoft : C.bg,
+            color: sessionType === t ? C.accent : C.textSecondary,
+            border: `1px solid ${sessionType === t ? C.accent + "33" : C.border}`,
+            fontFamily: "'Outfit',sans-serif",
+          }}>{t === "warmup" ? <>{WarmupInline({ size: 16 })} Warmup</> : <>{ExitTicketInline({ size: 16 })} Exit Ticket</>}</button>
+        ))}
+      </div>
+
+      {/* Input mode toggle */}
+      <div style={{ display: "flex", gap: 6, marginBottom: 16 }}>
+        <button onClick={() => setInputMode("text")} style={{
+          flex: 1, padding: "8px 12px", borderRadius: 8, fontSize: 13, fontWeight: 500,
+          background: inputMode === "text" ? C.bg : "transparent",
+          color: inputMode === "text" ? C.text : C.textMuted,
+          border: `1px solid ${inputMode === "text" ? C.border : "transparent"}`,
+          boxShadow: inputMode === "text" ? C.shadow : "none",
+          cursor: "pointer", fontFamily: "'Outfit',sans-serif",
+        }}>>{TypeInline({ size: 16 })} Type topic</button>
+        <button onClick={() => setInputMode("file")} style={{
+          flex: 1, padding: "8px 12px", borderRadius: 8, fontSize: 13, fontWeight: 500,
+          background: inputMode === "file" ? C.bg : "transparent",
+          color: inputMode === "file" ? C.text : C.textMuted,
+          border: `1px solid ${inputMode === "file" ? C.border : "transparent"}`,
+          boxShadow: inputMode === "file" ? C.shadow : "none",
+          cursor: "pointer", fontFamily: "'Outfit',sans-serif",
+        }}>>{UploadInline({ size: 16 })} Upload file</button>
+      </div>
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        {/* File upload area */}
+        {inputMode === "file" && (
+          <div
+            onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+            onDragLeave={() => setDragOver(false)}
+            onDrop={handleDrop}
+            onClick={() => fileRef.current?.click()}
+            style={{
+              border: `2px dashed ${dragOver ? C.accent : file ? C.green : C.border}`,
+              borderRadius: 12, padding: file ? "16px" : "32px 20px",
+              textAlign: "center", cursor: "pointer",
+              background: dragOver ? C.accentSoft : file ? C.greenSoft : C.bg,
+              transition: "all .2s",
+            }}
+          >
+            <input ref={fileRef} type="file" accept={SUPPORTED_FILES.accept} onChange={e => handleFile(e.target.files[0])} style={{ display: "none" }} />
+            {file ? (
+              <div style={{ display: "flex", alignItems: "center", gap: 12, justifyContent: "center" }}>
+                <span style={{ fontSize: 24 }}>{file.name.endsWith(".pdf") ? <CIcon name="book" size={20} inline /> : file.type?.startsWith("image/") ? <CIcon name="art" size={20} inline /> : <CIcon name="plus" size={20} inline />}</span>
+                <div style={{ textAlign: "left" }}>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: C.green }}>{file.name}</div>
+                  <div style={{ fontSize: 12, color: C.textMuted }}>{(file.size / 1024).toFixed(0)} KB · Click to change</div>
+                </div>
+                <button onClick={e => { e.stopPropagation(); setFile(null); }} style={{
+                  width: 24, height: 24, borderRadius: 6, background: C.redSoft, color: C.red,
+                  fontSize: 12, border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+                }}>✕</button>
+              </div>
+            ) : (
+              <>
+                <div style={{ marginBottom: 8 }}>{FolderIcon({ size: 32 })}</div>
+                <p style={{ fontSize: 14, fontWeight: 500, color: C.text, marginBottom: 4 }}>
+                  Drop your class material here
+                </p>
+                <p style={{ fontSize: 12, color: C.textMuted, marginBottom: 10 }}>or click to browse</p>
+                <div style={{ display: "flex", gap: 6, justifyContent: "center", flexWrap: "wrap" }}>
+                  {SUPPORTED_FILES.types.map((t, i) => (
+                    <span key={i} style={{ fontSize: 11, padding: "3px 8px", borderRadius: 4, background: C.bgSoft, color: C.textMuted }}>
+                      {t.icon} {t.ext}
+                    </span>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
+        <div>
+          <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: C.textSecondary, marginBottom: 5 }}>
+            {inputMode === "file" ? "Topic (auto-filled from file)" : "Topic *"}
+          </label>
+          <input value={topic} onChange={e => setTopic(e.target.value)} placeholder="e.g. French Revolution, Photosynthesis..." style={inp} />
+        </div>
+
+        {inputMode === "text" && (
+          <div>
+            <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: C.textSecondary, marginBottom: 5 }}>Key points (optional)</label>
+            <textarea value={keyPoints} onChange={e => setKeyPoints(e.target.value)} placeholder="Main concepts covered, one per line" style={{ ...inp, minHeight: 80, resize: "vertical" }} />
+          </div>
+        )}
+
+        <div>
+          <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: C.textSecondary, marginBottom: 5 }}>Number of questions</label>
+          <div style={{ display: "flex", gap: 4 }}>
+            {[3, 5, 8, 10].map(n => (
+              <button key={n} onClick={() => setNumQuestions(n)} style={{
+                flex: 1, padding: 8, borderRadius: 6, fontSize: 14, fontWeight: 600,
+                background: numQuestions === n ? C.accentSoft : C.bg,
+                color: numQuestions === n ? C.accent : C.textMuted,
+                border: `1px solid ${numQuestions === n ? C.accent + "33" : C.border}`,
+                fontFamily: MONO, cursor: "pointer",
+              }}>{n}</button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div style={{ marginTop: 20 }}>
+        <Btn full onClick={handleGenerate} disabled={!topic.trim() && !file}>
+          {inputMode === "file" && file ? "{SpinnerInline({ size: 16 })} Generate from file" : "{SpinnerInline({ size: 16 })} Generate with AI"}
+        </Btn>
+        {inputMode === "file" && file && (
+          <p style={{ fontSize: 11, color: C.textMuted, textAlign: "center", marginTop: 8 }}>
+            AI will analyze your {file.name.split(".").pop().toUpperCase()} and create questions based on its content
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Step 3: Session Lobby ──────────────────────────
+function SessionLobby({ session, onStart, onEnd }) {
+  const [participants, setParticipants] = useState([]);
+
+  useEffect(() => {
+    // Load existing participants
+    supabase.from("session_participants").select("*").eq("session_id", session.id)
+      .then(({ data }) => setParticipants(data || []));
+
+    // Real-time: listen for new participants
+    const channel = supabase.channel(`lobby:${session.id}`)
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "session_participants", filter: `session_id=eq.${session.id}` },
+        (payload) => setParticipants(prev => [...prev, payload.new])
+      ).subscribe();
+
+    return () => supabase.removeChannel(channel);
+  }, [session.id]);
+
+  const handleStart = async () => {
+    await supabase.from("sessions").update({ status: "active" }).eq("id", session.id);
+    onStart();
+  };
+
+  return (
+    <div style={{ maxWidth: 420, margin: "0 auto", textAlign: "center", padding: "40px 20px" }}>
+      <p style={{ fontSize: 13, color: C.textSecondary, marginBottom: 8 }}>Share this PIN with your students</p>
+      <div style={{ fontSize: 48, fontWeight: 800, letterSpacing: ".12em", fontFamily: MONO, color: C.accent, marginBottom: 4 }}>{session.pin}</div>
+      <p style={{ fontSize: 13, color: C.textMuted, marginBottom: 28 }}>clasloop.com/join</p>
+
+      <Card style={{ marginBottom: 20 }}>
+        <p style={{ fontSize: 13, color: C.textMuted }}>{session.topic} · {session.session_type}</p>
+        <div style={{ fontSize: 36, fontWeight: 700, color: C.accent, fontFamily: MONO, margin: "12px 0 4px" }}>{participants.length}</div>
+        <p style={{ fontSize: 13, color: C.textSecondary }}>students joined</p>
+        {participants.length > 0 && (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 4, justifyContent: "center", marginTop: 14 }}>
+            {participants.map((p, i) => (
+              <span key={i} style={{ padding: "3px 10px", borderRadius: 20, fontSize: 12, background: C.bgSoft, color: C.textSecondary, border: `1px solid ${C.border}` }}>{p.student_name}</span>
+            ))}
+          </div>
+        )}
+      </Card>
+
+      <div style={{ display: "flex", gap: 10 }}>
+        <Btn v="danger" onClick={onEnd} style={{ flex: 1 }}>Cancel</Btn>
+        <Btn onClick={handleStart} disabled={participants.length === 0} style={{ flex: 2 }}>▶ Start Quiz</Btn>
+      </div>
+    </div>
+  );
+}
+
+// ─── Step 4: Live Results ───────────────────────────
+function LiveResults({ session, onEnd }) {
+  const [participants, setParticipants] = useState([]);
+  const [responses, setResponses] = useState([]);
+
+  useEffect(() => {
+    supabase.from("session_participants").select("*").eq("session_id", session.id)
+      .then(({ data }) => setParticipants(data || []));
+    supabase.from("responses").select("*").eq("session_id", session.id)
+      .then(({ data }) => setResponses(data || []));
+
+    const ch = supabase.channel(`live:${session.id}`)
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "responses", filter: `session_id=eq.${session.id}` },
+        (payload) => setResponses(prev => [...prev, payload.new])
+      ).subscribe();
+
+    return () => supabase.removeChannel(ch);
+  }, [session.id]);
+
+  const questions = session.questions || [];
+  const totalQ = questions.length;
+
+  const results = participants.map(p => {
+    const pResp = responses.filter(r => r.participant_id === p.id);
+    const correct = pResp.filter(r => r.is_correct).length;
+    return { ...p, correct, answered: pResp.length };
+  }).sort((a, b) => b.correct - a.correct);
+
+  const avgPct = results.length > 0 ? Math.round(results.reduce((s, r) => s + r.correct, 0) / results.length / Math.max(totalQ, 1) * 100) : 0;
+
+  const handleEnd = async () => {
+    // Process spaced repetition data
+    try {
+      await processSessionResults(session);
+    } catch (err) {
+      console.error("SM-2 processing error:", err);
+    }
+    await supabase.from("sessions").update({ status: "completed", completed_at: new Date().toISOString() }).eq("id", session.id);
+    onEnd();
+  };
+
+  return (
+    <div style={{ maxWidth: 560, margin: "0 auto" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+        <h2 style={{ fontFamily: "'Outfit'", fontSize: 18, fontWeight: 700 }}>{LiveIcon({ size: 18 })} Live Results</h2>
+        <Btn v="danger" onClick={handleEnd} style={{ fontSize: 12, padding: "6px 14px" }}>End Session</Btn>
+      </div>
+
+      <Card style={{ textAlign: "center", marginBottom: 16 }}>
+        <p style={{ fontSize: 13, color: C.textMuted }}>{session.topic}</p>
+        <div style={{ display: "flex", justifyContent: "center", gap: 32, marginTop: 12 }}>
+          <div>
+            <div style={{ fontSize: 32, fontWeight: 700, color: C.accent, fontFamily: MONO }}>{participants.length}</div>
+            <div style={{ fontSize: 11, color: C.textMuted }}>students</div>
+          </div>
+          <div>
+            <div style={{ fontSize: 32, fontWeight: 700, color: retCol(avgPct), fontFamily: MONO }}>{avgPct}%</div>
+            <div style={{ fontSize: 11, color: C.textMuted }}>average</div>
+          </div>
+        </div>
+      </Card>
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        {results.map((s, i) => {
+          const pct = totalQ > 0 ? (s.correct / totalQ) * 100 : 0;
+          return (
+            <Card key={i} style={{ padding: "12px 16px", display: "flex", alignItems: "center", gap: 12 }}>
+              <span style={{ fontSize: 13, fontWeight: 600, color: C.textMuted, width: 20, textAlign: "center" }}>{i + 1}</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 4 }}>{s.student_name}</div>
+                <Bar value={s.correct} max={totalQ} color={retCol(pct)} h={4} />
+              </div>
+              <span style={{ fontSize: 14, fontWeight: 700, fontFamily: MONO, color: retCol(pct) }}>{s.correct}/{totalQ}</span>
+            </Card>
+          );
+        })}
+        {results.length === 0 && <p style={{ textAlign: "center", color: C.textMuted, padding: 20 }}>Waiting for responses...</p>}
+      </div>
+    </div>
+  );
+}
+
+// ─── Main Export ─────────────────────────────────────
+export default function SessionFlow() {
+  const [user, setUser] = useState(null);
+  const [step, setStep] = useState("classes"); // classes | create | lobby | live
+  const [selectedClass, setSelectedClass] = useState(null);
+  const [session, setSession] = useState(null);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => setUser(user));
+  }, []);
+
+  if (!user) return <p style={{ padding: 40, color: C.textMuted, textAlign: "center" }}>Loading...</p>;
+
+  return (
+    <div style={{ padding: "28px 20px" }}>
+      {step === "classes" && (
+        <ClassSetup userId={user.id} onClassReady={(cls) => { setSelectedClass(cls); setStep("create"); }} />
+      )}
+      {step === "create" && selectedClass && (
+        <CreateSession cls={selectedClass} userId={user.id}
+          onSessionCreated={(s) => { setSession(s); setStep("lobby"); }}
+          onBack={() => setStep("classes")}
+        />
+      )}
+      {step === "lobby" && session && (
+        <SessionLobby session={session}
+          onStart={() => setStep("live")}
+          onEnd={() => { setSession(null); setStep("classes"); }}
+        />
+      )}
+      {step === "live" && session && (
+        <LiveResults session={session}
+          onEnd={() => { setSession(null); setStep("classes"); }}
+        />
+      )}
+    </div>
+  );
+}
