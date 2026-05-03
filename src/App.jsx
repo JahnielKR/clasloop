@@ -215,7 +215,7 @@ export default function App() {
     <div style={{ display: "flex", minHeight: "100vh" }}>
       <Sidebar page={page} setPage={setPage} profile={profile} lang={lang} setLang={setLang} open={open} setOpen={setOpen} onSignOut={handleSignOut} />
       <div style={{ marginLeft: open ? 210 : 56, flex: 1, transition: "margin-left .2s", minHeight: "100vh", background: C.bgSoft }}>
-        {P && <P />}
+        {P && <P lang={lang} setLang={setLang} />}
       </div>
     </div>
   );
