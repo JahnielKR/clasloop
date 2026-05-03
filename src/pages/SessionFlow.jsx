@@ -298,7 +298,10 @@ function CreateSession({ cls, userId, onSessionCreated, onBack, t, lang }) {
 
   if (step === "preview") return (
     <div style={{ maxWidth: 560, margin: "0 auto" }}>
-      <Btn v="ghost" onClick={() => setStep("form")} style={{ marginBottom: 16 }}><CIcon name="back" size={14} inline /> {t.edit}</Btn>
+      <button onClick={() => setStep("form")} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 8, fontSize: 13, fontWeight: 500, color: C.accent, background: C.accentSoft, border: "none", cursor: "pointer", fontFamily: "'Outfit',sans-serif", marginBottom: 16 }}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M19 12H5M5 12L11 6M5 12L11 18" stroke={C.accent} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+        {t.edit}
+      </button>
       <h2 style={{ fontFamily: "'Outfit'", fontSize: 20, fontWeight: 700, marginBottom: 4 }}>{topic}</h2>
       <p style={{ fontSize: 13, color: C.textSecondary, marginBottom: 16 }}>{questions.length} {t.questions} · {sessionType === "warmup" ? t.warmup : t.exitTicket} · {cls.name}</p>
       <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 20 }}>
@@ -323,7 +326,10 @@ function CreateSession({ cls, userId, onSessionCreated, onBack, t, lang }) {
 
   return (
     <div style={{ maxWidth: 480, margin: "0 auto" }}>
-      <Btn v="ghost" onClick={onBack} style={{ marginBottom: 16 }}><CIcon name="back" size={14} inline /> {t.backToClasses}</Btn>
+      <button onClick={onBack} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 8, fontSize: 13, fontWeight: 500, color: C.accent, background: C.accentSoft, border: "none", cursor: "pointer", fontFamily: "'Outfit',sans-serif", marginBottom: 16 }}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M19 12H5M5 12L11 6M5 12L11 18" stroke={C.accent} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+        {t.backToClasses}
+      </button>
       <h2 style={{ fontFamily: "'Outfit'", fontSize: 20, fontWeight: 700, marginBottom: 4 }}>{t.newSession}</h2>
       <p style={{ fontSize: 13, color: C.textSecondary, marginBottom: 20 }}>{cls.name} · {cls.grade} · {cls.subject}</p>
 
