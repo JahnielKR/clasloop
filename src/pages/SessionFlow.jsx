@@ -110,19 +110,21 @@ const sel = { ...inp, cursor: "pointer", appearance: "none", backgroundImage: `u
 // ─── Page Header ────────────────────────────────────
 function PageHeader({ title, icon, lang, setLang }) {
   return (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-        <CIcon name={icon} size={28} />
-        <h1 style={{ fontFamily: "'Outfit'", fontSize: 22, fontWeight: 700 }}>{title}</h1>
-      </div>
-      <div style={{ display: "flex", gap: 2, background: C.bgSoft, borderRadius: 8, padding: 3 }}>
-        {[["en", "EN"], ["es", "ES"], ["ko", "한"]].map(([c, l]) => (
-          <button key={c} onClick={() => setLang(c)} style={{
-            padding: "5px 10px", borderRadius: 6, fontSize: 12, fontWeight: 600,
-            background: lang === c ? C.bg : "transparent", color: lang === c ? C.text : C.textMuted,
-            border: "none", cursor: "pointer", boxShadow: lang === c ? C.shadow : "none",
-          }}>{l}</button>
-        ))}
+    <div style={{ background: C.bgSoft, borderRadius: 12, padding: "14px 20px", marginBottom: 24, border: `1px solid ${C.border}` }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <CIcon name={icon} size={28} />
+          <h1 style={{ fontFamily: "'Outfit'", fontSize: 18, fontWeight: 700 }}>{title}</h1>
+        </div>
+        <div style={{ display: "flex", gap: 2, background: C.bg, borderRadius: 8, padding: 3 }}>
+          {[["en", "EN"], ["es", "ES"], ["ko", "한"]].map(([c, l]) => (
+            <button key={c} onClick={() => setLang(c)} style={{
+              padding: "5px 10px", borderRadius: 6, fontSize: 12, fontWeight: 600,
+              background: lang === c ? C.bg : "transparent", color: lang === c ? C.text : C.textMuted,
+              border: "none", cursor: "pointer", boxShadow: lang === c ? "0 1px 2px rgba(0,0,0,0.06)" : "none",
+            }}>{l}</button>
+          ))}
+        </div>
       </div>
     </div>
   );
