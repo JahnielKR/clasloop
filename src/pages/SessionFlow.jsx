@@ -40,7 +40,7 @@ const i18n = {
     waitingResponses: "Waiting for responses...", loadingClasses: "Loading classes...", loading: "Loading...",
     fileTooLarge: "File too large. Max",
     editClass: "Edit", deleteClass: "Delete", deleteConfirm: "Delete this class? This cannot be undone.",
-    confirmDelete: "Yes, delete", cancelDelete: "Cancel", saveClass: "Save", newSessionBtn: "New session",
+    confirmDelete: "Yes, delete", cancelDelete: "Cancel", saveClass: "Save", newSessionBtn: "New session", useDeckBtn: "Use deck",
     editingClass: "Edit class", students: "students",
   },
   es: {
@@ -64,7 +64,7 @@ const i18n = {
     waitingResponses: "Esperando respuestas...", loadingClasses: "Cargando clases...", loading: "Cargando...",
     fileTooLarge: "Archivo muy grande. Máx",
     editClass: "Editar", deleteClass: "Eliminar", deleteConfirm: "¿Eliminar esta clase? No se puede deshacer.",
-    confirmDelete: "Sí, eliminar", cancelDelete: "Cancelar", saveClass: "Guardar", newSessionBtn: "Nueva sesión",
+    confirmDelete: "Sí, eliminar", cancelDelete: "Cancelar", saveClass: "Guardar", newSessionBtn: "Nueva sesión", useDeckBtn: "Usar deck",
     editingClass: "Editar clase", students: "estudiantes",
   },
   ko: {
@@ -88,7 +88,7 @@ const i18n = {
     waitingResponses: "응답 대기 중...", loadingClasses: "수업 로딩 중...", loading: "로딩...",
     fileTooLarge: "파일이 너무 큽니다. 최대",
     editClass: "편집", deleteClass: "삭제", deleteConfirm: "이 수업을 삭제하시겠습니까? 되돌릴 수 없습니다.",
-    confirmDelete: "네, 삭제", cancelDelete: "취소", saveClass: "저장", newSessionBtn: "새 세션",
+    confirmDelete: "네, 삭제", cancelDelete: "취소", saveClass: "저장", newSessionBtn: "새 세션", useDeckBtn: "덱 사용",
     editingClass: "수업 편집", students: "학생",
   },
 };
@@ -287,7 +287,7 @@ function ClassSetup({ userId, onClassReady, t }) {
                 </div>
               ))}
             </div>
-            <Btn onClick={() => onClassReady(cls, sug[0]?.topic)} style={{ marginTop: 10, fontSize: 12, padding: "6px 14px" }}>{t.reviewNow}</Btn>
+            <Btn onClick={() => onClassReady(cls, sug[0]?.topic, "create")} style={{ marginTop: 10, fontSize: 12, padding: "6px 14px" }}>{t.reviewNow}</Btn>
           </Card>
         );
       })}
@@ -352,8 +352,11 @@ function ClassSetup({ userId, onClassReady, t }) {
                   </div>
                 )}
                 <div style={{ display: "flex", gap: 6, borderTop: `1px solid ${C.border}`, paddingTop: 10 }}>
-                  <Btn onClick={() => onClassReady(cls)} style={{ flex: 1, fontSize: 13, padding: "7px 12px" }}>
+                  <Btn onClick={() => onClassReady(cls, null, "create")} style={{ flex: 1, fontSize: 13, padding: "7px 12px" }}>
                     <CIcon name="rocket" size={14} inline /> {t.newSessionBtn}
+                  </Btn>
+                  <Btn v="secondary" onClick={() => onClassReady(cls, null, "deckSelect")} style={{ flex: 1, fontSize: 13, padding: "7px 12px" }}>
+                    <CIcon name="book" size={14} inline /> {t.useDeckBtn}
                   </Btn>
                   <button className="cl-action" onClick={(e) => startEdit(cls, e)} style={{ padding: "7px 12px", borderRadius: 8, fontSize: 12, fontWeight: 500, background: C.bg, color: C.textSecondary, border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: "'Outfit',sans-serif" }}>{t.editClass}</button>
                   <button className="cl-action-delete" onClick={(e) => confirmDelete(cls.id, e)} style={{ padding: "7px 12px", borderRadius: 8, fontSize: 12, fontWeight: 500, background: C.bg, color: C.red, border: `1px solid ${C.redSoft}`, cursor: "pointer", fontFamily: "'Outfit',sans-serif" }}>{t.deleteClass}</button>
@@ -391,34 +394,21 @@ const ACTIVITY_TYPES = [
 ];
 
 // ─── Step 2: Create Session ─────────────────────────
-function CreateSession({ cls, userId, onSessionCreated, onBack, t, lang, reviewTopic }) {
+function CreateSession({ cls, userId, onSessionCreated, onBack, t, lang, reviewTopic, deckData }) {
   const [topic, setTopic] = useState(reviewTopic || "");
   const [keyPoints, setKeyPoints] = useState("");
   const [sessionType, setSessionType] = useState("warmup");
-  const [activityType, setActivityType] = useState("mcq");
+  const [activityType, setActivityType] = useState(deckData?.questions?.[0]?.type || "mcq");
   const [numQuestions, setNumQuestions] = useState(5);
   const [customNum, setCustomNum] = useState("");
-  const [step, setStep] = useState("form");
-  const [questions, setQuestions] = useState([]);
+  const [step, setStep] = useState(deckData ? "preview" : "form");
+  const [questions, setQuestions] = useState(deckData?.questions || []);
   const [error, setError] = useState("");
   const [inputMode, setInputMode] = useState("text");
   const [file, setFile] = useState(null);
   const [dragOver, setDragOver] = useState(false);
   const [deckSaved, setDeckSaved] = useState(false);
-  const [decks, setDecks] = useState([]);
-  const [decksLoaded, setDecksLoaded] = useState(false);
   const fileRef = useRef(null);
-
-  // Load user's decks when deck mode selected
-  useEffect(() => {
-    if (inputMode === "deck" && !decksLoaded) {
-      supabase.from("decks").select("*").eq("author_id", userId).order("created_at", { ascending: false })
-        .then(({ data }) => { setDecks(data || []); setDecksLoaded(true); });
-      // Also load public decks matching this class subject
-      supabase.from("decks").select("*, profiles(full_name)").eq("is_public", true).eq("subject", cls.subject).order("uses_count", { ascending: false }).limit(10)
-        .then(({ data }) => { if (data) setDecks(prev => { const ids = new Set(prev.map(d => d.id)); return [...prev, ...data.filter(d => !ids.has(d.id))]; }); });
-    }
-  }, [inputMode]);
 
   // Auto-generate if reviewTopic is provided
   const [autoGenerate, setAutoGenerate] = useState(!!reviewTopic);
@@ -581,75 +571,32 @@ function CreateSession({ cls, userId, onSessionCreated, onBack, t, lang, reviewT
       </div>
 
       <div style={{ display: "flex", gap: 6, marginBottom: 16 }}>
-        {[["text", "book", t.typeTopic], ["file", "plus", t.uploadFile], ["deck", "book", t.useDeck]].map(([mode, icon, label]) => (
+        {[["text", "book", t.typeTopic], ["file", "plus", t.uploadFile]].map(([mode, icon, label]) => (
           <button key={mode} className="cl-pill" onClick={() => setInputMode(mode)} style={{ flex: 1, padding: "8px 12px", borderRadius: 8, fontSize: 13, fontWeight: 500, background: inputMode === mode ? C.bg : "transparent", color: inputMode === mode ? C.text : C.textMuted, border: `1px solid ${inputMode === mode ? C.border : "transparent"}`, boxShadow: inputMode === mode ? C.shadow : "none", cursor: "pointer", fontFamily: "'Outfit',sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
             <CIcon name={icon} size={15} inline /> {label}
           </button>
         ))}
       </div>
 
-      {/* Activity Type - hide in deck mode */}
-      {inputMode !== "deck" && (
-        <div style={{ marginBottom: 16 }}>
-          <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: C.textSecondary, marginBottom: 8 }}>Activity type</label>
-          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-            {ACTIVITY_TYPES.map(at => (
-              <button key={at.id} className="cl-pill" onClick={() => setActivityType(at.id)} style={{
-                padding: "7px 14px", borderRadius: 8, fontSize: 12, fontWeight: 500,
-                background: activityType === at.id ? C.accentSoft : C.bg,
-                color: activityType === at.id ? C.accent : C.textSecondary,
-                border: `1px solid ${activityType === at.id ? C.accent + "33" : C.border}`,
-                cursor: "pointer", fontFamily: "'Outfit',sans-serif",
-                display: "flex", alignItems: "center", gap: 5,
-              }}>
-                <CIcon name={at.icon} size={14} inline /> {at.label[lang] || at.label.en}
-              </button>
-            ))}
-          </div>
+      {/* Activity Type */}
+      <div style={{ marginBottom: 16 }}>
+        <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: C.textSecondary, marginBottom: 8 }}>Activity type</label>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+          {ACTIVITY_TYPES.map(at => (
+            <button key={at.id} className="cl-pill" onClick={() => setActivityType(at.id)} style={{
+              padding: "7px 14px", borderRadius: 8, fontSize: 12, fontWeight: 500,
+              background: activityType === at.id ? C.accentSoft : C.bg,
+              color: activityType === at.id ? C.accent : C.textSecondary,
+              border: `1px solid ${activityType === at.id ? C.accent + "33" : C.border}`,
+              cursor: "pointer", fontFamily: "'Outfit',sans-serif",
+              display: "flex", alignItems: "center", gap: 5,
+            }}>
+              <CIcon name={at.icon} size={14} inline /> {at.label[lang] || at.label.en}
+            </button>
+          ))}
         </div>
-      )}
+      </div>
 
-      {/* Deck selector */}
-      {inputMode === "deck" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 16 }}>
-          {!decksLoaded ? (
-            <p style={{ textAlign: "center", color: C.textMuted, padding: 20 }}>{t.loading}</p>
-          ) : decks.length === 0 ? (
-            <div style={{ textAlign: "center", padding: 32, background: C.bgSoft, borderRadius: 12, border: `1px dashed ${C.border}` }}>
-              <CIcon name="book" size={28} />
-              <p style={{ fontSize: 13, color: C.textMuted, marginTop: 8 }}>{t.noDecks}</p>
-            </div>
-          ) : (
-            <>
-              <label style={{ fontSize: 13, fontWeight: 500, color: C.textSecondary }}>{t.selectDeck}</label>
-              {decks.map(dk => {
-                const qs = dk.questions || [];
-                const icon = SUBJ_ICON[dk.subject] || "book";
-                return (
-                  <div key={dk.id} className="cl-card cl-card-clickable" onClick={() => {
-                    setTopic(dk.title);
-                    setQuestions(qs);
-                    setActivityType(qs[0]?.type || "mcq");
-                    setStep("preview");
-                  }} style={{ padding: 14, borderRadius: 10, background: C.bg, border: `1px solid ${C.border}`, cursor: "pointer", display: "flex", alignItems: "center", gap: 12 }}>
-                    <CIcon name={icon} size={22} inline />
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 14, fontWeight: 600 }}>{dk.title}</div>
-                      <div style={{ fontSize: 12, color: C.textMuted, marginTop: 2 }}>
-                        {dk.subject} · {dk.grade} · {qs.length} {t.questions}
-                        {dk.profiles?.full_name ? ` · ${dk.profiles.full_name}` : ""}
-                      </div>
-                    </div>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M9 6L15 12L9 18" stroke={C.textMuted} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                  </div>
-                );
-              })}
-            </>
-          )}
-        </div>
-      )}
-
-      {inputMode !== "deck" && (
       <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
         {inputMode === "file" && (
           <div onDragOver={e => { e.preventDefault(); setDragOver(true); }} onDragLeave={() => setDragOver(false)} onDrop={handleDrop} onClick={() => fileRef.current?.click()}
@@ -704,7 +651,6 @@ function CreateSession({ cls, userId, onSessionCreated, onBack, t, lang, reviewT
           {inputMode === "file" && file && <p style={{ fontSize: 11, color: C.textMuted, textAlign: "center", marginTop: 8 }}>{t.aiWillAnalyze} {file.name.split(".").pop().toUpperCase()}</p>}
         </div>
       </div>
-      )}
     </div>
   );
 }
@@ -822,6 +768,70 @@ function LiveResults({ session, onEnd, t }) {
   );
 }
 
+// ─── Deck Select Step ───────────────────────────────
+function DeckSelect({ cls, userId, onDeckSelected, onBack, t, lang }) {
+  const [decks, setDecks] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const load = async () => {
+      // Load user's own decks
+      const { data: mine } = await supabase.from("decks").select("*").eq("author_id", userId).order("created_at", { ascending: false });
+      // Load public decks matching class subject
+      const { data: pub } = await supabase.from("decks").select("*, profiles(full_name)").eq("is_public", true).eq("subject", cls.subject).order("uses_count", { ascending: false }).limit(20);
+      const all = [...(mine || [])];
+      const ids = new Set(all.map(d => d.id));
+      (pub || []).forEach(d => { if (!ids.has(d.id)) all.push(d); });
+      setDecks(all);
+      setLoading(false);
+    };
+    load();
+  }, []);
+
+  return (
+    <div style={{ maxWidth: 560, margin: "0 auto" }}>
+      <button className="cl-back" onClick={onBack} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 8, fontSize: 13, fontWeight: 500, color: C.accent, background: C.accentSoft, border: "none", cursor: "pointer", fontFamily: "'Outfit',sans-serif", marginBottom: 16 }}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M19 12H5M5 12L11 6M5 12L11 18" stroke={C.accent} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+        {t.backToClasses}
+      </button>
+      <h2 style={{ fontFamily: "'Outfit'", fontSize: 20, fontWeight: 700, marginBottom: 4 }}>{t.selectDeck}</h2>
+      <p style={{ fontSize: 13, color: C.textSecondary, marginBottom: 20 }}>{cls.name} · {cls.grade} · {cls.subject}</p>
+
+      {loading ? (
+        <p style={{ textAlign: "center", color: C.textMuted, padding: 40 }}>{t.loading}</p>
+      ) : decks.length === 0 ? (
+        <div style={{ textAlign: "center", padding: 48, background: C.bgSoft, borderRadius: 14, border: `1px dashed ${C.border}` }}>
+          <CIcon name="book" size={36} />
+          <p style={{ fontSize: 14, color: C.textMuted, marginTop: 12 }}>{t.noDecks}</p>
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {decks.map(dk => {
+            const qs = dk.questions || [];
+            const icon = SUBJ_ICON[dk.subject] || "book";
+            return (
+              <Card key={dk.id} onClick={() => onDeckSelected(dk)} style={{ padding: 16, cursor: "pointer" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <CIcon name={icon} size={24} />
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 15, fontWeight: 600 }}>{dk.title}</div>
+                    <div style={{ fontSize: 12, color: C.textMuted, marginTop: 2 }}>
+                      {dk.subject} · {dk.grade} · {qs.length} {t.questions}
+                      {dk.profiles?.full_name ? ` · by ${dk.profiles.full_name}` : dk.author_id === userId ? " · yours" : ""}
+                    </div>
+                    {dk.description && <p style={{ fontSize: 12, color: C.textSecondary, marginTop: 4, lineHeight: 1.3 }}>{dk.description}</p>}
+                  </div>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M9 6L15 12L9 18" stroke={C.textMuted} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                </div>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Main Export ─────────────────────────────────────
 export default function SessionFlow({ lang = "en", setLang }) {
   const [user, setUser] = useState(null);
@@ -829,6 +839,7 @@ export default function SessionFlow({ lang = "en", setLang }) {
   const [selectedClass, setSelectedClass] = useState(null);
   const [session, setSession] = useState(null);
   const [reviewTopic, setReviewTopic] = useState(null);
+  const [deckQuestions, setDeckQuestions] = useState(null);
   const t = i18n[lang] || i18n.en;
 
   useEffect(() => { supabase.auth.getUser().then(({ data: { user } }) => setUser(user)); }, []);
@@ -840,8 +851,10 @@ export default function SessionFlow({ lang = "en", setLang }) {
       <style>{interactiveCSS}</style>
       <PageHeader title={t.pageTitle} icon="pin" lang={lang} setLang={setLang || (() => {})} />
 
-      {step === "classes" && <ClassSetup userId={user.id} onClassReady={(cls, topic) => { setSelectedClass(cls); setReviewTopic(topic || null); setStep("create"); }} t={t} />}
+      {step === "classes" && <ClassSetup userId={user.id} onClassReady={(cls, topic, mode) => { setSelectedClass(cls); setReviewTopic(topic || null); setStep(mode || "create"); }} t={t} />}
       {step === "create" && selectedClass && <CreateSession cls={selectedClass} userId={user.id} onSessionCreated={(s) => { setSession(s); setStep("lobby"); }} onBack={() => { setStep("classes"); setReviewTopic(null); }} t={t} lang={lang} reviewTopic={reviewTopic} />}
+      {step === "deckSelect" && selectedClass && <DeckSelect cls={selectedClass} userId={user.id} onDeckSelected={(dk) => { setDeckQuestions(dk); setStep("deckPreview"); }} onBack={() => setStep("classes")} t={t} lang={lang} />}
+      {step === "deckPreview" && selectedClass && deckQuestions && <CreateSession cls={selectedClass} userId={user.id} onSessionCreated={(s) => { setSession(s); setStep("lobby"); }} onBack={() => setStep("deckSelect")} t={t} lang={lang} reviewTopic={deckQuestions.title} deckData={deckQuestions} />}
       {step === "lobby" && session && <SessionLobby session={session} onStart={() => setStep("live")} onEnd={() => { setSession(null); setStep("classes"); }} t={t} />}
       {step === "live" && session && <LiveResults session={session} onEnd={() => { setSession(null); setStep("classes"); }} t={t} />}
     </div>
