@@ -110,7 +110,7 @@ const sel = { ...inp, cursor: "pointer", appearance: "none", backgroundImage: `u
 // ─── Page Header ────────────────────────────────────
 function PageHeader({ title, icon, lang, setLang }) {
   return (
-    <div style={{ background: "#EEEEE9", borderBottom: `1px solid ${C.border}`, padding: "14px 28px", margin: "-28px -20px 24px -20px" }}>
+    <div style={{ background: C.bg, borderBottom: `1px solid ${C.border}`, padding: "14px 28px", margin: "-28px -20px 24px -20px" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <CIcon name={icon} size={28} />
