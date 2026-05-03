@@ -1,7 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { CIcon } from "../components/Icons";
-import { DeckCover, DECK_COLORS, DECK_ICONS, DEFAULT_DECK_COLOR, DEFAULT_DECK_ICON, SUBJ_ICON } from "../lib/deck-cover";
+import { DeckCover, DECK_COLORS, DECK_ICONS, DEFAULT_DECK_COLOR, DEFAULT_DECK_ICON, SUBJ_ICON, SUBJ_COLOR, PRESET_PATTERNS, presetToDataUrl, resolveColor, colorTint } from "../lib/deck-cover";
+import { uploadDeckCover, deleteDeckCover } from "../lib/deck-image-upload";
 
 const C = {
   bg: "#FFFFFF", bgSoft: "#F7F7F5", accent: "#2383E2", accentSoft: "#E8F0FE",
@@ -44,6 +45,12 @@ const i18n = {
     by: "by",
     customize: "Customize", coverColor: "Cover color", coverIcon: "Cover icon",
     preview: "Preview",
+    tabGeneral: "General", tabCustomize: "Customize", tabQuestions: "Questions",
+    coverStyle: "Cover style", styleColor: "Color + Icon", stylePreset: "Pattern", styleImage: "Custom image",
+    uploadImage: "Upload image", changeImage: "Change", removeImage: "Remove",
+    uploadHint: "JPG, PNG or WebP — up to 2 MB",
+    uploading: "Uploading...", uploadFailed: "Upload failed. Try a smaller image.",
+    presetPatterns: "Choose a pattern",
   },
   es: {
     pageTitle: "Decks", subtitle: "Crea y gestiona tus colecciones de preguntas",
@@ -65,6 +72,12 @@ const i18n = {
     by: "por",
     customize: "Personalizar", coverColor: "Color de portada", coverIcon: "Icono de portada",
     preview: "Vista previa",
+    tabGeneral: "General", tabCustomize: "Personalizar", tabQuestions: "Preguntas",
+    coverStyle: "Estilo de portada", styleColor: "Color + Icono", stylePreset: "Patrón", styleImage: "Imagen propia",
+    uploadImage: "Subir imagen", changeImage: "Cambiar", removeImage: "Quitar",
+    uploadHint: "JPG, PNG o WebP — hasta 2 MB",
+    uploading: "Subiendo...", uploadFailed: "Falló la subida. Intenta con una imagen más pequeña.",
+    presetPatterns: "Elige un patrón",
   },
   ko: {
     pageTitle: "덱", subtitle: "문제 모음을 만들고 관리하세요",
@@ -86,6 +99,12 @@ const i18n = {
     by: "",
     customize: "커스터마이즈", coverColor: "커버 색상", coverIcon: "커버 아이콘",
     preview: "미리보기",
+    tabGeneral: "일반", tabCustomize: "커스터마이즈", tabQuestions: "문제",
+    coverStyle: "커버 스타일", styleColor: "색상 + 아이콘", stylePreset: "패턴", styleImage: "사용자 이미지",
+    uploadImage: "이미지 업로드", changeImage: "변경", removeImage: "제거",
+    uploadHint: "JPG, PNG, WebP — 최대 2 MB",
+    uploading: "업로드 중...", uploadFailed: "업로드 실패. 더 작은 이미지를 시도하세요.",
+    presetPatterns: "패턴 선택",
   },
 };
 
@@ -104,6 +123,11 @@ const css = `
   .dk-color-swatch:active { transform: scale(.95); }
   .dk-icon-btn:hover { background: #F5F9FF !important; border-color: #2383E2 !important; transform: translateY(-1px); }
   .dk-icon-btn:active { transform: scale(.95); }
+  .dk-editor-tab:hover { color: #2383E2 !important; }
+  .dk-mode-btn:hover { transform: translateY(-1px); }
+  .dk-mode-btn:active { transform: scale(.97); }
+  .dk-preset-btn:hover { transform: scale(1.04); box-shadow: 0 4px 12px rgba(0,0,0,0.15) !important; }
+  .dk-preset-btn:active { transform: scale(.97); }
   .dk-input { transition: border-color .15s, box-shadow .15s; }
   .dk-input:hover { border-color: #2383E266 !important; }
   .dk-input:focus { border-color: #2383E2 !important; box-shadow: 0 0 0 3px #E8F0FE !important; }
@@ -145,6 +169,34 @@ function PageHeader({ title, icon, lang, setLang }) {
 }
 
 // ─── Create Deck Editor ─────────────────────────────
+// ─── Live preview of a deck card while editing ──────────────────────────────
+function DeckCardPreview({ title, description, cover_color, cover_icon, cover_image_url, subject, grade, language, questionCount, t }) {
+  const deckLike = { cover_color, cover_icon, cover_image_url, subject };
+  const tint = colorTint(deckLike, "0F"); // ~6% tint
+  const langCode = (language || "en").toUpperCase().slice(0, 2);
+  return (
+    <div style={{ marginBottom: 4 }}>
+      <div style={{ fontSize: 11, color: C.textMuted, marginBottom: 6, textTransform: "uppercase", letterSpacing: ".05em", fontWeight: 600 }}>{t.preview}</div>
+      <div style={{
+        background: C.bg,
+        borderRadius: 14,
+        border: `1px solid ${C.border}`,
+        boxShadow: "0 4px 16px rgba(0,0,0,0.06)",
+        overflow: "hidden",
+      }}>
+        <DeckCover deck={deckLike} variant="banner" height={92} radius={14} />
+        <div style={{ padding: 16, background: tint, borderTop: `1px solid ${C.border}` }}>
+          <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 4, lineHeight: 1.3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{title}</div>
+          {description && <p style={{ fontSize: 12, color: C.textSecondary, lineHeight: 1.4, margin: "0 0 8px", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{description}</p>}
+          <div style={{ fontSize: 11, color: C.textMuted, display: "flex", alignItems: "center", gap: 6 }}>
+            {subject || "—"} {grade && `· ${grade}`} · {questionCount} {t.questionCount} · <span style={{ padding: "1px 5px", borderRadius: 4, background: C.bgSoft, fontFamily: MONO, fontSize: 9, fontWeight: 700, color: C.textSecondary, border: `1px solid ${C.border}` }}>{langCode}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existingDeck }) {
   const [title, setTitle] = useState(existingDeck?.title || "");
   const [desc, setDesc] = useState(existingDeck?.description || "");
@@ -159,6 +211,11 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
   const [saving, setSaving] = useState(false);
   const [coverColor, setCoverColor] = useState(existingDeck?.cover_color || DEFAULT_DECK_COLOR);
   const [coverIcon, setCoverIcon] = useState(existingDeck?.cover_icon || (existingDeck?.subject && SUBJ_ICON[existingDeck.subject]) || DEFAULT_DECK_ICON);
+  const [coverImageUrl, setCoverImageUrl] = useState(existingDeck?.cover_image_url || "");
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState("");
+  const [editorTab, setEditorTab] = useState("general");
+  const fileInputRef = useRef(null);
 
   const addQuestion = () => {
     let newQ;
@@ -176,6 +233,48 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
   const updatePair = (qIdx, pairIdx, side, val) => setQuestions(prev => prev.map((q, i) => i === qIdx ? { ...q, pairs: q.pairs.map((p, j) => j === pairIdx ? { ...p, [side]: val } : p) } : q));
   const removeQ = (idx) => setQuestions(prev => prev.filter((_, i) => i !== idx));
 
+  // ── Cover image handlers ──
+  const handleImagePick = () => fileInputRef.current?.click();
+
+  const handleImageChange = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // allow re-selecting the same file
+    if (!file) return;
+    setUploadError("");
+    setUploading(true);
+    const prevUrl = coverImageUrl;
+    const result = await uploadDeckCover(file, userId);
+    setUploading(false);
+    if (result.error) {
+      setUploadError(t.uploadFailed);
+      return;
+    }
+    setCoverImageUrl(result.url);
+    // If we replaced an existing custom upload, delete the old file (best effort).
+    if (prevUrl && !prevUrl.startsWith("preset:") && prevUrl !== result.url) {
+      deleteDeckCover(prevUrl).catch(() => {});
+    }
+  };
+
+  const handleSelectPreset = (presetId) => {
+    const prevUrl = coverImageUrl;
+    setCoverImageUrl(`preset:${presetId}`);
+    if (prevUrl && !prevUrl.startsWith("preset:")) {
+      deleteDeckCover(prevUrl).catch(() => {});
+    }
+  };
+
+  const handleClearCover = () => {
+    const prevUrl = coverImageUrl;
+    setCoverImageUrl("");
+    if (prevUrl && !prevUrl.startsWith("preset:")) {
+      deleteDeckCover(prevUrl).catch(() => {});
+    }
+  };
+
+  // Which sub-mode of "Customize" is active.
+  const coverMode = !coverImageUrl ? "color" : coverImageUrl.startsWith("preset:") ? "preset" : "image";
+
   const canSave = title.trim() && subject && grade && questions.length > 0;
 
   const handleSave = async () => {
@@ -186,6 +285,7 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
       author_id: userId, class_id: classId || null, title: title.trim(), description: desc.trim(),
       subject, grade, language: deckLang, questions, tags: tagArr, is_public: makePublic,
       cover_color: coverColor, cover_icon: coverIcon,
+      cover_image_url: coverImageUrl || null,
     };
     if (existingDeck) {
       await supabase.from("decks").update(payload).eq("id", existingDeck.id);
@@ -205,8 +305,44 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
       </button>
 
       <div className="fade-up" style={{ background: C.bg, borderRadius: 14, border: `1px solid ${C.border}`, padding: 24, marginBottom: 16 }}>
-        <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 16, fontFamily: "'Outfit'" }}>{existingDeck ? t.edit : t.create}</h2>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, gap: 12 }}>
+          <h2 style={{ fontSize: 18, fontWeight: 700, fontFamily: "'Outfit'", margin: 0 }}>{existingDeck ? t.edit : t.create}</h2>
+          <DeckCover deck={{ cover_color: coverColor, cover_icon: coverIcon, cover_image_url: coverImageUrl, subject }} variant="tile" size={36} radius={9} />
+        </div>
 
+        {/* ── Tabs ── */}
+        <div style={{ display: "flex", gap: 4, marginBottom: 18, borderBottom: `1px solid ${C.border}` }}>
+          {[
+            { id: "general",   label: t.tabGeneral,   icon: "settings" },
+            { id: "customize", label: t.tabCustomize, icon: "paint" },
+            { id: "questions", label: t.tabQuestions + ` (${questions.length})`, icon: "question" },
+          ].map(tab => (
+            <button
+              key={tab.id}
+              className="dk-editor-tab"
+              onClick={() => setEditorTab(tab.id)}
+              style={{
+                padding: "10px 14px",
+                background: "transparent",
+                border: "none",
+                borderBottom: `2.5px solid ${editorTab === tab.id ? C.accent : "transparent"}`,
+                color: editorTab === tab.id ? C.accent : C.textSecondary,
+                fontSize: 13, fontWeight: 600,
+                fontFamily: "'Outfit',sans-serif",
+                cursor: "pointer",
+                marginBottom: -1,
+                display: "flex", alignItems: "center", gap: 6,
+                transition: "all .15s ease",
+              }}
+            >
+              <CIcon name={tab.icon} size={14} inline />
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {/* ── Tab: General ── */}
+        {editorTab === "general" && (
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           <div>
             <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: C.textSecondary, marginBottom: 5 }}>{t.title} *</label>
@@ -257,40 +393,106 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
             <input className="dk-input" value={tags} onChange={e => setTags(e.target.value)} placeholder={t.tagsPlaceholder} style={inp} />
           </div>
 
-          {/* ── Customize: Cover color + icon ── */}
-          <div style={{ background: C.bgSoft, borderRadius: 10, padding: 14, border: `1px solid ${C.border}` }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
-              <DeckCover deck={{ cover_color: coverColor, cover_icon: coverIcon }} size={56} radius={12} />
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{t.customize}</div>
-                <div style={{ fontSize: 12, color: C.textMuted, marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{title || t.titlePlaceholder}</div>
-              </div>
-            </div>
+          {/* Make public toggle (lives inside General — affects metadata, not content) */}
+          <div style={{ padding: "12px 14px", borderRadius: 10, background: C.bgSoft, display: "flex", alignItems: "center", justifyContent: "space-between", border: `1px solid ${C.border}` }}>
+            <div style={{ fontSize: 14, fontWeight: 500 }}>{t.makePublic}</div>
+            <button onClick={() => setMakePublic(!makePublic)} style={{ width: 44, height: 24, borderRadius: 12, padding: 2, background: makePublic ? C.accent : C.border, border: "none", display: "flex", alignItems: "center", cursor: "pointer" }}>
+              <div style={{ width: 20, height: 20, borderRadius: "50%", background: "#fff", transform: makePublic ? "translateX(20px)" : "translateX(0)", transition: "transform .2s", boxShadow: "0 1px 3px rgba(0,0,0,.15)" }} />
+            </button>
+          </div>
+        </div>
+        )}
 
-            <div style={{ marginBottom: 10 }}>
-              <label style={{ display: "block", fontSize: 12, fontWeight: 500, color: C.textSecondary, marginBottom: 6 }}>{t.coverColor}</label>
-              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                {DECK_COLORS.map(col => (
+        {/* ── Tab: Customize ── */}
+        {editorTab === "customize" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          {/* Live preview — full card mock ─────────────────────────── */}
+          <DeckCardPreview
+            title={title || t.titlePlaceholder}
+            description={desc}
+            cover_color={coverColor}
+            cover_icon={coverIcon}
+            cover_image_url={coverImageUrl}
+            subject={subject}
+            grade={grade}
+            language={deckLang}
+            questionCount={questions.length}
+            t={t}
+          />
+
+          {/* Cover style selector ─────────────────────────── */}
+          <div>
+            <label style={{ display: "block", fontSize: 12, fontWeight: 500, color: C.textSecondary, marginBottom: 8 }}>{t.coverStyle}</label>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6 }}>
+              {[
+                { id: "color",  label: t.styleColor,  icon: "paint" },
+                { id: "preset", label: t.stylePreset, icon: "sparkle" },
+                { id: "image",  label: t.styleImage,  icon: "art" },
+              ].map(opt => {
+                const active = coverMode === opt.id;
+                return (
                   <button
-                    key={col.id}
+                    key={opt.id}
                     type="button"
-                    aria-label={col.label}
-                    title={col.label}
-                    onClick={() => setCoverColor(col.id)}
-                    className="dk-color-swatch"
+                    className="dk-mode-btn"
+                    onClick={() => {
+                      if (opt.id === "color")  handleClearCover();
+                      if (opt.id === "preset" && coverMode !== "preset") handleSelectPreset(PRESET_PATTERNS[0].id);
+                      if (opt.id === "image"  && coverMode !== "image")  handleImagePick();
+                    }}
                     style={{
-                      width: 30, height: 30, borderRadius: 8,
-                      background: col.value,
-                      border: coverColor === col.id ? `2.5px solid ${C.text}` : `2px solid transparent`,
-                      cursor: "pointer", padding: 0,
-                      boxShadow: coverColor === col.id ? `0 0 0 2px ${C.bg}, 0 2px 6px ${col.value}55` : `0 1px 3px ${col.value}33`,
+                      padding: "10px 8px", borderRadius: 9, fontSize: 12, fontWeight: 600,
+                      background: active ? C.accentSoft : C.bg,
+                      color: active ? C.accent : C.textSecondary,
+                      border: `1.5px solid ${active ? C.accent : C.border}`,
+                      cursor: "pointer", fontFamily: "'Outfit',sans-serif",
+                      display: "flex", alignItems: "center", justifyContent: "center", gap: 5,
                       transition: "all .15s ease",
                     }}
-                  />
-                ))}
-              </div>
+                  >
+                    <CIcon name={opt.icon} size={14} inline /> {opt.label}
+                  </button>
+                );
+              })}
             </div>
+          </div>
 
+          {/* Hidden file input (always rendered, triggered by handlers) */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            onChange={handleImageChange}
+            style={{ display: "none" }}
+          />
+
+          {/* Color always visible — it tints presets too ─────────── */}
+          <div>
+            <label style={{ display: "block", fontSize: 12, fontWeight: 500, color: C.textSecondary, marginBottom: 6 }}>{t.coverColor}</label>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+              {DECK_COLORS.map(col => (
+                <button
+                  key={col.id}
+                  type="button"
+                  aria-label={col.label}
+                  title={col.label}
+                  onClick={() => setCoverColor(col.id)}
+                  className="dk-color-swatch"
+                  style={{
+                    width: 32, height: 32, borderRadius: 9,
+                    background: col.value,
+                    border: coverColor === col.id ? `2.5px solid ${C.text}` : `2px solid transparent`,
+                    cursor: "pointer", padding: 0,
+                    boxShadow: coverColor === col.id ? `0 0 0 2px ${C.bg}, 0 2px 6px ${col.value}55` : `0 1px 3px ${col.value}33`,
+                    transition: "all .15s ease",
+                  }}
+                />
+              ))}
+            </div>
+          </div>
+
+          {/* Mode-specific content */}
+          {coverMode === "color" && (
             <div>
               <label style={{ display: "block", fontSize: 12, fontWeight: 500, color: C.textSecondary, marginBottom: 6 }}>{t.coverIcon}</label>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(10, 1fr)", gap: 4 }}>
@@ -317,8 +519,83 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
                 ))}
               </div>
             </div>
-          </div>
+          )}
 
+          {coverMode === "preset" && (
+            <div>
+              <label style={{ display: "block", fontSize: 12, fontWeight: 500, color: C.textSecondary, marginBottom: 6 }}>{t.presetPatterns}</label>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
+                {PRESET_PATTERNS.map(p => {
+                  const active = coverImageUrl === `preset:${p.id}`;
+                  return (
+                    <button
+                      key={p.id}
+                      type="button"
+                      title={p.label}
+                      onClick={() => handleSelectPreset(p.id)}
+                      className="dk-preset-btn"
+                      style={{
+                        position: "relative",
+                        aspectRatio: "16 / 9",
+                        borderRadius: 8,
+                        backgroundImage: presetToDataUrl(p.id, resolveColor({ cover_color: coverColor })),
+                        backgroundSize: "cover",
+                        backgroundPosition: "center",
+                        border: active ? `2.5px solid ${C.text}` : `2px solid transparent`,
+                        cursor: "pointer", padding: 0,
+                        boxShadow: active ? `0 0 0 2px ${C.bg}, 0 2px 6px rgba(0,0,0,0.15)` : "0 1px 3px rgba(0,0,0,0.08)",
+                        transition: "all .15s ease",
+                      }}
+                    />
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {coverMode === "image" && (
+            <div>
+              <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
+                <button
+                  type="button"
+                  className="dk-btn"
+                  onClick={handleImagePick}
+                  disabled={uploading}
+                  style={{
+                    flex: 1, padding: "10px 14px", borderRadius: 9, fontSize: 13, fontWeight: 600,
+                    background: C.accentSoft, color: C.accent, border: `1px solid ${C.accent}33`,
+                    cursor: uploading ? "default" : "pointer",
+                    display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+                    fontFamily: "'Outfit',sans-serif",
+                  }}
+                >
+                  <CIcon name="refresh" size={14} inline />
+                  {uploading ? t.uploading : t.changeImage}
+                </button>
+                <button
+                  type="button"
+                  className="dk-btn-secondary"
+                  onClick={handleClearCover}
+                  disabled={uploading}
+                  style={{
+                    padding: "10px 14px", borderRadius: 9, fontSize: 13, fontWeight: 500,
+                    background: C.bg, color: C.red, border: `1px solid ${C.border}`,
+                    cursor: "pointer", fontFamily: "'Outfit',sans-serif",
+                  }}
+                >
+                  {t.removeImage}
+                </button>
+              </div>
+              <p style={{ fontSize: 11, color: C.textMuted, margin: 0 }}>{t.uploadHint}</p>
+              {uploadError && <p style={{ fontSize: 12, color: C.red, marginTop: 6 }}>{uploadError}</p>}
+            </div>
+          )}
+        </div>
+        )}
+
+        {/* ── Tab: Questions ── */}
+        {editorTab === "questions" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           <div>
             <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: C.textSecondary, marginBottom: 8 }}>{t.activityType}</label>
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
@@ -337,9 +614,11 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
             </div>
           </div>
         </div>
+        )}
       </div>
 
-      {/* Questions */}
+      {/* Questions list (only on Questions tab) */}
+      {editorTab === "questions" && (
       <div className="fade-up" style={{ animationDelay: ".1s" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
           <h3 style={{ fontSize: 15, fontWeight: 600 }}>{t.questions} ({questions.length})</h3>
@@ -424,16 +703,7 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
           </div>
         )}
       </div>
-
-      {/* Make public toggle */}
-      <div style={{ marginTop: 16, padding: 14, borderRadius: 10, background: C.bgSoft, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <div>
-          <div style={{ fontSize: 14, fontWeight: 500 }}>{t.makePublic}</div>
-        </div>
-        <button onClick={() => setMakePublic(!makePublic)} style={{ width: 44, height: 24, borderRadius: 12, padding: 2, background: makePublic ? C.accent : C.border, border: "none", display: "flex", alignItems: "center", cursor: "pointer" }}>
-          <div style={{ width: 20, height: 20, borderRadius: "50%", background: "#fff", transform: makePublic ? "translateX(20px)" : "translateX(0)", transition: "transform .2s", boxShadow: "0 1px 3px rgba(0,0,0,.15)" }} />
-        </button>
-      </div>
+      )}
 
       {/* Save */}
       <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
@@ -544,10 +814,16 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang }) {
               {myDecks.map((dk, i) => {
                 const qs = dk.questions || [];
                 const cls = userClasses.find(c => c.id === dk.class_id);
+                const accent = resolveColor(dk);
                 return (
-                  <div key={dk.id} className="dk-card fade-up" style={{ background: C.bg, borderRadius: 12, border: `1px solid ${C.border}`, padding: 16, animationDelay: `${i * .04}s` }}>
+                  <div key={dk.id} className="dk-card fade-up" style={{
+                    background: C.bg, borderRadius: 12, border: `1px solid ${C.border}`,
+                    borderLeft: `4px solid ${accent}`,
+                    padding: 14, paddingLeft: 14,
+                    animationDelay: `${i * .04}s`,
+                  }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                      <DeckCover deck={dk} size={48} radius={11} />
+                      <DeckCover deck={dk} size={52} radius={10} />
                       <div style={{ flex: 1, cursor: "pointer", minWidth: 0 }} onClick={() => { setEditing(dk); setView("edit"); }}>
                         <div style={{ fontSize: 15, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{dk.title}</div>
                         <div style={{ fontSize: 12, color: C.textMuted, marginTop: 2 }}>
