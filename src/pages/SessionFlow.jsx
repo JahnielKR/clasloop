@@ -395,7 +395,7 @@ const ACTIVITY_TYPES = [
 
 // ─── Step 2: Create Session ─────────────────────────
 function CreateSession({ cls, userId, onSessionCreated, onBack, t, lang, reviewTopic, deckData }) {
-  const [topic, setTopic] = useState(reviewTopic || "");
+  const [topic, setTopic] = useState(deckData?.title || reviewTopic || "");
   const [keyPoints, setKeyPoints] = useState("");
   const [sessionType, setSessionType] = useState("warmup");
   const [activityType, setActivityType] = useState(deckData?.questions?.[0]?.type || "mcq");
@@ -410,8 +410,8 @@ function CreateSession({ cls, userId, onSessionCreated, onBack, t, lang, reviewT
   const [deckSaved, setDeckSaved] = useState(false);
   const fileRef = useRef(null);
 
-  // Auto-generate if reviewTopic is provided
-  const [autoGenerate, setAutoGenerate] = useState(!!reviewTopic);
+  // Auto-generate if reviewTopic is provided AND no deckData (don't generate when using deck)
+  const [autoGenerate, setAutoGenerate] = useState(!!reviewTopic && !deckData);
 
   const handleFile = (f) => {
     if (!f) return;
@@ -775,18 +775,12 @@ function DeckSelect({ cls, userId, onDeckSelected, onBack, t, lang }) {
 
   useEffect(() => {
     const load = async () => {
-      // Load user's own decks: linked to THIS class OR matching subject
-      const { data: mine } = await supabase.from("decks")
+      // Only decks linked to THIS specific class
+      const { data } = await supabase.from("decks")
         .select("*")
-        .eq("author_id", userId)
-        .or(`class_id.eq.${cls.id},and(class_id.is.null,subject.eq.${cls.subject})`)
+        .eq("class_id", cls.id)
         .order("created_at", { ascending: false });
-      // Load public decks matching class subject
-      const { data: pub } = await supabase.from("decks").select("*, profiles(full_name)").eq("is_public", true).eq("subject", cls.subject).order("uses_count", { ascending: false }).limit(20);
-      const all = [...(mine || [])];
-      const ids = new Set(all.map(d => d.id));
-      (pub || []).forEach(d => { if (!ids.has(d.id)) all.push(d); });
-      setDecks(all);
+      setDecks(data || []);
       setLoading(false);
     };
     load();
@@ -858,7 +852,7 @@ export default function SessionFlow({ lang = "en", setLang }) {
       {step === "classes" && <ClassSetup userId={user.id} onClassReady={(cls, topic, mode) => { setSelectedClass(cls); setReviewTopic(topic || null); setStep(mode || "create"); }} t={t} />}
       {step === "create" && selectedClass && <CreateSession cls={selectedClass} userId={user.id} onSessionCreated={(s) => { setSession(s); setStep("lobby"); }} onBack={() => { setStep("classes"); setReviewTopic(null); }} t={t} lang={lang} reviewTopic={reviewTopic} />}
       {step === "deckSelect" && selectedClass && <DeckSelect cls={selectedClass} userId={user.id} onDeckSelected={(dk) => { setDeckQuestions(dk); setStep("deckPreview"); }} onBack={() => setStep("classes")} t={t} lang={lang} />}
-      {step === "deckPreview" && selectedClass && deckQuestions && <CreateSession cls={selectedClass} userId={user.id} onSessionCreated={(s) => { setSession(s); setStep("lobby"); }} onBack={() => setStep("deckSelect")} t={t} lang={lang} reviewTopic={deckQuestions.title} deckData={deckQuestions} />}
+      {step === "deckPreview" && selectedClass && deckQuestions && <CreateSession cls={selectedClass} userId={user.id} onSessionCreated={(s) => { setSession(s); setStep("lobby"); }} onBack={() => setStep("deckSelect")} t={t} lang={lang} deckData={deckQuestions} />}
       {step === "lobby" && session && <SessionLobby session={session} onStart={() => setStep("live")} onEnd={() => { setSession(null); setStep("classes"); }} t={t} />}
       {step === "live" && session && <LiveResults session={session} onEnd={() => { setSession(null); setStep("classes"); }} t={t} />}
     </div>
