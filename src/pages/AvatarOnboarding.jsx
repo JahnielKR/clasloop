@@ -52,9 +52,9 @@ export default function AvatarOnboarding({ profile, lang = "en", onDone }) {
   const [selected, setSelected] = useState(null);
   const [saving, setSaving] = useState(false);
 
-  // Only the 10 starter avatars (free rarity, unlock=0). New students start
-  // with these and earn more by playing — that flow is the unlock-checker.
-  const startAvatars = AVATARS.filter(a => a.rarity === "free" && a.unlock === 0);
+  // The 10 starter avatars are flagged with starter:true in the catalog.
+  // These are unlocked from day one for every account.
+  const startAvatars = AVATARS.filter(a => a.starter === true);
 
   const firstName = (profile?.full_name || "").trim().split(/\s+/)[0] || "";
 
