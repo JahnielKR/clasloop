@@ -14,6 +14,7 @@ import Director from './pages/Director';
 import Notifications from './pages/Notifications';
 import Decks from './pages/Decks';
 import MyClasses from './pages/MyClasses';
+import TeacherProfile from './pages/TeacherProfile';
 
 const C = {
   bg: "#FFFFFF", bgSoft: "#F7F7F5", accent: "#2383E2", accentSoft: "#E8F0FE",
@@ -21,7 +22,7 @@ const C = {
   red: "#E03E3E", redSoft: "#FDECEC", purple: "#6940A5", purpleSoft: "#F3EEFB",
   text: "#191919", textSecondary: "#6B6B6B", textMuted: "#9B9B9B", border: "#E8E8E4",
 };
-const COMPONENTS = { sessions: SessionFlow, studentJoin: StudentJoin, mainApp: MainApp, landing: Landing, onboarding: Onboarding, community: Community, achievements: Achievements, settings: Settings, director: Director, notifications: Notifications, decks: Decks, myClasses: MyClasses };
+const COMPONENTS = { sessions: SessionFlow, studentJoin: StudentJoin, mainApp: MainApp, landing: Landing, onboarding: Onboarding, community: Community, achievements: Achievements, settings: Settings, director: Director, notifications: Notifications, decks: Decks, myClasses: MyClasses, teacherProfile: TeacherProfile };
 
 function AuthScreen() {
   const [mode, setMode] = useState("select");
@@ -179,6 +180,13 @@ export default function App() {
   const [open, setOpen] = useState(true);
   const [practiceDeck, setPracticeDeck] = useState(null); // when set, render StudentJoin in practice mode
   const [sessionsOpts, setSessionsOpts] = useState(null); // options passed when navigating to sessions (e.g. {openCreateClass:true})
+  // When viewing a public teacher profile (via /teacher/:id link or click in
+  // Community), this holds the id. Cleared by sidebar nav, set on init from URL.
+  const [viewingTeacherId, setViewingTeacherId] = useState(() => {
+    if (typeof window === "undefined") return null;
+    const m = window.location.pathname.match(/^\/teacher\/([^/?#]+)/);
+    return m ? m[1] : null;
+  });
 
   useEffect(() => {
     // Initial session check
@@ -221,8 +229,11 @@ export default function App() {
       if (!error && data) {
         setProfile(data);
         setLang(data.language || "en");
-        // Set default page based on role
-        if (data.role === "student") {
+        // If we landed on a /teacher/:id URL, render that page instead of the
+        // role default. The viewingTeacherId state was populated on mount.
+        if (viewingTeacherId) {
+          setPage("teacherProfile");
+        } else if (data.role === "student") {
           setPage("myClasses");
         } else {
           setPage("sessions");
@@ -270,7 +281,7 @@ export default function App() {
   return (
     <div style={{ display: "flex", minHeight: "100vh" }}>
       <style>{sidebarCSS}</style>
-      <Sidebar page={page} setPage={(p) => { setPracticeDeck(null); setSessionsOpts(null); setPage(p); }} profile={profile} lang={lang} setLang={setLang} open={open} setOpen={setOpen} onSignOut={handleSignOut} onNavClick={() => setPageKey(k => k + 1)} />
+      <Sidebar page={page} setPage={(p) => { setPracticeDeck(null); setSessionsOpts(null); setViewingTeacherId(null); setPage(p); }} profile={profile} lang={lang} setLang={setLang} open={open} setOpen={setOpen} onSignOut={handleSignOut} onNavClick={() => setPageKey(k => k + 1)} />
       <div style={{ marginLeft: open ? 210 : 56, flex: 1, transition: "margin-left .2s", minHeight: "100vh", background: C.bgSoft }}>
         {inPractice ? (
           <StudentJoin
@@ -283,7 +294,7 @@ export default function App() {
           />
         ) : (
           P && <P
-            key={pageKey}
+            key={page === "teacherProfile" ? `teacher-${viewingTeacherId}` : pageKey}
             lang={lang}
             setLang={setLang}
             profile={profile}
@@ -292,6 +303,9 @@ export default function App() {
             onNavigateToSessions={(opts) => { setSessionsOpts(opts || {}); setPage("sessions"); }}
             sessionsOpts={page === "sessions" ? sessionsOpts : null}
             onConsumeSessionsOpts={() => setSessionsOpts(null)}
+            teacherId={page === "teacherProfile" ? viewingTeacherId : null}
+            onNavigateToTeacher={(id) => { setViewingTeacherId(id); setPage("teacherProfile"); }}
+            onNavigateToCommunity={() => { setViewingTeacherId(null); setPage("community"); }}
           />
         )}
       </div>
