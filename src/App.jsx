@@ -128,16 +128,41 @@ function Sidebar({ page, setPage, profile, lang, setLang, open, setOpen, onSignO
       </div>
       <div style={{ padding: "10px 12px", borderTop: `1px solid ${C.border}` }}>
         {open ? <>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+          <button
+            className="cl-profile-chip"
+            onClick={() => { setPage("settings"); if (onNavClick) onNavClick(); }}
+            title="Open Settings"
+            style={{
+              display: "flex", alignItems: "center", gap: 8, marginBottom: 8,
+              width: "100%", padding: "6px 8px", borderRadius: 8,
+              background: page === "settings" ? C.accentSoft : "transparent",
+              border: "none", cursor: "pointer", textAlign: "left",
+              fontFamily: "'Outfit',sans-serif",
+              transition: "background .15s ease",
+            }}
+          >
             <div style={{ width: 30, height: 30, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{profile ? <ProfileAvatar photoUrl={profile.avatar_url} id={profile.avatar_id} seed={profile.id} size={30}/> : (isT?<TeacherAvatar size={30}/>:<StudentAvatar size={30}/>)}</div>
-            <div style={{ overflow: "hidden" }}>
-              <div style={{ fontSize: 12, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{profile?.full_name||"User"}</div>
+            <div style={{ overflow: "hidden", flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 12, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", color: page === "settings" ? C.accent : C.text }}>{profile?.full_name||"User"}</div>
               <div style={{ fontSize: 10, color: C.textMuted }}>{isT?"Teacher":`Lv.${profile?.level||1}`}</div>
             </div>
-          </div>
+          </button>
           <button className="cl-signout" onClick={onSignOut} style={{ fontSize: 11, color: C.textMuted, background: "transparent", border: "none", cursor: "pointer" }}>Sign out</button>
         </> : <div style={{ display: "flex", justifyContent: "center" }}>
-          <div style={{ width: 26, height: 26, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center" }}>{profile ? <ProfileAvatar photoUrl={profile.avatar_url} id={profile.avatar_id} seed={profile.id} size={26}/> : (isT?<TeacherAvatar size={26}/>:<StudentAvatar size={26}/>)}</div>
+          <button
+            className="cl-profile-chip"
+            onClick={() => { setPage("settings"); if (onNavClick) onNavClick(); }}
+            title="Open Settings"
+            style={{
+              width: 32, height: 32, padding: 0, borderRadius: "50%",
+              background: page === "settings" ? C.accentSoft : "transparent",
+              border: "none", cursor: "pointer",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              transition: "background .15s ease",
+            }}
+          >
+            {profile ? <ProfileAvatar photoUrl={profile.avatar_url} id={profile.avatar_id} seed={profile.id} size={26}/> : (isT?<TeacherAvatar size={26}/>:<StudentAvatar size={26}/>)}
+          </button>
         </div>}
       </div>
     </div>
@@ -230,6 +255,9 @@ export default function App() {
     .cl-signout:hover { color: #E03E3E !important; }
     .cl-collapse { transition: all .15s ease; }
     .cl-collapse:hover { background: #E8F0FE !important; color: #2383E2 !important; }
+    .cl-profile-chip { transition: all .15s ease; }
+    .cl-profile-chip:hover { background: #F5F9FF !important; }
+    .cl-profile-chip:active { transform: scale(.98); }
   `;
 
   const P = COMPONENTS[page];

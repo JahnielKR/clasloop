@@ -873,6 +873,18 @@ export function Avatar({
 
 // ─── <AvatarPicker /> — grid UI for choosing an avatar ────────────────────
 // Groups by rarity, shows lock state for unowned ones, calls onSelect(id).
+const PICKER_CSS = `
+  .cl-av-cell { transition: transform .18s ease, background .15s ease, box-shadow .18s ease; }
+  .cl-av-cell:not(:disabled):hover {
+    transform: translateY(-3px);
+    background: #F5F9FF !important;
+    box-shadow: 0 6px 16px rgba(35,131,226,0.12);
+  }
+  .cl-av-cell:not(:disabled):active { transform: translateY(-1px) scale(.97); }
+  .cl-av-cell:disabled { cursor: default; }
+  .cl-av-cell:disabled:hover { background: transparent; }
+`;
+
 export function AvatarPicker({
   currentId,
   unlockedIds = [],     // ids the user has unlocked beyond starters
@@ -889,6 +901,7 @@ export function AvatarPicker({
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+      <style>{PICKER_CSS}</style>
       {groups.map(tier => {
         const items = visibleAvatars.filter(a => a.rarity === tier);
         if (items.length === 0) return null;
@@ -916,6 +929,7 @@ export function AvatarPicker({
                 return (
                   <button
                     key={a.id}
+                    className="cl-av-cell"
                     onClick={() => owned && onSelect && onSelect(a.id)}
                     disabled={!owned}
                     title={hint}
