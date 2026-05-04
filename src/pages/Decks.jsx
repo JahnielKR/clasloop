@@ -1932,7 +1932,7 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
   const [filterSubject, setFilterSubject] = useState(""); // "" = all
   const [filterClass, setFilterClass] = useState("");     // "" = all
   const [groupBy, setGroupBy] = useState("class");        // class | subject | none
-  const [collapsedGroups, setCollapsedGroups] = useState({}); // { groupKey: true }
+  const [expandedGroups, setExpandedGroups] = useState({}); // { groupKey: true } — collapsed by default
   const t = i18n[l] || i18n.en;
 
   useEffect(() => { loadData(); }, []);
@@ -2066,7 +2066,7 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
   };
   const groups = buildGroups();
 
-  const toggleGroup = (key) => setCollapsedGroups(prev => ({ ...prev, [key]: !prev[key] }));
+  const toggleGroup = (key) => setExpandedGroups(prev => ({ ...prev, [key]: !prev[key] }));
 
   // ── Reusable deck row renderer ───────────────────────────────────────────
   const renderDeckRow = (dk, i, opts = {}) => {
@@ -2199,7 +2199,7 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
             {groups.map(group => {
-              const collapsed = !!collapsedGroups[group.key];
+              const collapsed = !expandedGroups[group.key];
               // Tint header by deck color of the first deck in the group (when grouped by class/subject they share traits).
               // Fallback to subject icon color via a neutral tint.
               const firstDeck = group.decks[0];
