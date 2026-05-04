@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from './lib/supabase';
 import Icon, { LogoMark, SessionsIcon, AIGenIcon, SchoolIcon, CommunityIcon, DecksIcon, NotificationsIcon, SettingsIcon, JoinSessionIcon, ProgressIcon, AchievementsIcon, ActivitiesIcon, TeacherInline, StudentInline, TeacherAvatar, StudentAvatar, BackArrow } from './components/Icons';
 import { Avatar as ProfileAvatar } from './components/Avatars';
@@ -186,19 +186,34 @@ export default function App() {
   const [practiceDeck, setPracticeDeck] = useState(null); // when set, render StudentJoin in practice mode
   const [sessionsOpts, setSessionsOpts] = useState(null); // options passed when navigating to sessions (e.g. {openCreateClass:true})
   // When viewing a public teacher profile (via /teacher/:id link or click in
-  // Community), this holds the id. Cleared by sidebar nav, set on init from URL.
+  // Community), this holds the id. We read the URL once at mount and then
+  // immediately clean it — otherwise tab focus / token refresh / OAuth bounces
+  // re-trigger the same code path and you'd land on the profile every time.
   const [viewingTeacherId, setViewingTeacherId] = useState(() => {
     if (typeof window === "undefined") return null;
     const m = window.location.pathname.match(/^\/teacher\/([^/?#]+)/);
-    return m ? m[1] : null;
+    if (m) {
+      // Replace the URL so a re-render or re-auth doesn't try to handle it again.
+      try { window.history.replaceState(null, "", "/"); } catch (_) {}
+      return m[1];
+    }
+    return null;
   });
+
+  // Track whether the initial profile load already ran. Subsequent calls (token
+  // refresh on tab return, etc.) shouldn't reset the page state.
+  const profileLoadedRef = useRef(false);
 
   useEffect(() => {
     // Initial session check
     supabase.auth.getSession().then(({ data: { session } }) => {
       const u = session?.user ?? null;
       setUser(u);
-      if (u) fetchProfile(u.id);
+      if (u) {
+        const isInitial = !profileLoadedRef.current;
+        profileLoadedRef.current = true;
+        fetchProfile(u.id, isInitial);
+      }
       setLoading(false);
     }).catch(() => {
       setLoading(false);
@@ -210,11 +225,14 @@ export default function App() {
       setUser(u);
 
       if (u && (event === "SIGNED_IN" || event === "INITIAL_SESSION")) {
-        fetchProfile(u.id);
+        const isInitial = !profileLoadedRef.current;
+        profileLoadedRef.current = true;
+        fetchProfile(u.id, isInitial);
       }
 
       if (event === "SIGNED_OUT") {
         setProfile(null);
+        profileLoadedRef.current = false;
       }
 
       // Clean OAuth hash
@@ -228,7 +246,7 @@ export default function App() {
     return () => subscription.unsubscribe();
   }, []);
 
-  const fetchProfile = async (id) => {
+  const fetchProfile = async (id, isInitial = true) => {
     try {
       let { data, error } = await supabase.from("profiles").select("*").eq("id", id).single();
 
@@ -255,17 +273,15 @@ export default function App() {
         let finalProfile = data;
 
         // Apply pending OAuth role if there is one. The select-role screen
-        // saved this to localStorage right before the Google redirect so we
-        // could honor the user's choice once they bounce back. We only apply
-        // if (a) it's a fresh profile (created in the last 5 minutes), and
-        // (b) the role on the profile doesn't already match — so we don't
-        // accidentally flip a returning user's role on a re-login.
+        // saved this to localStorage right before the Google redirect. We
+        // always apply it when present — the user explicitly clicked
+        // "I'm a Teacher" or "I'm a Student" right before logging in, so
+        // their intent is clear. We then clear localStorage so subsequent
+        // logins don't keep flipping the role.
         try {
           const pendingRole = localStorage.getItem("clasloop_pending_role");
           if (pendingRole === "teacher" || pendingRole === "student") {
-            const createdAt = data.created_at ? new Date(data.created_at).getTime() : 0;
-            const fresh = createdAt && (Date.now() - createdAt) < 5 * 60 * 1000;
-            if (fresh && data.role !== pendingRole) {
+            if (data.role !== pendingRole) {
               const { data: updated } = await supabase
                 .from("profiles")
                 .update({ role: pendingRole })
@@ -280,14 +296,18 @@ export default function App() {
 
         setProfile(finalProfile);
         setLang(finalProfile.language || "en");
-        // If we landed on a /teacher/:id URL, render that page instead of the
-        // role default. The viewingTeacherId state was populated on mount.
-        if (viewingTeacherId) {
-          setPage("teacherProfile");
-        } else if (finalProfile.role === "student") {
-          setPage("myClasses");
-        } else {
-          setPage("sessions");
+
+        // Only set the default page on the first profile load. Re-fetches
+        // (e.g. token refresh on tab return) shouldn't yank the user back to
+        // a default — they should stay where they were.
+        if (isInitial) {
+          if (viewingTeacherId) {
+            setPage("teacherProfile");
+          } else if (finalProfile.role === "student") {
+            setPage("myClasses");
+          } else {
+            setPage("sessions");
+          }
         }
       }
     } catch (err) {
