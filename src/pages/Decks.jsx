@@ -74,6 +74,8 @@ const i18n = {
     sliderMin: "Min", sliderMax: "Max", sliderCorrect: "Correct value", sliderTolerance: "Tolerance (±)", sliderUnit: "Unit (optional)", sliderUnitPlaceholder: "%, kg, years...",
     sentenceHint: "Auto-graded: checks the required word is present and the sentence is long enough.",
     sliderHint: "Student sees a slider from min to max, drags to estimate, ✓ if within tolerance.",
+    addQuestionImage: "+ Add image", removeQuestionImage: "Remove image", changeQuestionImage: "Change image",
+    questionImageHint: "Optional image displayed with the question",
   },
   es: {
     pageTitle: "Decks", subtitle: "Crea y gestiona tus colecciones de preguntas",
@@ -121,6 +123,8 @@ const i18n = {
     sliderMin: "Mín", sliderMax: "Máx", sliderCorrect: "Valor correcto", sliderTolerance: "Tolerancia (±)", sliderUnit: "Unidad (opcional)", sliderUnitPlaceholder: "%, kg, años...",
     sentenceHint: "Auto-evaluado: verifica que use la palabra requerida y tenga suficientes palabras.",
     sliderHint: "El estudiante ve un slider de mín a máx, arrastra para estimar. ✓ si está dentro de la tolerancia.",
+    addQuestionImage: "+ Agregar imagen", removeQuestionImage: "Quitar imagen", changeQuestionImage: "Cambiar imagen",
+    questionImageHint: "Imagen opcional que se muestra con la pregunta",
   },
   ko: {
     pageTitle: "덱", subtitle: "문제 모음을 만들고 관리하세요",
@@ -168,6 +172,8 @@ const i18n = {
     sliderMin: "최소", sliderMax: "최대", sliderCorrect: "정답 값", sliderTolerance: "허용 오차 (±)", sliderUnit: "단위 (선택)", sliderUnitPlaceholder: "%, kg, 년...",
     sentenceHint: "자동 채점: 필수 단어 포함 여부와 단어 수를 확인합니다.",
     sliderHint: "학생이 슬라이더를 드래그하여 추정합니다. 허용 오차 내면 ✓.",
+    addQuestionImage: "+ 이미지 추가", removeQuestionImage: "이미지 제거", changeQuestionImage: "이미지 변경",
+    questionImageHint: "문제에 표시되는 선택적 이미지",
   },
 };
 
@@ -322,6 +328,41 @@ function DeckCardPreview({ title, description, cover_color, cover_icon, cover_im
         </div>
       </div>
     </div>
+  );
+}
+
+// ─── Auto-resizing textarea ─────────────────────────────────────────────────
+// Grows with content. Useful for question text where length varies a lot
+// (one-liners → "MCQ" vs paragraph-length → word problems).
+function AutoResizeTextarea({ value, onChange, placeholder, minHeight = 44, maxHeight = 320, autoFocus = false, style = {}, ...rest }) {
+  const ref = useRef(null);
+  const resize = () => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.height = "auto";
+    const next = Math.min(maxHeight, Math.max(minHeight, el.scrollHeight));
+    el.style.height = `${next}px`;
+    el.style.overflowY = el.scrollHeight > maxHeight ? "auto" : "hidden";
+  };
+  useEffect(resize, [value]);
+  return (
+    <textarea
+      ref={ref}
+      value={value}
+      onChange={onChange}
+      placeholder={placeholder}
+      autoFocus={autoFocus}
+      rows={1}
+      style={{
+        ...inp,
+        resize: "none",
+        lineHeight: 1.5,
+        minHeight,
+        overflowY: "hidden",
+        ...style,
+      }}
+      {...rest}
+    />
   );
 }
 
@@ -572,8 +613,56 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
     };
   }));
 
+  // ── Question-level image (attached to the question itself, not options) ──
+  const [qImageUploading, setQImageUploading] = useState({}); // { qi: true }
+  const qImageFileRef = useRef(null);
+  const qImageTargetRef = useRef(null); // { qi }
+
+  const triggerQImageUpload = (qi) => {
+    qImageTargetRef.current = { qi };
+    qImageFileRef.current?.click();
+  };
+
+  const handleQImageFileChange = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    const target = qImageTargetRef.current;
+    if (!target) return;
+    setQImageUploading(prev => ({ ...prev, [target.qi]: true }));
+    const result = await uploadDeckCover(file, userId);
+    setQImageUploading(prev => {
+      const { [target.qi]: _, ...rest } = prev;
+      return rest;
+    });
+    if (!result.error) {
+      // Best-effort: delete previous question image if any.
+      setQuestions(prev => {
+        const prevUrl = prev[target.qi]?.image_url;
+        if (prevUrl) deleteDeckCover(prevUrl).catch(() => {});
+        return prev.map((q, i) => i === target.qi ? { ...q, image_url: result.url } : q);
+      });
+    }
+  };
+
+  const removeQImage = (qi) => setQuestions(prev => prev.map((q, i) => {
+    if (i !== qi) return q;
+    if (q.image_url) deleteDeckCover(q.image_url).catch(() => {});
+    return { ...q, image_url: null };
+  }));
+
   const removeQ = (idx) => {
-    setQuestions(prev => prev.filter((_, i) => i !== idx));
+    setQuestions(prev => {
+      const removed = prev[idx];
+      // Best-effort cleanup of any uploaded images attached to this question.
+      if (removed?.image_url) deleteDeckCover(removed.image_url).catch(() => {});
+      if (Array.isArray(removed?.options)) {
+        removed.options.forEach(o => {
+          if (typeof o === "object" && o?.image_url) deleteDeckCover(o.image_url).catch(() => {});
+        });
+      }
+      return prev.filter((_, i) => i !== idx);
+    });
     setExpandedQ(curr => curr === idx ? null : (curr !== null && curr > idx ? curr - 1 : curr));
   };
 
@@ -813,6 +902,15 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
         type="file"
         accept="image/jpeg,image/png,image/webp"
         onChange={handleOptionFileChange}
+        style={{ display: "none" }}
+      />
+
+      {/* Hidden file input for question images (separate from options) */}
+      <input
+        ref={qImageFileRef}
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        onChange={handleQImageFileChange}
         style={{ display: "none" }}
       />
 
@@ -1191,6 +1289,19 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
                     fontFamily: "'Outfit',sans-serif",
                   }}>{shortType(q)}</span>
 
+                  {q.image_url && (
+                    <span
+                      title="Has image"
+                      style={{
+                        width: 22, height: 18, borderRadius: 4,
+                        backgroundImage: `url(${q.image_url})`,
+                        backgroundSize: "cover", backgroundPosition: "center",
+                        flexShrink: 0,
+                        border: `1px solid ${C.border}`,
+                      }}
+                    />
+                  )}
+
                   <span style={{
                     flex: 1, minWidth: 0,
                     fontSize: 13,
@@ -1251,15 +1362,63 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
                 {isExpanded && (
                   <div style={{ padding: "4px 14px 14px 14px", borderTop: `1px solid ${C.border}`, background: C.bgSoft }}>
                     <div style={{ marginTop: 12 }}>
-                      <input
-                        className="dk-input"
+                      <AutoResizeTextarea
                         value={q.q}
                         onChange={e => updateQ(qi, "q", e.target.value)}
                         placeholder={t.questionText}
                         autoFocus
-                        style={{ ...inp, marginBottom: 10 }}
+                        style={{ marginBottom: 8 }}
                       />
 
+                      {/* Question image: preview if present, otherwise add button */}
+                      {q.image_url ? (
+                        <div style={{
+                          position: "relative",
+                          marginBottom: 10,
+                          borderRadius: 10,
+                          overflow: "hidden",
+                          border: `1px solid ${C.border}`,
+                          background: "#000",
+                        }}>
+                          <img
+                            src={q.image_url}
+                            alt=""
+                            style={{
+                              display: "block", width: "100%", maxHeight: 240,
+                              objectFit: "contain", background: C.bg,
+                            }}
+                          />
+                          <div style={{ position: "absolute", top: 8, right: 8, display: "flex", gap: 4 }}>
+                            <button
+                              type="button"
+                              onClick={() => triggerQImageUpload(qi)}
+                              title={t.changeQuestionImage}
+                              style={iconOverImageBtn}
+                            >
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C14.7614 3 17.2614 4.13579 19.0711 6.04822" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/><path d="M16 4L19 7L22 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => removeQImage(qi)}
+                              title={t.removeQuestionImage}
+                              style={iconOverImageBtn}
+                            >
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M6 6L18 18M18 6L6 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => triggerQImageUpload(qi)}
+                          disabled={!!qImageUploading[qi]}
+                          className="dk-add-mini"
+                          style={{ ...addMiniBtn, marginBottom: 10 }}
+                        >
+                          <CIcon name="art" size={12} inline />
+                          {qImageUploading[qi] ? t.uploading : t.addQuestionImage}
+                        </button>
+                      )}
                       {/* MCQ */}
                       {(q.type === "mcq" || (!q.type && activityType === "mcq")) && q.options && (() => {
                         const imageMode = isMcqImageMode(q);

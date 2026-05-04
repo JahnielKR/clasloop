@@ -549,7 +549,29 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null }) {
 
           {/* Question */}
           <div className="fade-up" key={current}>
-            <h2 style={{ fontSize: 20, fontWeight: 600, textAlign: "center", marginBottom: 28, lineHeight: 1.5 }}>{q.q}</h2>
+            {q.image_url && (
+              <div style={{
+                marginBottom: 16,
+                borderRadius: 12,
+                overflow: "hidden",
+                background: C.bgSoft,
+                border: `1px solid ${C.border}`,
+              }}>
+                <img
+                  src={q.image_url}
+                  alt=""
+                  style={{
+                    display: "block", width: "100%", maxHeight: 240,
+                    objectFit: "contain", background: "#000",
+                  }}
+                />
+              </div>
+            )}
+            <h2 style={{
+              fontSize: 20, fontWeight: 600, textAlign: "center",
+              marginBottom: 28, lineHeight: 1.5,
+              whiteSpace: "pre-wrap", // preserve teacher's newlines
+            }}>{q.q}</h2>
 
             {/* ── MCQ (single or multi-correct, text or image options) ── */}
             {qType === "mcq" && Array.isArray(q.options) && (() => {

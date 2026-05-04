@@ -570,7 +570,12 @@ function CreateSession({ cls, userId, onSessionCreated, onBack, t, lang, reviewT
           return (
           <Card key={i} style={{ padding: 16 }}>
             <p style={{ fontSize: 12, color: C.textMuted, marginBottom: 6 }}>Q{i + 1} · {ACTIVITY_TYPES.find(a => a.id === qt)?.label[lang] || qt}</p>
-            <p style={{ fontSize: 14, fontWeight: 500, marginBottom: 10, lineHeight: 1.4 }}>{q.q}</p>
+            {q.image_url && (
+              <div style={{ marginBottom: 8, borderRadius: 8, overflow: "hidden", border: `1px solid ${C.border}`, background: "#000" }}>
+                <img src={q.image_url} alt="" style={{ display: "block", width: "100%", maxHeight: 140, objectFit: "contain", background: C.bg }} />
+              </div>
+            )}
+            <p style={{ fontSize: 14, fontWeight: 500, marginBottom: 10, lineHeight: 1.4, whiteSpace: "pre-wrap" }}>{q.q}</p>
 
             {/* MCQ (single or multi-correct) */}
             {qt === "mcq" && Array.isArray(q.options) && (
