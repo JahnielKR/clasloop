@@ -287,6 +287,7 @@ export default function App() {
             setLang={setLang}
             profile={profile}
             onLaunchPractice={(deck) => setPracticeDeck(deck)}
+            onNavigateToDecks={() => setPage("decks")}
           />
         )}
       </div>
