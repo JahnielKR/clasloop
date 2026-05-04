@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo } from "react";
 import { supabase } from "../lib/supabase";
 import { LogoMark, CIcon } from "../components/Icons";
+import { Avatar } from "../components/Avatars";
+import { checkAndGrantUnlocks } from "../lib/unlock-checker";
 
 const C = {
   bg: "#FFFFFF", bgSoft: "#F7F7F5", accent: "#2383E2", accentSoft: "#E8F0FE",
@@ -37,6 +39,9 @@ const i18n = {
     sentenceMustContain: "Must contain:",
     sentenceMustHaveWords: "min words",
     dragSliderHint: "Drag the slider to your estimate",
+    youUnlocked: "You unlocked a new avatar!",
+    awesome: "Awesome!",
+    moreUnlocks: "more to see",
   },
   es: {
     joinSession: "Unirse a Sesión", sessionPin: "PIN de Sesión", yourName: "Tu nombre",
@@ -62,6 +67,9 @@ const i18n = {
     sentenceMustContain: "Debe contener:",
     sentenceMustHaveWords: "palabras mín.",
     dragSliderHint: "Arrastra el control para estimar",
+    youUnlocked: "¡Desbloqueaste un avatar!",
+    awesome: "¡Genial!",
+    moreUnlocks: "más por ver",
   },
   ko: {
     joinSession: "세션 참여", sessionPin: "세션 PIN", yourName: "이름",
@@ -87,6 +95,9 @@ const i18n = {
     sentenceMustContain: "포함해야 함:",
     sentenceMustHaveWords: "최소 단어",
     dragSliderHint: "슬라이더를 드래그하여 추정",
+    youUnlocked: "새 아바타를 잠금 해제했습니다!",
+    awesome: "최고!",
+    moreUnlocks: "개 더 보기",
   },
 };
 
@@ -112,6 +123,10 @@ const css = `
   @keyframes shake { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
   .fade-up { animation: fadeUp .35s ease-out both; }
   .pop-in { animation: popIn .3s ease-out both; }
+  @keyframes unlockBgIn { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes unlockCardIn { from { opacity: 0; transform: scale(.85) translateY(12px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+  .sj-unlock-bg { animation: unlockBgIn .25s ease-out both; }
+  .sj-unlock-card { animation: unlockCardIn .45s cubic-bezier(.34,1.56,.64,1) both; }
   .bounce { animation: bounce .5s ease; }
   .shake { animation: shake .4s ease; }
   .sj-slider {
@@ -232,6 +247,10 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null }) {
   const [timeLeft, setTimeLeft] = useState(20);
   const [lastIsCorrect, setLastIsCorrect] = useState(false);
 
+  // ── Unlock celebration (Phase 3) ──
+  const [newUnlocks, setNewUnlocks] = useState([]);  // queue of just-unlocked avatars
+  const [showingUnlock, setShowingUnlock] = useState(null); // avatar currently being celebrated
+
   // Per-question working state (cleared when `current` changes)
   const [mcqSelected, setMcqSelected] = useState(null);
   const [tfSelected, setTfSelected] = useState(null);
@@ -301,6 +320,34 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [timeLeft, showResult, step]);
 
+  // ── Phase 3: when student reaches results, evaluate avatar unlocks ──
+  useEffect(() => {
+    if (step !== "results") return;
+    if (!profile?.id) return; // anonymous students don't earn unlocks
+    let cancelled = false;
+    (async () => {
+      try {
+        const granted = await checkAndGrantUnlocks(profile.id);
+        if (!cancelled && granted.length > 0) {
+          setNewUnlocks(granted);
+          setShowingUnlock(granted[0]);
+        }
+      } catch (e) {
+        // Silent — unlocks shouldn't break the results screen.
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [step, profile?.id]);
+
+  // Advance through the unlock queue when one is dismissed.
+  const dismissCurrentUnlock = () => {
+    setNewUnlocks(prev => {
+      const rest = prev.slice(1);
+      setShowingUnlock(rest[0] || null);
+      return rest;
+    });
+  };
+
   // ── Reset per-question state on question change ──
   useEffect(() => {
     setTimeLeft(timeLimit);
@@ -322,7 +369,10 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null }) {
     setError("");
     const { data: sess, error: findErr } = await supabase.from("sessions").select("*").eq("pin", pin).in("status", ["lobby", "active"]).single();
     if (findErr || !sess) { setError(t.notFound); return; }
-    const { data: part, error: joinErr } = await supabase.from("session_participants").insert({ session_id: sess.id, student_name: name.trim() }).select().single();
+    const insertData = { session_id: sess.id, student_name: name.trim() };
+    // Persist student_id when the user is logged in — required for unlock tracking.
+    if (profile?.id) insertData.student_id = profile.id;
+    const { data: part, error: joinErr } = await supabase.from("session_participants").insert(insertData).select().single();
     if (joinErr) {
       if (joinErr.code === "23505") {
         const { data: existing } = await supabase.from("session_participants").select("*").eq("session_id", sess.id).eq("student_name", name.trim()).single();
@@ -1098,6 +1148,61 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null }) {
             background: C.bg, color: C.textSecondary, border: `1px solid ${C.border}`,
           }}>{t.joinAnother}</button>
         </div>
+
+        {/* ── Unlock celebration overlay ── */}
+        {showingUnlock && (
+          <div className="sj-unlock-bg" style={{
+            position: "fixed", inset: 0, zIndex: 9999,
+            background: "rgba(10, 10, 30, 0.85)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            padding: 20,
+          }}>
+            <div className="sj-unlock-card" style={{
+              background: "#FFFFFF", borderRadius: 20,
+              padding: "40px 28px 28px",
+              maxWidth: 360, width: "100%",
+              textAlign: "center",
+              boxShadow: "0 20px 60px rgba(0,0,0,0.4)",
+            }}>
+              <div style={{
+                fontSize: 11, fontWeight: 700, letterSpacing: "0.12em",
+                textTransform: "uppercase",
+                color: showingUnlock.rarity === "legendary" ? "#BA7517" : showingUnlock.rarity === "rare" ? "#534AB7" : "#888780",
+                marginBottom: 6,
+              }}>
+                {showingUnlock.rarity === "legendary" ? "✦ Legendary unlocked ✦"
+                 : showingUnlock.rarity === "rare"    ? "✧ Rare unlocked ✧"
+                 : "Unlocked"}
+              </div>
+              <h2 style={{
+                fontSize: 24, fontWeight: 700, fontFamily: "'Outfit'",
+                margin: "0 0 24px",
+                color: "#191919",
+              }}>{t.youUnlocked}</h2>
+              <div style={{ display: "flex", justifyContent: "center", marginBottom: 18 }}>
+                <Avatar id={showingUnlock.id} size={140} />
+              </div>
+              <div style={{ fontSize: 20, fontWeight: 700, fontFamily: "'Outfit'", marginBottom: 4 }}>
+                {showingUnlock.name?.[pageLang] || showingUnlock.name?.en || showingUnlock.id}
+              </div>
+              <div style={{ fontSize: 13, color: C.textMuted, marginBottom: 24 }}>
+                {newUnlocks.length > 1 && `+${newUnlocks.length - 1} ${t.moreUnlocks}`}
+              </div>
+              <button
+                onClick={dismissCurrentUnlock}
+                style={{
+                  padding: "12px 32px", borderRadius: 10,
+                  fontSize: 14, fontWeight: 600,
+                  background: `linear-gradient(135deg, ${C.accent}, ${C.purple})`,
+                  color: "#fff", border: "none",
+                  cursor: "pointer",
+                  fontFamily: "'Outfit',sans-serif",
+                  width: "100%",
+                }}
+              >{newUnlocks.length > 1 ? t.next : t.awesome}</button>
+            </div>
+          </div>
+        )}
       </>
     );
   }
