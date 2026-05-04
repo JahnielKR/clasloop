@@ -202,7 +202,12 @@ export default function Community({ lang: pageLang = "en", setLang: pageSetLang,
               <h2 style={{ fontSize: 22, fontWeight: 700, marginBottom: 8, fontFamily: "'Outfit'" }}>{dk.title}</h2>
               {dk.description && <p style={{ fontSize: 14, color: C.textSecondary, lineHeight: 1.5, marginBottom: 16 }}>{dk.description}</p>}
               <div style={{ fontSize: 13, color: C.textMuted, marginBottom: 16 }}>
-                {t.by} {dk.profiles?.full_name || "Unknown"} · {qs.length} {t.questions} · {dk.uses_count || 0} {t.uses}
+                {t.by}{" "}
+                <a
+                  href={`/teacher/${dk.author_id}`}
+                  style={{ color: C.accent, fontWeight: 600, textDecoration: "none" }}
+                >{dk.profiles?.full_name || "Unknown"}</a>
+                {" · "}{qs.length} {t.questions} · {dk.uses_count || 0} {t.uses}
               </div>
               {(dk.tags || []).length > 0 && (
                 <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 16 }}>
@@ -342,7 +347,14 @@ export default function Community({ lang: pageLang = "en", setLang: pageSetLang,
                     <h3 style={{ fontSize: 15, fontWeight: 600, marginBottom: 6, lineHeight: 1.3, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{dk.title}</h3>
                     {dk.description && <p style={{ fontSize: 12, color: C.textSecondary, lineHeight: 1.4, marginBottom: 10, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{dk.description}</p>}
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingTop: 8, marginTop: "auto", borderTop: `1px solid ${C.border}`, fontSize: 11, color: C.textMuted }}>
-                      <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.by} {dk.profiles?.full_name || "Unknown"}</span>
+                      <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {t.by}{" "}
+                        <a
+                          href={`/teacher/${dk.author_id}`}
+                          onClick={e => e.stopPropagation()}
+                          style={{ color: C.accent, fontWeight: 600, textDecoration: "none" }}
+                        >{dk.profiles?.full_name || "Unknown"}</a>
+                      </span>
                       <span style={{ fontWeight: 600, flexShrink: 0, marginLeft: 8 }}>{qs.length} {t.questions}</span>
                     </div>
                   </div>
