@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { CIcon, LogoMark } from "../components/Icons";
 import { Avatar } from "../components/Avatars";
+import { DeckCover, resolveColor } from "../lib/deck-cover";
 
 const C = {
   bg: "#FFFFFF", bgSoft: "#F7F7F5", accent: "#2383E2", accentSoft: "#E8F0FE",
@@ -592,7 +593,7 @@ const SUBJECT_ICON_MAP = { Math: "math", Science: "science", History: "history",
 // ─── SavedDeckCard ──────────────────────────────────────────────────────────
 function SavedDeckCard({ deck, t, onPractice, onToggleFavorite, onUnsave }) {
   const isFav = deck._isFavorite;
-  const icon = SUBJECT_ICON_MAP[deck.subject] || "book";
+  const accent = resolveColor(deck);
   const qs = deck.questions || [];
   return (
     <div
@@ -600,7 +601,8 @@ function SavedDeckCard({ deck, t, onPractice, onToggleFavorite, onUnsave }) {
       onClick={onPractice}
       style={{
         background: C.bg, borderRadius: 12, border: `1px solid ${C.border}`,
-        padding: 18, boxShadow: C.shadow,
+        borderLeft: `4px solid ${accent}`,
+        padding: 16, boxShadow: C.shadow,
         cursor: "pointer", position: "relative",
         transition: "all .15s ease",
       }}
@@ -610,26 +612,31 @@ function SavedDeckCard({ deck, t, onPractice, onToggleFavorite, onUnsave }) {
         onClick={(e) => { e.stopPropagation(); onToggleFavorite(); }}
         title={isFav ? t.favoriteRemove : t.favoriteAdd}
         style={{
-          position: "absolute", top: 12, right: 12,
+          position: "absolute", top: 10, right: 10,
           width: 26, height: 26, padding: 0,
           background: "transparent", border: "none", cursor: "pointer",
           display: "flex", alignItems: "center", justifyContent: "center",
           borderRadius: 4,
+          zIndex: 1,
         }}
       >
         <svg width="16" height="16" viewBox="0 0 24 24" fill={isFav ? "#EF9F27" : "none"} stroke={isFav ? "#EF9F27" : "#9B9B9B"} strokeWidth="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
       </button>
 
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10, paddingRight: 28 }}>
-        <CIcon name={icon} size={20} inline />
-        <span style={{ fontSize: 12, color: C.textMuted }}>{deck.subject} · {deck.grade}</span>
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 12, marginBottom: 10, paddingRight: 28 }}>
+        <DeckCover deck={deck} size={48} radius={9} />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 3, lineHeight: 1.3, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>{deck.title}</h3>
+          <div style={{ fontSize: 11, color: C.textMuted }}>
+            {deck.subject} · {deck.grade}
+          </div>
+        </div>
       </div>
-      <h3 style={{ fontSize: 15, fontWeight: 600, marginBottom: 6, lineHeight: 1.3 }}>{deck.title}</h3>
-      <div style={{ fontSize: 12, color: C.textMuted, marginBottom: 10 }}>
+      <div style={{ fontSize: 11, color: C.textMuted, marginBottom: 10, paddingTop: 8, borderTop: `1px solid ${C.border}` }}>
         {t.savedFrom} {deck.classes?.profiles?.full_name || t.teacher} · {qs.length} {t.questionsCount}
       </div>
 
-      <div style={{ display: "flex", gap: 6, paddingTop: 10, borderTop: `1px solid ${C.border}` }}>
+      <div style={{ display: "flex", gap: 6 }}>
         <button
           onClick={(e) => { e.stopPropagation(); onPractice(); }}
           style={{
@@ -872,7 +879,7 @@ function ClassDetail({ cls, profile, t, lang, onBack, onLaunchPractice }) {
               ) : (
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 14 }}>
                   {decks.map(deck => {
-                    const icon = SUBJECT_ICON_MAP[deck.subject] || "book";
+                    const accent = resolveColor(deck);
                     const qs = deck.questions || [];
                     return (
                       <div
@@ -881,17 +888,22 @@ function ClassDetail({ cls, profile, t, lang, onBack, onLaunchPractice }) {
                         onClick={() => onLaunchPractice && onLaunchPractice(deck)}
                         style={{
                           background: C.bg, borderRadius: 12, border: `1px solid ${C.border}`,
-                          padding: 18, boxShadow: C.shadow,
+                          borderLeft: `4px solid ${accent}`,
+                          padding: 16, boxShadow: C.shadow,
                           cursor: "pointer", transition: "all .15s ease",
                           display: "flex", flexDirection: "column",
                         }}
                       >
-                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-                          <CIcon name={icon} size={20} inline />
-                          <span style={{ fontSize: 12, color: C.textMuted }}>{deck.subject} · {deck.grade}</span>
+                        <div style={{ display: "flex", alignItems: "flex-start", gap: 12, marginBottom: 10 }}>
+                          <DeckCover deck={deck} size={48} radius={9} />
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 3, lineHeight: 1.3, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>{deck.title}</h3>
+                            <div style={{ fontSize: 11, color: C.textMuted }}>
+                              {deck.subject} · {deck.grade}
+                            </div>
+                          </div>
                         </div>
-                        <h3 style={{ fontSize: 15, fontWeight: 600, marginBottom: 6, lineHeight: 1.3 }}>{deck.title}</h3>
-                        <div style={{ fontSize: 12, color: C.textMuted, marginBottom: 12, flex: 1 }}>
+                        <div style={{ fontSize: 11, color: C.textMuted, marginBottom: 10, paddingTop: 8, borderTop: `1px solid ${C.border}`, flex: 1 }}>
                           {qs.length} {t.questionsCount}
                         </div>
                         <button
