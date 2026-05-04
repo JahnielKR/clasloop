@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from './lib/supabase';
 import Icon, { LogoMark, SessionsIcon, AIGenIcon, SchoolIcon, CommunityIcon, DecksIcon, NotificationsIcon, SettingsIcon, JoinSessionIcon, ProgressIcon, AchievementsIcon, ActivitiesIcon, TeacherInline, StudentInline, TeacherAvatar, StudentAvatar, BackArrow } from './components/Icons';
+import { Avatar as ProfileAvatar } from './components/Avatars';
 import SessionFlow from './pages/SessionFlow';
 import StudentJoin from './pages/StudentJoin';
 import MainApp from './pages/MainApp';
@@ -128,7 +129,7 @@ function Sidebar({ page, setPage, profile, lang, setLang, open, setOpen, onSignO
       <div style={{ padding: "10px 12px", borderTop: `1px solid ${C.border}` }}>
         {open ? <>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-            <div style={{ width: 30, height: 30, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{isT?<TeacherAvatar size={30}/>:<StudentAvatar size={30}/>}</div>
+            <div style={{ width: 30, height: 30, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{profile ? <ProfileAvatar photoUrl={profile.avatar_url} id={profile.avatar_id} seed={profile.id} size={30}/> : (isT?<TeacherAvatar size={30}/>:<StudentAvatar size={30}/>)}</div>
             <div style={{ overflow: "hidden" }}>
               <div style={{ fontSize: 12, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{profile?.full_name||"User"}</div>
               <div style={{ fontSize: 10, color: C.textMuted }}>{isT?"Teacher":`Lv.${profile?.level||1}`}</div>
@@ -136,7 +137,7 @@ function Sidebar({ page, setPage, profile, lang, setLang, open, setOpen, onSignO
           </div>
           <button className="cl-signout" onClick={onSignOut} style={{ fontSize: 11, color: C.textMuted, background: "transparent", border: "none", cursor: "pointer" }}>Sign out</button>
         </> : <div style={{ display: "flex", justifyContent: "center" }}>
-          <div style={{ width: 26, height: 26, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center" }}>{isT?<TeacherAvatar size={26}/>:<StudentAvatar size={26}/>}</div>
+          <div style={{ width: 26, height: 26, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center" }}>{profile ? <ProfileAvatar photoUrl={profile.avatar_url} id={profile.avatar_id} seed={profile.id} size={26}/> : (isT?<TeacherAvatar size={26}/>:<StudentAvatar size={26}/>)}</div>
         </div>}
       </div>
     </div>

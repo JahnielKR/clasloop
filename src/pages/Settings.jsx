@@ -1,6 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { CIcon } from "../components/Icons";
+import { Avatar, AvatarPicker, AVATARS, getAvatarById, getDefaultAvatarFor } from "../components/Avatars";
+import { uploadProfileAvatar, deleteProfileAvatar } from "../lib/avatar-storage";
 
 const C = {
   bg: "#FFFFFF", bgSoft: "#F7F7F5", accent: "#2383E2", accentSoft: "#E8F0FE",
@@ -35,6 +37,13 @@ const i18n = {
     dailyGoal: "Daily goal", dailyGoalDesc: "Questions per day", questionsDay: "questions/day",
     studyReminders: "Study reminders", studyRemindersDesc: "Remind me to practice weak topics",
     streakReminder: "Streak reminder", streakReminderDesc: "Daily reminder to maintain streak",
+    profilePicture: "Profile picture",
+    avatarTabPhoto: "Upload photo", avatarTabAvatar: "Choose avatar",
+    avatarUploadHint: "JPG or PNG, max 5 MB. Square crops work best.",
+    avatarChoose: "Browse", avatarRemove: "Remove photo", avatarUploading: "Uploading...",
+    avatarSaved: "Avatar updated!",
+    avatarUseChosen: "Use this avatar",
+    avatarLockedHint: "Locked — keep practicing to unlock!",
   },
   es: {
     pageTitle: "Ajustes",
@@ -58,6 +67,13 @@ const i18n = {
     dailyGoal: "Meta diaria", dailyGoalDesc: "Preguntas por día", questionsDay: "preguntas/día",
     studyReminders: "Recordatorios", studyRemindersDesc: "Recordar practicar temas débiles",
     streakReminder: "Recordatorio de racha", streakReminderDesc: "Recordatorio diario de racha",
+    profilePicture: "Foto de perfil",
+    avatarTabPhoto: "Subir foto", avatarTabAvatar: "Elegir avatar",
+    avatarUploadHint: "JPG o PNG, máx 5 MB. Las imágenes cuadradas se ven mejor.",
+    avatarChoose: "Explorar", avatarRemove: "Quitar foto", avatarUploading: "Subiendo...",
+    avatarSaved: "¡Avatar actualizado!",
+    avatarUseChosen: "Usar este avatar",
+    avatarLockedHint: "Bloqueado — ¡sigue practicando para desbloquear!",
   },
   ko: {
     pageTitle: "설정",
@@ -81,6 +97,13 @@ const i18n = {
     dailyGoal: "일일 목표", dailyGoalDesc: "하루 문제 수", questionsDay: "문제/일",
     studyReminders: "학습 알림", studyRemindersDesc: "약한 주제 연습 알림",
     streakReminder: "연속 알림", streakReminderDesc: "매일 연속 기록 알림",
+    profilePicture: "프로필 사진",
+    avatarTabPhoto: "사진 업로드", avatarTabAvatar: "아바타 선택",
+    avatarUploadHint: "JPG 또는 PNG, 최대 5 MB. 정사각형 이미지가 가장 잘 보입니다.",
+    avatarChoose: "찾아보기", avatarRemove: "사진 제거", avatarUploading: "업로드 중...",
+    avatarSaved: "아바타가 업데이트되었습니다!",
+    avatarUseChosen: "이 아바타 사용",
+    avatarLockedHint: "잠김 — 계속 연습하여 잠금을 해제하세요!",
   },
 };
 
@@ -174,6 +197,15 @@ export default function Settings({ lang: pageLang = "en", setLang: pageSetLang }
   // Notifications (stored locally for now)
   const [notifs, setNotifs] = useState({ email: true, push: true, weekly: true, studyRemind: true, streakRemind: true });
 
+  // ── Avatar / Profile picture ──
+  const [avatarUrl, setAvatarUrl] = useState(null);   // photo URL if any
+  const [avatarId, setAvatarId] = useState(null);     // catalog id if no photo
+  const [avatarTab, setAvatarTab] = useState("photo"); // "photo" | "avatar"
+  const [avatarUploading, setAvatarUploading] = useState(false);
+  const [avatarStatus, setAvatarStatus] = useState(null); // null | "saved"
+  const [unlockedIds, setUnlockedIds] = useState([]); // ids the student has unlocked
+  const avatarFileRef = useRef(null);
+
   const t = i18n[l] || i18n.en;
   const isTeacher = profile?.role === "teacher";
 
@@ -188,8 +220,76 @@ export default function Settings({ lang: pageLang = "en", setLang: pageSetLang }
       setName(data.full_name || "");
       setEmail(user.email || "");
       setSchool(data.school || "");
+      setAvatarUrl(data.avatar_url || null);
+      setAvatarId(data.avatar_id || null);
+      // Default tab: photo if user already has one, otherwise avatar picker.
+      setAvatarTab(data.avatar_url ? "photo" : "avatar");
+      // Load student's unlocks (only meaningful for students).
+      if (data.role === "student") {
+        const { data: unlocks } = await supabase
+          .from("student_unlocks")
+          .select("avatar_id")
+          .eq("student_id", user.id);
+        if (unlocks) setUnlockedIds(unlocks.map(u => u.avatar_id));
+      }
     }
     setLoading(false);
+  };
+
+  // ── Avatar handlers ──
+  const handleAvatarPhotoChange = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file || !profile) return;
+    if (file.size > 5 * 1024 * 1024) return; // 5 MB
+    setAvatarUploading(true);
+    const result = await uploadProfileAvatar(file, profile.id);
+    if (result.error) {
+      setAvatarUploading(false);
+      return;
+    }
+    // Save to DB and clear avatar_id (photo takes priority)
+    const oldUrl = avatarUrl;
+    const { error } = await supabase.from("profiles")
+      .update({ avatar_url: result.url, avatar_id: null })
+      .eq("id", profile.id);
+    if (!error) {
+      setAvatarUrl(result.url);
+      setAvatarId(null);
+      setAvatarStatus("saved");
+      setTimeout(() => setAvatarStatus(null), 2200);
+      // Best-effort cleanup of previous photo
+      if (oldUrl && oldUrl !== result.url) deleteProfileAvatar(oldUrl).catch(() => {});
+    }
+    setAvatarUploading(false);
+  };
+
+  const handleAvatarPhotoRemove = async () => {
+    if (!profile) return;
+    const oldUrl = avatarUrl;
+    const { error } = await supabase.from("profiles")
+      .update({ avatar_url: null })
+      .eq("id", profile.id);
+    if (!error) {
+      setAvatarUrl(null);
+      setAvatarTab("avatar");
+      if (oldUrl) deleteProfileAvatar(oldUrl).catch(() => {});
+    }
+  };
+
+  const handleAvatarSelect = async (id) => {
+    if (!profile) return;
+    const { error } = await supabase.from("profiles")
+      .update({ avatar_id: id, avatar_url: null })
+      .eq("id", profile.id);
+    if (!error) {
+      const oldUrl = avatarUrl;
+      setAvatarId(id);
+      setAvatarUrl(null);
+      setAvatarStatus("saved");
+      setTimeout(() => setAvatarStatus(null), 2200);
+      if (oldUrl) deleteProfileAvatar(oldUrl).catch(() => {});
+    }
   };
 
   const saveProfile = async () => {
@@ -276,6 +376,124 @@ export default function Settings({ lang: pageLang = "en", setLang: pageSetLang }
         {/* ── Profile ── */}
         {tab === "profile" && (
           <div className="fade-up">
+            {/* ── Profile picture ── */}
+            <Section title={t.profilePicture} icon="art">
+              {/* Hidden file input */}
+              <input
+                ref={avatarFileRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                onChange={handleAvatarPhotoChange}
+                style={{ display: "none" }}
+              />
+
+              {/* Current avatar preview + status */}
+              <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 18 }}>
+                <div style={{ flexShrink: 0 }}>
+                  <Avatar
+                    photoUrl={avatarUrl}
+                    id={avatarId}
+                    seed={profile?.id}
+                    size={96}
+                  />
+                </div>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 2 }}>{name || profile?.full_name || "—"}</div>
+                  <div style={{ fontSize: 12, color: C.textMuted, marginBottom: 8 }}>
+                    {avatarUrl ? t.avatarTabPhoto : (avatarId ? (getAvatarById(avatarId)?.name?.[l] || avatarId) : "—")}
+                  </div>
+                  {avatarStatus === "saved" && (
+                    <span style={{
+                      display: "inline-flex", alignItems: "center", gap: 5,
+                      padding: "3px 10px", borderRadius: 999,
+                      background: C.greenSoft, color: C.green,
+                      fontSize: 12, fontWeight: 600,
+                    }}>
+                      <CIcon name="check" size={12} inline /> {t.avatarSaved}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Tabs */}
+              <div style={{ display: "flex", gap: 4, marginBottom: 16, borderBottom: `1px solid ${C.border}` }}>
+                {[
+                  { id: "photo",  label: t.avatarTabPhoto },
+                  { id: "avatar", label: t.avatarTabAvatar },
+                ].map(tb => {
+                  const isActive = avatarTab === tb.id;
+                  return (
+                    <button
+                      key={tb.id}
+                      onClick={() => setAvatarTab(tb.id)}
+                      style={{
+                        padding: "9px 14px",
+                        background: "transparent",
+                        border: "none",
+                        borderBottom: `2.5px solid ${isActive ? C.accent : "transparent"}`,
+                        color: isActive ? C.accent : C.textSecondary,
+                        fontSize: 13, fontWeight: 600,
+                        fontFamily: "'Outfit',sans-serif",
+                        cursor: "pointer",
+                        marginBottom: -1,
+                      }}
+                    >{tb.label}</button>
+                  );
+                })}
+              </div>
+
+              {/* Photo upload tab */}
+              {avatarTab === "photo" && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                  <p style={{ fontSize: 12, color: C.textMuted, margin: 0 }}>{t.avatarUploadHint}</p>
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    <button
+                      className="st-btn"
+                      onClick={() => avatarFileRef.current?.click()}
+                      disabled={avatarUploading}
+                      style={{
+                        padding: "9px 16px", borderRadius: 8,
+                        fontSize: 13, fontWeight: 600,
+                        background: C.accent, color: "#fff", border: "none",
+                        cursor: avatarUploading ? "default" : "pointer",
+                        opacity: avatarUploading ? 0.6 : 1,
+                        display: "inline-flex", alignItems: "center", gap: 6,
+                        fontFamily: "'Outfit',sans-serif",
+                      }}
+                    >
+                      <CIcon name="art" size={14} inline />
+                      {avatarUploading ? t.avatarUploading : t.avatarChoose}
+                    </button>
+                    {avatarUrl && (
+                      <button
+                        onClick={handleAvatarPhotoRemove}
+                        style={{
+                          padding: "9px 16px", borderRadius: 8,
+                          fontSize: 13, fontWeight: 500,
+                          background: "transparent", color: C.red,
+                          border: `1px solid ${C.redSoft}`,
+                          cursor: "pointer",
+                          fontFamily: "'Outfit',sans-serif",
+                        }}
+                      >{t.avatarRemove}</button>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Avatar picker tab */}
+              {avatarTab === "avatar" && (
+                <AvatarPicker
+                  currentId={avatarUrl ? null : avatarId}
+                  unlockedIds={unlockedIds}
+                  onSelect={handleAvatarSelect}
+                  lang={l}
+                  isStudent={!isTeacher}
+                  size={64}
+                />
+              )}
+            </Section>
+
             <Section title={t.profile} icon="student">
               <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
                 <div>
