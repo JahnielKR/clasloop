@@ -33,7 +33,7 @@ const i18n = {
     classCode: "Class code (auto-generated)", classCreate: "Create class", creating: "Creating...",
     classCreated: "Class created!",
     pickDeck: "Pick a deck", search: "Search decks...", filterAllSubjects: "All subjects", filterAllClasses: "All classes",
-    filterUnassigned: "Unassigned", noDecksYet: "You don't have any decks yet.",
+    filterUnassigned: "Unassigned", filterFavorites: "Favorites", noDecksYet: "You don't have any decks yet.",
     noDecksHint: "Create a deck first in the Decks page.", goToDecks: "Go to Decks",
     noResults: "No decks match your filters.",
     by: "by", questions: "questions",
@@ -70,7 +70,7 @@ const i18n = {
     classCode: "Código de clase (autogenerado)", classCreate: "Crear clase", creating: "Creando...",
     classCreated: "¡Clase creada!",
     pickDeck: "Elige un deck", search: "Buscar decks...", filterAllSubjects: "Todas las materias", filterAllClasses: "Todas las clases",
-    filterUnassigned: "Sin clase", noDecksYet: "Aún no tienes decks.",
+    filterUnassigned: "Sin clase", filterFavorites: "Favoritos", noDecksYet: "Aún no tienes decks.",
     noDecksHint: "Crea un deck primero en la página de Decks.", goToDecks: "Ir a Decks",
     noResults: "Ningún deck coincide con tus filtros.",
     by: "por", questions: "preguntas",
@@ -107,7 +107,7 @@ const i18n = {
     classCode: "수업 코드 (자동 생성)", classCreate: "수업 만들기", creating: "만드는 중...",
     classCreated: "수업이 생성되었습니다!",
     pickDeck: "덱 선택", search: "덱 검색...", filterAllSubjects: "모든 과목", filterAllClasses: "모든 수업",
-    filterUnassigned: "미지정", noDecksYet: "아직 덱이 없습니다.",
+    filterUnassigned: "미지정", filterFavorites: "즐겨찾기", noDecksYet: "아직 덱이 없습니다.",
     noDecksHint: "먼저 덱 페이지에서 덱을 만드세요.", goToDecks: "덱으로 이동",
     noResults: "필터와 일치하는 덱이 없습니다.",
     by: "", questions: "문제",
@@ -177,9 +177,36 @@ function DeckPicker({ userId, t, onPick, navigateToDecks }) {
 
   useEffect(() => {
     (async () => {
-      const { data: deckRows } = await supabase.from("decks").select("*").eq("author_id", userId).order("created_at", { ascending: false });
-      const { data: clsRows } = await supabase.from("classes").select("*").eq("teacher_id", userId).order("created_at", { ascending: false });
-      setDecks(deckRows || []);
+      // 1. Own decks (created by this teacher)
+      const { data: deckRows } = await supabase
+        .from("decks")
+        .select("*, profiles(full_name)")
+        .eq("author_id", userId)
+        .order("created_at", { ascending: false });
+
+      // 2. Favorites — decks the teacher saved from Community/profiles. They're
+      // read-only (we can't edit them) but launchable in a live session.
+      // We mark them with _isFav so the card shows a badge.
+      const { data: savedRows } = await supabase
+        .from("saved_decks")
+        .select("decks(*, profiles(full_name))")
+        .eq("student_id", userId);
+      const favs = (savedRows || [])
+        .map(r => r.decks)
+        .filter(Boolean)
+        .map(d => ({ ...d, _isFav: true }));
+
+      // De-dupe in case the teacher both authored and somehow favorited the same deck.
+      const ownIds = new Set((deckRows || []).map(d => d.id));
+      const dedupedFavs = favs.filter(d => !ownIds.has(d.id));
+
+      const { data: clsRows } = await supabase
+        .from("classes")
+        .select("*")
+        .eq("teacher_id", userId)
+        .order("created_at", { ascending: false });
+
+      setDecks([...(deckRows || []), ...dedupedFavs]);
       setClasses(clsRows || []);
       setLoading(false);
     })();
@@ -197,6 +224,8 @@ function DeckPicker({ userId, t, onPick, navigateToDecks }) {
     if (filterClass) {
       if (filterClass === "__unassigned__") {
         if (d.class_id) return false;
+      } else if (filterClass === "__favorites__") {
+        if (!d._isFav) return false;
       } else if (d.class_id !== filterClass) return false;
     }
     return true;
@@ -234,11 +263,12 @@ function DeckPicker({ userId, t, onPick, navigateToDecks }) {
             <option value="">{t.filterAllSubjects}</option>
             {allSubjects.map(s => <option key={s} value={s}>{s}</option>)}
           </select>
-          {classes.length > 0 && (
+          {(classes.length > 0 || decks.some(d => d._isFav)) && (
             <select value={filterClass} onChange={e => setFilterClass(e.target.value)} style={{ ...sel, flex: 1, minWidth: 140 }}>
               <option value="">{t.filterAllClasses}</option>
               {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               <option value="__unassigned__">{t.filterUnassigned}</option>
+              {decks.some(d => d._isFav) && <option value="__favorites__">★ {t.filterFavorites}</option>}
             </select>
           )}
         </div>
@@ -271,9 +301,15 @@ function DeckPicker({ userId, t, onPick, navigateToDecks }) {
                     <div style={{ fontSize: 11, color: C.textMuted, marginTop: 2 }}>{dk.subject} · {dk.grade}</div>
                   </div>
                 </div>
-                <div style={{ fontSize: 11, color: C.textMuted, paddingTop: 8, borderTop: `1px solid ${C.border}`, display: "flex", justifyContent: "space-between" }}>
+                <div style={{ fontSize: 11, color: C.textMuted, paddingTop: 8, borderTop: `1px solid ${C.border}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <span>{qs.length} {t.questions}</span>
-                  {cls && <span style={{ color: accent, fontWeight: 600 }}>{cls.name}</span>}
+                  {dk._isFav ? (
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 3, padding: "1px 6px", borderRadius: 5, fontSize: 10, fontWeight: 600, background: C.accentSoft, color: C.accent }}>
+                      ★ {dk.profiles?.full_name || t.filterFavorites}
+                    </span>
+                  ) : cls ? (
+                    <span style={{ color: accent, fontWeight: 600 }}>{cls.name}</span>
+                  ) : null}
                 </div>
               </button>
             );
@@ -286,7 +322,11 @@ function DeckPicker({ userId, t, onPick, navigateToDecks }) {
 
 // ─── Step 2: Session Options ───────────────────────────────────────────────
 function SessionOptions({ deck, classes, t, onLaunch, onBack }) {
-  const [classId, setClassId] = useState(deck.class_id || "");
+  // Favorited decks reference a class_id that belongs to the *original* author,
+  // not to the current teacher. Don't try to pre-select that — the picker
+  // should default to "no class" for favorites.
+  const isFav = !!deck._isFav;
+  const [classId, setClassId] = useState(isFav ? "" : (deck.class_id || ""));
   const [timeLimit, setTimeLimit] = useState(0);
   const [showLeaderboard, setShowLeaderboard] = useState(true);
   const [showAnswers, setShowAnswers] = useState(true);
