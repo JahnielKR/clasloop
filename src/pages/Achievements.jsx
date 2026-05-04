@@ -84,20 +84,16 @@ const Bar = ({ value, max = 100, color = C.accent, h = 6 }) => (
   </div>
 );
 
-function PageHeader({ title, icon, lang, setLang }) {
+function PageHeader({ title, icon, lang, setLang, maxWidth = 720 }) {
+  const langSel = { fontFamily: "'Outfit',sans-serif", background: C.bg, border: `1px solid ${C.border}`, color: C.text, borderRadius: 8, outline: "none", cursor: "pointer", appearance: "none", backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2 4l4 4 4-4' fill='none' stroke='%239B9B9B' stroke-width='1.5'/%3E%3C/svg%3E")`, backgroundRepeat: "no-repeat", backgroundPosition: "right 12px center", padding: "6px 26px 6px 10px", fontSize: 12, width: "auto", flexShrink: 0 };
   return (
-    <div style={{ background: C.bg, borderBottom: `1px solid ${C.border}`, padding: "14px 28px", margin: "-28px -20px 24px -20px" }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <CIcon name={icon} size={28} />
-          <h1 style={{ fontFamily: "'Outfit'", fontSize: 18, fontWeight: 700 }}>{title}</h1>
-        </div>
-        <div style={{ display: "flex", gap: 2, background: C.bgSoft, borderRadius: 8, padding: 3 }}>
-          {[["en", "EN"], ["es", "ES"], ["ko", "한"]].map(([c, l]) => (
-            <button key={c} className="ach-lang" onClick={() => setLang(c)} style={{ padding: "5px 10px", borderRadius: 6, fontSize: 12, fontWeight: 600, background: lang === c ? C.bg : "transparent", color: lang === c ? C.text : C.textMuted, border: "none", boxShadow: lang === c ? "0 1px 2px rgba(0,0,0,0.06)" : "none" }}>{l}</button>
-          ))}
-        </div>
-      </div>
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", maxWidth, margin: "0 auto 24px", paddingBottom: 18, borderBottom: `1px solid ${C.border}` }}>
+      <h1 style={{ fontFamily: "'Outfit',sans-serif", fontSize: 22, fontWeight: 700, color: C.text, display: "flex", alignItems: "center", gap: 10 }}>
+        <CIcon name={icon} size={22} /> {title}
+      </h1>
+      <select value={lang} onChange={(e) => setLang(e.target.value)} style={langSel}>
+        <option value="en">EN</option><option value="es">ES</option><option value="ko">한</option>
+      </select>
     </div>
   );
 }

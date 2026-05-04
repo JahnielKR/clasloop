@@ -302,9 +302,9 @@ const LangBadge = ({ lang }) => {
   return <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 6px", borderRadius: 4, background: (c[lang] || C.accent) + "14", color: c[lang] || C.accent }}>{l[lang] || lang}</span>;
 };
 
-function PageHeader({ title, icon, lang, setLang }) {
+function PageHeader({ title, icon, lang, setLang, maxWidth = 800 }) {
   return (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", maxWidth: 800, margin: "0 auto 24px", paddingBottom: 18, borderBottom: `1px solid ${C.border}` }}>
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", maxWidth, margin: "0 auto 24px", paddingBottom: 18, borderBottom: `1px solid ${C.border}` }}>
       <h1 style={{ fontFamily: "'Outfit',sans-serif", fontSize: 22, fontWeight: 700, color: C.text, display: "flex", alignItems: "center", gap: 10 }}>
         <CIcon name={icon} size={22} /> {title}
       </h1>
@@ -1984,8 +1984,7 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
   if (view === "create" || view === "edit") return (
     <div style={{ padding: "28px 20px" }}>
       <style>{css}</style>
-      <PageHeader title={t.pageTitle} icon="book" lang={l} setLang={setLang} />
-      <CreateDeckEditor t={t} l={l} onBack={() => { setView("list"); setEditing(null); }} userId={userId} userClasses={userClasses} existingDeck={editing} onCreated={(d) => {
+      <PageHeader title={t.pageTitle} icon="book" lang={l} setLang={setLang} maxWidth={600} />
         if (editing) setMyDecks(prev => prev.map(dk => dk.id === d.id ? d : dk));
         else setMyDecks(prev => [d, ...prev]);
         setView("list"); setEditing(null);

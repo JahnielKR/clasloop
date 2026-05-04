@@ -125,9 +125,9 @@ const css = `
 `;
 
 // ─── PageHeader ────────────────────────────────────────────────────────────
-function PageHeader({ title, icon, lang, setLang }) {
+function PageHeader({ title, icon, lang, setLang, maxWidth = 800 }) {
   return (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", maxWidth: 800, margin: "0 auto 24px", paddingBottom: 18, borderBottom: `1px solid ${C.border}` }}>
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", maxWidth, margin: "0 auto 24px", paddingBottom: 18, borderBottom: `1px solid ${C.border}` }}>
       <h1 style={{ fontFamily: "'Outfit',sans-serif", fontSize: 22, fontWeight: 700, color: C.text, display: "flex", alignItems: "center", gap: 10 }}>
         <CIcon name={icon} size={22} /> {title}
       </h1>

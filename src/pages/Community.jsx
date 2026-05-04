@@ -83,9 +83,9 @@ const LangBadge = ({ lang }) => {
   return <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 6px", borderRadius: 4, background: (c[lang] || C.accent) + "14", color: c[lang] || C.accent }}>{l[lang] || lang}</span>;
 };
 
-function PageHeader({ title, icon, lang, setLang }) {
+function PageHeader({ title, icon, lang, setLang, maxWidth = 800 }) {
   return (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", maxWidth: 800, margin: "0 auto 24px", paddingBottom: 18, borderBottom: `1px solid ${C.border}` }}>
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", maxWidth, margin: "0 auto 24px", paddingBottom: 18, borderBottom: `1px solid ${C.border}` }}>
       <h1 style={{ fontFamily: "'Outfit',sans-serif", fontSize: 22, fontWeight: 700, color: C.text, display: "flex", alignItems: "center", gap: 10 }}>
         <CIcon name={icon} size={22} /> {title}
       </h1>
@@ -185,7 +185,7 @@ export default function Community({ lang: pageLang = "en", setLang: pageSetLang,
     return (
       <div style={{ padding: "28px 20px" }}>
         <style>{css}</style>
-        <PageHeader title={t.pageTitle} icon="globe" lang={l} setLang={setLang} />
+        <PageHeader title={t.pageTitle} icon="globe" lang={l} setLang={setLang} maxWidth={600} />
         <div style={{ maxWidth: 600, margin: "0 auto" }}>
           <button className="cm-back" onClick={() => setSelectedDeck(null)} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 8, fontSize: 13, fontWeight: 500, color: C.accent, background: C.accentSoft, border: "none", marginBottom: 20, fontFamily: "'Outfit',sans-serif", cursor: "pointer" }}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M19 12H5M5 12L11 6M5 12L11 18" stroke={C.accent} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
@@ -286,7 +286,7 @@ export default function Community({ lang: pageLang = "en", setLang: pageSetLang,
   return (
     <div style={{ padding: "28px 20px" }}>
       <style>{css}</style>
-      <PageHeader title={t.pageTitle} icon="globe" lang={l} setLang={setLang} />
+      <PageHeader title={t.pageTitle} icon="globe" lang={l} setLang={setLang} maxWidth={900} />
 
       <div style={{ maxWidth: 900, margin: "0 auto" }}>
         <p style={{ fontSize: 14, color: C.textSecondary, marginBottom: 16 }}>{t.subtitle}</p>

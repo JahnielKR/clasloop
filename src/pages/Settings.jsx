@@ -157,10 +157,10 @@ const SettingRow = ({ label, desc, right }) => (
   </div>
 );
 
-function PageHeader({ title, icon, lang, setLang }) {
-  const langSel = { fontFamily: "'Outfit',sans-serif", background: C.bg, border: `1px solid ${C.border}`, color: C.text, borderRadius: 8, outline: "none", cursor: "pointer", appearance: "none", backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2 4l4 4 4-4' fill='none' stroke='%239B9B9B' stroke-width='1.5'/%3E%3C/svg%3E")`, backgroundRepeat: "no-repeat", backgroundPosition: "right 12px center", padding: "6px 26px 6px 10px", fontSize: 12 };
+function PageHeader({ title, icon, lang, setLang, maxWidth = 800 }) {
+  const langSel = { fontFamily: "'Outfit',sans-serif", background: C.bg, border: `1px solid ${C.border}`, color: C.text, borderRadius: 8, outline: "none", cursor: "pointer", appearance: "none", backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2 4l4 4 4-4' fill='none' stroke='%239B9B9B' stroke-width='1.5'/%3E%3C/svg%3E")`, backgroundRepeat: "no-repeat", backgroundPosition: "right 12px center", padding: "6px 26px 6px 10px", fontSize: 12, width: "auto", flexShrink: 0 };
   return (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", maxWidth: 800, margin: "0 auto 24px", paddingBottom: 18, borderBottom: `1px solid ${C.border}` }}>
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", maxWidth, margin: "0 auto 24px", paddingBottom: 18, borderBottom: `1px solid ${C.border}` }}>
       <h1 style={{ fontFamily: "'Outfit',sans-serif", fontSize: 22, fontWeight: 700, color: C.text, display: "flex", alignItems: "center", gap: 10 }}>
         <CIcon name={icon} size={22} /> {title}
       </h1>
@@ -339,7 +339,7 @@ export default function Settings({ lang: pageLang = "en", setLang: pageSetLang }
   if (loading) return (
     <div style={{ padding: "28px 20px" }}>
       <style>{css}</style>
-      <PageHeader title={t.pageTitle} icon="settings" lang={l} setLang={setLang} />
+      <PageHeader title={t.pageTitle} icon="settings" lang={l} setLang={setLang} maxWidth={700} />
       <p style={{ textAlign: "center", color: C.textMuted, padding: 40 }}>Loading...</p>
     </div>
   );
@@ -351,7 +351,7 @@ export default function Settings({ lang: pageLang = "en", setLang: pageSetLang }
   return (
     <div style={{ padding: "28px 20px" }}>
       <style>{css}</style>
-      <PageHeader title={t.pageTitle} icon="settings" lang={l} setLang={setLang} />
+      <PageHeader title={t.pageTitle} icon="settings" lang={l} setLang={setLang} maxWidth={700} />
 
       <div style={{ maxWidth: 700, margin: "0 auto" }}>
         {/* Tabs */}
