@@ -48,6 +48,8 @@ const i18n = {
     questionText: "Question", option: "Option", removeQuestion: "Remove",
     publish: "Save deck", publishing: "Saving...", makePublic: "Make public to community",
     selectSubject: "Select subject...", selectGrade: "Select grade...",
+    gradePlaceholder: "e.g. 6th, 7th–9th, Mixed",
+    lockedByClass: "Locked — this is set by the selected class.",
     back: "Back", noDecks: "No decks yet. Click Create to make your first one.",
     noFollowing: "You haven't saved any decks from the community yet.",
     private: "Private", public: "Public", delete: "Delete", edit: "Edit",
@@ -105,6 +107,8 @@ const i18n = {
     questionText: "Pregunta", option: "Opción", removeQuestion: "Eliminar",
     publish: "Guardar deck", publishing: "Guardando...", makePublic: "Hacer público en comunidad",
     selectSubject: "Seleccionar materia...", selectGrade: "Seleccionar grado...",
+    gradePlaceholder: "ej. 6to, 7mo–9no, Mixto",
+    lockedByClass: "Bloqueado — lo define la clase seleccionada.",
     back: "Volver", noDecks: "Sin decks aún. Click Crear para hacer tu primero.",
     noFollowing: "No has guardado decks de la comunidad aún.",
     private: "Privado", public: "Público", delete: "Eliminar", edit: "Editar",
@@ -162,6 +166,8 @@ const i18n = {
     questionText: "문제", option: "선택지", removeQuestion: "삭제",
     publish: "덱 저장", publishing: "저장 중...", makePublic: "커뮤니티에 공개",
     selectSubject: "과목 선택...", selectGrade: "학년 선택...",
+    gradePlaceholder: "예: 6학년, 7-9학년, 혼합",
+    lockedByClass: "잠김 — 선택된 수업이 정합니다.",
     back: "뒤로", noDecks: "아직 덱이 없습니다. 만들기를 클릭하세요.",
     noFollowing: "아직 커뮤니티에서 저장한 덱이 없습니다.",
     private: "비공개", public: "공개", delete: "삭제", edit: "편집",
@@ -1006,17 +1012,29 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
             <div>
               <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: C.textSecondary, marginBottom: 5 }}>{t.subject} *</label>
-              <select className="dk-input" value={subject} onChange={e => setSubject(e.target.value)} style={sel}>
+              <select
+                className="dk-input"
+                value={subject}
+                onChange={e => setSubject(e.target.value)}
+                disabled={!!classId}
+                style={{ ...sel, opacity: classId ? 0.6 : 1, cursor: classId ? "not-allowed" : "pointer" }}
+                title={classId ? t.lockedByClass : ""}
+              >
                 <option value="">{t.selectSubject}</option>
                 {SUBJECTS.map(s => <option key={s}>{s}</option>)}
               </select>
             </div>
             <div>
               <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: C.textSecondary, marginBottom: 5 }}>{t.grade} *</label>
-              <select className="dk-input" value={grade} onChange={e => setGrade(e.target.value)} style={sel}>
-                <option value="">{t.selectGrade}</option>
-                {GRADES.map(g => <option key={g}>{g}</option>)}
-              </select>
+              <input
+                className="dk-input"
+                value={grade}
+                onChange={e => setGrade(e.target.value)}
+                disabled={!!classId}
+                placeholder={t.gradePlaceholder}
+                style={{ ...inp, opacity: classId ? 0.6 : 1, cursor: classId ? "not-allowed" : "text" }}
+                title={classId ? t.lockedByClass : ""}
+              />
             </div>
             <div>
               <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: C.textSecondary, marginBottom: 5 }}>{t.language}</label>
