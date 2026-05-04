@@ -45,6 +45,12 @@ const i18n = {
     editClass: "Edit", deleteClass: "Delete", deleteConfirm: "Delete this class? This cannot be undone.",
     confirmDelete: "Yes, delete", cancelDelete: "Cancel", saveClass: "Save", newSessionBtn: "New session", useDeckBtn: "Use deck",
     editingClass: "Edit class", students: "students",
+    tabToday: "Today", tabAllClasses: "All Classes",
+    nothingDueToday: "Nothing due today \uD83C\uDF89",
+    nothingDueSub: "Your students are caught up. Check back tomorrow or browse all classes.",
+    noClassesYet: "No classes yet",
+    noClassesSub: "Create your first class to get started.",
+    newClassBtn: "+ New Class", classCreated: "Class created!", andNMore: "and {n} more",
   },
   es: {
     pageTitle: "Sesiones", yourClasses: "Tus Clases", yourClassesSub: "Selecciona una clase para crear una sesión, o crea una nueva.",
@@ -70,6 +76,12 @@ const i18n = {
     editClass: "Editar", deleteClass: "Eliminar", deleteConfirm: "¿Eliminar esta clase? No se puede deshacer.",
     confirmDelete: "Sí, eliminar", cancelDelete: "Cancelar", saveClass: "Guardar", newSessionBtn: "Nueva sesión", useDeckBtn: "Usar deck",
     editingClass: "Editar clase", students: "estudiantes",
+    tabToday: "Hoy", tabAllClasses: "Todas las clases",
+    nothingDueToday: "Nada pendiente hoy \uD83C\uDF89",
+    nothingDueSub: "Tus estudiantes están al día. Vuelve mañana o explora todas tus clases.",
+    noClassesYet: "Aún no tienes clases",
+    noClassesSub: "Crea tu primera clase para empezar.",
+    newClassBtn: "+ Nueva clase", classCreated: "¡Clase creada!", andNMore: "y {n} más",
   },
   ko: {
     pageTitle: "세션", yourClasses: "내 수업", yourClassesSub: "수업을 선택하여 세션을 만들거나 새 수업을 만드세요.",
@@ -95,6 +107,12 @@ const i18n = {
     editClass: "편집", deleteClass: "삭제", deleteConfirm: "이 수업을 삭제하시겠습니까? 되돌릴 수 없습니다.",
     confirmDelete: "네, 삭제", cancelDelete: "취소", saveClass: "저장", newSessionBtn: "새 세션", useDeckBtn: "덱 사용",
     editingClass: "수업 편집", students: "학생",
+    tabToday: "오늘", tabAllClasses: "전체 수업",
+    nothingDueToday: "오늘 할 일 없음 \uD83C\uDF89",
+    nothingDueSub: "학생들이 잘 따라가고 있습니다. 내일 다시 확인하거나 전체 수업을 살펴보세요.",
+    noClassesYet: "아직 수업이 없습니다",
+    noClassesSub: "첫 수업을 만들어 시작하세요.",
+    newClassBtn: "+ 새 수업", classCreated: "수업이 생성되었습니다!", andNMore: "외 {n}개",
   },
 };
 
@@ -151,6 +169,16 @@ const interactiveCSS = `
   .cl-file-zone:hover { border-color: #2383E2 !important; background: #FAFBFF !important; }
   .cl-option { transition: all .15s ease; }
   .cl-option:hover { border-color: #2383E244 !important; background: #FAFBFF !important; }
+  .cl-tab:hover { color: #2383E2 !important; }
+  .cl-new-class-btn:not(:disabled):hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(35,131,226,0.25); }
+  .cl-new-class-btn:not(:disabled):active { transform: translateY(0) scale(.97); }
+  @keyframes flashGlow {
+    0%   { box-shadow: 0 0 0 0 #2383E266, 0 0 18px 6px #2383E244; }
+    100% { box-shadow: 0 0 0 0 transparent, 0 0 0 0 transparent; }
+  }
+  .cl-flash { animation: flashGlow 1.6s ease-out; border-radius: 12px; }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+  .fade-up { animation: fadeUp .35s ease-out both; }
   @keyframes fadeIn { from { opacity: 0; transform: scale(.9); } to { opacity: 1; transform: scale(1); } }
   @keyframes slideIn { from { opacity: 0; transform: translateX(-8px); } to { opacity: 1; transform: translateX(0); } }
   @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .4; } }
@@ -223,6 +251,13 @@ function ClassSetup({ userId, onClassReady, t }) {
   const [editSubject, setEditSubject] = useState("");
   const [deleting, setDeleting] = useState(null); // class id confirming delete
 
+  // ── Tabs + create form UX ──
+  const [activeTab, setActiveTab] = useState("today"); // "today" | "all"
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [flashClassId, setFlashClassId] = useState(null);
+  const createFormRef = useRef(null);
+  const classRefs = useRef({});
+
   useEffect(() => { loadClasses(); }, [userId]);
 
   const loadClasses = async () => {
@@ -246,8 +281,30 @@ function ClassSetup({ userId, onClassReady, t }) {
     setCreating(true);
     const code = subject.slice(0, 4).toUpperCase() + "-" + grade.replace(/[^0-9]/g, "") + String.fromCharCode(65 + Math.floor(Math.random() * 26));
     const { data, error } = await supabase.from("classes").insert({ teacher_id: userId, name, grade, subject, class_code: code }).select().single();
-    if (!error && data) { setClasses(prev => [data, ...prev]); setName(""); setGrade(""); setSubject(""); }
+    if (!error && data) {
+      setClasses(prev => [data, ...prev]);
+      setName(""); setGrade(""); setSubject("");
+      setShowCreateForm(false);
+      setActiveTab("all"); // switch to "All Classes" tab so user sees the new class
+      setFlashClassId(data.id);
+      // After it mounts in the list, scroll into view + clear flash.
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          classRefs.current[data.id]?.scrollIntoView({ behavior: "smooth", block: "center" });
+        });
+      });
+      setTimeout(() => setFlashClassId(null), 1600);
+    }
     setCreating(false);
+  };
+
+  const openCreateForm = () => {
+    setShowCreateForm(true);
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        createFormRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      });
+    });
   };
 
   const startEdit = (cls, e) => {
@@ -278,196 +335,318 @@ function ClassSetup({ userId, onClassReady, t }) {
 
   if (loading) return <p style={{ color: C.textMuted, textAlign: "center", padding: 40 }}>{t.loadingClasses}</p>;
 
+  // ── Compute "Today's focus" — at most 2 reviews per class, only classes with reviews ──
+  const REVIEWS_PER_CLASS = 2;
+  const todaysFocus = classes
+    .map(cls => {
+      const sug = (suggestions[cls.id] || []).slice(0, REVIEWS_PER_CLASS);
+      return sug.length > 0 ? { cls, sug } : null;
+    })
+    .filter(Boolean);
+
   return (
     <div style={{ maxWidth: 600, margin: "0 auto" }}>
-      <h2 style={{ fontFamily: "'Outfit'", fontSize: 18, fontWeight: 700, marginBottom: 4 }}>{t.yourClasses}</h2>
-      <p style={{ fontSize: 14, color: C.textSecondary, marginBottom: 20 }}>{t.yourClassesSub}</p>
+      {/* ── Header with title + New Class button ── */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, gap: 12 }}>
+        <div style={{ minWidth: 0 }}>
+          <h2 style={{ fontFamily: "'Outfit'", fontSize: 18, fontWeight: 700, margin: 0, marginBottom: 2 }}>{t.yourClasses}</h2>
+          <p style={{ fontSize: 13, color: C.textSecondary, margin: 0 }}>{t.yourClassesSub}</p>
+        </div>
+        <button
+          className="cl-new-class-btn"
+          onClick={openCreateForm}
+          disabled={showCreateForm}
+          style={{
+            padding: "9px 16px", borderRadius: 8,
+            fontSize: 13, fontWeight: 600,
+            background: showCreateForm ? C.bgSoft : `linear-gradient(135deg, ${C.accent}, ${C.purple})`,
+            color: showCreateForm ? C.textMuted : "#fff",
+            border: showCreateForm ? `1px solid ${C.border}` : "none",
+            cursor: showCreateForm ? "default" : "pointer",
+            opacity: showCreateForm ? 0.6 : 1,
+            fontFamily: "'Outfit',sans-serif",
+            flexShrink: 0,
+            display: "inline-flex", alignItems: "center", gap: 6,
+            whiteSpace: "nowrap",
+          }}
+        >
+          {t.newClassBtn}
+        </button>
+      </div>
 
-      {/* Review suggestions */}
-      {Object.entries(suggestions).map(([classId, sug]) => {
-        if (!sug || sug.length === 0) return null;
-        const cls = classes.find(c => c.id === classId);
-        if (!cls) return null;
-        const decksForClass = classDecks[classId] || [];
-        return (
-          <Card key={`sug-${classId}`} style={{ marginBottom: 16, padding: 16, borderLeft: `3px solid ${C.orange}`, background: C.orangeSoft + "33" }}>
-            <div style={{ fontSize: 13, fontWeight: 600, color: C.orange, marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
-              <CIcon name="clock" size={16} inline /> {t.suggestedToday} — {cls.name}
+      {/* ── Inline Create Class form (collapsible) ── */}
+      {showCreateForm && (
+        <div ref={createFormRef}>
+          <Card className="fade-up" style={{ marginBottom: 16, borderColor: C.accent, borderLeft: `3px solid ${C.accent}` }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+              <h3 style={{ fontSize: 14, fontWeight: 700, margin: 0, display: "flex", alignItems: "center", gap: 6, color: C.accent }}>
+                <CIcon name="plus" size={16} inline /> {t.createNewClass}
+              </h3>
+              <button
+                onClick={() => { setShowCreateForm(false); setName(""); setGrade(""); setSubject(""); }}
+                style={{
+                  padding: "5px 10px", borderRadius: 6, fontSize: 12, fontWeight: 500,
+                  background: "transparent", color: C.textMuted, border: "none",
+                  cursor: "pointer", fontFamily: "'Outfit',sans-serif",
+                }}
+              >{t.cancel}</button>
             </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {sug.slice(0, 3).map((st, i) => {
-                // Find deck matching this topic (case-insensitive title match)
-                const matchingDeck = decksForClass.find(d => d.title.toLowerCase().includes(st.topic.toLowerCase()) || st.topic.toLowerCase().includes(d.title.toLowerCase()));
-                const dayLabel = st.days_since_review === 0 ? t.today : `${st.days_since_review}${t.daysAgo}`;
-
-                // ── Single-CTA row: whole row is the button (AI only) ──
-                if (!matchingDeck) {
-                  return (
-                    <button
-                      key={i}
-                      className="cl-suggested-row"
-                      onClick={() => onClassReady(cls, st.topic, "create")}
-                      style={{
-                        display: "flex", alignItems: "center", gap: 10,
-                        padding: "12px 14px", borderRadius: 8,
-                        background: C.bg, border: `1px solid ${C.border}`,
-                        textAlign: "left", width: "100%",
-                        fontFamily: "'Outfit',sans-serif",
-                      }}
-                      title={t.tapToReview}
-                    >
-                      <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 2 }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                          <span style={{ fontSize: 14, fontWeight: 600, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{st.topic}</span>
-                          <span style={{ fontSize: 11, color: C.textMuted, flexShrink: 0 }}>· {dayLabel}</span>
-                        </div>
-                        <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: C.accent, fontWeight: 600 }}>
-                          <CIcon name="brain" size={12} inline /> {t.reviewWithAI}
-                        </div>
-                      </div>
-                      <span style={{ fontSize: 13, fontWeight: 700, fontFamily: MONO, color: retCol(st.current_retention), minWidth: 36, textAlign: "right", flexShrink: 0 }}>{st.current_retention}%</span>
-                      <span className="cl-suggested-arrow" style={{ fontSize: 18, color: C.textMuted, flexShrink: 0, lineHeight: 1 }}>→</span>
-                    </button>
-                  );
-                }
-
-                // ── Two-CTA row: AI + Deck side by side ──
-                return (
-                  <div key={i} style={{
-                    display: "flex", flexDirection: "column", gap: 8,
-                    padding: 12, borderRadius: 8,
-                    background: C.bg, border: `1px solid ${C.border}`,
-                  }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 14, fontWeight: 600, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{st.topic}</div>
-                        <div style={{ fontSize: 11, color: C.textMuted, marginTop: 1 }}>{dayLabel}</div>
-                      </div>
-                      <span style={{ fontSize: 13, fontWeight: 700, fontFamily: MONO, color: retCol(st.current_retention), minWidth: 36, textAlign: "right", flexShrink: 0 }}>{st.current_retention}%</span>
-                    </div>
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
-                      <button
-                        className="cl-cta"
-                        onClick={() => onClassReady(cls, st.topic, "create")}
-                        style={{
-                          padding: "9px 12px", borderRadius: 7, fontSize: 13, fontWeight: 600,
-                          background: C.accent, color: "#fff", border: "none",
-                          fontFamily: "'Outfit',sans-serif",
-                          display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
-                        }}
-                      >
-                        <CIcon name="brain" size={14} inline /> {t.reviewWithAI}
-                      </button>
-                      <button
-                        className="cl-cta cl-cta-deck"
-                        onClick={() => onClassReady(cls, null, "deckPreview", matchingDeck)}
-                        style={{
-                          padding: "9px 12px", borderRadius: 7, fontSize: 13, fontWeight: 600,
-                          background: C.purple, color: "#fff", border: "none",
-                          fontFamily: "'Outfit',sans-serif",
-                          display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
-                        }}
-                      >
-                        <CIcon name="book" size={14} inline /> {t.reviewWithDeck}
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <input value={name} onChange={e => setName(e.target.value)} placeholder={t.classPlaceholder} className="cl-input" style={inp} autoFocus />
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                <select value={grade} onChange={e => setGrade(e.target.value)} className="cl-select" style={sel}><option value="">{t.grade}...</option>{GRADES.map(g => <option key={g}>{g}</option>)}</select>
+                <select value={subject} onChange={e => setSubject(e.target.value)} className="cl-select" style={sel}><option value="">{t.subject}...</option>{SUBJECTS.map(s => <option key={s}>{s}</option>)}</select>
+              </div>
+              <Btn full onClick={createClass} disabled={!name || !grade || !subject || creating}>{creating ? t.creating : t.createClass}</Btn>
             </div>
           </Card>
-        );
-      })}
+        </div>
+      )}
 
-      {/* Class list */}
+      {/* ── Tabs ── */}
       {classes.length > 0 && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 20 }}>
-          {classes.map(cls => {
-            const ret = retention[cls.id];
-            const isEditing = editing === cls.id;
-            const isDeleting = deleting === cls.id;
-
-            // Delete confirmation
-            if (isDeleting) return (
-              <Card key={cls.id} style={{ padding: 16, borderLeft: `3px solid ${C.red}` }}>
-                <p style={{ fontSize: 14, fontWeight: 500, marginBottom: 12 }}>{t.deleteConfirm}</p>
-                <p style={{ fontSize: 13, color: C.textMuted, marginBottom: 14 }}>{cls.name} · {cls.grade} · {cls.subject}</p>
-                <div style={{ display: "flex", gap: 8 }}>
-                  <button onClick={() => setDeleting(null)} style={{ flex: 1, padding: "8px", borderRadius: 8, fontSize: 13, fontWeight: 500, background: C.bg, color: C.textSecondary, border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: "'Outfit',sans-serif" }}>{t.cancelDelete}</button>
-                  <button onClick={() => doDelete(cls.id)} style={{ flex: 1, padding: "8px", borderRadius: 8, fontSize: 13, fontWeight: 600, background: C.red, color: "#fff", border: "none", cursor: "pointer", fontFamily: "'Outfit',sans-serif" }}>{t.confirmDelete}</button>
-                </div>
-              </Card>
-            );
-
-            // Edit form
-            if (isEditing) return (
-              <Card key={cls.id} style={{ padding: 16, borderLeft: `3px solid ${C.accent}` }}>
-                <p style={{ fontSize: 13, fontWeight: 600, color: C.accent, marginBottom: 12 }}>{t.editingClass}</p>
-                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                  <input value={editName} onChange={e => setEditName(e.target.value)} className="cl-input" style={inp} />
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                    <select value={editGrade} onChange={e => setEditGrade(e.target.value)} className="cl-select" style={sel}>{GRADES.map(g => <option key={g}>{g}</option>)}</select>
-                    <select value={editSubject} onChange={e => setEditSubject(e.target.value)} className="cl-select" style={sel}>{SUBJECTS.map(s => <option key={s}>{s}</option>)}</select>
-                  </div>
-                  <div style={{ display: "flex", gap: 8 }}>
-                    <button onClick={() => setEditing(null)} style={{ flex: 1, padding: "8px", borderRadius: 8, fontSize: 13, fontWeight: 500, background: C.bg, color: C.textSecondary, border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: "'Outfit',sans-serif" }}>{t.cancelDelete}</button>
-                    <Btn onClick={() => saveEdit(cls.id)} style={{ flex: 1, padding: "8px", fontSize: 13 }}>{t.saveClass}</Btn>
-                  </div>
-                </div>
-              </Card>
-            );
-
-            // Normal card
+        <div style={{ display: "flex", gap: 4, marginBottom: 16, borderBottom: `1px solid ${C.border}` }}>
+          {[
+            { id: "today", label: t.tabToday, count: todaysFocus.length, icon: "clock" },
+            { id: "all",   label: t.tabAllClasses, count: classes.length, icon: "book" },
+          ].map(tab => {
+            const isActive = activeTab === tab.id;
             return (
-              <Card key={cls.id} style={{ padding: 16 }}>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-                  <div>
-                    <div style={{ fontSize: 15, fontWeight: 600 }}>{cls.name}</div>
-                    <div style={{ fontSize: 12, color: C.textMuted, marginTop: 2 }}>{cls.grade} · {cls.subject}</div>
-                  </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    {ret && ret.topics.length > 0 && <span style={{ fontSize: 14, fontWeight: 700, fontFamily: MONO, color: retCol(ret.average) }}>{ret.average}%</span>}
-                    <span style={{ fontFamily: MONO, fontSize: 12, fontWeight: 600, color: C.accent, padding: "3px 7px", background: C.accentSoft, borderRadius: 5 }}>{cls.class_code}</span>
-                  </div>
-                </div>
-                {ret && ret.topics.length > 0 && (
-                  <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 10 }}>
-                    {ret.topics.slice(0, 5).map((tp, i) => (
-                      <div key={i} className="cl-tag" style={{ padding: "3px 8px", borderRadius: 4, fontSize: 11, background: tp.status === "strong" ? C.greenSoft : tp.status === "medium" ? C.orangeSoft : C.redSoft, color: tp.status === "strong" ? C.green : tp.status === "medium" ? C.orange : C.red, fontWeight: 500, cursor: "default" }}>{tp.topic} {tp.current_retention}%</div>
-                    ))}
-                    {ret.topics.length > 5 && <span style={{ fontSize: 11, color: C.textMuted, padding: "3px 4px" }}>+{ret.topics.length - 5} {t.more}</span>}
-                  </div>
-                )}
-                <div style={{ display: "flex", gap: 6, borderTop: `1px solid ${C.border}`, paddingTop: 10 }}>
-                  <Btn onClick={() => onClassReady(cls, null, "create")} style={{ flex: 1, fontSize: 13, padding: "7px 12px" }}>
-                    <CIcon name="rocket" size={14} inline /> {t.newSessionBtn}
-                  </Btn>
-                  <Btn v="secondary" onClick={() => onClassReady(cls, null, "deckSelect")} style={{ flex: 1, fontSize: 13, padding: "7px 12px" }}>
-                    <CIcon name="book" size={14} inline /> {t.useDeckBtn}
-                  </Btn>
-                  <button className="cl-action" onClick={(e) => startEdit(cls, e)} style={{ padding: "7px 12px", borderRadius: 8, fontSize: 12, fontWeight: 500, background: C.bg, color: C.textSecondary, border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: "'Outfit',sans-serif" }}>{t.editClass}</button>
-                  <button className="cl-action-delete" onClick={(e) => confirmDelete(cls.id, e)} style={{ padding: "7px 12px", borderRadius: 8, fontSize: 12, fontWeight: 500, background: C.bg, color: C.red, border: `1px solid ${C.redSoft}`, cursor: "pointer", fontFamily: "'Outfit',sans-serif" }}>{t.deleteClass}</button>
-                </div>
-              </Card>
+              <button
+                key={tab.id}
+                className="cl-tab"
+                onClick={() => setActiveTab(tab.id)}
+                style={{
+                  padding: "10px 14px",
+                  background: "transparent",
+                  border: "none",
+                  borderBottom: `2.5px solid ${isActive ? C.accent : "transparent"}`,
+                  color: isActive ? C.accent : C.textSecondary,
+                  fontSize: 13, fontWeight: 600,
+                  fontFamily: "'Outfit',sans-serif",
+                  cursor: "pointer",
+                  marginBottom: -1,
+                  display: "flex", alignItems: "center", gap: 6,
+                  transition: "all .15s ease",
+                }}
+              >
+                <CIcon name={tab.icon} size={14} inline />
+                {tab.label}
+                <span style={{
+                  fontSize: 11, fontWeight: 700, fontFamily: MONO,
+                  padding: "1px 7px", borderRadius: 999,
+                  background: isActive ? C.accent : C.bgSoft,
+                  color: isActive ? "#fff" : C.textMuted,
+                }}>{tab.count}</span>
+              </button>
             );
           })}
         </div>
       )}
 
-      {/* Create class */}
-      <Card>
-        <h3 style={{ fontSize: 15, fontWeight: 600, marginBottom: 14, display: "flex", alignItems: "center", gap: 6 }}>
-          <CIcon name="plus" size={18} inline /> {t.createNewClass}
-        </h3>
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          <input value={name} onChange={e => setName(e.target.value)} placeholder={t.classPlaceholder} className="cl-input" style={inp} />
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-            <select value={grade} onChange={e => setGrade(e.target.value)} className="cl-select" style={sel}><option value="">{t.grade}...</option>{GRADES.map(g => <option key={g}>{g}</option>)}</select>
-            <select value={subject} onChange={e => setSubject(e.target.value)} className="cl-select" style={sel}><option value="">{t.subject}...</option>{SUBJECTS.map(s => <option key={s}>{s}</option>)}</select>
-          </div>
-          <Btn full onClick={createClass} disabled={!name || !grade || !subject || creating}>{creating ? t.creating : t.createClass}</Btn>
+      {/* ── Tab: Today ── */}
+      {classes.length > 0 && activeTab === "today" && (
+        <div>
+          {todaysFocus.length === 0 ? (
+            <Card style={{ textAlign: "center", padding: 36 }}>
+              <div style={{ fontSize: 32, marginBottom: 8 }}>🎉</div>
+              <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 6, fontFamily: "'Outfit'" }}>{t.nothingDueToday}</h3>
+              <p style={{ fontSize: 13, color: C.textMuted, marginBottom: 16, lineHeight: 1.5 }}>{t.nothingDueSub}</p>
+              <Btn v="secondary" onClick={() => setActiveTab("all")} style={{ padding: "8px 16px" }}>
+                <CIcon name="book" size={14} inline /> {t.tabAllClasses}
+              </Btn>
+            </Card>
+          ) : (
+            todaysFocus.map(({ cls, sug }) => {
+              const decksForClass = classDecks[cls.id] || [];
+              return (
+                <Card key={`sug-${cls.id}`} style={{ marginBottom: 16, padding: 16, borderLeft: `3px solid ${C.orange}`, background: C.orangeSoft + "33" }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: C.orange, marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
+                    <CIcon name="clock" size={16} inline /> {t.suggestedToday} — {cls.name}
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    {sug.map((st, i) => {
+                      const matchingDeck = decksForClass.find(d => d.title.toLowerCase().includes(st.topic.toLowerCase()) || st.topic.toLowerCase().includes(d.title.toLowerCase()));
+                      const dayLabel = st.days_since_review === 0 ? t.today : `${st.days_since_review}${t.daysAgo}`;
+
+                      if (!matchingDeck) {
+                        return (
+                          <button
+                            key={i}
+                            className="cl-suggested-row"
+                            onClick={() => onClassReady(cls, st.topic, "create")}
+                            style={{
+                              display: "flex", alignItems: "center", gap: 10,
+                              padding: "12px 14px", borderRadius: 8,
+                              background: C.bg, border: `1px solid ${C.border}`,
+                              textAlign: "left", width: "100%",
+                              fontFamily: "'Outfit',sans-serif",
+                            }}
+                            title={t.tapToReview}
+                          >
+                            <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 2 }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                                <span style={{ fontSize: 14, fontWeight: 600, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{st.topic}</span>
+                                <span style={{ fontSize: 11, color: C.textMuted, flexShrink: 0 }}>· {dayLabel}</span>
+                              </div>
+                              <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: C.accent, fontWeight: 600 }}>
+                                <CIcon name="brain" size={12} inline /> {t.reviewWithAI}
+                              </div>
+                            </div>
+                            <span style={{ fontSize: 13, fontWeight: 700, fontFamily: MONO, color: retCol(st.current_retention), minWidth: 36, textAlign: "right", flexShrink: 0 }}>{st.current_retention}%</span>
+                            <span className="cl-suggested-arrow" style={{ fontSize: 18, color: C.textMuted, flexShrink: 0, lineHeight: 1 }}>→</span>
+                          </button>
+                        );
+                      }
+
+                      return (
+                        <div key={i} style={{
+                          display: "flex", flexDirection: "column", gap: 8,
+                          padding: 12, borderRadius: 8,
+                          background: C.bg, border: `1px solid ${C.border}`,
+                        }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontSize: 14, fontWeight: 600, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{st.topic}</div>
+                              <div style={{ fontSize: 11, color: C.textMuted, marginTop: 1 }}>{dayLabel}</div>
+                            </div>
+                            <span style={{ fontSize: 13, fontWeight: 700, fontFamily: MONO, color: retCol(st.current_retention), minWidth: 36, textAlign: "right", flexShrink: 0 }}>{st.current_retention}%</span>
+                          </div>
+                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+                            <button
+                              className="cl-cta"
+                              onClick={() => onClassReady(cls, st.topic, "create")}
+                              style={{
+                                padding: "9px 12px", borderRadius: 7, fontSize: 13, fontWeight: 600,
+                                background: C.accent, color: "#fff", border: "none",
+                                fontFamily: "'Outfit',sans-serif",
+                                display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+                              }}
+                            >
+                              <CIcon name="brain" size={14} inline /> {t.reviewWithAI}
+                            </button>
+                            <button
+                              className="cl-cta cl-cta-deck"
+                              onClick={() => onClassReady(cls, null, "deckPreview", matchingDeck)}
+                              style={{
+                                padding: "9px 12px", borderRadius: 7, fontSize: 13, fontWeight: 600,
+                                background: C.purple, color: "#fff", border: "none",
+                                fontFamily: "'Outfit',sans-serif",
+                                display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+                              }}
+                            >
+                              <CIcon name="book" size={14} inline /> {t.reviewWithDeck}
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </Card>
+              );
+            })
+          )}
         </div>
-      </Card>
+      )}
+
+      {/* ── Tab: All Classes ── */}
+      {classes.length > 0 && activeTab === "all" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 20 }}>
+          {classes.map(cls => {
+            const ret = retention[cls.id];
+            const isEditing = editing === cls.id;
+            const isDeleting = deleting === cls.id;
+            const isFlash = flashClassId === cls.id;
+
+            // Delete confirmation
+            if (isDeleting) return (
+              <div key={cls.id} ref={(el) => { classRefs.current[cls.id] = el; }}>
+                <Card style={{ padding: 16, borderLeft: `3px solid ${C.red}` }}>
+                  <p style={{ fontSize: 14, fontWeight: 500, marginBottom: 12 }}>{t.deleteConfirm}</p>
+                  <p style={{ fontSize: 13, color: C.textMuted, marginBottom: 14 }}>{cls.name} · {cls.grade} · {cls.subject}</p>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button onClick={() => setDeleting(null)} style={{ flex: 1, padding: "8px", borderRadius: 8, fontSize: 13, fontWeight: 500, background: C.bg, color: C.textSecondary, border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: "'Outfit',sans-serif" }}>{t.cancelDelete}</button>
+                    <button onClick={() => doDelete(cls.id)} style={{ flex: 1, padding: "8px", borderRadius: 8, fontSize: 13, fontWeight: 600, background: C.red, color: "#fff", border: "none", cursor: "pointer", fontFamily: "'Outfit',sans-serif" }}>{t.confirmDelete}</button>
+                  </div>
+                </Card>
+              </div>
+            );
+
+            // Edit form
+            if (isEditing) return (
+              <div key={cls.id} ref={(el) => { classRefs.current[cls.id] = el; }}>
+                <Card style={{ padding: 16, borderLeft: `3px solid ${C.accent}` }}>
+                  <p style={{ fontSize: 13, fontWeight: 600, color: C.accent, marginBottom: 12 }}>{t.editingClass}</p>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                    <input value={editName} onChange={e => setEditName(e.target.value)} className="cl-input" style={inp} />
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                      <select value={editGrade} onChange={e => setEditGrade(e.target.value)} className="cl-select" style={sel}>{GRADES.map(g => <option key={g}>{g}</option>)}</select>
+                      <select value={editSubject} onChange={e => setEditSubject(e.target.value)} className="cl-select" style={sel}>{SUBJECTS.map(s => <option key={s}>{s}</option>)}</select>
+                    </div>
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <button onClick={() => setEditing(null)} style={{ flex: 1, padding: "8px", borderRadius: 8, fontSize: 13, fontWeight: 500, background: C.bg, color: C.textSecondary, border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: "'Outfit',sans-serif" }}>{t.cancelDelete}</button>
+                      <button onClick={() => saveEdit(cls.id)} style={{ flex: 1, padding: "8px", borderRadius: 8, fontSize: 13, fontWeight: 600, background: C.accent, color: "#fff", border: "none", cursor: "pointer", fontFamily: "'Outfit',sans-serif" }}>{t.saveClass}</button>
+                    </div>
+                  </div>
+                </Card>
+              </div>
+            );
+
+            // Normal class card
+            return (
+              <div key={cls.id} ref={(el) => { classRefs.current[cls.id] = el; }} className={isFlash ? "cl-flash" : ""}>
+                <Card style={{ padding: 14, borderLeft: `3px solid ${ret ? retCol(ret.average) : C.border}` }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+                    <div style={{ minWidth: 0, flex: 1 }}>
+                      <h3 style={{ fontSize: 15, fontWeight: 600, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{cls.name}</h3>
+                      <p style={{ fontSize: 12, color: C.textMuted, margin: "2px 0 0", display: "flex", alignItems: "center", gap: 4 }}>
+                        <CIcon name={SUBJ_ICON[cls.subject] || "book"} size={11} inline /> {cls.subject} · {cls.grade}
+                        <span style={{ marginLeft: 6, padding: "1px 6px", borderRadius: 4, background: C.bgSoft, fontSize: 10, fontFamily: MONO, color: C.textSecondary }}>{cls.class_code}</span>
+                      </p>
+                    </div>
+                    {ret && ret.topics.length > 0 && (
+                      <div style={{ textAlign: "right", flexShrink: 0, marginLeft: 12 }}>
+                        <div style={{ fontSize: 18, fontWeight: 700, fontFamily: MONO, color: retCol(ret.average) }}>{ret.average}%</div>
+                        <div style={{ fontSize: 10, color: C.textMuted }}>{t.average}</div>
+                      </div>
+                    )}
+                  </div>
+                  {ret && ret.topics.length > 0 && (
+                    <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 10 }}>
+                      {ret.topics.slice(0, 5).map((tp, i) => (
+                        <div key={i} className="cl-tag" style={{ padding: "3px 8px", borderRadius: 4, fontSize: 11, background: tp.status === "strong" ? C.greenSoft : tp.status === "medium" ? C.orangeSoft : C.redSoft, color: tp.status === "strong" ? C.green : tp.status === "medium" ? C.orange : C.red, fontWeight: 500, cursor: "default" }}>{tp.topic} {tp.current_retention}%</div>
+                      ))}
+                      {ret.topics.length > 5 && <span style={{ fontSize: 11, color: C.textMuted, padding: "3px 4px" }}>+{ret.topics.length - 5} {t.more}</span>}
+                    </div>
+                  )}
+                  <div style={{ display: "flex", gap: 6, borderTop: `1px solid ${C.border}`, paddingTop: 10 }}>
+                    <Btn onClick={() => onClassReady(cls, null, "create")} style={{ flex: 1, fontSize: 13, padding: "7px 12px" }}>
+                      <CIcon name="rocket" size={14} inline /> {t.newSessionBtn}
+                    </Btn>
+                    <Btn v="secondary" onClick={() => onClassReady(cls, null, "deckSelect")} style={{ flex: 1, fontSize: 13, padding: "7px 12px" }}>
+                      <CIcon name="book" size={14} inline /> {t.useDeckBtn}
+                    </Btn>
+                    <button className="cl-action" onClick={(e) => startEdit(cls, e)} style={{ padding: "7px 12px", borderRadius: 8, fontSize: 12, fontWeight: 500, background: C.bg, color: C.textSecondary, border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: "'Outfit',sans-serif" }}>{t.editClass}</button>
+                    <button className="cl-action-delete" onClick={(e) => confirmDelete(cls.id, e)} style={{ padding: "7px 12px", borderRadius: 8, fontSize: 12, fontWeight: 500, background: C.bg, color: C.red, border: `1px solid ${C.redSoft}`, cursor: "pointer", fontFamily: "'Outfit',sans-serif" }}>{t.deleteClass}</button>
+                  </div>
+                </Card>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* ── Empty state when no classes at all ── */}
+      {classes.length === 0 && !showCreateForm && (
+        <Card style={{ textAlign: "center", padding: 40 }}>
+          <div style={{ fontSize: 36, marginBottom: 10 }}>📚</div>
+          <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 6, fontFamily: "'Outfit'" }}>{t.noClassesYet}</h3>
+          <p style={{ fontSize: 13, color: C.textMuted, marginBottom: 18, lineHeight: 1.5 }}>{t.noClassesSub}</p>
+          <Btn onClick={openCreateForm} style={{ padding: "10px 20px" }}>
+            <CIcon name="plus" size={14} inline /> {t.newClassBtn}
+          </Btn>
+        </Card>
+      )}
     </div>
   );
 }
