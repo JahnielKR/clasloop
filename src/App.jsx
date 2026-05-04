@@ -270,7 +270,7 @@ export default function App() {
   return (
     <div style={{ display: "flex", minHeight: "100vh" }}>
       <style>{sidebarCSS}</style>
-      <Sidebar page={page} setPage={(p) => { setPracticeDeck(null); setPage(p); }} profile={profile} lang={lang} setLang={setLang} open={open} setOpen={setOpen} onSignOut={handleSignOut} onNavClick={() => setPageKey(k => k + 1)} />
+      <Sidebar page={page} setPage={(p) => { setPracticeDeck(null); setSessionsOpts(null); setPage(p); }} profile={profile} lang={lang} setLang={setLang} open={open} setOpen={setOpen} onSignOut={handleSignOut} onNavClick={() => setPageKey(k => k + 1)} />
       <div style={{ marginLeft: open ? 210 : 56, flex: 1, transition: "margin-left .2s", minHeight: "100vh", background: C.bgSoft }}>
         {inPractice ? (
           <StudentJoin
@@ -291,6 +291,7 @@ export default function App() {
             onNavigateToDecks={() => setPage("decks")}
             onNavigateToSessions={(opts) => { setSessionsOpts(opts || {}); setPage("sessions"); }}
             sessionsOpts={page === "sessions" ? sessionsOpts : null}
+            onConsumeSessionsOpts={() => setSessionsOpts(null)}
           />
         )}
       </div>

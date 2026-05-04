@@ -948,7 +948,7 @@ function generateClassCode() {
 }
 
 // ─── Main Export ───────────────────────────────────────────────────────────
-export default function SessionFlow({ lang = "en", setLang, onNavigateToDecks, sessionsOpts }) {
+export default function SessionFlow({ lang = "en", setLang, onNavigateToDecks, sessionsOpts, onConsumeSessionsOpts }) {
   const t = i18n[lang] || i18n.en;
   const [user, setUser] = useState(null);
   const [classes, setClasses] = useState([]);
@@ -968,10 +968,14 @@ export default function SessionFlow({ lang = "en", setLang, onNavigateToDecks, s
     })();
   }, []);
 
-  // If we arrived here from "+ New class" elsewhere, auto-open the modal
+  // If we arrived here from "+ New class" elsewhere, auto-open the modal,
+  // then clear the flag so it doesn't re-trigger on subsequent visits.
   useEffect(() => {
-    if (sessionsOpts?.openCreateClass) setShowCreateClass(true);
-  }, [sessionsOpts]);
+    if (sessionsOpts?.openCreateClass) {
+      setShowCreateClass(true);
+      if (onConsumeSessionsOpts) onConsumeSessionsOpts();
+    }
+  }, [sessionsOpts, onConsumeSessionsOpts]);
 
   // Auto-dismiss toast after 3s
   useEffect(() => {
