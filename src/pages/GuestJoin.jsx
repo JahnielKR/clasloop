@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabase";
 import { LogoMark, CIcon } from "../components/Icons";
-import { validateGuestName } from "../lib/guest-session";
+import { validateGuestName, loadGuestSession, clearGuestSession } from "../lib/guest-session";
 import StudentJoin from "./StudentJoin";
 
 const C = {
@@ -25,6 +25,10 @@ const i18n = {
     nameTooLong: "Name is too long (max 30 chars)",
     haveAccount: "Have an account?", signIn: "Sign in",
     backHome: "Back to home",
+    reconnecting: "Reconnecting...",
+    kickedTitle: "You were removed from this session",
+    kickedHint: "Your teacher removed you from the lobby. You can rejoin with a different name if needed.",
+    rejoin: "Rejoin",
   },
   es: {
     joinSession: "Unirse a la sesión",
@@ -39,6 +43,10 @@ const i18n = {
     nameTooLong: "Nombre muy largo (máx 30 caracteres)",
     haveAccount: "¿Tienes cuenta?", signIn: "Inicia sesión",
     backHome: "Volver al inicio",
+    reconnecting: "Reconectando...",
+    kickedTitle: "Fuiste retirado de esta sesión",
+    kickedHint: "Tu profe te sacó del lobby. Puedes volver a entrar con otro nombre si quieres.",
+    rejoin: "Volver a entrar",
   },
   ko: {
     joinSession: "세션 참여",
@@ -53,6 +61,10 @@ const i18n = {
     nameTooLong: "이름이 너무 깁니다 (최대 30자)",
     haveAccount: "계정이 있나요?", signIn: "로그인",
     backHome: "홈으로",
+    reconnecting: "다시 연결 중...",
+    kickedTitle: "이 세션에서 제외되었습니다",
+    kickedHint: "선생님이 로비에서 내보냈습니다. 다른 이름으로 다시 참여할 수 있습니다.",
+    rejoin: "다시 참여",
   },
 };
 
@@ -87,9 +99,26 @@ export default function GuestJoin({ initialCode = "" }) {
   const [code, setCode] = useState(codeFromURL.replace(/[^0-9]/g, "").slice(0, 6));
   const [name, setName] = useState("");
   const [error, setError] = useState("");
-  const [phase, setPhase] = useState("form"); // form | quiz
+  // phase: "form" | "reconnecting" | "quiz" | "kicked"
+  const [phase, setPhase] = useState("form");
+  const [guestToken, setGuestToken] = useState("");
 
   const codeValid = /^[0-9]{6}$/.test(code);
+
+  // ── On mount: try to reconnect from localStorage ──
+  // If we have a saved guest session for this code, jump straight to quiz
+  // mode with guestToken set. StudentJoin will skip INSERT and fetch the
+  // existing participant row, or call onGuestKicked if the row was removed
+  // or kicked.
+  useEffect(() => {
+    if (!codeValid) return;
+    const saved = loadGuestSession(code);
+    if (!saved || !saved.token || !saved.name) return;
+    setName(saved.name);
+    setGuestToken(saved.token);
+    setPhase("reconnecting");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleSubmit = () => {
     setError("");
@@ -104,12 +133,77 @@ export default function GuestJoin({ initialCode = "" }) {
       return;
     }
     setName(v.name); // use trimmed/normalized name
+    setGuestToken(""); // fresh join, no reconnect token
     setPhase("quiz");
   };
 
-  if (phase === "quiz") {
-    // Hand off to StudentJoin in guest mode. It will auto-join with the
-    // pre-filled pin + name and then run the live session UI.
+  // Called by StudentJoin when the guest is kicked (either at reconnect time
+  // because their saved row is gone/kicked, or in real-time during the lobby).
+  const handleKicked = (reason) => {
+    // Clear localStorage so we don't try to reconnect again
+    clearGuestSession(code);
+    setGuestToken("");
+    if (reason === "kicked") {
+      setPhase("kicked");
+    } else {
+      // Token didn't match anything — just send them back to the form
+      setPhase("form");
+    }
+  };
+
+  const handleRejoin = () => {
+    setName("");
+    setError("");
+    setPhase("form");
+  };
+
+  // ── Phase: kicked screen ──
+  if (phase === "kicked") {
+    return (
+      <>
+        <style>{css}</style>
+        <div style={{ minHeight: "100vh", background: C.bgSoft, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+          <div className="gj-fade" style={{
+            background: C.bg, borderRadius: 16, border: `1px solid ${C.border}`,
+            padding: 32, maxWidth: 420, width: "100%", textAlign: "center",
+            boxShadow: "0 4px 24px rgba(0,0,0,0.06)",
+          }}>
+            <div style={{
+              width: 64, height: 64, borderRadius: "50%",
+              background: C.redSoft, color: C.red,
+              display: "inline-flex", alignItems: "center", justifyContent: "center",
+              marginBottom: 16,
+            }}>
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+                <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+              </svg>
+            </div>
+            <h2 style={{ fontSize: 18, fontWeight: 700, fontFamily: "'Outfit',sans-serif", color: C.text, marginBottom: 8 }}>
+              {t.kickedTitle}
+            </h2>
+            <p style={{ fontSize: 13, color: C.textSecondary, lineHeight: 1.5, marginBottom: 20 }}>
+              {t.kickedHint}
+            </p>
+            <button
+              onClick={handleRejoin}
+              style={{
+                padding: "10px 20px", borderRadius: 10,
+                fontSize: 14, fontWeight: 600,
+                background: C.accentSoft, color: C.accent,
+                border: "none", cursor: "pointer",
+                fontFamily: "'Outfit',sans-serif",
+              }}
+            >{t.rejoin}</button>
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  // ── Phase: quiz (fresh join OR reconnect) ──
+  if (phase === "quiz" || phase === "reconnecting") {
+    // Hand off to StudentJoin in guest mode. If guestToken is set, StudentJoin
+    // will skip the INSERT and fetch the existing participant row.
     return (
       <>
         <style>{css}</style>
@@ -118,6 +212,8 @@ export default function GuestJoin({ initialCode = "" }) {
           guestMode
           guestPin={code}
           guestName={name}
+          guestToken={guestToken}
+          onGuestKicked={handleKicked}
         />
       </>
     );

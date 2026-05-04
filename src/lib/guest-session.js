@@ -2,6 +2,9 @@
 // Manages the localStorage token that lets a guest reconnect to a session
 // after a page reload. Also handles client-side name validation (length,
 // trimming, basic profanity filter).
+//
+// Storage is keyed by session PIN (the 6-digit code in the URL) so /join can
+// look up reconnect data directly from `?code=` without first hitting the DB.
 
 const STORAGE_KEY_PREFIX = "clasloop_guest_";
 
@@ -23,32 +26,37 @@ export function generateGuestToken() {
 }
 
 /**
- * Save the guest's token + name + sessionId to localStorage.
- * Lets the guest reconnect if they reload the page.
+ * Save guest reconnect info to localStorage.
+ * Keyed by `pin` so /join can find it from the URL code without a DB hit.
+ * `sessionId` is stored inside the value for later use.
  */
-export function saveGuestSession({ sessionId, token, name }) {
-  if (typeof window === "undefined") return;
+export function saveGuestSession({ pin, sessionId, token, name }) {
+  if (typeof window === "undefined" || !pin) return;
   try {
     localStorage.setItem(
-      STORAGE_KEY_PREFIX + sessionId,
-      JSON.stringify({ token, name, savedAt: Date.now() })
+      STORAGE_KEY_PREFIX + pin,
+      JSON.stringify({ sessionId, token, name, savedAt: Date.now() })
     );
   } catch (e) { /* storage may be disabled */ }
 }
 
-export function loadGuestSession(sessionId) {
-  if (typeof window === "undefined") return null;
+/**
+ * Load reconnect info for a given session PIN.
+ * Returns { sessionId, token, name, savedAt } or null.
+ */
+export function loadGuestSession(pin) {
+  if (typeof window === "undefined" || !pin) return null;
   try {
-    const raw = localStorage.getItem(STORAGE_KEY_PREFIX + sessionId);
+    const raw = localStorage.getItem(STORAGE_KEY_PREFIX + pin);
     if (!raw) return null;
     return JSON.parse(raw);
   } catch (e) { return null; }
 }
 
-export function clearGuestSession(sessionId) {
-  if (typeof window === "undefined") return;
+export function clearGuestSession(pin) {
+  if (typeof window === "undefined" || !pin) return;
   try {
-    localStorage.removeItem(STORAGE_KEY_PREFIX + sessionId);
+    localStorage.removeItem(STORAGE_KEY_PREFIX + pin);
   } catch (e) { /* ignore */ }
 }
 

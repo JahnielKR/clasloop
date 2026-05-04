@@ -236,7 +236,7 @@ const evaluateAnswer = (q, type, raw) => {
   }
 };
 
-export default function StudentJoin({ lang: pageLang = "en", profile = null, practiceDeck = null, onPracticeExit = null, guestMode = false, guestPin = "", guestName = "" }) {
+export default function StudentJoin({ lang: pageLang = "en", profile = null, practiceDeck = null, onPracticeExit = null, guestMode = false, guestPin = "", guestName = "", guestToken = "", onGuestKicked = null }) {
   // Practice mode: start straight in the quiz with the deck's questions, no PIN, no live session.
   const isPractice = Boolean(practiceDeck);
   // Guest mode: prefilled pin + name from the /join page; no profile linkage.
@@ -329,6 +329,24 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
     return () => supabase.removeChannel(ch);
   }, [session?.id, step]);
 
+  // ── Realtime: detect when this guest gets kicked from the lobby ──
+  // The teacher sets is_kicked=true on a participant row. We listen for that
+  // and bail out of the session, telling the parent (GuestJoin) to show a
+  // "you were removed" message.
+  useEffect(() => {
+    if (!isGuest || !participant?.id) return;
+    const ch = supabase.channel(`guest-participant:${participant.id}`)
+      .on("postgres_changes",
+        { event: "UPDATE", schema: "public", table: "session_participants", filter: `id=eq.${participant.id}` },
+        (payload) => {
+          if (payload.new.is_kicked && onGuestKicked) {
+            onGuestKicked("kicked");
+          }
+        }
+      ).subscribe();
+    return () => supabase.removeChannel(ch);
+  }, [isGuest, participant?.id, onGuestKicked]);
+
   // ── Timer ──
   useEffect(() => {
     if (step !== "quiz" || showResult || timeLeft <= 0) return;
@@ -409,6 +427,32 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
     const { data: sess, error: findErr } = await supabase.from("sessions").select("*").eq("pin", pin).in("status", ["lobby", "active"]).single();
     if (findErr || !sess) { setError(t.notFound); return; }
 
+    // ── Reconnect path: guest already has a token from localStorage ──
+    // Skip the INSERT and just fetch their existing row. If they were kicked
+    // or the row doesn't exist anymore, hand control back to the parent.
+    if (isGuest && guestToken) {
+      if (!sess.allow_guests) { setError(t.notFound); return; }
+      const { data: existing } = await supabase
+        .from("session_participants")
+        .select("*")
+        .eq("session_id", sess.id)
+        .eq("guest_token", guestToken)
+        .maybeSingle();
+      if (!existing) {
+        // Token doesn't match any participant — treat as fresh join
+        if (onGuestKicked) onGuestKicked("notFound");
+        return;
+      }
+      if (existing.is_kicked) {
+        if (onGuestKicked) onGuestKicked("kicked");
+        return;
+      }
+      setParticipant(existing);
+      setSession(sess);
+      setStep(sess.status === "active" ? "quiz" : "waiting");
+      return;
+    }
+
     let insertData = { session_id: sess.id, student_name: name.trim() };
 
     if (isGuest) {
@@ -424,7 +468,7 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
         student_id: null,
       };
       // Persist locally so a page refresh can reconnect to the same row
-      saveGuestSession({ sessionId: sess.id, token, name: name.trim() });
+      saveGuestSession({ pin: sess.pin, sessionId: sess.id, token, name: name.trim() });
     } else if (profile?.id) {
       // Persist student_id when the user is logged in — required for unlock tracking.
       insertData.student_id = profile.id;
