@@ -6,7 +6,8 @@ import SessionFlow from './pages/SessionFlow';
 import StudentJoin from './pages/StudentJoin';
 import MainApp from './pages/MainApp';
 import Landing from './pages/Landing';
-import Onboarding from './pages/Onboarding';
+import Onboarding from './pages/Onboarding'; // legacy — kept for now, may be removed
+import AvatarOnboarding from './pages/AvatarOnboarding';
 import Community from './pages/Community';
 import Achievements from './pages/Achievements';
 import Settings from './pages/Settings';
@@ -258,6 +259,20 @@ export default function App() {
   );
 
   if (!user) return <AuthScreen />;
+
+  // First-time avatar pick for students. We only intercept if we have the
+  // profile loaded (so we know the role) and they're a student without an
+  // avatar yet. Teachers skip this — their value flow starts with creating
+  // a class, not personalizing.
+  if (profile && profile.role === "student" && !profile.avatar_id && !profile.avatar_url) {
+    return (
+      <AvatarOnboarding
+        profile={profile}
+        lang={lang}
+        onDone={(avatarId) => setProfile(p => ({ ...p, avatar_id: avatarId }))}
+      />
+    );
+  }
 
   const sidebarCSS = `
     .cl-nav { transition: all .15s ease; }
