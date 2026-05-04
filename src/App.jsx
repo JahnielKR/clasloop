@@ -47,6 +47,10 @@ function AuthScreen() {
     if (err) { setError(err.message); setLoading(false); }
   };
   const handleGoogle = async () => {
+    // OAuth bounces us out of the app — the redirect loses React state.
+    // Persist the role choice so we can apply it to the profile when we come
+    // back. Cleared by App.jsx once consumed.
+    try { localStorage.setItem("clasloop_pending_role", role); } catch (_) {}
     await supabase.auth.signInWithOAuth({ provider: "google", options: { redirectTo: window.location.origin } });
   };
 
@@ -226,15 +230,61 @@ export default function App() {
 
   const fetchProfile = async (id) => {
     try {
-      const { data, error } = await supabase.from("profiles").select("*").eq("id", id).single();
+      let { data, error } = await supabase.from("profiles").select("*").eq("id", id).single();
+
+      // Defensive: if the DB trigger didn't create a profile row (can happen
+      // with OAuth in some configurations), create one now using whatever we
+      // know — the auth user's metadata + the pending role from localStorage.
+      if (error && error.code === "PGRST116") {
+        const { data: authData } = await supabase.auth.getUser();
+        const authUser = authData?.user;
+        let pendingRole = null;
+        try { pendingRole = localStorage.getItem("clasloop_pending_role"); } catch (_) {}
+        const role = (pendingRole === "teacher" || pendingRole === "student") ? pendingRole : "student";
+        const fullName = authUser?.user_metadata?.full_name
+          || authUser?.user_metadata?.name
+          || (authUser?.email ? authUser.email.split("@")[0] : "User");
+        const insert = await supabase.from("profiles").insert({
+          id, email: authUser?.email, full_name: fullName, role,
+        }).select().single();
+        data = insert.data;
+        error = insert.error;
+      }
+
       if (!error && data) {
-        setProfile(data);
-        setLang(data.language || "en");
+        let finalProfile = data;
+
+        // Apply pending OAuth role if there is one. The select-role screen
+        // saved this to localStorage right before the Google redirect so we
+        // could honor the user's choice once they bounce back. We only apply
+        // if (a) it's a fresh profile (created in the last 5 minutes), and
+        // (b) the role on the profile doesn't already match — so we don't
+        // accidentally flip a returning user's role on a re-login.
+        try {
+          const pendingRole = localStorage.getItem("clasloop_pending_role");
+          if (pendingRole === "teacher" || pendingRole === "student") {
+            const createdAt = data.created_at ? new Date(data.created_at).getTime() : 0;
+            const fresh = createdAt && (Date.now() - createdAt) < 5 * 60 * 1000;
+            if (fresh && data.role !== pendingRole) {
+              const { data: updated } = await supabase
+                .from("profiles")
+                .update({ role: pendingRole })
+                .eq("id", id)
+                .select()
+                .single();
+              if (updated) finalProfile = updated;
+            }
+            localStorage.removeItem("clasloop_pending_role");
+          }
+        } catch (_) { /* localStorage may be disabled */ }
+
+        setProfile(finalProfile);
+        setLang(finalProfile.language || "en");
         // If we landed on a /teacher/:id URL, render that page instead of the
         // role default. The viewingTeacherId state was populated on mount.
         if (viewingTeacherId) {
           setPage("teacherProfile");
-        } else if (data.role === "student") {
+        } else if (finalProfile.role === "student") {
           setPage("myClasses");
         } else {
           setPage("sessions");
