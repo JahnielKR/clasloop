@@ -29,7 +29,7 @@ const i18n = {
     launchNow: "Launch", customize: "Customize",
     newClass: "+ New class",
     createClass: "Create class", className: "Class name", classNamePlaceholder: "e.g. Math 6th Grade",
-    classSubject: "Subject", classGrade: "Grade", classGradePlaceholder: "e.g. 6th",
+    classSubject: "Subject", classGrade: "Grade", classGradePlaceholder: "e.g. 6th, 7th–9th, Mixed",
     classCode: "Class code (auto-generated)", classCreate: "Create class", creating: "Creating...",
     classCreated: "Class created!",
     pickDeck: "Pick a deck", search: "Search decks...", filterAllSubjects: "All subjects", filterAllClasses: "All classes",
@@ -66,7 +66,7 @@ const i18n = {
     launchNow: "Lanzar", customize: "Personalizar",
     newClass: "+ Nueva clase",
     createClass: "Crear clase", className: "Nombre de la clase", classNamePlaceholder: "ej. Matemáticas 6to",
-    classSubject: "Materia", classGrade: "Grado", classGradePlaceholder: "ej. 6to",
+    classSubject: "Materia", classGrade: "Grado", classGradePlaceholder: "ej. 6to, 7mo–9no, Mixto",
     classCode: "Código de clase (autogenerado)", classCreate: "Crear clase", creating: "Creando...",
     classCreated: "¡Clase creada!",
     pickDeck: "Elige un deck", search: "Buscar decks...", filterAllSubjects: "Todas las materias", filterAllClasses: "Todas las clases",
@@ -103,7 +103,7 @@ const i18n = {
     launchNow: "시작", customize: "맞춤설정",
     newClass: "+ 새 수업",
     createClass: "수업 만들기", className: "수업 이름", classNamePlaceholder: "예: 수학 6학년",
-    classSubject: "과목", classGrade: "학년", classGradePlaceholder: "예: 6학년",
+    classSubject: "과목", classGrade: "학년", classGradePlaceholder: "예: 6학년, 7-9학년, 혼합",
     classCode: "수업 코드 (자동 생성)", classCreate: "수업 만들기", creating: "만드는 중...",
     classCreated: "수업이 생성되었습니다!",
     pickDeck: "덱 선택", search: "덱 검색...", filterAllSubjects: "모든 과목", filterAllClasses: "모든 수업",
@@ -893,7 +893,7 @@ function CreateClassModal({ userId, t, onClose, onCreated }) {
       name: name.trim(),
       subject,
       grade: grade.trim(),
-      code,
+      class_code: code, // table column is `class_code`, not `code`
     }).select().single();
     setCreating(false);
     if (err) { setError(err.message); return; }
