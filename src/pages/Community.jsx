@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabase";
 import { CIcon } from "../components/Icons";
+import { DeckCover } from "../components/DeckCover";
 
 const C = {
   bg: "#FFFFFF", bgSoft: "#F7F7F5", accent: "#2383E2", accentSoft: "#E8F0FE",
@@ -193,25 +194,24 @@ export default function Community({ lang: pageLang = "en", setLang: pageSetLang,
             {t.back}
           </button>
 
-          <div className="fade-up" style={{ background: C.bg, borderRadius: 14, border: `1px solid ${C.border}`, padding: 24, marginBottom: 16 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
-              <CIcon name={icon} size={28} />
-              <div>
+          <div className="fade-up" style={{ background: C.bg, borderRadius: 14, border: `1px solid ${C.border}`, overflow: "hidden", marginBottom: 16 }}>
+            <DeckCover deck={dk} layout="card" height={140} iconSize={56} />
+            <div style={{ padding: 24 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
                 <span style={{ fontSize: 12, color: C.textMuted }}>{dk.subject} · {dk.grade}</span>
-                <div style={{ marginTop: 2 }}><LangBadge lang={dk.language} /></div>
+                <LangBadge lang={dk.language} />
               </div>
-            </div>
-            <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 8, fontFamily: "'Outfit'" }}>{dk.title}</h2>
-            {dk.description && <p style={{ fontSize: 14, color: C.textSecondary, lineHeight: 1.5, marginBottom: 16 }}>{dk.description}</p>}
-            <div style={{ fontSize: 13, color: C.textMuted, marginBottom: 16 }}>
-              {t.by} {dk.profiles?.full_name || "Unknown"} · {qs.length} {t.questions} · {dk.uses_count || 0} {t.uses}
-            </div>
-            {(dk.tags || []).length > 0 && (
-              <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 16 }}>
-                {dk.tags.map((tag, i) => <span key={i} style={{ padding: "3px 8px", borderRadius: 6, background: C.bgSoft, border: `1px solid ${C.border}`, fontSize: 11, color: C.textSecondary }}>#{tag}</span>)}
+              <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 8, fontFamily: "'Outfit'" }}>{dk.title}</h2>
+              {dk.description && <p style={{ fontSize: 14, color: C.textSecondary, lineHeight: 1.5, marginBottom: 16 }}>{dk.description}</p>}
+              <div style={{ fontSize: 13, color: C.textMuted, marginBottom: 16 }}>
+                {t.by} {dk.profiles?.full_name || "Unknown"} · {qs.length} {t.questions} · {dk.uses_count || 0} {t.uses}
               </div>
-            )}
-            <button className="cm-btn" onClick={() => isStudent ? handleStudentSave(dk) : setSavingDeck(dk)} style={{
+              {(dk.tags || []).length > 0 && (
+                <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 16 }}>
+                  {dk.tags.map((tag, i) => <span key={i} style={{ padding: "3px 8px", borderRadius: 6, background: C.bgSoft, border: `1px solid ${C.border}`, fontSize: 11, color: C.textSecondary }}>#{tag}</span>)}
+                </div>
+              )}
+              <button className="cm-btn" onClick={() => isStudent ? handleStudentSave(dk) : setSavingDeck(dk)} style={{
               width: "100%", padding: 14, borderRadius: 10, fontSize: 15, fontWeight: 600,
               background: saved[dk.id] ? C.greenSoft : `linear-gradient(135deg, ${C.accent}, ${C.purple})`,
               color: saved[dk.id] ? C.green : "#fff",
@@ -250,6 +250,7 @@ export default function Community({ lang: pageLang = "en", setLang: pageSetLang,
             </div>
           </div>
         )}
+        </div>
       </div>
     );
   }
@@ -292,22 +293,36 @@ export default function Community({ lang: pageLang = "en", setLang: pageSetLang,
         filtered.length === 0 ? (
           <div className="fade-up" style={{ textAlign: "center", padding: 48 }}><CIcon name="other" size={36} /><p style={{ fontSize: 15, color: C.textMuted, marginTop: 12 }}>{t.noResults}</p></div>
         ) : (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 14 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 14 }}>
             {filtered.map((dk, i) => {
-              const icon = SUBJ_ICON[dk.subject] || "book";
               const qs = dk.questions || [];
               return (
-                <div key={dk.id} className="cm-card fade-up" onClick={() => setSelectedDeck(dk)} style={{ background: C.bg, borderRadius: 12, border: `1px solid ${C.border}`, padding: 18, boxShadow: C.shadow, animationDelay: `${i * .04}s` }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-                    <CIcon name={icon} size={20} inline />
-                    <span style={{ fontSize: 12, color: C.textMuted }}>{dk.subject} · {dk.grade}</span>
-                    <div style={{ marginLeft: "auto" }}><LangBadge lang={dk.language} /></div>
-                  </div>
-                  <h3 style={{ fontSize: 15, fontWeight: 600, marginBottom: 6, lineHeight: 1.3 }}>{dk.title}</h3>
-                  {dk.description && <p style={{ fontSize: 12, color: C.textSecondary, lineHeight: 1.4, marginBottom: 10, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{dk.description}</p>}
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingTop: 10, borderTop: `1px solid ${C.border}`, fontSize: 12, color: C.textMuted }}>
-                    <span>{t.by} {dk.profiles?.full_name || "Unknown"}</span>
-                    <span>{qs.length} {t.questions}</span>
+                <div
+                  key={dk.id}
+                  className="cm-card fade-up"
+                  onClick={() => setSelectedDeck(dk)}
+                  style={{
+                    background: C.bg, borderRadius: 12, border: `1px solid ${C.border}`,
+                    overflow: "hidden",
+                    boxShadow: C.shadow, animationDelay: `${i * .04}s`,
+                    cursor: "pointer",
+                    display: "flex", flexDirection: "column",
+                  }}
+                >
+                  <DeckCover deck={dk} layout="card" height={110} iconSize={42} />
+                  <div style={{ padding: 16, flex: 1, display: "flex", flexDirection: "column" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
+                      <span style={{ fontSize: 11, color: C.textMuted, fontWeight: 500 }}>{dk.subject} · {dk.grade}</span>
+                      <div style={{ marginLeft: "auto" }}><LangBadge lang={dk.language} /></div>
+                    </div>
+                    <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 6, lineHeight: 1.3, fontFamily: "'Outfit',sans-serif" }}>{dk.title}</h3>
+                    {dk.description && (
+                      <p style={{ fontSize: 12, color: C.textSecondary, lineHeight: 1.4, marginBottom: 10, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", flex: 1 }}>{dk.description}</p>
+                    )}
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingTop: 10, borderTop: `1px solid ${C.border}`, fontSize: 12, color: C.textMuted, marginTop: "auto" }}>
+                      <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "60%" }}>{t.by} {dk.profiles?.full_name || "Unknown"}</span>
+                      <span>{qs.length} {t.questions}</span>
+                    </div>
                   </div>
                 </div>
               );

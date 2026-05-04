@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { CIcon, LogoMark } from "../components/Icons";
 import { Avatar } from "../components/Avatars";
+import { DeckCover } from "../components/DeckCover";
 
 const C = {
   bg: "#FFFFFF", bgSoft: "#F7F7F5", accent: "#2383E2", accentSoft: "#E8F0FE",
@@ -45,6 +46,9 @@ const i18n = {
     savedFrom: "Saved from",
     unsave: "Unsave",
     strong: "Strong", medium: "Building", weak: "Weak",
+    favorites: "Favorites", noFavorites: "Star a deck to mark it as favorite.",
+    favoriteAdd: "Add to favorites", favoriteRemove: "Remove from favorites",
+    bySubject: "By subject", allDecks: "All",
   },
   es: {
     pageTitle: "Mis Clases", subtitle: "Tus salones y decks en un solo lugar.",
@@ -78,6 +82,9 @@ const i18n = {
     savedFrom: "Guardado de",
     unsave: "Quitar",
     strong: "Sólido", medium: "Avanzando", weak: "Débil",
+    favorites: "Favoritos", noFavorites: "Marca un deck con la estrella para favoritarlo.",
+    favoriteAdd: "Añadir a favoritos", favoriteRemove: "Quitar de favoritos",
+    bySubject: "Por materia", allDecks: "Todos",
   },
   ko: {
     pageTitle: "내 수업", subtitle: "교실과 덱을 한 곳에서.",
@@ -111,6 +118,9 @@ const i18n = {
     savedFrom: "저장 출처",
     unsave: "저장 취소",
     strong: "탄탄함", medium: "성장 중", weak: "약함",
+    favorites: "즐겨찾기", noFavorites: "별표를 눌러 즐겨찾기로 지정하세요.",
+    favoriteAdd: "즐겨찾기 추가", favoriteRemove: "즐겨찾기 제거",
+    bySubject: "과목별", allDecks: "전체",
   },
 };
 
@@ -135,6 +145,24 @@ const css = `
   .mc-join-btn:not(:disabled):active { transform: translateY(0) scale(.97); }
 `;
 
+function PageHeader({ title, icon, lang, setLang }) {
+  return (
+    <div style={{ background: C.bg, borderBottom: `1px solid ${C.border}`, padding: "14px 28px", margin: "-28px -20px 24px -20px" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <CIcon name={icon} size={28} />
+          <h1 style={{ fontFamily: "'Outfit'", fontSize: 18, fontWeight: 700 }}>{title}</h1>
+        </div>
+        <div style={{ display: "flex", gap: 2, background: C.bgSoft, borderRadius: 8, padding: 3 }}>
+          {[["en", "EN"], ["es", "ES"], ["ko", "한"]].map(([c, lb]) => (
+            <button key={c} onClick={() => setLang(c)} style={{ padding: "5px 10px", borderRadius: 6, fontSize: 12, fontWeight: 600, background: lang === c ? C.bg : "transparent", color: lang === c ? C.text : C.textMuted, border: "none", boxShadow: lang === c ? "0 1px 2px rgba(0,0,0,0.06)" : "none", cursor: "pointer", fontFamily: "'Outfit',sans-serif" }}>{lb}</button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const Card = ({ children, style = {}, onClick, className = "" }) => (
   <div className={className} onClick={onClick} style={{ background: C.bg, borderRadius: 12, border: `1px solid ${C.border}`, padding: 16, ...style }}>
     {children}
@@ -144,9 +172,10 @@ const Card = ({ children, style = {}, onClick, className = "" }) => (
 const retCol = (r) => r >= 80 ? C.green : r >= 60 ? C.orange : C.red;
 
 // ─── Main page ──────────────────────────────────────────────────────────────
-export default function MyClasses({ lang: pageLang = "en", profile = null, onLaunchPractice = null }) {
+export default function MyClasses({ lang: pageLang = "en", setLang: pageSetLang, profile = null, onLaunchPractice = null }) {
   const l = pageLang || "en";
   const t = i18n[l] || i18n.en;
+  const setLang = pageSetLang || (() => {});
 
   const [view, setView] = useState("list");        // "list" | "class"
   const [selectedClassId, setSelectedClassId] = useState(null);
@@ -212,11 +241,14 @@ export default function MyClasses({ lang: pageLang = "en", profile = null, onLau
     // 3. Saved decks from community
     const { data: saved } = await supabase
       .from("saved_decks")
-      .select("deck_id, saved_at, decks(*, classes(name, profiles:teacher_id(full_name)))")
+      .select("deck_id, saved_at, is_favorite, decks(*, classes(name, profiles:teacher_id(full_name)))")
       .eq("student_id", profile.id)
       .order("saved_at", { ascending: false });
 
-    setSavedDecks((saved || []).map(s => s.decks).filter(Boolean));
+    setSavedDecks((saved || [])
+      .filter(s => s.decks)
+      .map(s => ({ ...s.decks, _isFavorite: s.is_favorite || false }))
+    );
 
     setLoading(false);
   };
@@ -283,26 +315,47 @@ export default function MyClasses({ lang: pageLang = "en", profile = null, onLau
     setSavedDecks(prev => prev.filter(d => d.id !== deckId));
   };
 
+  // ── Toggle favorite on a saved deck ──
+  const handleToggleFavorite = async (deckId) => {
+    if (!profile?.id) return;
+    // Optimistic flip
+    let nextValue = false;
+    setSavedDecks(prev => prev.map(d => {
+      if (d.id !== deckId) return d;
+      nextValue = !d._isFavorite;
+      return { ...d, _isFavorite: nextValue };
+    }));
+    const { error } = await supabase.from("saved_decks")
+      .update({ is_favorite: nextValue })
+      .eq("student_id", profile.id)
+      .eq("deck_id", deckId);
+    if (error) {
+      // Revert on failure
+      setSavedDecks(prev => prev.map(d => d.id === deckId ? { ...d, _isFavorite: !nextValue } : d));
+    }
+  };
+
   if (!profile) return null;
   if (loading) return (
-    <>
+    <div style={{ padding: "28px 20px" }}>
       <style>{css}</style>
+      <PageHeader title={t.pageTitle} icon="school" lang={l} setLang={setLang} />
       <div style={{ maxWidth: 720, margin: "0 auto", padding: 40, textAlign: "center", color: C.textMuted, fontFamily: "'Outfit',sans-serif" }}>{t.loading}</div>
-    </>
+    </div>
   );
 
   // ── Class detail view ──
   if (view === "class" && selectedClassId) {
     const cls = classes.find(c => c.id === selectedClassId);
     if (!cls) {
-      // Class no longer exists or student left it — bounce back
       setView("list");
       setSelectedClassId(null);
       return null;
     }
     return (
-      <>
+      <div style={{ padding: "28px 20px" }}>
         <style>{css}</style>
+        <PageHeader title={t.pageTitle} icon="school" lang={l} setLang={setLang} />
         <ClassDetail
           cls={cls}
           profile={profile}
@@ -311,19 +364,19 @@ export default function MyClasses({ lang: pageLang = "en", profile = null, onLau
           onBack={() => { setView("list"); setSelectedClassId(null); loadAll(); }}
           onLaunchPractice={onLaunchPractice}
         />
-      </>
+      </div>
     );
   }
 
   // ── List view ──
   return (
-    <>
+    <div style={{ padding: "28px 20px" }}>
       <style>{css}</style>
+      <PageHeader title={t.pageTitle} icon="school" lang={l} setLang={setLang} />
       <div style={{ maxWidth: 720, margin: "0 auto" }}>
-        {/* Header */}
+        {/* Title + action row */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, gap: 12 }}>
           <div style={{ minWidth: 0 }}>
-            <h2 style={{ fontFamily: "'Outfit'", fontSize: 18, fontWeight: 700, margin: 0, marginBottom: 2 }}>{t.pageTitle}</h2>
             <p style={{ fontSize: 13, color: C.textSecondary, margin: 0 }}>{t.subtitle}</p>
           </div>
           <button
@@ -463,45 +516,141 @@ export default function MyClasses({ lang: pageLang = "en", profile = null, onLau
         )}
 
         {/* Saved decks from community */}
-        {savedDecks.length > 0 && (
-          <div style={{ marginTop: 24 }}>
-            <h3 style={{ fontSize: 15, fontWeight: 700, fontFamily: "'Outfit'", margin: "0 0 4px" }}>{t.savedDecks}</h3>
-            <p style={{ fontSize: 12, color: C.textMuted, margin: "0 0 12px" }}>{t.savedDecksSub}</p>
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {savedDecks.map(deck => (
-                <Card key={deck.id} style={{ padding: 12, display: "flex", alignItems: "center", gap: 12 }}>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 14, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{deck.title}</div>
-                    <div style={{ fontSize: 11, color: C.textMuted }}>
-                      {t.savedFrom} {deck.classes?.profiles?.full_name || t.teacher} · {(deck.questions?.length || 0)} {t.questionsCount}
-                    </div>
+        {savedDecks.length > 0 && (() => {
+          const favorites = savedDecks.filter(d => d._isFavorite);
+          // Group remaining by subject (favorites still appear in their subject group too,
+          // BUT we exclude them when rendering subject groups so they only show once at top).
+          const remaining = savedDecks.filter(d => !d._isFavorite);
+          const bySubject = {};
+          for (const d of remaining) {
+            const key = d.subject || "Other";
+            if (!bySubject[key]) bySubject[key] = [];
+            bySubject[key].push(d);
+          }
+          const subjectKeys = Object.keys(bySubject).sort();
+
+          return (
+            <div style={{ marginTop: 32 }}>
+              <h3 style={{ fontSize: 15, fontWeight: 700, fontFamily: "'Outfit'", margin: "0 0 4px" }}>{t.savedDecks}</h3>
+              <p style={{ fontSize: 12, color: C.textMuted, margin: "0 0 16px" }}>{t.savedDecksSub}</p>
+
+              {/* Favorites section */}
+              {favorites.length > 0 && (
+                <div style={{ marginBottom: 22 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="#EF9F27"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                    <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase", color: "#BA7517" }}>{t.favorites}</span>
+                    <span style={{ fontSize: 11, color: C.textMuted, fontFamily: MONO }}>· {favorites.length}</span>
                   </div>
-                  <button
-                    onClick={() => onLaunchPractice && onLaunchPractice(deck)}
-                    style={{
-                      padding: "7px 14px", borderRadius: 7, fontSize: 12, fontWeight: 600,
-                      background: C.accent, color: "#fff", border: "none", cursor: "pointer",
-                      fontFamily: "'Outfit',sans-serif",
-                    }}
-                  >{t.practice}</button>
-                  <button
-                    onClick={() => handleUnsave(deck.id)}
-                    style={{
-                      padding: "6px 8px", borderRadius: 6, fontSize: 11,
-                      background: "transparent", color: C.textMuted, border: "none", cursor: "pointer",
-                      fontFamily: "'Outfit',sans-serif",
-                    }}
-                    title={t.unsave}
-                  >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M3 6H21M8 6V4C8 3.4 8.4 3 9 3H15C15.6 3 16 3.4 16 4V6M19 6L18 20C18 20.6 17.6 21 17 21H7C6.4 21 6 20.6 6 20L5 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                  </button>
-                </Card>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 12 }}>
+                    {favorites.map(deck => (
+                      <SavedDeckCard
+                        key={deck.id}
+                        deck={deck}
+                        t={t}
+                        onPractice={() => onLaunchPractice && onLaunchPractice(deck)}
+                        onToggleFavorite={() => handleToggleFavorite(deck.id)}
+                        onUnsave={() => handleUnsave(deck.id)}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Grouped by subject */}
+              {subjectKeys.map(subj => (
+                <div key={subj} style={{ marginBottom: 22 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
+                    <CIcon name={(SUBJECT_ICON_MAP[subj] || "book")} size={14} inline />
+                    <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase", color: C.textSecondary }}>{subj}</span>
+                    <span style={{ fontSize: 11, color: C.textMuted, fontFamily: MONO }}>· {bySubject[subj].length}</span>
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 12 }}>
+                    {bySubject[subj].map(deck => (
+                      <SavedDeckCard
+                        key={deck.id}
+                        deck={deck}
+                        t={t}
+                        onPractice={() => onLaunchPractice && onLaunchPractice(deck)}
+                        onToggleFavorite={() => handleToggleFavorite(deck.id)}
+                        onUnsave={() => handleUnsave(deck.id)}
+                      />
+                    ))}
+                  </div>
+                </div>
               ))}
             </div>
-          </div>
-        )}
+          );
+        })()}
       </div>
-    </>
+    </div>
+  );
+}
+
+// Subject icon shorthand for the group header bar (ASCII fallback if missing).
+const SUBJECT_ICON_MAP = { Math: "math", Science: "science", History: "history", Language: "language", Geography: "geo", Art: "art", Music: "music", Other: "book" };
+
+// ─── SavedDeckCard ──────────────────────────────────────────────────────────
+function SavedDeckCard({ deck, t, onPractice, onToggleFavorite, onUnsave }) {
+  const isFav = deck._isFavorite;
+  return (
+    <div className="mc-deck-card" style={{ background: C.bg, borderRadius: 11, border: `1px solid ${C.border}`, overflow: "hidden", display: "flex", flexDirection: "column", position: "relative", transition: "all .15s ease" }}>
+      {/* Cover */}
+      <div onClick={onPractice} style={{ cursor: "pointer", position: "relative" }}>
+        <DeckCover deck={deck} layout="card" height={86} iconSize={36} />
+        {/* Star toggle */}
+        <button
+          onClick={(e) => { e.stopPropagation(); onToggleFavorite(); }}
+          title={isFav ? t.favoriteRemove : t.favoriteAdd}
+          style={{
+            position: "absolute", top: 6, right: 6,
+            width: 30, height: 30, borderRadius: "50%",
+            background: isFav ? "#FFFFFF" : "rgba(255,255,255,0.7)",
+            border: "none", cursor: "pointer",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            backdropFilter: "blur(4px)",
+            boxShadow: isFav ? "0 2px 6px rgba(0,0,0,0.15)" : "none",
+            transition: "all .15s ease",
+          }}
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill={isFav ? "#EF9F27" : "none"} stroke={isFav ? "#EF9F27" : "#888780"} strokeWidth="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+        </button>
+      </div>
+      {/* Body */}
+      <div style={{ padding: 12, flex: 1, display: "flex", flexDirection: "column", gap: 8 }}>
+        <div style={{ flex: 1 }}>
+          <div onClick={onPractice} style={{ fontSize: 13, fontWeight: 700, lineHeight: 1.3, marginBottom: 4, cursor: "pointer", overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>{deck.title}</div>
+          <div style={{ fontSize: 11, color: C.textMuted, lineHeight: 1.4 }}>
+            {t.savedFrom} {deck.classes?.profiles?.full_name || t.teacher}
+            <br/>
+            {(deck.questions?.length || 0)} {t.questionsCount}
+          </div>
+        </div>
+        <div style={{ display: "flex", gap: 6 }}>
+          <button
+            onClick={onPractice}
+            style={{
+              flex: 1, padding: "7px 10px", borderRadius: 7, fontSize: 12, fontWeight: 600,
+              background: C.accent, color: "#fff", border: "none", cursor: "pointer",
+              fontFamily: "'Outfit',sans-serif",
+              display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 5,
+            }}
+          ><CIcon name="rocket" size={11} inline /> {t.practice}</button>
+          <button
+            onClick={onUnsave}
+            style={{
+              padding: "7px 9px", borderRadius: 7, fontSize: 11,
+              background: "transparent", color: C.textMuted,
+              border: `1px solid ${C.border}`, cursor: "pointer",
+              fontFamily: "'Outfit',sans-serif",
+            }}
+            title={t.unsave}
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M3 6H21M8 6V4C8 3.4 8.4 3 9 3H15C15.6 3 16 3.4 16 4V6M19 6L18 20C18 20.6 17.6 21 17 21H7C6.4 21 6 20.6 6 20L5 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -721,27 +870,32 @@ function ClassDetail({ cls, profile, t, lang, onBack, onLaunchPractice }) {
               ) : (
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 12 }}>
                   {decks.map(deck => (
-                    <Card
+                    <div
                       key={deck.id}
                       className="mc-deck-card"
                       onClick={() => onLaunchPractice && onLaunchPractice(deck)}
-                      style={{ padding: 14, display: "flex", flexDirection: "column", gap: 8 }}
+                      style={{ background: C.bg, borderRadius: 11, border: `1px solid ${C.border}`, overflow: "hidden", display: "flex", flexDirection: "column", cursor: "pointer", transition: "all .15s ease" }}
                     >
-                      <div style={{ fontSize: 14, fontWeight: 700, lineHeight: 1.3 }}>{deck.title}</div>
-                      <div style={{ fontSize: 11, color: C.textMuted, flex: 1 }}>
-                        {(deck.questions?.length || 0)} {t.questionsCount}
+                      <DeckCover deck={deck} layout="card" height={86} iconSize={36} />
+                      <div style={{ padding: 12, flex: 1, display: "flex", flexDirection: "column", gap: 8 }}>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: 13, fontWeight: 700, lineHeight: 1.3, marginBottom: 4, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>{deck.title}</div>
+                          <div style={{ fontSize: 11, color: C.textMuted }}>
+                            {(deck.questions?.length || 0)} {t.questionsCount}
+                          </div>
+                        </div>
+                        <button
+                          style={{
+                            padding: "7px 10px", borderRadius: 7, fontSize: 12, fontWeight: 600,
+                            background: C.accent, color: "#fff", border: "none", cursor: "pointer",
+                            fontFamily: "'Outfit',sans-serif",
+                            display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 5,
+                          }}
+                        >
+                          <CIcon name="rocket" size={11} inline /> {t.practice}
+                        </button>
                       </div>
-                      <button
-                        style={{
-                          padding: "7px 12px", borderRadius: 7, fontSize: 12, fontWeight: 600,
-                          background: C.accent, color: "#fff", border: "none", cursor: "pointer",
-                          fontFamily: "'Outfit',sans-serif",
-                          display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 5,
-                        }}
-                      >
-                        <CIcon name="rocket" size={12} inline /> {t.practice}
-                      </button>
-                    </Card>
+                    </div>
                   ))}
                 </div>
               )}
