@@ -26,6 +26,8 @@ const i18n = {
     sessionComplete: "Session Complete", greatJob: "Great job!",
     keepPracticing: "Keep practicing!", correctLabel: "correct", incorrectLabel: "incorrect",
     joinAnother: "Join another session", noQuestions: "No questions available",
+    teacherEndedTitle: "Teacher ended the session", teacherEndedHint: "Here's how you did so far.",
+    waitingEndedTitle: "Session ended", waitingEndedHint: "The teacher ended the session before it started.",
     timeUp: "Time's up!",
     true_: "True", false_: "False",
     typeAnswer: "Type your answer...", submit: "Submit",
@@ -55,6 +57,8 @@ const i18n = {
     sessionComplete: "Sesión Completa", greatJob: "¡Buen trabajo!",
     keepPracticing: "¡Sigue practicando!", correctLabel: "correctas", incorrectLabel: "incorrectas",
     joinAnother: "Unirse a otra sesión", noQuestions: "No hay preguntas",
+    teacherEndedTitle: "El profe terminó la sesión", teacherEndedHint: "Aquí tu progreso hasta ahora.",
+    waitingEndedTitle: "Sesión terminada", waitingEndedHint: "El profe terminó la sesión antes de empezar.",
     timeUp: "¡Tiempo!",
     true_: "Verdadero", false_: "Falso",
     typeAnswer: "Escribe tu respuesta...", submit: "Enviar",
@@ -84,6 +88,8 @@ const i18n = {
     sessionComplete: "세션 완료", greatJob: "잘했어요!",
     keepPracticing: "계속 연습하세요!", correctLabel: "정답", incorrectLabel: "오답",
     joinAnother: "다른 세션 참여", noQuestions: "문제가 없습니다",
+    teacherEndedTitle: "선생님이 세션을 종료했습니다", teacherEndedHint: "지금까지의 결과입니다.",
+    waitingEndedTitle: "세션 종료됨", waitingEndedHint: "선생님이 시작 전에 세션을 종료했습니다.",
     timeUp: "시간 초과!",
     true_: "참", false_: "거짓",
     typeAnswer: "답을 입력하세요...", submit: "제출",
@@ -257,6 +263,9 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
   const [resultAnim, setResultAnim] = useState("");
   const [timeLeft, setTimeLeft] = useState(20);
   const [lastIsCorrect, setLastIsCorrect] = useState(false);
+  // True when the teacher ends the live session (status → completed/cancelled)
+  // while the student is still in lobby/quiz. Used to show a banner on results.
+  const [endedByTeacher, setEndedByTeacher] = useState(false);
 
   // ── Unlock celebration (Phase 3) ──
   const [newUnlocks, setNewUnlocks] = useState([]);  // queue of just-unlocked avatars
@@ -322,9 +331,22 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
   // ── Realtime: react to session status changes ──
   useEffect(() => {
     if (!session) return;
+    // Don't subscribe in practice mode — there's no real session to listen to.
+    if (session._isPractice) return;
     const ch = supabase.channel(`student-session:${session.id}`)
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "sessions", filter: `id=eq.${session.id}` },
-        (payload) => { setSession(payload.new); if (payload.new.status === "active" && step === "waiting") setStep("quiz"); }
+        (payload) => {
+          setSession(payload.new);
+          // Teacher started the quiz → move from waiting to quiz
+          if (payload.new.status === "active" && step === "waiting") setStep("quiz");
+          // Teacher ended or cancelled the session → bail out of quiz/lobby
+          // and show the results screen (or a "session ended" message if the
+          // student hadn't even started answering).
+          if (payload.new.status === "completed" || payload.new.status === "cancelled") {
+            setEndedByTeacher(true);
+            setStep("results");
+          }
+        }
       ).subscribe();
     return () => supabase.removeChannel(ch);
   }, [session?.id, step]);
@@ -1221,17 +1243,61 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
     // Percentage only over graded items.
     const pct = graded.length > 0 ? Math.round((correct / graded.length) * 100) : 0;
 
+    // Special case: teacher ended the session before the student answered
+    // anything. Show a clean "session ended" screen instead of empty stats.
+    if (endedByTeacher && answers.length === 0) {
+      return (
+        <>
+          <style>{css}</style>
+          <div style={{ maxWidth: 400, margin: "0 auto", padding: "60px 20px", textAlign: "center" }}>
+            <div className="fade-up" style={{ background: C.bg, borderRadius: 16, border: `1px solid ${C.border}`, padding: 32, boxShadow: "0 4px 20px rgba(0,0,0,0.06)" }}>
+              <div style={{
+                width: 64, height: 64, borderRadius: "50%",
+                background: C.bgSoft, color: C.textMuted,
+                display: "inline-flex", alignItems: "center", justifyContent: "center",
+                marginBottom: 16,
+              }}>
+                <CIcon name="clock" size={28} inline />
+              </div>
+              <h2 style={{ fontFamily: "'Outfit'", fontSize: 20, fontWeight: 700, marginBottom: 8 }}>{t.waitingEndedTitle}</h2>
+              <p style={{ color: C.textSecondary, fontSize: 14, marginBottom: 20, lineHeight: 1.5 }}>{t.waitingEndedHint}</p>
+              {!isGuest && (
+                <button onClick={() => {
+                  setStep("join"); setPin(""); setName(profile?.full_name || ""); setAnswers([]); setCurrent(0); setSession(null); setParticipant(null); setEndedByTeacher(false);
+                }} style={{
+                  padding: "10px 20px", borderRadius: 10, fontSize: 14, fontWeight: 600,
+                  background: C.accentSoft, color: C.accent, border: "none", cursor: "pointer",
+                  fontFamily: "'Outfit',sans-serif",
+                }}>{t.joinAnother}</button>
+              )}
+            </div>
+          </div>
+        </>
+      );
+    }
+
     return (
       <>
         <style>{css}</style>
         <div style={{ maxWidth: 400, margin: "0 auto", padding: "50px 20px", textAlign: "center" }}>
+          {endedByTeacher && (
+            <div className="fade-up" style={{
+              background: C.orangeSoft, color: C.orange,
+              padding: "10px 14px", borderRadius: 10,
+              fontSize: 12, fontWeight: 600, marginBottom: 14,
+              display: "flex", alignItems: "center", gap: 8, justifyContent: "center",
+              fontFamily: "'Outfit',sans-serif",
+            }}>
+              <CIcon name="warning" size={14} inline /> {t.teacherEndedTitle}
+            </div>
+          )}
           <div className="fade-up" style={{ background: C.bg, borderRadius: 16, border: `1px solid ${C.border}`, padding: 32, boxShadow: "0 4px 20px rgba(0,0,0,0.06)" }}>
             <div className="pop-in" style={{ width: 80, height: 80, borderRadius: "50%", background: retCol(pct) + "14", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px", border: `3px solid ${retCol(pct)}33` }}>
               <span style={{ fontSize: 28, fontWeight: 800, color: retCol(pct), fontFamily: MONO }}>{graded.length > 0 ? `${pct}%` : "—"}</span>
             </div>
             <h2 style={{ fontFamily: "'Outfit'", fontSize: 22, fontWeight: 700, marginBottom: 6 }}>{t.sessionComplete}</h2>
             <p style={{ color: C.textSecondary, fontSize: 15, marginBottom: 20 }}>
-              {graded.length === 0 ? t.greatJob : (pct >= 70 ? t.greatJob : t.keepPracticing)}
+              {endedByTeacher ? t.teacherEndedHint : (graded.length === 0 ? t.greatJob : (pct >= 70 ? t.greatJob : t.keepPracticing))}
             </p>
 
             <div style={{ display: "flex", justifyContent: "center", gap: 24, padding: "16px 0", borderTop: `1px solid ${C.border}`, flexWrap: "wrap" }}>
