@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { CIcon, LogoMark } from "../components/Icons";
 import { Avatar } from "../components/Avatars";
-import { DeckCover, resolveColor } from "../lib/deck-cover";
+import { DeckCover } from "../lib/deck-cover";
 
 const C = {
   bg: "#FFFFFF", bgSoft: "#F7F7F5", accent: "#2383E2", accentSoft: "#E8F0FE",
@@ -593,16 +593,15 @@ const SUBJECT_ICON_MAP = { Math: "math", Science: "science", History: "history",
 // ─── SavedDeckCard ──────────────────────────────────────────────────────────
 function SavedDeckCard({ deck, t, onPractice, onToggleFavorite, onUnsave }) {
   const isFav = deck._isFavorite;
-  const accent = resolveColor(deck);
   const qs = deck.questions || [];
   return (
     <div
       className="mc-deck-card"
       onClick={onPractice}
       style={{
-        background: C.bg, borderRadius: 12, border: `1px solid ${C.border}`,
-        borderLeft: `4px solid ${accent}`,
-        padding: 16, boxShadow: C.shadow,
+        background: C.bg, borderRadius: 14, border: `1px solid ${C.border}`,
+        overflow: "hidden", boxShadow: C.shadow,
+        display: "flex", flexDirection: "column",
         cursor: "pointer", position: "relative",
         transition: "all .15s ease",
       }}
@@ -623,41 +622,43 @@ function SavedDeckCard({ deck, t, onPractice, onToggleFavorite, onUnsave }) {
         <svg width="16" height="16" viewBox="0 0 24 24" fill={isFav ? "#EF9F27" : "none"} stroke={isFav ? "#EF9F27" : "#9B9B9B"} strokeWidth="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
       </button>
 
-      <div style={{ display: "flex", alignItems: "flex-start", gap: 12, marginBottom: 10, paddingRight: 28 }}>
-        <DeckCover deck={deck} size={48} radius={9} />
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 3, lineHeight: 1.3, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>{deck.title}</h3>
-          <div style={{ fontSize: 11, color: C.textMuted }}>
-            {deck.subject} · {deck.grade}
+      <div style={{ padding: 18, paddingBottom: 14 }}>
+        <div style={{ display: "flex", alignItems: "flex-start", gap: 12, marginBottom: 12, paddingRight: 28 }}>
+          <DeckCover deck={deck} size={52} radius={12} />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <h3 style={{ fontSize: 15, fontWeight: 600, marginBottom: 4, lineHeight: 1.3, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{deck.title}</h3>
+            <div style={{ fontSize: 11, color: C.textMuted }}>
+              {deck.subject} · {deck.grade}
+            </div>
           </div>
         </div>
+        <div style={{ display: "flex", gap: 6 }}>
+          <button
+            onClick={(e) => { e.stopPropagation(); onPractice(); }}
+            style={{
+              flex: 1, padding: "8px 12px", borderRadius: 7, fontSize: 12, fontWeight: 600,
+              background: C.accent, color: "#fff", border: "none", cursor: "pointer",
+              fontFamily: "'Outfit',sans-serif",
+              display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 5,
+            }}
+          ><CIcon name="rocket" size={11} inline /> {t.practice}</button>
+          <button
+            onClick={(e) => { e.stopPropagation(); onUnsave(); }}
+            style={{
+              padding: "8px 10px", borderRadius: 7, fontSize: 11,
+              background: "transparent", color: C.textMuted,
+              border: `1px solid ${C.border}`, cursor: "pointer",
+              fontFamily: "'Outfit',sans-serif",
+            }}
+            title={t.unsave}
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M3 6H21M8 6V4C8 3.4 8.4 3 9 3H15C15.6 3 16 3.4 16 4V6M19 6L18 20C18 20.6 17.6 21 17 21H7C6.4 21 6 20.6 6 20L5 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
+          </button>
+        </div>
       </div>
-      <div style={{ fontSize: 11, color: C.textMuted, marginBottom: 10, paddingTop: 8, borderTop: `1px solid ${C.border}` }}>
-        {t.savedFrom} {deck.classes?.profiles?.full_name || t.teacher} · {qs.length} {t.questionsCount}
-      </div>
-
-      <div style={{ display: "flex", gap: 6 }}>
-        <button
-          onClick={(e) => { e.stopPropagation(); onPractice(); }}
-          style={{
-            flex: 1, padding: "8px 12px", borderRadius: 7, fontSize: 12, fontWeight: 600,
-            background: C.accent, color: "#fff", border: "none", cursor: "pointer",
-            fontFamily: "'Outfit',sans-serif",
-            display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 5,
-          }}
-        ><CIcon name="rocket" size={11} inline /> {t.practice}</button>
-        <button
-          onClick={(e) => { e.stopPropagation(); onUnsave(); }}
-          style={{
-            padding: "8px 10px", borderRadius: 7, fontSize: 11,
-            background: "transparent", color: C.textMuted,
-            border: `1px solid ${C.border}`, cursor: "pointer",
-            fontFamily: "'Outfit',sans-serif",
-          }}
-          title={t.unsave}
-        >
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M3 6H21M8 6V4C8 3.4 8.4 3 9 3H15C15.6 3 16 3.4 16 4V6M19 6L18 20C18 20.6 17.6 21 17 21H7C6.4 21 6 20.6 6 20L5 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
-        </button>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 18px", background: C.bgSoft, borderTop: `1px solid ${C.border}`, fontSize: 12, color: C.textMuted, marginTop: "auto" }}>
+        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.savedFrom} {deck.classes?.profiles?.full_name || t.teacher}</span>
+        <span style={{ flexShrink: 0, marginLeft: 8, fontWeight: 600 }}>{qs.length} {t.questionsCount}</span>
       </div>
     </div>
   );
@@ -877,9 +878,8 @@ function ClassDetail({ cls, profile, t, lang, onBack, onLaunchPractice }) {
                   <p style={{ fontSize: 13, color: C.textMuted, margin: 0, lineHeight: 1.5 }}>{t.noDecksSub}</p>
                 </Card>
               ) : (
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 14 }}>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 14 }}>
                   {decks.map(deck => {
-                    const accent = resolveColor(deck);
                     const qs = deck.questions || [];
                     return (
                       <div
@@ -887,35 +887,37 @@ function ClassDetail({ cls, profile, t, lang, onBack, onLaunchPractice }) {
                         className="mc-deck-card"
                         onClick={() => onLaunchPractice && onLaunchPractice(deck)}
                         style={{
-                          background: C.bg, borderRadius: 12, border: `1px solid ${C.border}`,
-                          borderLeft: `4px solid ${accent}`,
-                          padding: 16, boxShadow: C.shadow,
+                          background: C.bg, borderRadius: 14, border: `1px solid ${C.border}`,
+                          overflow: "hidden", boxShadow: C.shadow,
                           cursor: "pointer", transition: "all .15s ease",
                           display: "flex", flexDirection: "column",
                         }}
                       >
-                        <div style={{ display: "flex", alignItems: "flex-start", gap: 12, marginBottom: 10 }}>
-                          <DeckCover deck={deck} size={48} radius={9} />
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 3, lineHeight: 1.3, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>{deck.title}</h3>
-                            <div style={{ fontSize: 11, color: C.textMuted }}>
-                              {deck.subject} · {deck.grade}
+                        <div style={{ padding: 18, paddingBottom: 14 }}>
+                          <div style={{ display: "flex", alignItems: "flex-start", gap: 12, marginBottom: 12 }}>
+                            <DeckCover deck={deck} size={52} radius={12} />
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <h3 style={{ fontSize: 15, fontWeight: 600, marginBottom: 4, lineHeight: 1.3, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{deck.title}</h3>
+                              <div style={{ fontSize: 11, color: C.textMuted }}>
+                                {deck.subject} · {deck.grade}
+                              </div>
                             </div>
                           </div>
+                          <button
+                            style={{
+                              width: "100%",
+                              padding: "8px 12px", borderRadius: 7, fontSize: 12, fontWeight: 600,
+                              background: C.accent, color: "#fff", border: "none", cursor: "pointer",
+                              fontFamily: "'Outfit',sans-serif",
+                              display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 5,
+                            }}
+                          >
+                            <CIcon name="rocket" size={11} inline /> {t.practice}
+                          </button>
                         </div>
-                        <div style={{ fontSize: 11, color: C.textMuted, marginBottom: 10, paddingTop: 8, borderTop: `1px solid ${C.border}`, flex: 1 }}>
-                          {qs.length} {t.questionsCount}
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", padding: "10px 18px", background: C.bgSoft, borderTop: `1px solid ${C.border}`, fontSize: 12, color: C.textMuted, marginTop: "auto" }}>
+                          <span style={{ fontWeight: 600 }}>{qs.length} {t.questionsCount}</span>
                         </div>
-                        <button
-                          style={{
-                            padding: "8px 12px", borderRadius: 7, fontSize: 12, fontWeight: 600,
-                            background: C.accent, color: "#fff", border: "none", cursor: "pointer",
-                            fontFamily: "'Outfit',sans-serif",
-                            display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 5,
-                          }}
-                        >
-                          <CIcon name="rocket" size={11} inline /> {t.practice}
-                        </button>
                       </div>
                     );
                   })}
