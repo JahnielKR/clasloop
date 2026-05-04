@@ -23,6 +23,7 @@ const i18n = {
     questions: "questions", uses: "uses",
     saveToMyDecks: "Save to my decks", saved: "Saved!", back: "Back",
     by: "by", noResults: "No decks found.",
+    favorite: "Favorite", favorited: "Favorited", favoriteAdd: "Add to favorites", favoriteRemove: "Remove from favorites",
     addToWhich: "Add to which class?", noClass: "Save without class",
     noClassesYet: "You don't have any classes yet. Create one in Sessions first.",
     cancel: "Cancel", langs: ["English", "Spanish", "Korean"],
@@ -34,6 +35,7 @@ const i18n = {
     questions: "preguntas", uses: "usos",
     saveToMyDecks: "Guardar en mis decks", saved: "¡Guardado!", back: "Volver",
     by: "por", noResults: "No se encontraron decks.",
+    favorite: "Favorito", favorited: "En favoritos", favoriteAdd: "Agregar a favoritos", favoriteRemove: "Quitar de favoritos",
     addToWhich: "¿A qué clase agregarlo?", noClass: "Guardar sin clase",
     noClassesYet: "No tienes clases aún. Crea una en Sesiones primero.",
     cancel: "Cancelar", langs: ["Inglés", "Español", "Coreano"],
@@ -45,6 +47,7 @@ const i18n = {
     questions: "문제", uses: "사용",
     saveToMyDecks: "내 덱에 저장", saved: "저장됨!", back: "뒤로",
     by: "", noResults: "덱을 찾을 수 없습니다.",
+    favorite: "즐겨찾기", favorited: "즐겨찾기됨", favoriteAdd: "즐겨찾기에 추가", favoriteRemove: "즐겨찾기에서 제거",
     addToWhich: "어느 수업에 추가하시겠습니까?", noClass: "수업 없이 저장",
     noClassesYet: "아직 수업이 없습니다. 세션에서 먼저 만드세요.",
     cancel: "취소", langs: ["영어", "스페인어", "한국어"],
@@ -122,13 +125,14 @@ export default function Community({ lang: pageLang = "en", setLang: pageSetLang,
     const { data: { user } } = await supabase.auth.getUser();
     setUserId(user?.id);
     if (user) {
-      if (isStudent) {
-        // Load student's saved deck IDs so we can show "Saved" state on cards.
-        const { data: savedRows } = await supabase.from("saved_decks").select("deck_id").eq("student_id", user.id);
-        const map = {};
-        (savedRows || []).forEach(r => { map[r.deck_id] = true; });
-        setSaved(map);
-      } else {
+      // Both teachers and students have favorites in the same saved_decks table.
+      const { data: savedRows } = await supabase.from("saved_decks").select("deck_id").eq("student_id", user.id);
+      const map = {};
+      (savedRows || []).forEach(r => { map[r.deck_id] = true; });
+      setSaved(map);
+
+      // Teachers also need their classes for the "Save to my decks" picker.
+      if (!isStudent) {
         const { data: cls } = await supabase.from("classes").select("*").eq("teacher_id", user.id).order("created_at", { ascending: false });
         setUserClasses(cls || []);
       }
@@ -138,8 +142,8 @@ export default function Community({ lang: pageLang = "en", setLang: pageSetLang,
     setLoading(false);
   };
 
-  // Student save: just inserts a reference to saved_decks (no deck copy, no class picker).
-  const handleStudentSave = async (deck) => {
+  // Toggle favorite — works for both students and teachers (same saved_decks table).
+  const handleToggleFavorite = async (deck) => {
     if (!userId) return;
     const isAlreadySaved = saved[deck.id];
     if (isAlreadySaved) {
@@ -162,10 +166,10 @@ export default function Community({ lang: pageLang = "en", setLang: pageSetLang,
       title: deck.title, description: deck.description,
       subject: cls?.subject || deck.subject, grade: cls?.grade || deck.grade,
       language: deck.language, questions: deck.questions, tags: deck.tags, is_public: false,
+      cover_color: deck.cover_color, cover_icon: deck.cover_icon, cover_image_url: deck.cover_image_url,
     });
     if (!error) {
       await supabase.from("decks").update({ uses_count: (deck.uses_count || 0) + 1 }).eq("id", deck.id);
-      setSaved(prev => ({ ...prev, [deck.id]: true }));
       setSavingDeck(null);
     }
   };
@@ -210,15 +214,46 @@ export default function Community({ lang: pageLang = "en", setLang: pageSetLang,
                   {dk.tags.map((tag, i) => <span key={i} style={{ padding: "3px 8px", borderRadius: 6, background: C.bg, border: `1px solid ${C.border}`, fontSize: 11, color: C.textSecondary }}>#{tag}</span>)}
                 </div>
               )}
-              <button className="cm-btn" onClick={() => isStudent ? handleStudentSave(dk) : setSavingDeck(dk)} style={{
-                width: "100%", padding: 14, borderRadius: 10, fontSize: 15, fontWeight: 600,
-                background: saved[dk.id] ? C.greenSoft : `linear-gradient(135deg, ${C.accent}, ${C.purple})`,
-                color: saved[dk.id] ? C.green : "#fff",
-                border: saved[dk.id] ? `1px solid ${C.green}33` : "none",
-                display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
-              }}>
-                {saved[dk.id] ? <><CIcon name="check" size={14} inline /> {t.saved}</> : t.saveToMyDecks}
-              </button>
+              {isStudent ? (
+                <button className="cm-btn" onClick={() => handleToggleFavorite(dk)} style={{
+                  width: "100%", padding: 14, borderRadius: 10, fontSize: 15, fontWeight: 600,
+                  background: saved[dk.id] ? C.greenSoft : `linear-gradient(135deg, ${C.accent}, ${C.purple})`,
+                  color: saved[dk.id] ? C.green : "#fff",
+                  border: saved[dk.id] ? `1px solid ${C.green}33` : "none",
+                  display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+                  cursor: "pointer",
+                }}>
+                  {saved[dk.id] ? <><CIcon name="check" size={14} inline /> {t.saved}</> : t.saveToMyDecks}
+                </button>
+              ) : (
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button
+                    onClick={() => handleToggleFavorite(dk)}
+                    title={saved[dk.id] ? t.favoriteRemove : t.favoriteAdd}
+                    style={{
+                      padding: "14px 18px", borderRadius: 10, fontSize: 14, fontWeight: 600,
+                      background: saved[dk.id] ? "#FFF3E0" : C.bg,
+                      color: saved[dk.id] ? "#D9730D" : C.textSecondary,
+                      border: `1px solid ${saved[dk.id] ? "#D9730D40" : C.border}`,
+                      cursor: "pointer", fontFamily: "'Outfit',sans-serif",
+                      display: "inline-flex", alignItems: "center", gap: 6,
+                    }}
+                  >
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill={saved[dk.id] ? "#D9730D" : "none"} stroke={saved[dk.id] ? "#D9730D" : C.textSecondary} strokeWidth="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                    {saved[dk.id] ? t.favorited : t.favorite}
+                  </button>
+                  <button className="cm-btn" onClick={() => setSavingDeck(dk)} style={{
+                    flex: 1, padding: 14, borderRadius: 10, fontSize: 15, fontWeight: 600,
+                    background: `linear-gradient(135deg, ${C.accent}, ${C.purple})`,
+                    color: "#fff",
+                    border: "none",
+                    display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+                    cursor: "pointer",
+                  }}>
+                    {t.saveToMyDecks}
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>

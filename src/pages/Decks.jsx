@@ -2185,6 +2185,10 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang }) {
           <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
             {groups.map(group => {
               const collapsed = !!collapsedGroups[group.key];
+              // Tint header by deck color of the first deck in the group (when grouped by class/subject they share traits).
+              // Fallback to subject icon color via a neutral tint.
+              const firstDeck = group.decks[0];
+              const groupAccent = firstDeck ? resolveColor(firstDeck) : C.accent;
               return (
                 <div key={group.key}>
                   {group.label && (
@@ -2192,23 +2196,41 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang }) {
                       onClick={() => toggleGroup(group.key)}
                       style={{
                         width: "100%",
-                        display: "flex", alignItems: "center", gap: 8,
-                        padding: "8px 4px", marginBottom: 8,
-                        background: "transparent", border: "none", cursor: "pointer",
+                        display: "flex", alignItems: "center", gap: 12,
+                        padding: "12px 14px", marginBottom: 10,
+                        background: groupAccent + "10", // very light tint (~6% alpha)
+                        border: `1px solid ${groupAccent}26`,
+                        borderRadius: 10,
+                        cursor: "pointer",
                         fontFamily: "'Outfit',sans-serif", textAlign: "left",
                       }}
                     >
-                      <CIcon name={group.icon} size={16} inline />
-                      <span style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{group.label}</span>
-                      {group.sublabel && <span style={{ fontSize: 11, color: C.textMuted }}>· {group.sublabel}</span>}
-                      <span style={{ fontSize: 11, color: C.textMuted, padding: "1px 7px", borderRadius: 8, background: C.bgSoft, fontWeight: 600 }}>{group.decks.length}</span>
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style={{ marginLeft: "auto", transform: collapsed ? "rotate(-90deg)" : "rotate(0deg)", transition: "transform .15s ease" }}>
-                        <path d="M6 9l6 6 6-6" stroke={C.textMuted} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      <div style={{
+                        width: 32, height: 32, borderRadius: 8,
+                        background: groupAccent,
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        flexShrink: 0,
+                        boxShadow: `0 1px 3px ${groupAccent}33`,
+                      }}>
+                        <CIcon name={group.icon} size={16} inline />
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: C.text, lineHeight: 1.2 }}>{group.label}</div>
+                        {group.sublabel && <div style={{ fontSize: 11, color: C.textMuted, marginTop: 2 }}>{group.sublabel}</div>}
+                      </div>
+                      <span style={{
+                        fontSize: 11, color: groupAccent,
+                        padding: "2px 9px", borderRadius: 10,
+                        background: C.bg, border: `1px solid ${groupAccent}40`,
+                        fontWeight: 700, flexShrink: 0,
+                      }}>{group.decks.length}</span>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0, transform: collapsed ? "rotate(-90deg)" : "rotate(0deg)", transition: "transform .15s ease" }}>
+                        <path d="M6 9l6 6 6-6" stroke={C.textSecondary} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                       </svg>
                     </button>
                   )}
                   {!collapsed && (
-                    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 10, paddingLeft: group.label ? 8 : 0 }}>
                       {group.decks.map((dk, i) => renderDeckRow(dk, i, { isFav: tab === "favorites" }))}
                     </div>
                   )}
