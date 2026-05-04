@@ -268,9 +268,24 @@ function classFactor(classAverage) {
   return 1.0;
 }
 
+// Auto-decay: topics shown as overdue for too long without action get gradually
+// deprioritized. Not hidden — just less urgent visually so they don't clog the
+// top of the list. The teacher can always find them via "View all reviews".
+function autoDecayMultiplier(daysSinceReview, isOverdue) {
+  if (!isOverdue) return 1.0;
+  if (daysSinceReview <= 14) return 1.0; // no decay first 2 weeks overdue
+  if (daysSinceReview <= 30) return 0.7; // 30% decay
+  return 0.4; // 60% decay after 30 days
+}
+
 function computeScore(retention, daysSinceReview, isOverdue, classAverage) {
   const base = Math.max(0, 100 - retention);
-  return Math.round(base * urgencyMultiplier(daysSinceReview, isOverdue) * classFactor(classAverage));
+  return Math.round(
+    base
+    * urgencyMultiplier(daysSinceReview, isOverdue)
+    * classFactor(classAverage)
+    * autoDecayMultiplier(daysSinceReview, isOverdue)
+  );
 }
 
 export async function getReviewSuggestions(classId, classAverage = null) {
@@ -285,28 +300,35 @@ export async function getReviewSuggestions(classId, classAverage = null) {
   const now = new Date();
 
   // Recalculate current retention for each topic
-  const withCurrentRetention = topics.map(t => {
-    const currentRetention = calculateRetention(
-      t.last_reviewed_at,
-      t.interval_days || 1,
-      t.total_questions > 0 ? t.correct_answers / t.total_questions : 0
-    );
+  const withCurrentRetention = topics
+    // Filter out dismissed and currently-snoozed topics first.
+    .filter(t => {
+      if (t.dismissed === true) return false;
+      if (t.snoozed_until && new Date(t.snoozed_until) > now) return false;
+      return true;
+    })
+    .map(t => {
+      const currentRetention = calculateRetention(
+        t.last_reviewed_at,
+        t.interval_days || 1,
+        t.total_questions > 0 ? t.correct_answers / t.total_questions : 0
+      );
 
-    const nextReview = t.next_review_at ? new Date(t.next_review_at) : now;
-    const isOverdue = nextReview <= now;
-    const daysSinceReview = t.last_reviewed_at
-      ? Math.round((now - new Date(t.last_reviewed_at)) / (1000 * 60 * 60 * 24))
-      : 999;
+      const nextReview = t.next_review_at ? new Date(t.next_review_at) : now;
+      const isOverdue = nextReview <= now;
+      const daysSinceReview = t.last_reviewed_at
+        ? Math.round((now - new Date(t.last_reviewed_at)) / (1000 * 60 * 60 * 24))
+        : 999;
 
-    return {
-      ...t,
-      current_retention: currentRetention,
-      is_overdue: isOverdue,
-      days_since_review: daysSinceReview,
-      urgency: isOverdue ? (100 - currentRetention) + daysSinceReview : 0, // legacy, kept for compat
-      score: computeScore(currentRetention, daysSinceReview, isOverdue, classAverage),
-    };
-  });
+      return {
+        ...t,
+        current_retention: currentRetention,
+        is_overdue: isOverdue,
+        days_since_review: daysSinceReview,
+        urgency: isOverdue ? (100 - currentRetention) + daysSinceReview : 0, // legacy, kept for compat
+        score: computeScore(currentRetention, daysSinceReview, isOverdue, classAverage),
+      };
+    });
 
   // Filter to actionable suggestions and sort by new score (desc)
   const suggestions = withCurrentRetention
@@ -314,6 +336,45 @@ export async function getReviewSuggestions(classId, classAverage = null) {
     .sort((a, b) => b.score - a.score);
 
   return suggestions;
+}
+
+// ─── Snooze / Dismiss management (Phase 3) ─────────────────────────────────
+
+// Snooze a topic for `days` days. Snoozed topics don't appear in suggestions
+// until the snooze expires. Pass days=0 to clear an existing snooze.
+export async function snoozeTopic(topicId, days) {
+  if (!topicId) return { error: 'missing_topic_id' };
+  let snoozedUntil = null;
+  if (Number.isFinite(days) && days > 0) {
+    const d = new Date();
+    d.setDate(d.getDate() + days);
+    snoozedUntil = d.toISOString();
+  }
+  const { error } = await supabase
+    .from('topic_retention')
+    .update({ snoozed_until: snoozedUntil })
+    .eq('id', topicId);
+  return error ? { error: error.message } : { ok: true, snoozed_until: snoozedUntil };
+}
+
+// Permanently dismiss a topic from suggestions. Can be reversed with undismissTopic.
+export async function dismissTopic(topicId) {
+  if (!topicId) return { error: 'missing_topic_id' };
+  const { error } = await supabase
+    .from('topic_retention')
+    .update({ dismissed: true })
+    .eq('id', topicId);
+  return error ? { error: error.message } : { ok: true };
+}
+
+// Undo a dismiss (re-enable suggestions for this topic).
+export async function undismissTopic(topicId) {
+  if (!topicId) return { error: 'missing_topic_id' };
+  const { error } = await supabase
+    .from('topic_retention')
+    .update({ dismissed: false, snoozed_until: null })
+    .eq('id', topicId);
+  return error ? { error: error.message } : { ok: true };
 }
 
 // ─── Get all reviews across all classes for a teacher ──────────────────────

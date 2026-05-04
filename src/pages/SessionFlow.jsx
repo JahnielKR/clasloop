@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { generateQuestions, SUPPORTED_FILES } from "../lib/ai";
-import { processSessionResults, getReviewSuggestions, getClassRetentionOverview, getAllReviewsForTeacher, buildSmartBatches } from "../lib/spaced-repetition";
+import { processSessionResults, getReviewSuggestions, getClassRetentionOverview, getAllReviewsForTeacher, buildSmartBatches, snoozeTopic, dismissTopic, undismissTopic } from "../lib/spaced-repetition";
 import { CIcon } from "../components/Icons";
 import { DeckCover } from "../lib/deck-cover";
 
@@ -61,6 +61,11 @@ const i18n = {
     smartBatchSub: "topics, avg",
     review: "Review",
     daysOverdue: "d overdue",
+    snoozeMenu: "Options",
+    snooze1Day: "Snooze 1 day", snooze1Week: "Snooze 1 week",
+    dismissTopic: "Dismiss this topic",
+    undoSnooze: "Undo", snoozedFor: "Snoozed for", snoozedDay: "1 day", snoozedWeek: "1 week",
+    topicDismissed: "Topic dismissed",
   },
   es: {
     pageTitle: "Sesiones", yourClasses: "Tus Clases", yourClassesSub: "Selecciona una clase para crear una sesión, o crea una nueva.",
@@ -102,6 +107,11 @@ const i18n = {
     smartBatchSub: "temas, promedio",
     review: "Repasar",
     daysOverdue: "d vencido",
+    snoozeMenu: "Opciones",
+    snooze1Day: "Posponer 1 día", snooze1Week: "Posponer 1 semana",
+    dismissTopic: "Descartar este tema",
+    undoSnooze: "Deshacer", snoozedFor: "Pospuesto por", snoozedDay: "1 día", snoozedWeek: "1 semana",
+    topicDismissed: "Tema descartado",
   },
   ko: {
     pageTitle: "세션", yourClasses: "내 수업", yourClassesSub: "수업을 선택하여 세션을 만들거나 새 수업을 만드세요.",
@@ -143,6 +153,11 @@ const i18n = {
     smartBatchSub: "개 주제, 평균",
     review: "복습",
     daysOverdue: "일 지남",
+    snoozeMenu: "옵션",
+    snooze1Day: "1일 미루기", snooze1Week: "1주 미루기",
+    dismissTopic: "이 주제 제외",
+    undoSnooze: "실행 취소", snoozedFor: "미룸:", snoozedDay: "1일", snoozedWeek: "1주",
+    topicDismissed: "주제가 제외됨",
   },
 };
 
@@ -208,6 +223,10 @@ const interactiveCSS = `
   .cl-review-row:hover { background: #F5F9FF !important; border-color: #2383E266 !important; transform: translateX(2px); }
   .cl-review-row:hover .cl-suggested-arrow { transform: translateX(3px); color: #2383E2 !important; }
   .cl-review-row:active { transform: scale(.99); }
+  .cl-menu-btn:hover { background: #E8F0FE !important; color: #2383E2 !important; }
+  .cl-menu-item:hover { background: #F5F9FF !important; }
+  .cl-toast { animation: toastSlide .25s ease-out; }
+  @keyframes toastSlide { from { opacity: 0; transform: translate(-50%, 12px); } to { opacity: 1; transform: translate(-50%, 0); } }
   @keyframes flashGlow {
     0%   { box-shadow: 0 0 0 0 #2383E266, 0 0 18px 6px #2383E244; }
     100% { box-shadow: 0 0 0 0 transparent, 0 0 0 0 transparent; }
@@ -270,6 +289,81 @@ function PageHeader({ title, icon, lang, setLang }) {
   );
 }
 
+// ─── Phase 3: Review row action menu (snooze / dismiss) ───
+function ReviewMenu({ topicId, isOpen, onOpen, onSnooze, onDismiss, t }) {
+  return (
+    <div className="cl-menu-anchor" style={{ position: "relative", flexShrink: 0 }} onClick={(e) => e.stopPropagation()}>
+      <button
+        className="cl-menu-btn"
+        onClick={(e) => { e.stopPropagation(); e.preventDefault(); onOpen(isOpen ? null : topicId); }}
+        title={t.snoozeMenu}
+        aria-label={t.snoozeMenu}
+        style={{
+          width: 26, height: 26, borderRadius: 6,
+          background: isOpen ? C.accentSoft : "transparent",
+          color: isOpen ? C.accent : C.textMuted,
+          border: "none", cursor: "pointer", padding: 0,
+          display: "flex", alignItems: "center", justifyContent: "center",
+        }}
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+          <circle cx="12" cy="5" r="1.5" fill="currentColor"/>
+          <circle cx="12" cy="12" r="1.5" fill="currentColor"/>
+          <circle cx="12" cy="19" r="1.5" fill="currentColor"/>
+        </svg>
+      </button>
+      {isOpen && (
+        <div
+          className="fade-up"
+          onClick={(e) => e.stopPropagation()}
+          style={{
+            position: "absolute", top: "calc(100% + 4px)", right: 0,
+            background: "#fff",
+            borderRadius: 8,
+            border: `1px solid ${C.border}`,
+            boxShadow: "0 6px 20px rgba(0,0,0,0.10)",
+            minWidth: 180, zIndex: 10,
+            overflow: "hidden",
+          }}
+        >
+          <button
+            onClick={(ev) => { ev.preventDefault(); ev.stopPropagation(); onSnooze(1, t.snoozedDay); }}
+            className="cl-menu-item"
+            style={menuItemStyle}
+          >
+            <CIcon name="clock" size={13} inline /> {t.snooze1Day}
+          </button>
+          <button
+            onClick={(ev) => { ev.preventDefault(); ev.stopPropagation(); onSnooze(7, t.snoozedWeek); }}
+            className="cl-menu-item"
+            style={menuItemStyle}
+          >
+            <CIcon name="clock" size={13} inline /> {t.snooze1Week}
+          </button>
+          <div style={{ height: 1, background: C.border }} />
+          <button
+            onClick={(ev) => { ev.preventDefault(); ev.stopPropagation(); onDismiss(); }}
+            className="cl-menu-item"
+            style={{ ...menuItemStyle, color: C.red }}
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M3 6H21M8 6V4C8 3.4 8.4 3 9 3H15C15.6 3 16 3.4 16 4V6M19 6L18 20C18 20.6 17.6 21 17 21H7C6.4 21 6 20.6 6 20L5 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
+            {t.dismissTopic}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+const menuItemStyle = {
+  display: "flex", alignItems: "center", gap: 8,
+  width: "100%", padding: "9px 12px",
+  background: "transparent", border: "none",
+  fontSize: 13, color: C.text, fontWeight: 500,
+  cursor: "pointer", textAlign: "left",
+  fontFamily: "'Outfit',sans-serif",
+};
+
 // ─── Step 1: Class Setup ────────────────────────────
 function ClassSetup({ userId, onClassReady, t }) {
   const [classes, setClasses] = useState([]);
@@ -300,7 +394,86 @@ function ClassSetup({ userId, onClassReady, t }) {
   const [reviewFilter, setReviewFilter] = useState("all"); // "all" | "critical" | "overdue" | classId
   const [reviewSearch, setReviewSearch] = useState("");
 
+  // ── Phase 3: Snooze / Dismiss ──
+  const [openMenuId, setOpenMenuId] = useState(null); // id of the topic whose menu is open
+  const [toast, setToast] = useState(null); // { message, action, label }
+  const toastTimerRef = useRef(null);
+
   useEffect(() => { loadClasses(); }, [userId]);
+
+  // Close action menu when clicking outside.
+  useEffect(() => {
+    if (openMenuId === null) return;
+    const onDocClick = (e) => {
+      if (!e.target.closest(".cl-menu-anchor")) setOpenMenuId(null);
+    };
+    document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
+  }, [openMenuId]);
+
+  // Cleanup any pending toast timer on unmount.
+  useEffect(() => () => { if (toastTimerRef.current) clearTimeout(toastTimerRef.current); }, []);
+
+  // ── Phase 3 actions: snooze / dismiss / undo ──
+  const showToast = (message, action = null, label = null) => {
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    setToast({ message, action, label });
+    toastTimerRef.current = setTimeout(() => setToast(null), 5000);
+  };
+
+  // Optimistically remove a topic from the local lists (suggestions + allReviews).
+  // Returns the previous state so we can restore on undo.
+  const removeTopicLocally = (topicId) => {
+    let prevSuggestions = null;
+    let prevAllReviews = null;
+    setSuggestions(prev => {
+      prevSuggestions = prev;
+      const next = {};
+      for (const cid of Object.keys(prev)) next[cid] = prev[cid].filter(s => s.id !== topicId);
+      return next;
+    });
+    setAllReviews(prev => {
+      prevAllReviews = prev;
+      return prev.filter(r => r.id !== topicId);
+    });
+    return { prevSuggestions, prevAllReviews };
+  };
+
+  const restoreLocally = (prevSuggestions, prevAllReviews) => {
+    if (prevSuggestions) setSuggestions(prevSuggestions);
+    if (prevAllReviews) setAllReviews(prevAllReviews);
+  };
+
+  const handleSnooze = async (topicId, days, label) => {
+    setOpenMenuId(null);
+    const { prevSuggestions, prevAllReviews } = removeTopicLocally(topicId);
+    const result = await snoozeTopic(topicId, days);
+    if (result.error) {
+      restoreLocally(prevSuggestions, prevAllReviews);
+      showToast(result.error);
+      return;
+    }
+    showToast(`${t.snoozedFor} ${label}`, async () => {
+      // Undo: clear snooze and restore optimistic state.
+      await snoozeTopic(topicId, 0);
+      restoreLocally(prevSuggestions, prevAllReviews);
+    }, t.undoSnooze);
+  };
+
+  const handleDismiss = async (topicId) => {
+    setOpenMenuId(null);
+    const { prevSuggestions, prevAllReviews } = removeTopicLocally(topicId);
+    const result = await dismissTopic(topicId);
+    if (result.error) {
+      restoreLocally(prevSuggestions, prevAllReviews);
+      showToast(result.error);
+      return;
+    }
+    showToast(t.topicDismissed, async () => {
+      await undismissTopic(topicId);
+      restoreLocally(prevSuggestions, prevAllReviews);
+    }, t.undoSnooze);
+  };
 
   const loadClasses = async () => {
     const { data } = await supabase.from("classes").select("*").eq("teacher_id", userId).order("created_at", { ascending: false });
@@ -606,16 +779,20 @@ function ClassSetup({ userId, onClassReady, t }) {
 
                         if (!matchingDeck) {
                           return (
-                            <button
+                            <div
                               key={i}
                               className="cl-suggested-row"
+                              role="button"
+                              tabIndex={0}
                               onClick={() => onClassReady(cls, st.topic, "create")}
+                              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") onClassReady(cls, st.topic, "create"); }}
                               style={{
                                 display: "flex", alignItems: "center", gap: 10,
                                 padding: "12px 14px", borderRadius: 8,
                                 background: C.bg, border: `1px solid ${C.border}`,
                                 textAlign: "left", width: "100%",
                                 fontFamily: "'Outfit',sans-serif",
+                                cursor: "pointer",
                               }}
                               title={t.tapToReview}
                             >
@@ -629,8 +806,16 @@ function ClassSetup({ userId, onClassReady, t }) {
                                 </div>
                               </div>
                               <span style={{ fontSize: 13, fontWeight: 700, fontFamily: MONO, color: retCol(st.current_retention), minWidth: 36, textAlign: "right", flexShrink: 0 }}>{st.current_retention}%</span>
+                              <ReviewMenu
+                                topicId={st.id}
+                                isOpen={openMenuId === st.id}
+                                onOpen={setOpenMenuId}
+                                onSnooze={(days, label) => handleSnooze(st.id, days, label)}
+                                onDismiss={() => handleDismiss(st.id)}
+                                t={t}
+                              />
                               <span className="cl-suggested-arrow" style={{ fontSize: 18, color: C.textMuted, flexShrink: 0, lineHeight: 1 }}>→</span>
-                            </button>
+                            </div>
                           );
                         }
 
@@ -646,6 +831,14 @@ function ClassSetup({ userId, onClassReady, t }) {
                                 <div style={{ fontSize: 11, color: C.textMuted, marginTop: 1 }}>{dayLabel}</div>
                               </div>
                               <span style={{ fontSize: 13, fontWeight: 700, fontFamily: MONO, color: retCol(st.current_retention), minWidth: 36, textAlign: "right", flexShrink: 0 }}>{st.current_retention}%</span>
+                              <ReviewMenu
+                                topicId={st.id}
+                                isOpen={openMenuId === st.id}
+                                onOpen={setOpenMenuId}
+                                onSnooze={(days, label) => handleSnooze(st.id, days, label)}
+                                onDismiss={() => handleDismiss(st.id)}
+                                t={t}
+                              />
                             </div>
                             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
                               <button
@@ -785,10 +978,13 @@ function ClassSetup({ userId, onClassReady, t }) {
                       {filteredReviews.map((r, i) => {
                         const dayLabel = r.is_overdue ? `${r.days_since_review}${t.daysOverdue}` : (r.days_since_review === 0 ? t.today : `${r.days_since_review}${t.daysAgo}`);
                         return (
-                          <button
+                          <div
                             key={`${r.id}-${i}`}
                             className="cl-review-row"
+                            role="button"
+                            tabIndex={0}
                             onClick={() => onClassReady(r.class, r.topic, "create")}
+                            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") onClassReady(r.class, r.topic, "create"); }}
                             style={{
                               display: "flex", alignItems: "center", gap: 8,
                               padding: "9px 11px", borderRadius: 7,
@@ -809,8 +1005,16 @@ function ClassSetup({ userId, onClassReady, t }) {
                             <span style={{ fontSize: 12, fontWeight: 700, fontFamily: MONO, color: retCol(r.current_retention), minWidth: 34, textAlign: "right", flexShrink: 0 }}>
                               {r.current_retention}%
                             </span>
+                            <ReviewMenu
+                              topicId={r.id}
+                              isOpen={openMenuId === r.id}
+                              onOpen={setOpenMenuId}
+                              onSnooze={(days, label) => handleSnooze(r.id, days, label)}
+                              onDismiss={() => handleDismiss(r.id)}
+                              t={t}
+                            />
                             <span className="cl-suggested-arrow" style={{ fontSize: 16, color: C.textMuted, flexShrink: 0, lineHeight: 1 }}>→</span>
-                          </button>
+                          </div>
                         );
                       })}
                     </div>
@@ -919,6 +1123,48 @@ function ClassSetup({ userId, onClassReady, t }) {
             <CIcon name="plus" size={14} inline /> {t.newClassBtn}
           </Btn>
         </Card>
+      )}
+
+      {/* ── Phase 3: Toast for snooze/dismiss with undo ── */}
+      {toast && (
+        <div
+          className="cl-toast"
+          role="status"
+          style={{
+            position: "fixed",
+            bottom: 24,
+            left: "50%",
+            transform: "translateX(-50%)",
+            background: C.text,
+            color: "#fff",
+            padding: "10px 14px 10px 18px",
+            borderRadius: 10,
+            display: "flex", alignItems: "center", gap: 14,
+            fontSize: 13, fontWeight: 500,
+            fontFamily: "'Outfit',sans-serif",
+            boxShadow: "0 8px 24px rgba(0,0,0,0.20)",
+            zIndex: 1000,
+            maxWidth: "calc(100vw - 40px)",
+          }}
+        >
+          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{toast.message}</span>
+          {toast.action && toast.label && (
+            <button
+              onClick={async () => {
+                if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+                setToast(null);
+                await toast.action();
+              }}
+              style={{
+                padding: "4px 10px", borderRadius: 6, fontSize: 12, fontWeight: 700,
+                background: "rgba(255,255,255,0.15)", color: "#fff",
+                border: "1px solid rgba(255,255,255,0.3)",
+                cursor: "pointer", fontFamily: "'Outfit',sans-serif",
+                flexShrink: 0,
+              }}
+            >{toast.label}</button>
+          )}
+        </div>
       )}
     </div>
   );
