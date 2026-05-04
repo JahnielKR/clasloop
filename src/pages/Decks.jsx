@@ -1985,6 +1985,7 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
     <div style={{ padding: "28px 20px" }}>
       <style>{css}</style>
       <PageHeader title={t.pageTitle} icon="book" lang={l} setLang={setLang} maxWidth={600} />
+      <CreateDeckEditor t={t} l={l} onBack={() => { setView("list"); setEditing(null); }} userId={userId} userClasses={userClasses} existingDeck={editing} onCreated={(d) => {
         if (editing) setMyDecks(prev => prev.map(dk => dk.id === d.id ? d : dk));
         else setMyDecks(prev => [d, ...prev]);
         setView("list"); setEditing(null);
