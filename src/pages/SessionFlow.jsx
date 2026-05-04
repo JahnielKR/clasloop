@@ -562,24 +562,34 @@ function CreateSession({ cls, userId, onSessionCreated, onBack, t, lang, reviewT
         {deckData ? t.backToDecks : t.edit}
       </button>
       <h2 style={{ fontFamily: "'Outfit'", fontSize: 20, fontWeight: 700, marginBottom: 4 }}>{topic}</h2>
-      <p style={{ fontSize: 13, color: C.textSecondary, marginBottom: 16 }}>{questions.length} {t.questions} · {ACTIVITY_TYPES.find(a => a.id === activityType)?.label[lang] || activityType} · {cls.name}</p>
+      <p style={{ fontSize: 13, color: C.textSecondary, marginBottom: 16 }}>{questions.length} {t.questions} · {cls.name}</p>
       <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 20 }}>
-        {questions.map((q, i) => (
+        {questions.map((q, i) => {
+          const qt = q.type || activityType;
+          const correctSet = Array.isArray(q.correct) ? new Set(q.correct) : null;
+          return (
           <Card key={i} style={{ padding: 16 }}>
-            <p style={{ fontSize: 12, color: C.textMuted, marginBottom: 6 }}>Q{i + 1}</p>
+            <p style={{ fontSize: 12, color: C.textMuted, marginBottom: 6 }}>Q{i + 1} · {ACTIVITY_TYPES.find(a => a.id === qt)?.label[lang] || qt}</p>
             <p style={{ fontSize: 14, fontWeight: 500, marginBottom: 10, lineHeight: 1.4 }}>{q.q}</p>
 
-            {/* MCQ */}
-            {q.options && activityType === "mcq" && (
+            {/* MCQ (single or multi-correct) */}
+            {qt === "mcq" && Array.isArray(q.options) && (
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
-                {q.options.map((o, j) => (
-                  <div key={j} className="cl-option" style={{ padding: "7px 10px", borderRadius: 6, fontSize: 13, background: j === q.correct ? C.greenSoft : C.bgSoft, color: j === q.correct ? C.green : C.textSecondary, fontWeight: j === q.correct ? 500 : 400, border: `1px solid ${j === q.correct ? C.green + "33" : "transparent"}` }}>{o}</div>
-                ))}
+                {q.options.map((o, j) => {
+                  const ok = correctSet ? correctSet.has(j) : j === q.correct;
+                  const optText = typeof o === "string" ? o : (o?.text || "");
+                  const optImg = (typeof o === "object" && o?.image_url) ? o.image_url : null;
+                  return (
+                    <div key={j} className="cl-option" style={{ padding: optImg ? 0 : "7px 10px", borderRadius: 6, fontSize: 13, background: ok ? C.greenSoft : C.bgSoft, color: ok ? C.green : C.textSecondary, fontWeight: ok ? 500 : 400, border: `1px solid ${ok ? C.green + "33" : "transparent"}`, overflow: "hidden", minHeight: optImg ? 60 : "auto" }}>
+                      {optImg ? <div style={{ width: "100%", height: 60, backgroundImage: `url(${optImg})`, backgroundSize: "cover", backgroundPosition: "center" }} /> : optText}
+                    </div>
+                  );
+                })}
               </div>
             )}
 
             {/* True/False */}
-            {activityType === "tf" && (
+            {qt === "tf" && (
               <div style={{ display: "flex", gap: 8 }}>
                 <div style={{ padding: "6px 14px", borderRadius: 6, fontSize: 13, fontWeight: 600, background: q.correct === true ? C.greenSoft : C.bgSoft, color: q.correct === true ? C.green : C.textMuted, border: `1px solid ${q.correct === true ? C.green + "33" : C.border}` }}>True</div>
                 <div style={{ padding: "6px 14px", borderRadius: 6, fontSize: 13, fontWeight: 600, background: q.correct === false ? C.greenSoft : C.bgSoft, color: q.correct === false ? C.green : C.textMuted, border: `1px solid ${q.correct === false ? C.green + "33" : C.border}` }}>False</div>
@@ -587,14 +597,21 @@ function CreateSession({ cls, userId, onSessionCreated, onBack, t, lang, reviewT
             )}
 
             {/* Fill in the Blank */}
-            {activityType === "fill" && q.answer && (
-              <div style={{ padding: "6px 12px", borderRadius: 6, background: C.greenSoft, fontSize: 13, color: C.green, fontWeight: 500, display: "inline-flex", alignItems: "center", gap: 6 }}>
-                <CIcon name="check" size={12} inline /> {q.answer}
+            {qt === "fill" && q.answer && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                <div style={{ padding: "6px 12px", borderRadius: 6, background: C.greenSoft, fontSize: 13, color: C.green, fontWeight: 500, display: "inline-flex", alignItems: "center", gap: 6, alignSelf: "flex-start" }}>
+                  <CIcon name="check" size={12} inline /> {q.answer}
+                </div>
+                {Array.isArray(q.alternatives) && q.alternatives.length > 0 && (
+                  <p style={{ fontSize: 11, color: C.textMuted, margin: 0 }}>
+                    Also accepted: {q.alternatives.join(", ")}
+                  </p>
+                )}
               </div>
             )}
 
             {/* Ordering */}
-            {activityType === "order" && q.items && (
+            {qt === "order" && Array.isArray(q.items) && (
               <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                 {q.items.map((item, j) => (
                   <div key={j} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 10px", borderRadius: 6, background: C.bgSoft, fontSize: 13 }}>
@@ -606,7 +623,7 @@ function CreateSession({ cls, userId, onSessionCreated, onBack, t, lang, reviewT
             )}
 
             {/* Matching */}
-            {activityType === "match" && q.pairs && (
+            {qt === "match" && Array.isArray(q.pairs) && (
               <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                 {q.pairs.map((p, j) => (
                   <div key={j} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 10px", borderRadius: 6, background: C.bgSoft, fontSize: 13 }}>
@@ -618,16 +635,15 @@ function CreateSession({ cls, userId, onSessionCreated, onBack, t, lang, reviewT
               </div>
             )}
 
-            {/* Fallback for MCQ-like with options but different activityType */}
-            {q.options && activityType !== "mcq" && activityType !== "tf" && !q.items && !q.pairs && !q.answer && (
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
-                {q.options.map((o, j) => (
-                  <div key={j} className="cl-option" style={{ padding: "7px 10px", borderRadius: 6, fontSize: 13, background: j === q.correct ? C.greenSoft : C.bgSoft, color: j === q.correct ? C.green : C.textSecondary, fontWeight: j === q.correct ? 500 : 400, border: `1px solid ${j === q.correct ? C.green + "33" : "transparent"}` }}>{o}</div>
-                ))}
+            {/* Free Text */}
+            {qt === "free" && (
+              <div style={{ padding: "8px 12px", borderRadius: 6, background: C.bgSoft, fontSize: 12, color: C.textMuted, fontStyle: "italic", border: `1px dashed ${C.border}` }}>
+                Open response — students will type freely
               </div>
             )}
           </Card>
-        ))}
+          );
+        })}
       </div>
       {deckData ? (
         <div style={{ display: "flex", gap: 10 }}>

@@ -22,6 +22,7 @@ const ACTIVITY_TYPES = [
   { id: "fill", icon: "fillblank", label: { en: "Fill in the Blank", es: "Completar", ko: "빈칸 채우기" } },
   { id: "order", icon: "ordering", label: { en: "Put in Order", es: "Ordenar", ko: "순서 맞추기" } },
   { id: "match", icon: "matching", label: { en: "Matching Pairs", es: "Emparejar", ko: "짝 맞추기" } },
+  { id: "free", icon: "study", label: { en: "Free Text", es: "Respuesta Libre", ko: "자유 응답" } },
 ];
 
 const i18n = {
@@ -57,6 +58,13 @@ const i18n = {
     chooseType: "Choose a question type", cancel: "Cancel",
     questionsEmpty: "No questions yet. Click \u201cAdd question\u201d below to get started.",
     questionsHint: "Drag to reorder · Click any row to edit",
+    multipleCorrect: "Multiple correct answers",
+    addOption: "+ Add option", removeOption: "Remove",
+    addItem: "+ Add step", addPair: "+ Add pair",
+    acceptedAlts: "Accepted alternatives (optional)",
+    acceptedAltsHint: "Comma-separated. Any of these will be accepted.",
+    freeTextHint: "Students will write a free-form response. No automatic grading.",
+    correctAnswers: "Correct answers", correctAnswer: "Correct answer",
   },
   es: {
     pageTitle: "Decks", subtitle: "Crea y gestiona tus colecciones de preguntas",
@@ -90,6 +98,13 @@ const i18n = {
     chooseType: "Elige un tipo de pregunta", cancel: "Cancelar",
     questionsEmpty: "Aún no hay preguntas. Haz click en \u201cAgregar pregunta\u201d abajo para empezar.",
     questionsHint: "Arrastra para reordenar · Haz click en una fila para editarla",
+    multipleCorrect: "Múltiples respuestas correctas",
+    addOption: "+ Agregar opción", removeOption: "Quitar",
+    addItem: "+ Agregar paso", addPair: "+ Agregar par",
+    acceptedAlts: "Alternativas aceptadas (opcional)",
+    acceptedAltsHint: "Separadas por comas. Cualquiera será aceptada.",
+    freeTextHint: "Los estudiantes escribirán una respuesta libre. Sin evaluación automática.",
+    correctAnswers: "Respuestas correctas", correctAnswer: "Respuesta correcta",
   },
   ko: {
     pageTitle: "덱", subtitle: "문제 모음을 만들고 관리하세요",
@@ -123,6 +138,13 @@ const i18n = {
     chooseType: "문제 유형 선택", cancel: "취소",
     questionsEmpty: "아직 문제가 없습니다. 아래 \u201c문제 추가\u201d를 눌러 시작하세요.",
     questionsHint: "드래그하여 순서 변경 · 행을 클릭하여 편집",
+    multipleCorrect: "정답 여러 개",
+    addOption: "+ 선택지 추가", removeOption: "제거",
+    addItem: "+ 단계 추가", addPair: "+ 짝 추가",
+    acceptedAlts: "허용된 다른 답 (선택)",
+    acceptedAltsHint: "쉼표로 구분. 모두 정답으로 인정됩니다.",
+    freeTextHint: "학생이 자유롭게 응답합니다. 자동 채점 없음.",
+    correctAnswers: "정답", correctAnswer: "정답",
   },
 };
 
@@ -150,6 +172,18 @@ const css = `
   .dk-q-row:hover { border-color: #2383E266 !important; box-shadow: 0 4px 14px rgba(35,131,226,0.10); transform: translateY(-1px); }
   .dk-q-row[data-expanded="true"] { border-color: #2383E2 !important; box-shadow: 0 6px 18px rgba(35,131,226,0.15); }
   .dk-q-row[data-dragging="true"] { opacity: .4; transform: scale(.98); }
+  .dk-q-ghost {
+    position: fixed;
+    pointer-events: none;
+    z-index: 9999;
+    transform: rotate(1.5deg) scale(1.02);
+    transition: none;
+    box-shadow: 0 14px 40px rgba(35,131,226,0.35), 0 4px 12px rgba(0,0,0,0.15);
+    border-radius: 10px;
+    overflow: hidden;
+    opacity: 0.95;
+  }
+  .dk-q-ghost > * { background: #FFFFFF !important; }
   .dk-q-row[data-drop-target="true"]::before {
     content: "";
     position: absolute;
@@ -170,6 +204,9 @@ const css = `
   .dk-type-card:active { transform: scale(.97); }
   .dk-add-another:hover { background: #E8F0FE !important; border-color: #2383E2 !important; }
   .dk-add-another:active { transform: scale(.99); }
+  .dk-add-mini { transition: all .15s ease; }
+  .dk-add-mini:hover { background: #E8F0FE !important; border-color: #2383E2 !important; color: #2383E2 !important; }
+  .dk-add-mini:active { transform: scale(.97); }
   @keyframes flashGlow {
     0%   { box-shadow: 0 0 0 0 #2383E266, 0 0 18px 6px #2383E244; }
     100% { box-shadow: 0 0 0 0 transparent, 0 0 0 0 transparent; }
@@ -190,6 +227,20 @@ const css = `
 
 const inp = { fontFamily: "'Outfit',sans-serif", background: C.bg, border: `1px solid ${C.border}`, color: C.text, padding: "10px 14px", borderRadius: 8, fontSize: 14, width: "100%", outline: "none" };
 const sel = { ...inp, cursor: "pointer", appearance: "none", backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2 4l4 4 4-4' fill='none' stroke='%239B9B9B' stroke-width='1.5'/%3E%3C/svg%3E")`, backgroundRepeat: "no-repeat", backgroundPosition: "right 12px center", paddingRight: 32 };
+const addMiniBtn = {
+  display: "inline-flex", alignItems: "center", gap: 5,
+  padding: "6px 12px", borderRadius: 7, fontSize: 12, fontWeight: 600,
+  background: "transparent", color: C.accent,
+  border: `1px dashed ${C.accent}66`, cursor: "pointer",
+  fontFamily: "'Outfit',sans-serif",
+};
+const miniDeleteBtn = {
+  width: 28, height: 28, borderRadius: 6, flexShrink: 0,
+  background: "transparent", color: C.textMuted,
+  border: "none", cursor: "pointer",
+  display: "flex", alignItems: "center", justifyContent: "center",
+  padding: 0,
+};
 
 const LangBadge = ({ lang }) => {
   const l = { en: "EN", es: "ES", ko: "한" };
@@ -276,10 +327,11 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
   // Build a blank question of the given type (defaults to mcq).
   const blankQuestion = (type) => {
     if (type === "tf")    return { type: "tf",    q: "", correct: true };
-    if (type === "fill")  return { type: "fill",  q: "", answer: "" };
+    if (type === "fill")  return { type: "fill",  q: "", answer: "", alternatives: [] };
     if (type === "order") return { type: "order", q: "", items: ["", "", "", ""] };
     if (type === "match") return { type: "match", q: "", pairs: [{ left: "", right: "" }, { left: "", right: "" }, { left: "", right: "" }] };
-    return { type: "mcq", q: "", options: ["", "", "", ""], correct: 0 };
+    if (type === "free")  return { type: "free",  q: "" };
+    return { type: "mcq", q: "", options: ["", "", "", ""], correct: 0, multi: false };
   };
 
   const addQuestion = (type) => {
@@ -313,6 +365,89 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
   const updateOption = (qIdx, optIdx, val) => setQuestions(prev => prev.map((q, i) => i === qIdx ? { ...q, options: q.options.map((o, j) => j === optIdx ? val : o) } : q));
   const updateItem = (qIdx, itemIdx, val) => setQuestions(prev => prev.map((q, i) => i === qIdx ? { ...q, items: q.items.map((it, j) => j === itemIdx ? val : it) } : q));
   const updatePair = (qIdx, pairIdx, side, val) => setQuestions(prev => prev.map((q, i) => i === qIdx ? { ...q, pairs: q.pairs.map((p, j) => j === pairIdx ? { ...p, [side]: val } : p) } : q));
+
+  // ── Dynamic add/remove for options, items, pairs ──
+  const MAX_OPTIONS = 8;
+  const MAX_ITEMS = 12;
+  const MAX_PAIRS = 12;
+
+  const addOption = (qIdx) => setQuestions(prev => prev.map((q, i) => {
+    if (i !== qIdx || (q.options || []).length >= MAX_OPTIONS) return q;
+    return { ...q, options: [...(q.options || []), ""] };
+  }));
+
+  const removeOption = (qIdx, optIdx) => setQuestions(prev => prev.map((q, i) => {
+    if (i !== qIdx) return q;
+    const opts = q.options || [];
+    if (opts.length <= 2) return q;
+    const newOpts = opts.filter((_, j) => j !== optIdx);
+    // Adjust correct index/array.
+    let newCorrect = q.correct;
+    if (Array.isArray(q.correct)) {
+      newCorrect = q.correct
+        .filter(idx => idx !== optIdx)
+        .map(idx => idx > optIdx ? idx - 1 : idx);
+    } else if (typeof q.correct === "number") {
+      if (q.correct === optIdx) newCorrect = 0;
+      else if (q.correct > optIdx) newCorrect = q.correct - 1;
+    }
+    return { ...q, options: newOpts, correct: newCorrect };
+  }));
+
+  const addItem = (qIdx) => setQuestions(prev => prev.map((q, i) => {
+    if (i !== qIdx || (q.items || []).length >= MAX_ITEMS) return q;
+    return { ...q, items: [...(q.items || []), ""] };
+  }));
+
+  const removeItem = (qIdx, itemIdx) => setQuestions(prev => prev.map((q, i) => {
+    if (i !== qIdx) return q;
+    const items = q.items || [];
+    if (items.length <= 2) return q;
+    return { ...q, items: items.filter((_, j) => j !== itemIdx) };
+  }));
+
+  const addPair = (qIdx) => setQuestions(prev => prev.map((q, i) => {
+    if (i !== qIdx || (q.pairs || []).length >= MAX_PAIRS) return q;
+    return { ...q, pairs: [...(q.pairs || []), { left: "", right: "" }] };
+  }));
+
+  const removePair = (qIdx, pairIdx) => setQuestions(prev => prev.map((q, i) => {
+    if (i !== qIdx) return q;
+    const pairs = q.pairs || [];
+    if (pairs.length <= 2) return q;
+    return { ...q, pairs: pairs.filter((_, j) => j !== pairIdx) };
+  }));
+
+  // Toggle MCQ between single/multi. When switching to multi, convert number to array.
+  // When switching to single, take the first array element.
+  const toggleMcqMulti = (qIdx) => setQuestions(prev => prev.map((q, i) => {
+    if (i !== qIdx) return q;
+    const willBeMulti = !q.multi;
+    let nextCorrect = q.correct;
+    if (willBeMulti) {
+      nextCorrect = Array.isArray(q.correct) ? q.correct : (typeof q.correct === "number" ? [q.correct] : [0]);
+    } else {
+      nextCorrect = Array.isArray(q.correct) ? (q.correct[0] ?? 0) : (typeof q.correct === "number" ? q.correct : 0);
+    }
+    return { ...q, multi: willBeMulti, correct: nextCorrect };
+  }));
+
+  const toggleMcqCorrect = (qIdx, optIdx) => setQuestions(prev => prev.map((q, i) => {
+    if (i !== qIdx) return q;
+    if (q.multi || Array.isArray(q.correct)) {
+      const set = new Set(Array.isArray(q.correct) ? q.correct : []);
+      if (set.has(optIdx)) set.delete(optIdx); else set.add(optIdx);
+      // Always keep at least one correct? Allow zero for now; isQComplete enforces.
+      return { ...q, correct: Array.from(set).sort((a, b) => a - b) };
+    }
+    return { ...q, correct: optIdx };
+  }));
+
+  const isMcqCorrect = (q, optIdx) => {
+    if (Array.isArray(q.correct)) return q.correct.includes(optIdx);
+    return q.correct === optIdx;
+  };
+
   const removeQ = (idx) => {
     setQuestions(prev => prev.filter((_, i) => i !== idx));
     setExpandedQ(curr => curr === idx ? null : (curr !== null && curr > idx ? curr - 1 : curr));
@@ -341,11 +476,18 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
   const isQComplete = (q) => {
     if (!q?.q?.trim()) return false;
     const type = q.type || "mcq";
-    if (type === "mcq")   return Array.isArray(q.options) && q.options.length >= 2 && q.options.every(o => o?.trim());
+    if (type === "mcq") {
+      if (!Array.isArray(q.options) || q.options.length < 2) return false;
+      if (!q.options.every(o => (typeof o === "string" ? o.trim() : (o?.text?.trim() || o?.image_url)))) return false;
+      // multi: at least one correct, single: a valid index
+      if (Array.isArray(q.correct)) return q.correct.length > 0;
+      return typeof q.correct === "number" && q.correct >= 0 && q.correct < q.options.length;
+    }
     if (type === "tf")    return typeof q.correct === "boolean";
     if (type === "fill")  return !!q.answer?.trim();
     if (type === "order") return Array.isArray(q.items) && q.items.length >= 2 && q.items.every(it => it?.trim());
     if (type === "match") return Array.isArray(q.pairs) && q.pairs.length >= 2 && q.pairs.every(p => p?.left?.trim() && p?.right?.trim());
+    if (type === "free")  return true; // having a question text is enough
     return true;
   };
 
@@ -355,27 +497,106 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
     return ACTIVITY_TYPES.find(a => a.id === id)?.label[l] || id;
   };
 
-  // Drag handlers (HTML5 drag-and-drop).
-  const onDragStart = (idx) => (e) => {
+  // ── Custom pointer-based drag with a real visual ghost ──
+  // Why custom: HTML5 native drag uses a browser-generated "ghost" image that
+  // doesn't look like our row, so users only see the cursor moving. With
+  // pointer events we render a styled clone that follows the pointer 1:1 and
+  // works identically on mouse + touch.
+  const dragStateRef = useRef(null); // { fromIdx, ghostEl, offsetX, offsetY }
+  const [ghostState, setGhostState] = useState(null); // { x, y, width, html } — for React-controlled ghost
+
+  // Cleanup on unmount in case a drag is in progress.
+  useEffect(() => {
+    return () => {
+      if (dragStateRef.current?.cleanup) dragStateRef.current.cleanup();
+    };
+  }, []);
+
+  const handleHandlePointerDown = (idx) => (e) => {
+    // Only primary mouse button or any touch/pen.
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+    e.preventDefault();
+    e.stopPropagation();
+
+    const rowEl = questionRefs.current[idx];
+    if (!rowEl) return;
+
+    const rect = rowEl.getBoundingClientRect();
+    const offsetX = e.clientX - rect.left;
+    const offsetY = e.clientY - rect.top;
+
     setDragIndex(idx);
-    e.dataTransfer.effectAllowed = "move";
-    // Required for Firefox to start a drag.
-    try { e.dataTransfer.setData("text/plain", String(idx)); } catch {}
-  };
-  const onDragOver = (idx) => (e) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = "move";
-    if (dragOverIndex !== idx) setDragOverIndex(idx);
-  };
-  const onDrop = (idx) => (e) => {
-    e.preventDefault();
-    if (dragIndex !== null && dragIndex !== idx) moveQuestion(dragIndex, idx);
-    setDragIndex(null);
-    setDragOverIndex(null);
-  };
-  const onDragEnd = () => {
-    setDragIndex(null);
-    setDragOverIndex(null);
+    setGhostState({
+      x: e.clientX - offsetX,
+      y: e.clientY - offsetY,
+      width: rect.width,
+      html: rowEl.outerHTML,
+    });
+
+    const onMove = (ev) => {
+      // Update ghost position.
+      setGhostState(prev => prev ? { ...prev, x: ev.clientX - offsetX, y: ev.clientY - offsetY } : prev);
+
+      // Determine drop target: find the row whose vertical midpoint is closest.
+      const refs = Object.entries(questionRefs.current)
+        .map(([k, el]) => el ? { idx: Number(k), rect: el.getBoundingClientRect() } : null)
+        .filter(Boolean)
+        .sort((a, b) => a.rect.top - b.rect.top);
+
+      let target = null;
+      for (const r of refs) {
+        if (ev.clientY < r.rect.top + r.rect.height / 2) { target = r.idx; break; }
+      }
+      if (target === null && refs.length) target = refs[refs.length - 1].idx + 1;
+      // Clamp to valid range
+      if (target !== null) {
+        const maxIdx = refs.length;
+        if (target > maxIdx) target = maxIdx;
+        // dragOverIndex is the index where we'd drop INTO
+        // Use clamped target for visual feedback (keep behaviour aligned with moveQuestion)
+        const visualTarget = Math.min(target, refs.length - 1);
+        setDragOverIndex(visualTarget);
+      }
+    };
+
+    const onUp = (ev) => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onUp);
+      // Compute final drop target one more time.
+      const refs = Object.entries(questionRefs.current)
+        .map(([k, el]) => el ? { idx: Number(k), rect: el.getBoundingClientRect() } : null)
+        .filter(Boolean)
+        .sort((a, b) => a.rect.top - b.rect.top);
+
+      let target = refs.length;
+      for (let i = 0; i < refs.length; i++) {
+        if (ev.clientY < refs[i].rect.top + refs[i].rect.height / 2) { target = refs[i].idx; break; }
+      }
+      // splice semantics: dropping at index N means "insert before current item at N".
+      // If we drag from `idx` to `target` and target > idx, the item being moved
+      // shifts the destination down by 1 — splice handles it because we remove first then insert.
+      if (target !== idx && target !== idx + 1) {
+        const finalTarget = target > idx ? target - 1 : target;
+        moveQuestion(idx, finalTarget);
+      }
+      setDragIndex(null);
+      setDragOverIndex(null);
+      setGhostState(null);
+      dragStateRef.current = null;
+    };
+
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onUp);
+    dragStateRef.current = {
+      fromIdx: idx,
+      cleanup: () => {
+        window.removeEventListener("pointermove", onMove);
+        window.removeEventListener("pointerup", onUp);
+        window.removeEventListener("pointercancel", onUp);
+      },
+    };
   };
 
   // Keyboard: ESC closes type selector first, then collapses the expanded question.
@@ -786,8 +1007,6 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
                 data-dragging={dragging}
                 data-drop-target={dropTarget}
                 data-expanded={isExpanded}
-                onDragOver={onDragOver(qi)}
-                onDrop={onDrop(qi)}
                 style={{
                   background: C.bg, borderRadius: 10,
                   border: `1px solid ${C.border}`,
@@ -802,9 +1021,7 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
                 >
                   <span
                     className="dk-q-handle"
-                    draggable
-                    onDragStart={onDragStart(qi)}
-                    onDragEnd={onDragEnd}
+                    onPointerDown={handleHandlePointerDown(qi)}
                     onClick={(e) => e.stopPropagation()}
                     title={t.drag}
                     aria-label={t.drag}
@@ -813,6 +1030,7 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
                       display: "flex", alignItems: "center", justifyContent: "center",
                       flexShrink: 0,
                       userSelect: "none",
+                      touchAction: "none", // critical: prevents scrolling on touch when dragging the handle
                     }}
                   >
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -909,15 +1127,69 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
 
                       {/* MCQ */}
                       {(q.type === "mcq" || (!q.type && activityType === "mcq")) && q.options && (
-                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
-                          {q.options.map((o, oi) => (
-                            <div key={oi} style={{ position: "relative" }}>
-                              <input className="dk-input" value={o} onChange={e => updateOption(qi, oi, e.target.value)} placeholder={`${t.option} ${oi + 1}`} style={{ ...inp, paddingRight: 36, background: q.correct === oi ? C.greenSoft : C.bg, borderColor: q.correct === oi ? C.green + "44" : C.border }} />
-                              <button onClick={() => updateQ(qi, "correct", oi)} style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", width: 20, height: 20, borderRadius: "50%", border: `2px solid ${q.correct === oi ? C.green : C.border}`, background: q.correct === oi ? C.green : "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, color: "#fff" }}>
-                                {q.correct === oi && "✓"}
-                              </button>
-                            </div>
-                          ))}
+                        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                          {/* Multi-correct toggle */}
+                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 0" }}>
+                            <span style={{ fontSize: 12, fontWeight: 500, color: C.textSecondary }}>{t.multipleCorrect}</span>
+                            <button onClick={() => toggleMcqMulti(qi)} style={{ width: 38, height: 22, borderRadius: 11, padding: 2, background: q.multi ? C.accent : C.border, border: "none", display: "flex", alignItems: "center", cursor: "pointer" }}>
+                              <div style={{ width: 18, height: 18, borderRadius: "50%", background: "#fff", transform: q.multi ? "translateX(16px)" : "translateX(0)", transition: "transform .2s", boxShadow: "0 1px 3px rgba(0,0,0,.15)" }} />
+                            </button>
+                          </div>
+
+                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+                            {q.options.map((o, oi) => {
+                              const correct = isMcqCorrect(q, oi);
+                              const optText = typeof o === "string" ? o : (o?.text || "");
+                              return (
+                                <div key={oi} style={{ position: "relative" }}>
+                                  <input
+                                    className="dk-input"
+                                    value={optText}
+                                    onChange={e => updateOption(qi, oi, e.target.value)}
+                                    placeholder={`${t.option} ${oi + 1}`}
+                                    style={{ ...inp, paddingLeft: 36, paddingRight: q.options.length > 2 ? 36 : 14, background: correct ? C.greenSoft : C.bg, borderColor: correct ? C.green + "44" : C.border }}
+                                  />
+                                  <button
+                                    onClick={() => toggleMcqCorrect(qi, oi)}
+                                    title={correct ? t.correctAnswer : ""}
+                                    style={{
+                                      position: "absolute", left: 8, top: "50%", transform: "translateY(-50%)",
+                                      width: 20, height: 20,
+                                      borderRadius: q.multi ? 5 : "50%",
+                                      border: `2px solid ${correct ? C.green : C.border}`,
+                                      background: correct ? C.green : "transparent",
+                                      cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+                                      fontSize: 10, color: "#fff", padding: 0,
+                                    }}
+                                  >
+                                    {correct && "✓"}
+                                  </button>
+                                  {q.options.length > 2 && (
+                                    <button
+                                      onClick={() => removeOption(qi, oi)}
+                                      title={t.removeOption}
+                                      aria-label={t.removeOption}
+                                      style={{
+                                        position: "absolute", right: 6, top: "50%", transform: "translateY(-50%)",
+                                        width: 24, height: 24, borderRadius: 6,
+                                        background: "transparent", color: C.textMuted, border: "none",
+                                        cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+                                        padding: 0,
+                                      }}
+                                    >
+                                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M6 6L18 18M18 6L6 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
+                                    </button>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+
+                          {q.options.length < MAX_OPTIONS && (
+                            <button onClick={() => addOption(qi)} className="dk-add-mini" style={addMiniBtn}>
+                              <CIcon name="plus" size={12} inline /> {t.addOption}
+                            </button>
+                          )}
                         </div>
                       )}
 
@@ -938,7 +1210,20 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
 
                       {/* Fill */}
                       {(q.type === "fill" || (!q.type && activityType === "fill")) && (
-                        <input className="dk-input" value={q.answer || ""} onChange={e => updateQ(qi, "answer", e.target.value)} placeholder="Correct answer" style={{ ...inp, background: C.greenSoft, borderColor: C.green + "44" }} />
+                        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                          <input className="dk-input" value={q.answer || ""} onChange={e => updateQ(qi, "answer", e.target.value)} placeholder={t.correctAnswer} style={{ ...inp, background: C.greenSoft, borderColor: C.green + "44" }} />
+                          <div>
+                            <label style={{ display: "block", fontSize: 11, fontWeight: 500, color: C.textSecondary, marginBottom: 4 }}>{t.acceptedAlts}</label>
+                            <input
+                              className="dk-input"
+                              value={Array.isArray(q.alternatives) ? q.alternatives.join(", ") : ""}
+                              onChange={e => updateQ(qi, "alternatives", e.target.value.split(",").map(s => s.trim()).filter(Boolean))}
+                              placeholder="paris, PARIS, parís"
+                              style={{ ...inp, fontSize: 13 }}
+                            />
+                            <p style={{ fontSize: 11, color: C.textMuted, marginTop: 4, margin: 0 }}>{t.acceptedAltsHint}</p>
+                          </div>
+                        </div>
                       )}
 
                       {/* Order */}
@@ -948,8 +1233,18 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
                             <div key={ii} style={{ display: "flex", alignItems: "center", gap: 8 }}>
                               <span style={{ width: 22, height: 22, borderRadius: 5, background: C.accent, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, flexShrink: 0 }}>{ii + 1}</span>
                               <input className="dk-input" value={it} onChange={e => updateItem(qi, ii, e.target.value)} placeholder={`Step ${ii + 1}`} style={inp} />
+                              {q.items.length > 2 && (
+                                <button onClick={() => removeItem(qi, ii)} title={t.removeOption} style={miniDeleteBtn}>
+                                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M6 6L18 18M18 6L6 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
+                                </button>
+                              )}
                             </div>
                           ))}
+                          {q.items.length < MAX_ITEMS && (
+                            <button onClick={() => addItem(qi)} className="dk-add-mini" style={{ ...addMiniBtn, alignSelf: "flex-start" }}>
+                              <CIcon name="plus" size={12} inline /> {t.addItem}
+                            </button>
+                          )}
                         </div>
                       )}
 
@@ -961,8 +1256,26 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
                               <input className="dk-input" value={p.left} onChange={e => updatePair(qi, pi, "left", e.target.value)} placeholder="Left" style={{ ...inp, fontFamily: MONO, fontWeight: 600 }} />
                               <span style={{ color: C.textMuted }}>→</span>
                               <input className="dk-input" value={p.right} onChange={e => updatePair(qi, pi, "right", e.target.value)} placeholder="Right" style={inp} />
+                              {q.pairs.length > 2 && (
+                                <button onClick={() => removePair(qi, pi)} title={t.removeOption} style={miniDeleteBtn}>
+                                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M6 6L18 18M18 6L6 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
+                                </button>
+                              )}
                             </div>
                           ))}
+                          {q.pairs.length < MAX_PAIRS && (
+                            <button onClick={() => addPair(qi)} className="dk-add-mini" style={{ ...addMiniBtn, alignSelf: "flex-start" }}>
+                              <CIcon name="plus" size={12} inline /> {t.addPair}
+                            </button>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Free Text */}
+                      {(q.type === "free") && (
+                        <div style={{ padding: "12px 14px", borderRadius: 8, background: C.bg, border: `1px dashed ${C.border}`, fontSize: 12, color: C.textMuted, display: "flex", alignItems: "center", gap: 8 }}>
+                          <CIcon name="study" size={14} inline />
+                          {t.freeTextHint}
                         </div>
                       )}
                     </div>
@@ -1074,6 +1387,19 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
           color: "#fff", opacity: canSave && !saving ? 1 : 0.4,
         }}>{saving ? t.publishing : t.publish}</button>
       </div>
+
+      {/* Ghost element following the pointer during drag (visual clone) */}
+      {ghostState && (
+        <div
+          className="dk-q-ghost"
+          style={{
+            left: ghostState.x,
+            top: ghostState.y,
+            width: ghostState.width,
+          }}
+          dangerouslySetInnerHTML={{ __html: ghostState.html }}
+        />
+      )}
     </div>
   );
 }

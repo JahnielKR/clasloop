@@ -30,6 +30,9 @@ const i18n = {
     tapMatch: "Tap a left item, then its match",
     correctAnswer: "Correct answer", undo: "Undo",
     joiningAs: "Joining as",
+    multipleCorrect: "Select all that apply",
+    submitted: "Submitted",
+    notGraded: "ungraded",
   },
   es: {
     joinSession: "Unirse a Sesión", sessionPin: "PIN de Sesión", yourName: "Tu nombre",
@@ -48,6 +51,9 @@ const i18n = {
     tapMatch: "Toca un elemento de la izquierda, luego su par",
     correctAnswer: "Respuesta correcta", undo: "Deshacer",
     joiningAs: "Te unirás como",
+    multipleCorrect: "Selecciona todas las correctas",
+    submitted: "Enviada",
+    notGraded: "sin evaluar",
   },
   ko: {
     joinSession: "세션 참여", sessionPin: "세션 PIN", yourName: "이름",
@@ -66,6 +72,9 @@ const i18n = {
     tapMatch: "왼쪽 항목을 탭한 다음 짝을 탭하세요",
     correctAnswer: "정답", undo: "되돌리기",
     joiningAs: "참여자",
+    multipleCorrect: "해당하는 모두 선택",
+    submitted: "제출됨",
+    notGraded: "채점 없음",
   },
 };
 
@@ -115,15 +124,23 @@ const shuffle = (arr) => {
 const normFill = (s) => String(s ?? "").trim().toLowerCase().replace(/\s+/g, " ");
 
 // Evaluate correctness + return value to persist in responses.answer (jsonb).
+// isCorrect can be true/false for graded types, or null for free-text (ungraded).
 const evaluateAnswer = (q, type, raw) => {
   if (raw === null || raw === undefined || (Array.isArray(raw) && raw.length === 0)) {
+    // Free text: empty submission is still considered submitted (ungraded).
+    if (type === "free") return { isCorrect: null, stored: "" };
     return { isCorrect: false, stored: null };
   }
   switch (type) {
     case "tf":
       return { isCorrect: raw === q.correct, stored: raw };
-    case "fill":
-      return { isCorrect: normFill(raw) === normFill(q.answer), stored: String(raw) };
+    case "fill": {
+      const candidates = [q.answer, ...(Array.isArray(q.alternatives) ? q.alternatives : [])]
+        .filter(Boolean)
+        .map(normFill);
+      const ok = candidates.includes(normFill(raw));
+      return { isCorrect: ok, stored: String(raw) };
+    }
     case "order": {
       const items = q.items || [];
       const ok = Array.isArray(raw) && raw.length === items.length && raw.every((v, i) => v === items[i]);
@@ -134,9 +151,19 @@ const evaluateAnswer = (q, type, raw) => {
       const ok = pairs.length > 0 && pairs.every((p) => raw && raw[p.left] === p.right);
       return { isCorrect: ok, stored: raw };
     }
+    case "free":
+      return { isCorrect: null, stored: String(raw) };
     case "mcq":
-    default:
+    default: {
+      // Multi-correct: q.correct is an array → require exact set match (no partial credit).
+      if (Array.isArray(q.correct)) {
+        const got = Array.isArray(raw) ? raw : [raw];
+        const need = q.correct;
+        const ok = got.length === need.length && got.every(v => need.includes(v));
+        return { isCorrect: ok, stored: got };
+      }
       return { isCorrect: raw === q.correct, stored: raw };
+    }
   }
 };
 
@@ -159,6 +186,7 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null }) {
   const [mcqSelected, setMcqSelected] = useState(null);
   const [tfSelected, setTfSelected] = useState(null);
   const [fillText, setFillText] = useState("");
+  const [freeText, setFreeText] = useState("");
   const [orderPicked, setOrderPicked] = useState([]); // ordered list of items
   const [matchPicks, setMatchPicks] = useState({}); // { [left]: right }
   const [matchActiveLeft, setMatchActiveLeft] = useState(null);
@@ -179,6 +207,7 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null }) {
   // Per-type time limits — typed/order/match need more thinking time.
   const timeLimit = useMemo(() => {
     if (qType === "fill") return 30;
+    if (qType === "free") return 90;
     if (qType === "order" || qType === "match") return 40;
     return 20;
   }, [qType]);
@@ -226,6 +255,7 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null }) {
     setMcqSelected(null);
     setTfSelected(null);
     setFillText("");
+    setFreeText("");
     setOrderPicked([]);
     setMatchPicks({});
     setMatchActiveLeft(null);
@@ -253,7 +283,9 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null }) {
     const { isCorrect, stored } = evaluateAnswer(q, qType, raw);
     setLastIsCorrect(isCorrect);
     setShowResult(true);
-    setResultAnim(isCorrect ? "bounce" : "shake");
+    // Animation: bounce on correct OR ungraded-submitted (positive feedback either way),
+    // shake only on actual incorrect.
+    setResultAnim(isCorrect === false ? "shake" : "bounce");
     setAnswers(prev => [...prev, { isCorrect, raw }]);
     if (participant) {
       try {
@@ -262,7 +294,10 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null }) {
           participant_id: participant.id,
           question_index: current,
           answer: stored,
-          is_correct: isCorrect,
+          // DB column is NOT NULL boolean; treat ungraded (null) as `true` so the
+          // submission still counts toward participation. The client distinguishes
+          // graded vs ungraded via the question type, not this column.
+          is_correct: isCorrect === null ? true : isCorrect,
           time_taken_ms: (timeLimit - timeLeft) * 1000,
         });
       } catch (_) { /* swallow – UI already reflects state */ }
@@ -270,8 +305,35 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null }) {
   };
 
   // ── Per-type handlers ──
-  const handleMcq = (idx) => { if (showResult) return; setMcqSelected(idx); submitAnswer(idx); };
+  const handleMcq = (idx) => {
+    if (showResult) return;
+    // Single-correct path (legacy + simple): submit immediately on click.
+    if (!Array.isArray(q?.correct)) {
+      setMcqSelected(idx);
+      submitAnswer(idx);
+      return;
+    }
+    // Multi-correct: toggle in selection set, do NOT submit yet — student presses "Submit".
+    setMcqSelected(prev => {
+      const set = new Set(Array.isArray(prev) ? prev : []);
+      if (set.has(idx)) set.delete(idx); else set.add(idx);
+      return Array.from(set).sort((a, b) => a - b);
+    });
+  };
+
+  const handleMcqSubmit = () => {
+    if (showResult) return;
+    const sel = Array.isArray(mcqSelected) ? mcqSelected : [];
+    if (sel.length === 0) return;
+    submitAnswer(sel);
+  };
+
   const handleTf  = (val) => { if (showResult) return; setTfSelected(val);  submitAnswer(val); };
+
+  const handleFreeSubmit = () => {
+    if (showResult) return;
+    submitAnswer(freeText);
+  };
 
   const handleFillSubmit = () => {
     if (showResult || !fillText.trim()) return;
@@ -422,26 +484,87 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null }) {
           <div className="fade-up" key={current}>
             <h2 style={{ fontSize: 20, fontWeight: 600, textAlign: "center", marginBottom: 28, lineHeight: 1.5 }}>{q.q}</h2>
 
-            {/* ── MCQ ── */}
-            {qType === "mcq" && Array.isArray(q.options) && (
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                {q.options.map((o, i) => {
-                  let bg = OPT_C[i % OPT_C.length], op = 1;
-                  if (showResult) {
-                    bg = i === q.correct ? C.green : i === mcqSelected ? C.red : "#ccc";
-                    op = i === q.correct || i === mcqSelected ? 1 : .3;
-                  }
-                  return (
-                    <button key={i} className="sj-option" onClick={() => handleMcq(i)} disabled={showResult} style={{
-                      padding: "18px 14px", borderRadius: 12, fontSize: 15, fontWeight: 600, color: "#fff",
-                      background: bg, opacity: op, lineHeight: 1.3, minHeight: 64,
-                      display: "flex", alignItems: "center", justifyContent: "center",
-                      cursor: showResult ? "default" : "pointer",
-                    }}>{o}</button>
-                  );
-                })}
-              </div>
-            )}
+            {/* ── MCQ (single or multi-correct, text or image options) ── */}
+            {qType === "mcq" && Array.isArray(q.options) && (() => {
+              const isMulti = Array.isArray(q.correct);
+              const correctSet = new Set(isMulti ? q.correct : [q.correct]);
+              const selectedSet = new Set(
+                isMulti
+                  ? (Array.isArray(mcqSelected) ? mcqSelected : [])
+                  : (mcqSelected !== null && mcqSelected !== undefined ? [mcqSelected] : [])
+              );
+              return (
+                <>
+                  {isMulti && !showResult && (
+                    <p style={{ fontSize: 12, color: C.textMuted, textAlign: "center", margin: "0 0 12px" }}>
+                      {t.multipleCorrect}
+                    </p>
+                  )}
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                    {q.options.map((o, i) => {
+                      const optText = typeof o === "string" ? o : (o?.text || "");
+                      const optImg = (typeof o === "object" && o?.image_url) ? o.image_url : null;
+                      const picked = selectedSet.has(i);
+                      const isCorrect = correctSet.has(i);
+                      let bg = OPT_C[i % OPT_C.length], op = 1, ring = "transparent";
+                      if (showResult) {
+                        bg = isCorrect ? C.green : (picked ? C.red : "#ccc");
+                        op = (isCorrect || picked) ? 1 : .3;
+                      } else if (isMulti) {
+                        ring = picked ? "#fff" : "transparent";
+                      }
+                      return (
+                        <button
+                          key={i}
+                          className="sj-option"
+                          onClick={() => handleMcq(i)}
+                          disabled={showResult}
+                          style={{
+                            padding: optImg ? 0 : "18px 14px",
+                            borderRadius: 12, fontSize: 15, fontWeight: 600, color: "#fff",
+                            background: bg, opacity: op, lineHeight: 1.3, minHeight: 64,
+                            display: "flex", alignItems: "center", justifyContent: "center",
+                            cursor: showResult ? "default" : "pointer",
+                            position: "relative",
+                            overflow: "hidden",
+                            outline: isMulti ? `3px solid ${ring}` : "none",
+                            outlineOffset: -3,
+                          }}
+                        >
+                          {optImg ? (
+                            <div style={{ width: "100%", height: 100, backgroundImage: `url(${optImg})`, backgroundSize: "cover", backgroundPosition: "center" }} />
+                          ) : (
+                            <span>{optText}</span>
+                          )}
+                          {isMulti && !showResult && (
+                            <span style={{
+                              position: "absolute", top: 8, right: 8,
+                              width: 22, height: 22, borderRadius: 6,
+                              background: picked ? "#fff" : "rgba(255,255,255,0.25)",
+                              color: bg, display: "flex", alignItems: "center", justifyContent: "center",
+                              fontSize: 13, fontWeight: 800,
+                            }}>{picked ? "✓" : ""}</span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {isMulti && !showResult && (
+                    <button
+                      className="sj-btn"
+                      onClick={handleMcqSubmit}
+                      disabled={selectedSet.size === 0}
+                      style={{
+                        width: "100%", marginTop: 14, padding: 14, borderRadius: 10,
+                        fontSize: 15, fontWeight: 600,
+                        background: selectedSet.size > 0 ? `linear-gradient(135deg, ${C.accent}, ${C.purple})` : C.border,
+                        color: "#fff", opacity: selectedSet.size > 0 ? 1 : .5,
+                      }}
+                    >{t.submit}</button>
+                  )}
+                </>
+              );
+            })()}
 
             {/* ── True / False ── */}
             {qType === "tf" && (
@@ -635,16 +758,46 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null }) {
               </div>
             )}
 
+            {/* ── Free Text (ungraded) ── */}
+            {qType === "free" && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                <textarea
+                  className="sj-input"
+                  value={freeText}
+                  onChange={e => setFreeText(e.target.value)}
+                  placeholder={t.typeAnswer}
+                  disabled={showResult}
+                  autoFocus
+                  rows={5}
+                  style={{
+                    ...inp,
+                    fontSize: 15, padding: "12px 14px",
+                    minHeight: 120, resize: "vertical",
+                    fontFamily: "'Outfit',sans-serif", lineHeight: 1.5,
+                    background: showResult ? C.bgSoft : C.bg,
+                  }}
+                />
+                {!showResult && (
+                  <button className="sj-btn" onClick={handleFreeSubmit} style={{
+                    width: "100%", padding: 14, borderRadius: 10, fontSize: 15, fontWeight: 600,
+                    background: `linear-gradient(135deg, ${C.accent}, ${C.purple})`,
+                    color: "#fff",
+                  }}>{t.submit}</button>
+                )}
+              </div>
+            )}
+
             {/* ── Result banner + Next ── */}
             {showResult && (
               <div className={`pop-in ${resultAnim}`} style={{ textAlign: "center", marginTop: 24 }}>
                 <div style={{
                   display: "inline-flex", alignItems: "center", gap: 6, padding: "10px 20px", borderRadius: 10,
-                  background: lastIsCorrect ? C.greenSoft : C.redSoft,
-                  color: lastIsCorrect ? C.green : C.red, fontSize: 15, fontWeight: 600, marginBottom: 16,
+                  background: lastIsCorrect === null ? C.accentSoft : (lastIsCorrect ? C.greenSoft : C.redSoft),
+                  color: lastIsCorrect === null ? C.accent : (lastIsCorrect ? C.green : C.red),
+                  fontSize: 15, fontWeight: 600, marginBottom: 16,
                 }}>
-                  <CIcon name={lastIsCorrect ? "check" : "cross"} size={16} inline />
-                  {lastIsCorrect ? t.correct : t.incorrect}
+                  <CIcon name={lastIsCorrect === null ? "check" : (lastIsCorrect ? "check" : "cross")} size={16} inline />
+                  {lastIsCorrect === null ? t.submitted : (lastIsCorrect ? t.correct : t.incorrect)}
                 </div>
                 <br />
                 <button className="sj-btn" onClick={handleNext} style={{
@@ -665,8 +818,12 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null }) {
 
   // ── Results ──
   if (step === "results") {
-    const correct = answers.filter(a => a?.isCorrect).length;
-    const pct = Math.round((correct / Math.max(questions.length, 1)) * 100);
+    const graded = answers.filter(a => a?.isCorrect !== null && a?.isCorrect !== undefined);
+    const correct = graded.filter(a => a.isCorrect).length;
+    const incorrect = graded.length - correct;
+    const ungraded = answers.length - graded.length;
+    // Percentage only over graded items.
+    const pct = graded.length > 0 ? Math.round((correct / graded.length) * 100) : 0;
 
     return (
       <>
@@ -674,34 +831,44 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null }) {
         <div style={{ maxWidth: 400, margin: "0 auto", padding: "50px 20px", textAlign: "center" }}>
           <div className="fade-up" style={{ background: C.bg, borderRadius: 16, border: `1px solid ${C.border}`, padding: 32, boxShadow: "0 4px 20px rgba(0,0,0,0.06)" }}>
             <div className="pop-in" style={{ width: 80, height: 80, borderRadius: "50%", background: retCol(pct) + "14", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px", border: `3px solid ${retCol(pct)}33` }}>
-              <span style={{ fontSize: 28, fontWeight: 800, color: retCol(pct), fontFamily: MONO }}>{pct}%</span>
+              <span style={{ fontSize: 28, fontWeight: 800, color: retCol(pct), fontFamily: MONO }}>{graded.length > 0 ? `${pct}%` : "—"}</span>
             </div>
             <h2 style={{ fontFamily: "'Outfit'", fontSize: 22, fontWeight: 700, marginBottom: 6 }}>{t.sessionComplete}</h2>
             <p style={{ color: C.textSecondary, fontSize: 15, marginBottom: 20 }}>
-              {pct >= 70 ? t.greatJob : t.keepPracticing}
+              {graded.length === 0 ? t.greatJob : (pct >= 70 ? t.greatJob : t.keepPracticing)}
             </p>
 
-            <div style={{ display: "flex", justifyContent: "center", gap: 32, padding: "16px 0", borderTop: `1px solid ${C.border}` }}>
+            <div style={{ display: "flex", justifyContent: "center", gap: 24, padding: "16px 0", borderTop: `1px solid ${C.border}`, flexWrap: "wrap" }}>
               <div>
                 <div style={{ fontSize: 26, fontWeight: 700, color: C.green, fontFamily: MONO }}>{correct}</div>
                 <div style={{ fontSize: 12, color: C.textMuted }}>{t.correctLabel}</div>
               </div>
               <div>
-                <div style={{ fontSize: 26, fontWeight: 700, color: C.red, fontFamily: MONO }}>{questions.length - correct}</div>
+                <div style={{ fontSize: 26, fontWeight: 700, color: C.red, fontFamily: MONO }}>{incorrect}</div>
                 <div style={{ fontSize: 12, color: C.textMuted }}>{t.incorrectLabel}</div>
               </div>
+              {ungraded > 0 && (
+                <div>
+                  <div style={{ fontSize: 26, fontWeight: 700, color: C.accent, fontFamily: MONO }}>{ungraded}</div>
+                  <div style={{ fontSize: 12, color: C.textMuted }}>{t.notGraded}</div>
+                </div>
+              )}
             </div>
 
             {/* Per-question breakdown */}
             <div style={{ display: "flex", gap: 4, justifyContent: "center", marginTop: 16, flexWrap: "wrap" }}>
-              {questions.map((_, i) => (
-                <div key={i} style={{
-                  width: 24, height: 24, borderRadius: 6, fontSize: 11, fontWeight: 600,
-                  background: answers[i]?.isCorrect ? C.greenSoft : C.redSoft,
-                  color: answers[i]?.isCorrect ? C.green : C.red,
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                }}>{i + 1}</div>
-              ))}
+              {questions.map((_, i) => {
+                const a = answers[i];
+                const ungradedItem = a?.isCorrect === null || a?.isCorrect === undefined;
+                return (
+                  <div key={i} style={{
+                    width: 24, height: 24, borderRadius: 6, fontSize: 11, fontWeight: 600,
+                    background: ungradedItem ? C.accentSoft : (a.isCorrect ? C.greenSoft : C.redSoft),
+                    color: ungradedItem ? C.accent : (a.isCorrect ? C.green : C.red),
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                  }}>{i + 1}</div>
+                );
+              })}
             </div>
           </div>
 
