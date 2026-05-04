@@ -1,266 +1,557 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { supabase } from "../lib/supabase";
 import { CIcon } from "../components/Icons";
+import { Avatar as CatalogAvatar, AVATARS } from "../components/Avatars";
+import { getStudentStats } from "../lib/unlock-checker";
 
 const C = {
-  bg: "#FFFFFF", bgSoft: "#F7F7F5", accent: "#2383E2", accentSoft: "#E8F0FE",
-  green: "#0F7B6C", greenSoft: "#EEFBF5", orange: "#D9730D", orangeSoft: "#FFF3E0",
-  red: "#E03E3E", redSoft: "#FDECEC", purple: "#6940A5", purpleSoft: "#F3EEFB",
-  yellow: "#D4A017", yellowSoft: "#FEF9E7", pink: "#AD1A72",
+  bg: "#FFFFFF", bgSoft: "#F7F7F5",
+  accent: "#2383E2", accentSoft: "#E8F0FE",
+  green: "#0F7B6C", greenSoft: "#EEFBF5",
+  orange: "#D9730D", orangeSoft: "#FFF3E0",
+  red: "#E03E3E", redSoft: "#FDECEC",
+  purple: "#6940A5", purpleSoft: "#F3EEFB",
+  pink: "#D34185", pinkSoft: "#FCE8F0",
   text: "#191919", textSecondary: "#6B6B6B", textMuted: "#9B9B9B",
   border: "#E8E8E4", shadow: "0 1px 3px rgba(0,0,0,0.04)",
 };
 const MONO = "'JetBrains Mono', monospace";
 
 const RARITY = {
-  common: { bg: C.bgSoft, border: C.border, text: C.textSecondary, label: { en: "Common", es: "Común", ko: "일반" }, glow: "none" },
-  rare: { bg: C.accentSoft, border: C.accent + "44", text: C.accent, label: { en: "Rare", es: "Raro", ko: "레어" }, glow: `0 0 12px ${C.accent}22` },
-  epic: { bg: C.purpleSoft, border: C.purple + "44", text: C.purple, label: { en: "Epic", es: "Épico", ko: "에픽" }, glow: `0 0 16px ${C.purple}22` },
-  legendary: { bg: C.orangeSoft, border: C.orange + "44", text: C.orange, label: { en: "Legendary", es: "Legendario", ko: "전설" }, glow: `0 0 20px ${C.orange}33` },
-  secret: { bg: "#1a1a2e14", border: "#1a1a2e33", text: "#1a1a2e", label: { en: "Secret", es: "Secreto", ko: "비밀" }, glow: `0 0 20px rgba(26,26,46,.15)` },
+  common:    { bg: C.bgSoft,    border: C.border,        text: C.textSecondary, label: { en: "Common",    es: "Común",      ko: "일반"   } },
+  rare:      { bg: C.accentSoft, border: C.accent + "44", text: C.accent,        label: { en: "Rare",      es: "Raro",       ko: "레어"   } },
+  legendary: { bg: C.orangeSoft, border: C.orange + "44", text: C.orange,        label: { en: "Legendary", es: "Legendario", ko: "전설"   } },
 };
-
-const CATS = {
-  learning: { icon: "book", label: { en: "Learning", es: "Aprendizaje", ko: "학습" }, color: C.accent },
-  streak: { icon: "fire", label: { en: "Streaks", es: "Rachas", ko: "연속" }, color: C.orange },
-  mastery: { icon: "brain", label: { en: "Mastery", es: "Dominio", ko: "마스터" }, color: C.purple },
-  social: { icon: "handshake", label: { en: "Social", es: "Social", ko: "소셜" }, color: C.green },
-  special: { icon: "sparkle", label: { en: "Special", es: "Especial", ko: "특별" }, color: C.pink },
-};
-
-const ACHS = [
-  { id: "first_answer", cat: "learning", rarity: "common", icon: "target", title: { en: "First Shot", es: "Primer Disparo", ko: "첫 번째 답" }, desc: { en: "Answer your first question", es: "Responde tu primera pregunta", ko: "첫 문제에 답하기" }, progress: 1, goal: 1, unlocked: true, xp: 10 },
-  { id: "ten_correct", cat: "learning", rarity: "common", icon: "sparkle", title: { en: "Getting Started", es: "Empezando", ko: "시작이 반" }, desc: { en: "Get 10 correct answers", es: "Obtén 10 respuestas correctas", ko: "10문제 맞추기" }, progress: 10, goal: 10, unlocked: true, xp: 25 },
-  { id: "fifty_correct", cat: "learning", rarity: "rare", icon: "levelup", title: { en: "On a Roll", es: "En Racha", ko: "달리는 중" }, desc: { en: "Get 50 correct answers", es: "Obtén 50 correctas", ko: "50문제 맞추기" }, progress: 47, goal: 50, unlocked: false, xp: 50 },
-  { id: "hundred_correct", cat: "learning", rarity: "epic", icon: "trophy", title: { en: "Centurion", es: "Centurión", ko: "백전백승" }, desc: { en: "Get 100 correct answers", es: "Obtén 100 correctas", ko: "100문제 맞추기" }, progress: 47, goal: 100, unlocked: false, xp: 100 },
-  { id: "five_hundred", cat: "learning", rarity: "legendary", icon: "crown", title: { en: "Knowledge King", es: "Rey del Conocimiento", ko: "지식의 왕" }, desc: { en: "Get 500 correct answers", es: "Obtén 500 correctas", ko: "500문제 맞추기" }, progress: 47, goal: 500, unlocked: false, xp: 250 },
-  { id: "perfect_session", cat: "learning", rarity: "rare", icon: "check", title: { en: "Perfect Score", es: "Puntaje Perfecto", ko: "만점" }, desc: { en: "Get 100% in a session", es: "Obtén 100% en una sesión", ko: "세션에서 100%" }, progress: 1, goal: 1, unlocked: true, xp: 50 },
-  { id: "streak_3", cat: "streak", rarity: "common", icon: "warmup", title: { en: "Warming Up", es: "Calentando", ko: "워밍업" }, desc: { en: "3-day streak", es: "Racha de 3 días", ko: "3일 연속" }, progress: 3, goal: 3, unlocked: true, xp: 15 },
-  { id: "streak_7", cat: "streak", rarity: "rare", icon: "fire", title: { en: "On Fire", es: "En Llamas", ko: "불타는 중" }, desc: { en: "7-day streak", es: "Racha de 7 días", ko: "7일 연속" }, progress: 5, goal: 7, unlocked: false, xp: 50 },
-  { id: "streak_14", cat: "streak", rarity: "epic", icon: "comet", title: { en: "Unstoppable", es: "Imparable", ko: "멈출 수 없어" }, desc: { en: "14-day streak", es: "Racha de 14 días", ko: "14일 연속" }, progress: 5, goal: 14, unlocked: false, xp: 100 },
-  { id: "streak_30", cat: "streak", rarity: "legendary", icon: "diamond", title: { en: "Diamond Discipline", es: "Disciplina de Diamante", ko: "다이아몬드 습관" }, desc: { en: "30-day streak", es: "Racha de 30 días", ko: "30일 연속" }, progress: 5, goal: 30, unlocked: false, xp: 300 },
-  { id: "streak_100", cat: "streak", rarity: "secret", icon: "night", title: { en: "Eternal Learner", es: "Aprendiz Eterno", ko: "영원한 학습자" }, desc: { en: "100-day streak", es: "Racha de 100 días", ko: "100일 연속" }, progress: 5, goal: 100, unlocked: false, xp: 1000 },
-  { id: "first_strong", cat: "mastery", rarity: "common", icon: "book", title: { en: "First Mastery", es: "Primer Dominio", ko: "첫 마스터" }, desc: { en: "Get 'Strong' on a topic", es: "Obtén 'Fuerte' en un tema", ko: "주제에서 '강함'" }, progress: 1, goal: 1, unlocked: true, xp: 30 },
-  { id: "five_strong", cat: "mastery", rarity: "rare", icon: "book", title: { en: "Scholar", es: "Erudito", ko: "학자" }, desc: { en: "Get 'Strong' on 5 topics", es: "'Fuerte' en 5 temas", ko: "5개 주제 '강함'" }, progress: 4, goal: 5, unlocked: false, xp: 75 },
-  { id: "all_strong", cat: "mastery", rarity: "legendary", icon: "student", title: { en: "Valedictorian", es: "El Mejor", ko: "수석 졸업" }, desc: { en: "'Strong' on ALL topics", es: "'Fuerte' en TODOS", ko: "모든 주제 '강함'" }, progress: 4, goal: 8, unlocked: false, xp: 500 },
-  { id: "rescue", cat: "mastery", rarity: "epic", icon: "refresh", title: { en: "Comeback Kid", es: "Remontada", ko: "역전의 명수" }, desc: { en: "Bring 'Weak' to 'Strong'", es: "'Débil' a 'Fuerte'", ko: "'약함'에서 '강함'으로" }, progress: 0, goal: 1, unlocked: false, xp: 100 },
-  { id: "first_warmup", cat: "social", rarity: "common", icon: "warmup", title: { en: "Early Bird", es: "Madrugador", ko: "얼리버드" }, desc: { en: "Join your first warmup", es: "Únete a tu primer warmup", ko: "첫 워밍업 참여" }, progress: 1, goal: 1, unlocked: true, xp: 10 },
-  { id: "ten_sessions", cat: "social", rarity: "rare", icon: "ticket", title: { en: "Regular", es: "Regular", ko: "단골" }, desc: { en: "Attend 10 sessions", es: "Asiste a 10 sesiones", ko: "10번 세션 참여" }, progress: 10, goal: 10, unlocked: true, xp: 50 },
-  { id: "class_top", cat: "social", rarity: "epic", icon: "medal", title: { en: "Top of the Class", es: "El Mejor de la Clase", ko: "반에서 1등" }, desc: { en: "Get #1 in a live session", es: "Obtén el #1 en vivo", ko: "라이브 세션 1등" }, progress: 1, goal: 1, unlocked: true, xp: 75 },
-  { id: "night_owl", cat: "special", rarity: "rare", icon: "night", title: { en: "Night Owl", es: "Búho Nocturno", ko: "올빼미" }, desc: { en: "Study after 10 PM", es: "Estudia después de 10 PM", ko: "밤 10시 이후 공부" }, progress: 1, goal: 1, unlocked: true, xp: 25 },
-  { id: "weekend", cat: "special", rarity: "rare", icon: "weekend", title: { en: "Weekend Warrior", es: "Guerrero de Fin de Semana", ko: "주말 전사" }, desc: { en: "Study on a weekend", es: "Estudia un fin de semana", ko: "주말에 공부하기" }, progress: 1, goal: 1, unlocked: true, xp: 25 },
-  { id: "speed_demon", cat: "special", rarity: "epic", icon: "speed", title: { en: "Speed Demon", es: "Demonio de la Velocidad", ko: "스피드 귀신" }, desc: { en: "5 answers in under 15 sec", es: "5 respuestas en menos de 15 seg", ko: "5문제를 15초 안에" }, progress: 0, goal: 1, unlocked: false, xp: 100 },
-  { id: "multilingual", cat: "special", rarity: "legendary", icon: "multilingual", title: { en: "Polyglot", es: "Políglota", ko: "다국어 능력자" }, desc: { en: "Sessions in 3 languages", es: "Sesiones en 3 idiomas", ko: "3개 언어로 세션" }, progress: 2, goal: 3, unlocked: false, xp: 200 },
-  { id: "founding", cat: "special", rarity: "secret", icon: "founding", title: { en: "Founding Member", es: "Miembro Fundador", ko: "창립 멤버" }, desc: { en: "Join during beta", es: "Únete durante la beta", ko: "베타 기간에 가입" }, progress: 1, goal: 1, unlocked: true, xp: 500 },
-];
 
 const i18n = {
-  en: { pageTitle: "Achievements", subtitle: "Your trophies and milestones", unlocked: "Unlocked", locked: "Locked", all: "All", totalXP: "Total XP", achievementsUnlocked: "achievements unlocked", nextUnlock: "Next unlock", close: "Close", earned: "Earned!", keepGoing: "Keep going!", almost: "Almost there!", xpReward: "XP Reward" },
-  es: { pageTitle: "Logros", subtitle: "Tus trofeos e hitos", unlocked: "Desbloqueados", locked: "Bloqueados", all: "Todos", totalXP: "XP Total", achievementsUnlocked: "logros desbloqueados", nextUnlock: "Próximo logro", close: "Cerrar", earned: "¡Obtenido!", keepGoing: "¡Sigue así!", almost: "¡Ya casi!", xpReward: "Recompensa XP" },
-  ko: { pageTitle: "업적", subtitle: "트로피와 이정표", unlocked: "잠금 해제", locked: "잠김", all: "전체", totalXP: "총 XP", achievementsUnlocked: "개 업적 달성", nextUnlock: "다음 잠금 해제", close: "닫기", earned: "획득!", keepGoing: "계속 가자!", almost: "거의 다 됐어!", xpReward: "XP 보상" },
+  en: {
+    pageTitle: "Achievements",
+    subtitle: "Unlock new avatars by playing and learning",
+    all: "All", unlocked: "Unlocked", locked: "Locked",
+    total: "unlocked", common: "Common", rare: "Rare", legendary: "Legendary",
+    nextUnlock: "Closest to unlock",
+    close: "Close",
+    earned: "Earned!",
+    progressLabel: "Progress",
+    teacherNotice: "Achievements are designed for students.",
+    teacherNoticeHint: "Students earn avatars by playing live sessions, building streaks, and reaching retention goals.",
+    starter: "Starter avatar",
+    starterHint: "Available from day one.",
+    // Unlock condition descriptions
+    cond_sessions: "Complete {n} sessions",
+    cond_streak: "Reach a {n}-day streak",
+    cond_perfect: "Get 100% in {n} session(s)",
+    cond_answers: "Answer {n} questions correctly",
+    cond_topics: "Master {n} topics (≥70% retention)",
+    cond_comeback: "Return after {n} days away",
+    cond_retention: "Average retention ≥ {n}%",
+    loading: "Loading...",
+    noProgress: "Start a session to begin earning avatars",
+  },
+  es: {
+    pageTitle: "Logros",
+    subtitle: "Desbloquea nuevos avatares jugando y aprendiendo",
+    all: "Todos", unlocked: "Desbloqueados", locked: "Bloqueados",
+    total: "desbloqueados", common: "Común", rare: "Raro", legendary: "Legendario",
+    nextUnlock: "Más cerca de desbloquear",
+    close: "Cerrar",
+    earned: "¡Obtenido!",
+    progressLabel: "Progreso",
+    teacherNotice: "Los logros están diseñados para estudiantes.",
+    teacherNoticeHint: "Los estudiantes ganan avatares jugando sesiones en vivo, construyendo rachas y alcanzando metas de retención.",
+    starter: "Avatar inicial",
+    starterHint: "Disponible desde el primer día.",
+    cond_sessions: "Completa {n} sesiones",
+    cond_streak: "Logra una racha de {n} días",
+    cond_perfect: "Obtén 100% en {n} sesión(es)",
+    cond_answers: "Responde {n} preguntas correctamente",
+    cond_topics: "Domina {n} temas (≥70% retención)",
+    cond_comeback: "Regresa después de {n} días",
+    cond_retention: "Retención promedio ≥ {n}%",
+    loading: "Cargando...",
+    noProgress: "Empieza una sesión para empezar a ganar avatares",
+  },
+  ko: {
+    pageTitle: "업적",
+    subtitle: "플레이하고 배우면서 새로운 아바타를 잠금 해제하세요",
+    all: "전체", unlocked: "잠금 해제됨", locked: "잠김",
+    total: "개 잠금 해제", common: "일반", rare: "레어", legendary: "전설",
+    nextUnlock: "잠금 해제 직전",
+    close: "닫기",
+    earned: "획득!",
+    progressLabel: "진행도",
+    teacherNotice: "업적은 학생을 위해 설계되었습니다.",
+    teacherNoticeHint: "학생은 라이브 세션을 플레이하고, 연속 기록을 쌓고, 보존율 목표를 달성하여 아바타를 얻습니다.",
+    starter: "시작 아바타",
+    starterHint: "처음부터 사용 가능합니다.",
+    cond_sessions: "{n}개 세션 완료",
+    cond_streak: "{n}일 연속 달성",
+    cond_perfect: "{n}개 세션에서 100% 달성",
+    cond_answers: "{n}개 문제 정답",
+    cond_topics: "{n}개 주제 마스터 (≥70% 보존)",
+    cond_comeback: "{n}일 후 복귀",
+    cond_retention: "평균 보존율 ≥ {n}%",
+    loading: "로딩 중...",
+    noProgress: "세션을 시작하여 아바타 획득을 시작하세요",
+  },
+};
+
+const sel = {
+  fontFamily: "'Outfit',sans-serif", background: C.bg, border: `1px solid ${C.border}`,
+  color: C.text, borderRadius: 8, outline: "none", cursor: "pointer", appearance: "none",
+  backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2 4l4 4 4-4' fill='none' stroke='%239B9B9B' stroke-width='1.5'/%3E%3C/svg%3E")`,
+  backgroundRepeat: "no-repeat", backgroundPosition: "right 12px center",
+  padding: "6px 26px 6px 10px", fontSize: 12, width: "auto", flexShrink: 0,
 };
 
 const css = `
-  .ach-card { transition: all .2s ease; cursor: pointer; }
-  .ach-card:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(0,0,0,.08) !important; }
-  .ach-filter { transition: all .15s ease; cursor: pointer; border: none; font-family: 'Outfit',sans-serif; }
-  .ach-filter:hover { background: #E8F0FE !important; border-color: #2383E244 !important; color: #2383E2 !important; }
-  .ach-stat { transition: all .2s ease; }
-  .ach-stat:hover { transform: translateY(-2px); box-shadow: 0 2px 8px rgba(0,0,0,.06); }
-  .ach-next { transition: all .2s ease; cursor: pointer; }
-  .ach-next:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(35,131,226,.1); }
-  .ach-close { transition: all .15s ease; cursor: pointer; border: none; font-family: 'Outfit',sans-serif; }
-  .ach-close:hover { background: #E8F0FE !important; color: #2383E2 !important; }
-  .ach-lang { transition: all .12s ease; cursor: pointer; }
-  .ach-lang:hover { background: #E8F0FE !important; color: #2383E2 !important; }
-  @keyframes fadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
-  @keyframes popIn { from { opacity: 0; transform: scale(.85); } to { opacity: 1; transform: scale(1); } }
-  @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
-  .fade-up { animation: fadeUp .3s ease-out both; }
+  .ach-card { transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease; cursor: pointer; }
+  .ach-card:hover { transform: translateY(-2px); box-shadow: 0 4px 14px rgba(0,0,0,0.08); }
+  .ach-filter { transition: all .15s ease; cursor: pointer; }
+  .ach-stat { transition: all .15s ease; }
+  .ach-stat:hover { transform: translateY(-1px); box-shadow: 0 2px 8px rgba(0,0,0,.06); }
+  @keyframes ach-fade { from { opacity:0; transform:translateY(6px) } to { opacity:1; transform:translateY(0) } }
+  .ach-fade { animation: ach-fade .3s ease both }
+  @keyframes ach-pop { 0% { opacity:0; transform:scale(.9) } 100% { opacity:1; transform:scale(1) } }
+  .ach-pop { animation: ach-pop .3s ease both }
+  @keyframes ach-shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+  .ach-progress-fill { background: linear-gradient(90deg, var(--c1), var(--c2), var(--c1)); background-size: 200% 100%; animation: ach-shimmer 2.5s linear infinite; }
 `;
 
-const Bar = ({ value, max = 100, color = C.accent, h = 6 }) => (
-  <div style={{ width: "100%", height: h, background: C.bgSoft, borderRadius: h }}>
-    <div style={{ width: `${Math.min((value / max) * 100, 100)}%`, height: "100%", borderRadius: h, background: color, transition: "width .5s ease" }} />
-  </div>
-);
+// ─── Unlock condition → progress ──────────────────────────────────────────
+// Given an avatar's unlock spec and the student's stats, return:
+//   { current, target, percent, doneText }
+function evalProgress(unlock, stats) {
+  if (!unlock) return null;
+  if (!stats) return { current: 0, target: 1, percent: 0 };
 
-function PageHeader({ title, icon, lang, setLang, maxWidth = 720 }) {
-  const langSel = { fontFamily: "'Outfit',sans-serif", background: C.bg, border: `1px solid ${C.border}`, color: C.text, borderRadius: 8, outline: "none", cursor: "pointer", appearance: "none", backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2 4l4 4 4-4' fill='none' stroke='%239B9B9B' stroke-width='1.5'/%3E%3C/svg%3E")`, backgroundRepeat: "no-repeat", backgroundPosition: "right 12px center", padding: "6px 26px 6px 10px", fontSize: 12, width: "auto", flexShrink: 0 };
+  switch (unlock.type) {
+    case "sessions":
+      return { current: Math.min(stats.sessionsCount, unlock.count), target: unlock.count, percent: Math.min(100, (stats.sessionsCount / unlock.count) * 100) };
+    case "streak":
+      return { current: Math.min(stats.streakDays, unlock.days), target: unlock.days, percent: Math.min(100, (stats.streakDays / unlock.days) * 100) };
+    case "perfect":
+      return { current: Math.min(stats.perfectSessions, unlock.count), target: unlock.count, percent: Math.min(100, (stats.perfectSessions / unlock.count) * 100) };
+    case "answers":
+      return { current: Math.min(stats.answersCorrect, unlock.count), target: unlock.count, percent: Math.min(100, (stats.answersCorrect / unlock.count) * 100) };
+    case "topics":
+      return { current: Math.min(stats.topicsMastered, unlock.count), target: unlock.count, percent: Math.min(100, (stats.topicsMastered / unlock.count) * 100) };
+    case "comeback":
+      return { current: Math.min(stats.comebackDays, unlock.days), target: unlock.days, percent: Math.min(100, (stats.comebackDays / unlock.days) * 100) };
+    case "retention":
+      return { current: Math.min(stats.avgRetention, unlock.min), target: unlock.min, percent: Math.min(100, (stats.avgRetention / unlock.min) * 100) };
+    default:
+      return { current: 0, target: 1, percent: 0 };
+  }
+}
+
+function unlockText(unlock, t) {
+  if (!unlock) return "";
+  switch (unlock.type) {
+    case "sessions":  return t.cond_sessions.replace("{n}", unlock.count);
+    case "streak":    return t.cond_streak.replace("{n}", unlock.days);
+    case "perfect":   return t.cond_perfect.replace("{n}", unlock.count);
+    case "answers":   return t.cond_answers.replace("{n}", unlock.count);
+    case "topics":    return t.cond_topics.replace("{n}", unlock.count);
+    case "comeback":  return t.cond_comeback.replace("{n}", unlock.days);
+    case "retention": return t.cond_retention.replace("{n}", unlock.min);
+    default: return "";
+  }
+}
+
+function PageHeader({ title, lang, setLang, maxWidth = 800 }) {
   return (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", maxWidth, margin: "0 auto 24px", paddingBottom: 18, borderBottom: `1px solid ${C.border}` }}>
       <h1 style={{ fontFamily: "'Outfit',sans-serif", fontSize: 22, fontWeight: 700, color: C.text, display: "flex", alignItems: "center", gap: 10 }}>
-        <CIcon name={icon} size={22} /> {title}
+        <CIcon name="trophy" size={22} /> {title}
       </h1>
-      <select value={lang} onChange={(e) => setLang(e.target.value)} style={langSel}>
+      <select value={lang} onChange={(e) => setLang(e.target.value)} style={sel}>
         <option value="en">EN</option><option value="es">ES</option><option value="ko">한</option>
       </select>
     </div>
   );
 }
 
-function AchCard({ ach, l, t, onClick }) {
-  const r = RARITY[ach.rarity], cat = CATS[ach.cat];
-  const isSecret = ach.rarity === "secret" && !ach.unlocked;
+// ─── Card per avatar ──────────────────────────────────────────────────────
+function AvatarCard({ avatar, unlocked, progress, lang, t, onClick }) {
+  const rarity = RARITY[avatar.rarity] || RARITY.common;
+  const isStarter = avatar.starter === true;
+  const condText = isStarter ? t.starterHint : unlockText(avatar.unlock, t);
+  const name = avatar.name?.[lang] || avatar.name?.en || avatar.id;
+
   return (
-    <div className="ach-card" onClick={onClick} style={{
-      background: C.bg, borderRadius: 12, padding: 16,
-      border: `1px solid ${ach.unlocked ? r.border : C.border}`,
-      boxShadow: ach.unlocked ? r.glow : C.shadow,
-      opacity: ach.unlocked ? 1 : 0.65, position: "relative", overflow: "hidden",
-    }}>
-      {ach.unlocked && (ach.rarity === "legendary" || ach.rarity === "secret") && (
-        <div style={{ position: "absolute", inset: 0, borderRadius: 12, background: `linear-gradient(90deg, transparent, ${r.text}08, transparent)`, backgroundSize: "200% 100%", animation: "shimmer 3s infinite linear", pointerEvents: "none" }} />
-      )}
-      <div style={{ display: "flex", alignItems: "flex-start", gap: 12, position: "relative" }}>
-        <div style={{ width: 48, height: 48, borderRadius: 12, flexShrink: 0, background: ach.unlocked ? r.bg : C.bgSoft, display: "flex", alignItems: "center", justifyContent: "center", filter: ach.unlocked ? "none" : "grayscale(1)", border: `1px solid ${ach.unlocked ? r.border : C.border}` }}>
-          {isSecret ? <span style={{ fontSize: 20, color: C.textMuted }}>?</span> : <CIcon name={ach.icon} size={20} inline />}
+    <button
+      className="ach-card"
+      onClick={onClick}
+      style={{
+        background: C.bg, borderRadius: 12,
+        border: `1px solid ${unlocked ? rarity.border : C.border}`,
+        padding: 14, textAlign: "left", cursor: "pointer",
+        fontFamily: "'Outfit',sans-serif",
+        display: "flex", flexDirection: "column", gap: 10,
+        opacity: unlocked ? 1 : 0.85,
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <div style={{ filter: unlocked ? "none" : "grayscale(0.7) opacity(0.6)", flexShrink: 0 }}>
+          <CatalogAvatar id={avatar.id} size={52} />
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
-            <h3 style={{ fontSize: 14, fontWeight: 600 }}>{isSecret ? "???" : ach.title[l]}</h3>
-            <span style={{ fontSize: 10, fontWeight: 600, padding: "2px 6px", borderRadius: 4, background: r.bg, color: r.text }}>{r.label[l]}</span>
+          <div style={{ fontSize: 14, fontWeight: 600, lineHeight: 1.3, color: unlocked ? C.text : C.textSecondary }}>
+            {name}
           </div>
-          <p style={{ fontSize: 12, color: C.textSecondary, lineHeight: 1.4, marginBottom: 8 }}>
-            {isSecret ? (l === "ko" ? "계속 탐험해서 발견하세요!" : l === "es" ? "¡Sigue explorando!" : "Keep exploring to discover!") : ach.desc[l]}
-          </p>
-          {!ach.unlocked && !isSecret && (
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <Bar value={ach.progress} max={ach.goal} color={cat.color} h={5} />
-              <span style={{ fontSize: 11, fontWeight: 600, color: C.textMuted, fontFamily: MONO, whiteSpace: "nowrap" }}>{ach.progress}/{ach.goal}</span>
-            </div>
-          )}
-          {ach.unlocked && (
-            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <CIcon name="check" size={12} inline /><span style={{ fontSize: 11, color: C.green, fontWeight: 600 }}>{t.earned}</span>
-              <span style={{ fontSize: 11, color: C.textMuted }}>·</span>
-              <span style={{ fontSize: 11, color: C.purple, fontWeight: 600 }}>+{ach.xp} XP</span>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function AchModal({ ach, l, t, onClose }) {
-  const r = RARITY[ach.rarity], cat = CATS[ach.cat];
-  const pct = Math.round((ach.progress / ach.goal) * 100);
-  return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.35)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, padding: 20 }} onClick={onClose}>
-      <div onClick={e => e.stopPropagation()} style={{ background: C.bg, borderRadius: 16, padding: 32, maxWidth: 380, width: "100%", textAlign: "center", animation: "popIn .3s cubic-bezier(.34,1.56,.64,1)", border: `2px solid ${r.border}`, boxShadow: `0 24px 48px rgba(0,0,0,.12), ${r.glow}` }}>
-        <div style={{ width: 72, height: 72, borderRadius: 18, background: r.bg, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px", border: `2px solid ${r.border}`, boxShadow: r.glow }}>
-          <CIcon name={ach.icon} size={28} inline />
-        </div>
-        <span style={{ display: "inline-block", fontSize: 11, fontWeight: 600, padding: "3px 10px", borderRadius: 20, background: r.bg, color: r.text, marginBottom: 12 }}>{r.label[l]}</span>
-        <h2 style={{ fontFamily: "'Outfit'", fontSize: 22, fontWeight: 700, marginBottom: 6 }}>{ach.title[l]}</h2>
-        <p style={{ fontSize: 14, color: C.textSecondary, lineHeight: 1.5, marginBottom: 20 }}>{ach.desc[l]}</p>
-        <div style={{ display: "flex", alignItems: "center", gap: 6, justifyContent: "center", marginBottom: 16 }}>
-          <CIcon name={cat.icon} size={14} inline />
-          <span style={{ fontSize: 13, color: C.textSecondary }}>{cat.label[l]}</span>
-        </div>
-        {!ach.unlocked ? (
-          <div style={{ marginBottom: 20 }}>
-            <Bar value={ach.progress} max={ach.goal} color={cat.color} h={8} />
-            <div style={{ display: "flex", justifyContent: "space-between", marginTop: 6 }}>
-              <span style={{ fontSize: 12, color: C.textMuted }}>{pct}%</span>
-              <span style={{ fontSize: 12, fontWeight: 600, fontFamily: MONO, color: cat.color }}>{ach.progress}/{ach.goal}</span>
-            </div>
-            <p style={{ fontSize: 13, color: pct >= 80 ? C.orange : C.textMuted, fontWeight: 500, marginTop: 8 }}>{pct >= 80 ? t.almost : t.keepGoing}</p>
+          <div style={{
+            display: "inline-block", marginTop: 4,
+            padding: "2px 8px", borderRadius: 6, fontSize: 10, fontWeight: 600,
+            background: rarity.bg, color: rarity.text,
+            border: `1px solid ${rarity.border}`,
+          }}>
+            {rarity.label[lang]}
           </div>
-        ) : (
-          <div style={{ padding: "12px 16px", borderRadius: 10, background: C.greenSoft, marginBottom: 20, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
-            <CIcon name="check" size={14} inline />
-            <span style={{ fontSize: 14, fontWeight: 600, color: C.green }}>{t.earned}</span>
+        </div>
+        {unlocked && (
+          <div style={{ flexShrink: 0, color: C.green }}>
+            <CIcon name="check" size={20} />
           </div>
         )}
-        <div style={{ padding: "10px 16px", borderRadius: 8, background: C.purpleSoft, display: "inline-flex", alignItems: "center", gap: 6, marginBottom: 16 }}>
-          <span style={{ fontSize: 13, color: C.purple, fontWeight: 600 }}>{t.xpReward}: +{ach.xp} XP</span>
+      </div>
+
+      <div style={{ fontSize: 11, color: C.textMuted, lineHeight: 1.4 }}>
+        {condText}
+      </div>
+
+      {/* Progress bar (hidden for starters and already-unlocked) */}
+      {!isStarter && !unlocked && progress && (
+        <div>
+          <div style={{
+            height: 6, background: C.bgSoft, borderRadius: 4, overflow: "hidden",
+          }}>
+            <div
+              className="ach-progress-fill"
+              style={{
+                "--c1": rarity.text,
+                "--c2": rarity.text + "AA",
+                width: `${progress.percent}%`, height: "100%",
+                transition: "width .5s ease",
+              }}
+            />
+          </div>
+          <div style={{ fontSize: 10, color: C.textMuted, marginTop: 4, fontFamily: MONO, textAlign: "right" }}>
+            {progress.current} / {progress.target}
+          </div>
         </div>
-        <br />
-        <button className="ach-close" onClick={onClose} style={{ padding: "10px 24px", borderRadius: 8, fontSize: 14, fontWeight: 500, background: C.bgSoft, color: C.textSecondary, marginTop: 8 }}>{t.close}</button>
+      )}
+    </button>
+  );
+}
+
+// ─── Detail modal ─────────────────────────────────────────────────────────
+function AchModal({ avatar, unlocked, progress, lang, t, onClose }) {
+  const rarity = RARITY[avatar.rarity] || RARITY.common;
+  const isStarter = avatar.starter === true;
+  const condText = isStarter ? t.starterHint : unlockText(avatar.unlock, t);
+  const name = avatar.name?.[lang] || avatar.name?.en || avatar.id;
+
+  return (
+    <div onClick={onClose} style={{
+      position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)",
+      display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, padding: 20,
+    }}>
+      <div onClick={e => e.stopPropagation()} className="ach-pop" style={{
+        background: C.bg, borderRadius: 16, border: `1px solid ${unlocked ? rarity.border : C.border}`,
+        padding: 32, maxWidth: 380, width: "100%", textAlign: "center",
+        boxShadow: "0 12px 40px rgba(0,0,0,0.18)",
+      }}>
+        <div style={{
+          display: "inline-flex", marginBottom: 12,
+          filter: unlocked ? "none" : "grayscale(0.7) opacity(0.7)",
+        }}>
+          <CatalogAvatar id={avatar.id} size={108} />
+        </div>
+
+        <h2 style={{ fontFamily: "'Outfit',sans-serif", fontSize: 22, fontWeight: 700, marginBottom: 4 }}>
+          {name}
+        </h2>
+
+        <div style={{
+          display: "inline-block", marginBottom: 14,
+          padding: "3px 10px", borderRadius: 8, fontSize: 11, fontWeight: 600,
+          background: rarity.bg, color: rarity.text,
+          border: `1px solid ${rarity.border}`,
+        }}>
+          {rarity.label[lang]}
+        </div>
+
+        {unlocked && (
+          <div style={{
+            display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+            padding: "8px 14px", borderRadius: 10,
+            background: C.greenSoft, color: C.green,
+            fontSize: 13, fontWeight: 600, marginBottom: 14,
+          }}>
+            <CIcon name="check" size={14} inline /> {t.earned}
+          </div>
+        )}
+
+        <p style={{ fontSize: 13, color: C.textSecondary, lineHeight: 1.5, marginBottom: 18 }}>
+          {condText}
+        </p>
+
+        {!isStarter && !unlocked && progress && (
+          <div style={{ marginBottom: 20 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6, fontSize: 11, color: C.textMuted }}>
+              <span>{t.progressLabel}</span>
+              <span style={{ fontFamily: MONO, color: C.text }}>{progress.current} / {progress.target}</span>
+            </div>
+            <div style={{ height: 8, background: C.bgSoft, borderRadius: 4, overflow: "hidden" }}>
+              <div
+                className="ach-progress-fill"
+                style={{
+                  "--c1": rarity.text,
+                  "--c2": rarity.text + "AA",
+                  width: `${progress.percent}%`, height: "100%",
+                  transition: "width .5s ease",
+                }}
+              />
+            </div>
+          </div>
+        )}
+
+        <button onClick={onClose} style={{
+          padding: "9px 20px", borderRadius: 8, fontSize: 13, fontWeight: 600,
+          background: C.bgSoft, color: C.textSecondary, border: `1px solid ${C.border}`,
+          cursor: "pointer", fontFamily: "'Outfit',sans-serif",
+        }}>{t.close}</button>
       </div>
     </div>
   );
 }
 
-export default function Achievements({ lang: pageLang = "en", setLang: pageSetLang }) {
-  const [lang, setLangLocal] = useState(pageLang);
-  const setLang = pageSetLang || setLangLocal;
-  const l = pageLang || lang;
-  const [filter, setFilter] = useState("all");
+// ─── Main ─────────────────────────────────────────────────────────────────
+export default function Achievements({ lang = "en", setLang, profile = null }) {
+  const t = i18n[lang] || i18n.en;
+  const [filter, setFilter] = useState("all"); // all | unlocked | locked
+  const [rarityFilter, setRarityFilter] = useState("all"); // all | common | rare | legendary
   const [selected, setSelected] = useState(null);
-  const t = i18n[l] || i18n.en;
+  const [stats, setStats] = useState(null);
+  const [unlocks, setUnlocks] = useState({}); // { avatarId: true }
+  const [loading, setLoading] = useState(true);
 
-  const unlockedCount = ACHS.filter(a => a.unlocked).length;
-  const totalXP = ACHS.filter(a => a.unlocked).reduce((s, a) => s + a.xp, 0);
-  const nextUnlock = ACHS.filter(a => !a.unlocked && a.rarity !== "secret").sort((a, b) => (b.progress / b.goal) - (a.progress / a.goal))[0];
-  const filtered = filter === "all" ? ACHS : filter === "unlocked" ? ACHS.filter(a => a.unlocked) : filter === "locked" ? ACHS.filter(a => !a.unlocked) : ACHS.filter(a => a.cat === filter);
+  // ── Teacher notice ──
+  const isTeacher = profile?.role === "teacher";
+
+  // ── Load student data ──
+  useEffect(() => {
+    if (!profile?.id || isTeacher) { setLoading(false); return; }
+    (async () => {
+      try {
+        const [s, u] = await Promise.all([
+          getStudentStats(profile.id),
+          supabase.from("student_unlocks").select("avatar_id").eq("student_id", profile.id),
+        ]);
+        setStats(s);
+        const map = {};
+        (u?.data || []).forEach(row => { map[row.avatar_id] = true; });
+        setUnlocks(map);
+      } catch (e) {
+        console.error("Achievements load error:", e);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [profile?.id, isTeacher]);
+
+  // ── Build merged list with unlock + progress info ──
+  const enriched = AVATARS.map(av => {
+    const isStarter = av.starter === true;
+    const unlocked = isStarter || !!unlocks[av.id];
+    const progress = !isStarter ? evalProgress(av.unlock, stats) : null;
+    return { avatar: av, unlocked, progress };
+  });
+
+  // ── Stats for the header ──
+  const totalUnlocked = enriched.filter(e => e.unlocked).length;
+  const totalAvatars = enriched.length;
+  const byRarity = {
+    common: enriched.filter(e => e.avatar.rarity === "common"),
+    rare: enriched.filter(e => e.avatar.rarity === "rare"),
+    legendary: enriched.filter(e => e.avatar.rarity === "legendary"),
+  };
+
+  // ── Closest to unlocking (from locked, sorted by progress %) ──
+  const closest = enriched
+    .filter(e => !e.unlocked && e.progress && e.progress.percent < 100)
+    .sort((a, b) => b.progress.percent - a.progress.percent)[0];
+
+  // ── Apply filters ──
+  let visible = enriched;
+  if (filter === "unlocked") visible = visible.filter(e => e.unlocked);
+  else if (filter === "locked") visible = visible.filter(e => !e.unlocked);
+  if (rarityFilter !== "all") visible = visible.filter(e => e.avatar.rarity === rarityFilter);
+
+  // ── Teacher view ──
+  if (isTeacher) {
+    return (
+      <div style={{ padding: "28px 20px" }}>
+        <style>{css}</style>
+        <PageHeader title={t.pageTitle} lang={lang} setLang={setLang} />
+        <div className="ach-fade" style={{ maxWidth: 480, margin: "60px auto", textAlign: "center", padding: "20px" }}>
+          <div style={{
+            width: 64, height: 64, borderRadius: "50%",
+            background: C.purpleSoft, color: C.purple,
+            display: "inline-flex", alignItems: "center", justifyContent: "center",
+            marginBottom: 16,
+          }}>
+            <CIcon name="trophy" size={28} inline />
+          </div>
+          <h2 style={{ fontSize: 17, fontWeight: 700, color: C.text, marginBottom: 8 }}>
+            {t.teacherNotice}
+          </h2>
+          <p style={{ fontSize: 13, color: C.textSecondary, lineHeight: 1.5 }}>
+            {t.teacherNoticeHint}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div style={{ padding: "28px 20px" }}>
+        <style>{css}</style>
+        <PageHeader title={t.pageTitle} lang={lang} setLang={setLang} />
+        <p style={{ textAlign: "center", color: C.textMuted, padding: 40 }}>{t.loading}</p>
+      </div>
+    );
+  }
 
   return (
     <div style={{ padding: "28px 20px" }}>
       <style>{css}</style>
-      <PageHeader title={t.pageTitle} icon="trophy" lang={l} setLang={setLang} />
-      {selected && <AchModal ach={selected} l={l} t={t} onClose={() => setSelected(null)} />}
+      <PageHeader title={t.pageTitle} lang={lang} setLang={setLang} />
+      {selected && (
+        <AchModal
+          avatar={selected.avatar}
+          unlocked={selected.unlocked}
+          progress={selected.progress}
+          lang={lang}
+          t={t}
+          onClose={() => setSelected(null)}
+        />
+      )}
 
-      <div style={{ maxWidth: 720, margin: "0 auto" }}>
+      <div className="ach-fade" style={{ maxWidth: 800, margin: "0 auto" }}>
         <p style={{ fontSize: 14, color: C.textSecondary, marginBottom: 20 }}>{t.subtitle}</p>
 
-        {/* Stats */}
-        <div style={{ display: "flex", gap: 10, marginBottom: 20 }}>
-          <div className="ach-stat" style={{ flex: 1, padding: "16px 18px", borderRadius: 10, background: C.bg, border: `1px solid ${C.border}`, textAlign: "center" }}>
-            <div style={{ fontSize: 28, fontWeight: 700, fontFamily: MONO, color: C.accent }}>{unlockedCount}/{ACHS.length}</div>
-            <div style={{ fontSize: 11, color: C.textMuted, marginTop: 2 }}>{t.achievementsUnlocked}</div>
+        {/* Top stats */}
+        <div style={{ display: "flex", gap: 10, marginBottom: 20, flexWrap: "wrap" }}>
+          <div className="ach-stat" style={{
+            flex: "1 1 200px", padding: "16px 18px", borderRadius: 10,
+            background: C.bg, border: `1px solid ${C.border}`,
+          }}>
+            <div style={{ fontSize: 28, fontWeight: 700, fontFamily: MONO, color: C.accent, lineHeight: 1 }}>
+              {totalUnlocked}<span style={{ fontSize: 18, color: C.textMuted }}>/{totalAvatars}</span>
+            </div>
+            <div style={{ fontSize: 11, color: C.textMuted, marginTop: 4 }}>{t.total}</div>
           </div>
-          <div className="ach-stat" style={{ flex: 1, padding: "16px 18px", borderRadius: 10, background: C.bg, border: `1px solid ${C.border}`, textAlign: "center" }}>
-            <div style={{ fontSize: 28, fontWeight: 700, fontFamily: MONO, color: C.purple }}>{totalXP.toLocaleString()}</div>
-            <div style={{ fontSize: 11, color: C.textMuted, marginTop: 2 }}>{t.totalXP}</div>
-          </div>
+          {["common", "rare", "legendary"].map(r => {
+            const list = byRarity[r];
+            const u = list.filter(e => e.unlocked).length;
+            return (
+              <div key={r} className="ach-stat" style={{
+                flex: "1 1 100px", padding: "16px 18px", borderRadius: 10,
+                background: C.bg, border: `1px solid ${RARITY[r].border}`,
+              }}>
+                <div style={{ fontSize: 22, fontWeight: 700, fontFamily: MONO, color: RARITY[r].text, lineHeight: 1 }}>
+                  {u}<span style={{ fontSize: 14, color: C.textMuted }}>/{list.length}</span>
+                </div>
+                <div style={{ fontSize: 11, color: RARITY[r].text, marginTop: 4, fontWeight: 600 }}>
+                  {t[r]}
+                </div>
+              </div>
+            );
+          })}
         </div>
 
-        {/* Next unlock */}
-        {nextUnlock && (
-          <div className="ach-next" onClick={() => setSelected(nextUnlock)} style={{
-            padding: "14px 18px", borderRadius: 10, marginBottom: 20,
-            background: `linear-gradient(135deg, ${C.accentSoft}, ${C.purpleSoft})`,
-            border: `1px solid ${C.accent}22`,
-            display: "flex", alignItems: "center", gap: 12,
-          }}>
-            <CIcon name={nextUnlock.icon} size={28} />
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 13, fontWeight: 600, color: C.purple }}>{t.nextUnlock}: {nextUnlock.title[l]}</div>
-              <div style={{ marginTop: 4 }}><Bar value={nextUnlock.progress} max={nextUnlock.goal} color={C.purple} h={5} /></div>
+        {/* Closest to unlock */}
+        {closest && (
+          <button
+            onClick={() => setSelected(closest)}
+            style={{
+              width: "100%", padding: "14px 18px", borderRadius: 10, marginBottom: 20,
+              background: `linear-gradient(135deg, ${C.accentSoft}, ${C.purpleSoft})`,
+              border: `1px solid ${C.accent}22`,
+              cursor: "pointer", fontFamily: "'Outfit',sans-serif",
+              display: "flex", alignItems: "center", gap: 12, textAlign: "left",
+            }}
+          >
+            <div style={{ flexShrink: 0 }}>
+              <CatalogAvatar id={closest.avatar.id} size={44} />
             </div>
-            <span style={{ fontSize: 13, fontWeight: 700, fontFamily: MONO, color: C.purple }}>{Math.round((nextUnlock.progress / nextUnlock.goal) * 100)}%</span>
-          </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 11, color: C.purple, fontWeight: 600, marginBottom: 2 }}>{t.nextUnlock}</div>
+              <div style={{ fontSize: 14, fontWeight: 600, color: C.text, marginBottom: 6 }}>
+                {closest.avatar.name?.[lang] || closest.avatar.name?.en}
+              </div>
+              <div style={{ height: 5, background: "rgba(255,255,255,0.6)", borderRadius: 3, overflow: "hidden" }}>
+                <div style={{ width: `${closest.progress.percent}%`, height: "100%", background: C.accent, transition: "width .5s ease" }} />
+              </div>
+            </div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: C.purple, fontFamily: MONO, flexShrink: 0 }}>
+              {Math.round(closest.progress.percent)}%
+            </div>
+          </button>
         )}
 
         {/* Filters */}
-        <div style={{ display: "flex", gap: 4, marginBottom: 20, flexWrap: "wrap" }}>
-          {[["all", t.all], ["unlocked", t.unlocked], ["locked", t.locked], ...Object.entries(CATS).map(([k, v]) => [k, v.label[l]])].map(([k, label]) => (
-            <button key={k} className="ach-filter" onClick={() => setFilter(k)} style={{
-              padding: "6px 14px", borderRadius: 20, fontSize: 12, fontWeight: 500,
-              background: filter === k ? C.accentSoft : C.bg,
-              color: filter === k ? C.accent : C.textSecondary,
-              border: `1px solid ${filter === k ? C.accent + "33" : C.border}`,
-            }}>{label}</button>
+        <div style={{ display: "flex", gap: 6, marginBottom: 16, flexWrap: "wrap" }}>
+          {["all", "unlocked", "locked"].map(f => (
+            <button
+              key={f}
+              onClick={() => setFilter(f)}
+              className="ach-filter"
+              style={{
+                padding: "7px 14px", borderRadius: 8, fontSize: 12, fontWeight: 600,
+                background: filter === f ? C.accentSoft : C.bg,
+                color: filter === f ? C.accent : C.textSecondary,
+                border: `1px solid ${filter === f ? C.accent + "44" : C.border}`,
+                fontFamily: "'Outfit',sans-serif",
+              }}
+            >{t[f]}</button>
+          ))}
+          <div style={{ width: 1, height: 28, background: C.border, margin: "0 4px" }} />
+          {["all", "common", "rare", "legendary"].map(r => (
+            <button
+              key={r}
+              onClick={() => setRarityFilter(r)}
+              className="ach-filter"
+              style={{
+                padding: "7px 14px", borderRadius: 8, fontSize: 12, fontWeight: 600,
+                background: rarityFilter === r ? (RARITY[r]?.bg || C.accentSoft) : C.bg,
+                color: rarityFilter === r ? (RARITY[r]?.text || C.accent) : C.textSecondary,
+                border: `1px solid ${rarityFilter === r ? (RARITY[r]?.border || C.accent + "44") : C.border}`,
+                fontFamily: "'Outfit',sans-serif",
+              }}
+            >{t[r] || t.all}</button>
           ))}
         </div>
 
-        {/* Grid */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 10 }}>
-          {filtered.map((ach, i) => (
-            <div key={ach.id} className="fade-up" style={{ animationDelay: `${i * .03}s` }}>
-              <AchCard ach={ach} l={l} t={t} onClick={() => setSelected(ach)} />
-            </div>
-          ))}
-        </div>
-
-        {filtered.length === 0 && (
-          <div className="fade-up" style={{ textAlign: "center", padding: 48 }}>
-            <CIcon name="trophy" size={36} />
-            <p style={{ fontSize: 15, color: C.textMuted, fontWeight: 500, marginTop: 12 }}>
-              {l === "ko" ? "이 카테고리에 아직 업적이 없습니다" : l === "es" ? "Sin logros en esta categoría" : "No achievements in this category"}
-            </p>
+        {/* Cards grid */}
+        {visible.length === 0 ? (
+          <p style={{ textAlign: "center", color: C.textMuted, padding: 40, fontSize: 13 }}>—</p>
+        ) : (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 12 }}>
+            {visible.map(item => (
+              <AvatarCard
+                key={item.avatar.id}
+                avatar={item.avatar}
+                unlocked={item.unlocked}
+                progress={item.progress}
+                lang={lang}
+                t={t}
+                onClick={() => setSelected(item)}
+              />
+            ))}
           </div>
         )}
       </div>
