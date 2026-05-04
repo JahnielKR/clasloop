@@ -32,6 +32,7 @@ const i18n = {
     pageTitle: "Decks", subtitle: "Create and manage your question collections",
     myDecks: "My Decks", following: "Following", favorites: "Favorites", create: "+ Create deck",
     search: "Search decks...", filterAll: "All", filterSubject: "Subject", filterClass: "Class", filterAllSubjects: "All subjects", filterAllClasses: "All classes", filterUnassigned: "Unassigned",
+    newClass: "+ New class", newClassHint: "You can create a new class from Sessions",
     groupBy: "Group by", groupByClass: "Class", groupBySubject: "Subject", groupByNone: "None",
     noFavorites: "No favorites yet. Save decks from Community to see them here.",
     favoriteRemove: "Remove from favorites", favoriteAdd: "Add to favorites",
@@ -85,6 +86,7 @@ const i18n = {
     pageTitle: "Decks", subtitle: "Crea y gestiona tus colecciones de preguntas",
     myDecks: "Mis Decks", following: "Siguiendo", favorites: "Favoritos", create: "+ Crear deck",
     search: "Buscar decks...", filterAll: "Todos", filterSubject: "Materia", filterClass: "Clase", filterAllSubjects: "Todas las materias", filterAllClasses: "Todas las clases", filterUnassigned: "Sin clase",
+    newClass: "+ Nueva clase", newClassHint: "Puedes crear una clase nueva desde Sesiones",
     groupBy: "Agrupar por", groupByClass: "Clase", groupBySubject: "Materia", groupByNone: "Ninguno",
     noFavorites: "Aún no tienes favoritos. Guarda decks de la Comunidad para verlos aquí.",
     favoriteRemove: "Quitar de favoritos", favoriteAdd: "Agregar a favoritos",
@@ -138,6 +140,7 @@ const i18n = {
     pageTitle: "덱", subtitle: "문제 모음을 만들고 관리하세요",
     myDecks: "내 덱", following: "팔로잉", favorites: "즐겨찾기", create: "+ 덱 만들기",
     search: "덱 검색...", filterAll: "전체", filterSubject: "과목", filterClass: "수업", filterAllSubjects: "모든 과목", filterAllClasses: "모든 수업", filterUnassigned: "미지정",
+    newClass: "+ 새 수업", newClassHint: "세션에서 새 수업을 만들 수 있습니다",
     groupBy: "그룹화", groupByClass: "수업", groupBySubject: "과목", groupByNone: "없음",
     noFavorites: "아직 즐겨찾기가 없습니다. 커뮤니티에서 덱을 저장하여 여기에 표시하세요.",
     favoriteRemove: "즐겨찾기에서 제거", favoriteAdd: "즐겨찾기에 추가",
@@ -194,6 +197,9 @@ const css = `
   .dk-tab:hover { background: #E8F0FE !important; border-color: #2383E244 !important; color: #2383E2 !important; }
   .dk-card { transition: all .2s ease; cursor: pointer; }
   .dk-card:hover { border-color: #2383E244 !important; box-shadow: 0 4px 16px rgba(35,131,226,.1) !important; transform: translateY(-2px); }
+  .dk-group-header { transition: all .18s ease; cursor: pointer; }
+  .dk-group-header:hover { transform: translateY(-1px); box-shadow: 0 3px 10px rgba(0,0,0,0.06); filter: brightness(0.98); }
+  .dk-group-header:active { transform: translateY(0); }
   .dk-btn { transition: all .15s ease; cursor: pointer; border: none; font-family: 'Outfit',sans-serif; }
   .dk-btn:hover { transform: translateY(-1px); filter: brightness(1.05); }
   .dk-btn-secondary:hover { background: #E8F0FE !important; border-color: #2383E244 !important; color: #2383E2 !important; }
@@ -298,18 +304,13 @@ const LangBadge = ({ lang }) => {
 
 function PageHeader({ title, icon, lang, setLang }) {
   return (
-    <div style={{ background: C.bg, borderBottom: `1px solid ${C.border}`, padding: "14px 28px", margin: "-28px -20px 24px -20px" }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <CIcon name={icon} size={28} />
-          <h1 style={{ fontFamily: "'Outfit'", fontSize: 18, fontWeight: 700 }}>{title}</h1>
-        </div>
-        <div style={{ display: "flex", gap: 2, background: C.bgSoft, borderRadius: 8, padding: 3 }}>
-          {[["en", "EN"], ["es", "ES"], ["ko", "한"]].map(([c, l]) => (
-            <button key={c} className="dk-lang" onClick={() => setLang(c)} style={{ padding: "5px 10px", borderRadius: 6, fontSize: 12, fontWeight: 600, background: lang === c ? C.bg : "transparent", color: lang === c ? C.text : C.textMuted, border: "none", boxShadow: lang === c ? "0 1px 2px rgba(0,0,0,0.06)" : "none" }}>{l}</button>
-          ))}
-        </div>
-      </div>
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", maxWidth: 800, margin: "0 auto 24px", paddingBottom: 18, borderBottom: `1px solid ${C.border}` }}>
+      <h1 style={{ fontFamily: "'Outfit',sans-serif", fontSize: 22, fontWeight: 700, color: C.text, display: "flex", alignItems: "center", gap: 10 }}>
+        <CIcon name={icon} size={22} /> {title}
+      </h1>
+      <select value={lang} onChange={(e) => setLang(e.target.value)} style={{ ...sel, width: "auto", fontSize: 12, padding: "6px 26px 6px 10px" }}>
+        <option value="en">EN</option><option value="es">ES</option><option value="ko">한</option>
+      </select>
     </div>
   );
 }
@@ -1914,7 +1915,7 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
 }
 
 // ─── Main ───────────────────────────────────────────
-export default function Decks({ lang: pageLang = "en", setLang: pageSetLang }) {
+export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onNavigateToSessions }) {
   const [lang, setLangLocal] = useState(pageLang);
   const setLang = pageSetLang || setLangLocal;
   const l = pageLang || lang;
@@ -2154,12 +2155,27 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang }) {
                 <option value="">{t.filterAllSubjects}</option>
                 {allSubjects.map(s => <option key={s} value={s}>{s}</option>)}
               </select>
-              {tab === "myDecks" && userClasses.length > 0 && (
-                <select value={filterClass} onChange={e => setFilterClass(e.target.value)} style={{ ...sel, flex: 1, minWidth: 140 }}>
-                  <option value="">{t.filterAllClasses}</option>
-                  {userClasses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                  <option value="__unassigned__">{t.filterUnassigned}</option>
-                </select>
+              {tab === "myDecks" && (
+                <div style={{ flex: 1, minWidth: 140, display: "flex", gap: 4 }}>
+                  {userClasses.length > 0 ? (
+                    <select value={filterClass} onChange={e => setFilterClass(e.target.value)} style={{ ...sel, flex: 1, minWidth: 0 }}>
+                      <option value="">{t.filterAllClasses}</option>
+                      {userClasses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                      <option value="__unassigned__">{t.filterUnassigned}</option>
+                    </select>
+                  ) : null}
+                  <button
+                    onClick={() => onNavigateToSessions && onNavigateToSessions({ openCreateClass: true })}
+                    title={t.newClassHint}
+                    style={{
+                      padding: "10px 12px", borderRadius: 8, fontSize: 12, fontWeight: 600,
+                      background: C.bg, color: C.accent, border: `1px dashed ${C.accent}66`,
+                      cursor: "pointer", fontFamily: "'Outfit',sans-serif",
+                      whiteSpace: "nowrap",
+                      flexShrink: 0,
+                    }}
+                  >{t.newClass}</button>
+                </div>
               )}
               <select value={groupBy} onChange={e => setGroupBy(e.target.value)} style={{ ...sel, flex: 1, minWidth: 140 }}>
                 <option value="class">{t.groupBy}: {t.groupByClass}</option>
@@ -2194,14 +2210,14 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang }) {
                   {group.label && (
                     <button
                       onClick={() => toggleGroup(group.key)}
+                      className="dk-group-header"
                       style={{
                         width: "100%",
                         display: "flex", alignItems: "center", gap: 12,
                         padding: "12px 14px", marginBottom: 10,
-                        background: groupAccent + "10", // very light tint (~6% alpha)
+                        background: groupAccent + "10",
                         border: `1px solid ${groupAccent}26`,
                         borderRadius: 10,
-                        cursor: "pointer",
                         fontFamily: "'Outfit',sans-serif", textAlign: "left",
                       }}
                     >

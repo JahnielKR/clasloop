@@ -30,6 +30,7 @@ const i18n = {
     sessionOptions: "Session options",
     classLabel: "Class (optional)", classNone: "No class — guest session only",
     classHelp: "Pick a class to track student progress and retention",
+    classBoundHelp: "This deck is linked to a class. Only that class or guest-only is available.",
     timeLimit: "Time per question", timeLimitNone: "No limit", seconds: "s",
     competitiveMode: "Show leaderboard during quiz",
     showAnswers: "Show correct answer after each question",
@@ -57,6 +58,7 @@ const i18n = {
     sessionOptions: "Opciones de la sesión",
     classLabel: "Clase (opcional)", classNone: "Sin clase — solo sesión invitada",
     classHelp: "Elige una clase para rastrear progreso y retención",
+    classBoundHelp: "Este deck está ligado a una clase. Solo esa clase o solo-invitados están disponibles.",
     timeLimit: "Tiempo por pregunta", timeLimitNone: "Sin límite", seconds: "s",
     competitiveMode: "Mostrar clasificación durante el quiz",
     showAnswers: "Mostrar respuesta correcta después de cada pregunta",
@@ -84,6 +86,7 @@ const i18n = {
     sessionOptions: "세션 옵션",
     classLabel: "수업 (선택)", classNone: "수업 없음 — 게스트 세션",
     classHelp: "학생 진행도와 보존을 추적하려면 수업을 선택하세요",
+    classBoundHelp: "이 덱은 수업에 연결되어 있습니다. 해당 수업 또는 게스트 전용만 사용 가능합니다.",
     timeLimit: "문제당 시간", timeLimitNone: "제한 없음", seconds: "초",
     competitiveMode: "퀴즈 중 순위표 표시",
     showAnswers: "각 문제 후 정답 표시",
@@ -302,9 +305,17 @@ function SessionOptions({ deck, classes, t, onLaunch, onBack }) {
           <label style={{ display: "block", fontSize: 12, fontWeight: 500, color: C.textSecondary, marginBottom: 6 }}>{t.classLabel}</label>
           <select value={classId} onChange={e => setClassId(e.target.value)} style={sel}>
             <option value="">{t.classNone}</option>
-            {classes.map(c => <option key={c.id} value={c.id}>{c.name} · {c.subject} · {c.grade}</option>)}
+            {/* If deck is bound to a class, show only that class. Otherwise show all classes. */}
+            {(() => {
+              const eligible = deck.class_id
+                ? classes.filter(c => c.id === deck.class_id)
+                : classes;
+              return eligible.map(c => <option key={c.id} value={c.id}>{c.name} · {c.subject} · {c.grade}</option>);
+            })()}
           </select>
-          <p style={{ fontSize: 11, color: C.textMuted, marginTop: 6, lineHeight: 1.4 }}>{t.classHelp}</p>
+          <p style={{ fontSize: 11, color: C.textMuted, marginTop: 6, lineHeight: 1.4 }}>
+            {deck.class_id ? t.classBoundHelp : t.classHelp}
+          </p>
         </div>
 
         <div>
@@ -684,7 +695,7 @@ function LiveResults({ session, t, onEnd }) {
 }
 
 // ─── Main Export ───────────────────────────────────────────────────────────
-export default function SessionFlow({ lang = "en", setLang, onNavigateToDecks }) {
+export default function SessionFlow({ lang = "en", setLang, onNavigateToDecks, sessionsOpts }) {
   const t = i18n[lang] || i18n.en;
   const [user, setUser] = useState(null);
   const [classes, setClasses] = useState([]);

@@ -178,6 +178,7 @@ export default function App() {
   const [lang, setLang] = useState("en");
   const [open, setOpen] = useState(true);
   const [practiceDeck, setPracticeDeck] = useState(null); // when set, render StudentJoin in practice mode
+  const [sessionsOpts, setSessionsOpts] = useState(null); // options passed when navigating to sessions (e.g. {openCreateClass:true})
 
   useEffect(() => {
     // Initial session check
@@ -288,6 +289,8 @@ export default function App() {
             profile={profile}
             onLaunchPractice={(deck) => setPracticeDeck(deck)}
             onNavigateToDecks={() => setPage("decks")}
+            onNavigateToSessions={(opts) => { setSessionsOpts(opts || {}); setPage("sessions"); }}
+            sessionsOpts={page === "sessions" ? sessionsOpts : null}
           />
         )}
       </div>
