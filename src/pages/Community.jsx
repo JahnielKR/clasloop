@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabase";
 import { CIcon } from "../components/Icons";
-import { DeckCover } from "../lib/deck-cover";
 
 const C = {
   bg: "#FFFFFF", bgSoft: "#F7F7F5", accent: "#2383E2", accentSoft: "#E8F0FE",
@@ -98,7 +97,7 @@ function PageHeader({ title, icon, lang, setLang }) {
   );
 }
 
-export default function Community({ lang: pageLang = "en", setLang: pageSetLang, profile = null }) {
+export default function Community({ lang: pageLang = "en", setLang: pageSetLang }) {
   const [lang, setLangLocal] = useState(pageLang);
   const setLang = pageSetLang || setLangLocal;
   const l = pageLang || lang;
@@ -114,44 +113,19 @@ export default function Community({ lang: pageLang = "en", setLang: pageSetLang,
   const [saved, setSaved] = useState({});
   const [loading, setLoading] = useState(true);
   const t = i18n[l] || i18n.en;
-  const isStudent = profile?.role === "student";
 
-  useEffect(() => { loadData(); }, [profile?.id]);
+  useEffect(() => { loadData(); }, []);
 
   const loadData = async () => {
     const { data: { user } } = await supabase.auth.getUser();
     setUserId(user?.id);
     if (user) {
-      if (isStudent) {
-        // Load student's saved deck IDs so we can show "Saved" state on cards.
-        const { data: savedRows } = await supabase.from("saved_decks").select("deck_id").eq("student_id", user.id);
-        const map = {};
-        (savedRows || []).forEach(r => { map[r.deck_id] = true; });
-        setSaved(map);
-      } else {
-        const { data: cls } = await supabase.from("classes").select("*").eq("teacher_id", user.id).order("created_at", { ascending: false });
-        setUserClasses(cls || []);
-      }
+      const { data: cls } = await supabase.from("classes").select("*").eq("teacher_id", user.id).order("created_at", { ascending: false });
+      setUserClasses(cls || []);
     }
     const { data } = await supabase.from("decks").select("*, profiles(full_name)").eq("is_public", true).order("uses_count", { ascending: false });
     setDecks(data || []);
     setLoading(false);
-  };
-
-  // Student save: just inserts a reference to saved_decks (no deck copy, no class picker).
-  const handleStudentSave = async (deck) => {
-    if (!userId) return;
-    const isAlreadySaved = saved[deck.id];
-    if (isAlreadySaved) {
-      const { error } = await supabase.from("saved_decks").delete().eq("student_id", userId).eq("deck_id", deck.id);
-      if (!error) setSaved(prev => { const next = { ...prev }; delete next[deck.id]; return next; });
-    } else {
-      const { error } = await supabase.from("saved_decks").insert({ student_id: userId, deck_id: deck.id });
-      if (!error) {
-        await supabase.from("decks").update({ uses_count: (deck.uses_count || 0) + 1 }).eq("id", deck.id);
-        setSaved(prev => ({ ...prev, [deck.id]: true }));
-      }
-    }
   };
 
   const handleSaveToMyDecks = async (deck, classId) => {
@@ -194,8 +168,8 @@ export default function Community({ lang: pageLang = "en", setLang: pageSetLang,
           </button>
 
           <div className="fade-up" style={{ background: C.bg, borderRadius: 14, border: `1px solid ${C.border}`, padding: 24, marginBottom: 16 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 14 }}>
-              <DeckCover deck={dk} size={64} radius={14} />
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
+              <CIcon name={icon} size={28} />
               <div>
                 <span style={{ fontSize: 12, color: C.textMuted }}>{dk.subject} · {dk.grade}</span>
                 <div style={{ marginTop: 2 }}><LangBadge lang={dk.language} /></div>
@@ -211,13 +185,12 @@ export default function Community({ lang: pageLang = "en", setLang: pageSetLang,
                 {dk.tags.map((tag, i) => <span key={i} style={{ padding: "3px 8px", borderRadius: 6, background: C.bgSoft, border: `1px solid ${C.border}`, fontSize: 11, color: C.textSecondary }}>#{tag}</span>)}
               </div>
             )}
-            <button className="cm-btn" onClick={() => isStudent ? handleStudentSave(dk) : setSavingDeck(dk)} style={{
+            <button className="cm-btn" onClick={() => setSavingDeck(dk)} style={{
               width: "100%", padding: 14, borderRadius: 10, fontSize: 15, fontWeight: 600,
               background: saved[dk.id] ? C.greenSoft : `linear-gradient(135deg, ${C.accent}, ${C.purple})`,
               color: saved[dk.id] ? C.green : "#fff",
               border: saved[dk.id] ? `1px solid ${C.green}33` : "none",
               display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
-              cursor: "pointer",
             }}>
               {saved[dk.id] ? <><CIcon name="check" size={14} inline /> {t.saved}</> : t.saveToMyDecks}
             </button>
@@ -292,27 +265,22 @@ export default function Community({ lang: pageLang = "en", setLang: pageSetLang,
         filtered.length === 0 ? (
           <div className="fade-up" style={{ textAlign: "center", padding: 48 }}><CIcon name="other" size={36} /><p style={{ fontSize: 15, color: C.textMuted, marginTop: 12 }}>{t.noResults}</p></div>
         ) : (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 14 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 14 }}>
             {filtered.map((dk, i) => {
+              const icon = SUBJ_ICON[dk.subject] || "book";
               const qs = dk.questions || [];
               return (
-                <div key={dk.id} className="cm-card fade-up" onClick={() => setSelectedDeck(dk)} style={{ background: C.bg, borderRadius: 14, border: `1px solid ${C.border}`, overflow: "hidden", boxShadow: C.shadow, animationDelay: `${i * .04}s`, display: "flex", flexDirection: "column", cursor: "pointer" }}>
-                  <div style={{ padding: 18, paddingBottom: 14 }}>
-                    <div style={{ display: "flex", alignItems: "flex-start", gap: 12, marginBottom: 12 }}>
-                      <DeckCover deck={dk} size={52} radius={12} />
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <h3 style={{ fontSize: 15, fontWeight: 600, marginBottom: 4, lineHeight: 1.3, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{dk.title}</h3>
-                        <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: C.textMuted }}>
-                          <span>{dk.subject} · {dk.grade}</span>
-                          <LangBadge lang={dk.language} />
-                        </div>
-                      </div>
-                    </div>
-                    {dk.description && <p style={{ fontSize: 12, color: C.textSecondary, lineHeight: 1.4, marginBottom: 0, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{dk.description}</p>}
+                <div key={dk.id} className="cm-card fade-up" onClick={() => setSelectedDeck(dk)} style={{ background: C.bg, borderRadius: 12, border: `1px solid ${C.border}`, padding: 18, boxShadow: C.shadow, animationDelay: `${i * .04}s` }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+                    <CIcon name={icon} size={20} inline />
+                    <span style={{ fontSize: 12, color: C.textMuted }}>{dk.subject} · {dk.grade}</span>
+                    <div style={{ marginLeft: "auto" }}><LangBadge lang={dk.language} /></div>
                   </div>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 18px", background: C.bgSoft, borderTop: `1px solid ${C.border}`, fontSize: 12, color: C.textMuted, marginTop: "auto" }}>
-                    <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.by} {dk.profiles?.full_name || "Unknown"}</span>
-                    <span style={{ flexShrink: 0, marginLeft: 8, fontWeight: 600 }}>{qs.length} {t.questions}</span>
+                  <h3 style={{ fontSize: 15, fontWeight: 600, marginBottom: 6, lineHeight: 1.3 }}>{dk.title}</h3>
+                  {dk.description && <p style={{ fontSize: 12, color: C.textSecondary, lineHeight: 1.4, marginBottom: 10, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{dk.description}</p>}
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingTop: 10, borderTop: `1px solid ${C.border}`, fontSize: 12, color: C.textMuted }}>
+                    <span>{t.by} {dk.profiles?.full_name || "Unknown"}</span>
+                    <span>{qs.length} {t.questions}</span>
                   </div>
                 </div>
               );
