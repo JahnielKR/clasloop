@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { supabase } from "../lib/supabase";
-import { processSessionResults } from "../lib/spaced-repetition";
+import { processSessionResults, getSuggestedDecksForToday } from "../lib/spaced-repetition";
 import { CIcon } from "../components/Icons";
 import { DeckCover, resolveColor } from "../lib/deck-cover";
 
@@ -17,11 +17,21 @@ const C = {
   border: "#E8E8E4", shadow: "0 1px 3px rgba(0,0,0,0.04)",
 };
 const MONO = "'JetBrains Mono', monospace";
+const SUBJECTS = ["Math", "Science", "History", "Language", "Geography", "Art", "Music", "Other"];
 
 // ─── i18n ──────────────────────────────────────────────────────────────────
 const i18n = {
   en: {
     pageTitle: "New Session", subtitle: "Launch a deck live in class",
+    suggestedToday: "Suggested for today", suggestedHint: "Decks your students should review now",
+    suggestedNone: "All your classes are up to date", showMore: "Show more", showLess: "Show less",
+    retentionLabel: "retention", overdueDays: "{n} days overdue", overdueDay: "1 day overdue",
+    launchNow: "Launch", customize: "Customize",
+    newClass: "+ New class",
+    createClass: "Create class", className: "Class name", classNamePlaceholder: "e.g. Math 6th Grade",
+    classSubject: "Subject", classGrade: "Grade", classGradePlaceholder: "e.g. 6th",
+    classCode: "Class code (auto-generated)", classCreate: "Create class", creating: "Creating...",
+    classCreated: "Class created!",
     pickDeck: "Pick a deck", search: "Search decks...", filterAllSubjects: "All subjects", filterAllClasses: "All classes",
     filterUnassigned: "Unassigned", noDecksYet: "You don't have any decks yet.",
     noDecksHint: "Create a deck first in the Decks page.", goToDecks: "Go to Decks",
@@ -50,6 +60,15 @@ const i18n = {
   },
   es: {
     pageTitle: "Nueva Sesión", subtitle: "Lanza un deck en vivo en clase",
+    suggestedToday: "Sugerencias para hoy", suggestedHint: "Decks que tus estudiantes deberían revisar ahora",
+    suggestedNone: "Todas tus clases están al día", showMore: "Ver más", showLess: "Ver menos",
+    retentionLabel: "retención", overdueDays: "{n} días atrasado", overdueDay: "1 día atrasado",
+    launchNow: "Lanzar", customize: "Personalizar",
+    newClass: "+ Nueva clase",
+    createClass: "Crear clase", className: "Nombre de la clase", classNamePlaceholder: "ej. Matemáticas 6to",
+    classSubject: "Materia", classGrade: "Grado", classGradePlaceholder: "ej. 6to",
+    classCode: "Código de clase (autogenerado)", classCreate: "Crear clase", creating: "Creando...",
+    classCreated: "¡Clase creada!",
     pickDeck: "Elige un deck", search: "Buscar decks...", filterAllSubjects: "Todas las materias", filterAllClasses: "Todas las clases",
     filterUnassigned: "Sin clase", noDecksYet: "Aún no tienes decks.",
     noDecksHint: "Crea un deck primero en la página de Decks.", goToDecks: "Ir a Decks",
@@ -78,6 +97,15 @@ const i18n = {
   },
   ko: {
     pageTitle: "새 세션", subtitle: "수업에서 덱을 라이브로 실행하세요",
+    suggestedToday: "오늘의 추천", suggestedHint: "지금 학생들이 복습해야 할 덱",
+    suggestedNone: "모든 수업이 최신 상태입니다", showMore: "더 보기", showLess: "접기",
+    retentionLabel: "보존율", overdueDays: "{n}일 지연", overdueDay: "1일 지연",
+    launchNow: "시작", customize: "맞춤설정",
+    newClass: "+ 새 수업",
+    createClass: "수업 만들기", className: "수업 이름", classNamePlaceholder: "예: 수학 6학년",
+    classSubject: "과목", classGrade: "학년", classGradePlaceholder: "예: 6학년",
+    classCode: "수업 코드 (자동 생성)", classCreate: "수업 만들기", creating: "만드는 중...",
+    classCreated: "수업이 생성되었습니다!",
     pickDeck: "덱 선택", search: "덱 검색...", filterAllSubjects: "모든 과목", filterAllClasses: "모든 수업",
     filterUnassigned: "미지정", noDecksYet: "아직 덱이 없습니다.",
     noDecksHint: "먼저 덱 페이지에서 덱을 만드세요.", goToDecks: "덱으로 이동",
@@ -694,6 +722,231 @@ function LiveResults({ session, t, onEnd }) {
   );
 }
 
+// ─── Suggested for Today ───────────────────────────────────────────────────
+function SuggestedToday({ teacherId, t, onPickSuggestion }) {
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showAll, setShowAll] = useState(false);
+  const VISIBLE = 2;
+
+  useEffect(() => {
+    if (!teacherId) return;
+    (async () => {
+      try {
+        const list = await getSuggestedDecksForToday(teacherId);
+        setItems(list);
+      } catch (e) {
+        console.error("Suggested fetch failed:", e);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [teacherId]);
+
+  if (loading) return null; // silently load
+  if (items.length === 0) return null; // nothing urgent → hide section entirely
+
+  const visible = showAll ? items : items.slice(0, VISIBLE);
+  const hiddenCount = items.length - VISIBLE;
+
+  return (
+    <div className="ns-fade" style={{ marginBottom: 24 }}>
+      <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 4, color: C.textSecondary, display: "flex", alignItems: "center", gap: 8 }}>
+        <CIcon name="fire" size={14} inline /> {t.suggestedToday}
+      </h3>
+      <p style={{ fontSize: 12, color: C.textMuted, marginBottom: 12 }}>{t.suggestedHint}</p>
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 10 }}>
+        {visible.map(item => <SuggestedCard key={`${item.class.id}-${item.deck.id}`} item={item} t={t} onPick={onPickSuggestion} />)}
+      </div>
+
+      {hiddenCount > 0 && (
+        <button
+          onClick={() => setShowAll(s => !s)}
+          style={{
+            marginTop: 10,
+            padding: "8px 14px", borderRadius: 8, fontSize: 12, fontWeight: 500,
+            background: "transparent", color: C.textSecondary,
+            border: `1px dashed ${C.border}`, cursor: "pointer",
+            fontFamily: "'Outfit',sans-serif",
+            display: "inline-flex", alignItems: "center", gap: 6,
+          }}
+        >
+          {showAll ? t.showLess : `${t.showMore} (+${hiddenCount})`}
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" style={{ transform: showAll ? "rotate(180deg)" : "rotate(0deg)", transition: "transform .2s" }}>
+            <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        </button>
+      )}
+    </div>
+  );
+}
+
+function SuggestedCard({ item, t, onPick }) {
+  const { deck, class: cls, retention_score, days_overdue, is_overdue } = item;
+  const accent = resolveColor(deck);
+  const retCol = retention_score >= 70 ? C.green : retention_score >= 40 ? C.orange : C.red;
+
+  const overdueLabel = is_overdue && days_overdue > 0
+    ? (days_overdue === 1 ? t.overdueDay : t.overdueDays.replace("{n}", days_overdue))
+    : null;
+
+  return (
+    <div
+      style={{
+        background: C.bg, borderRadius: 12, border: `1px solid ${C.border}`,
+        borderLeft: `4px solid ${retCol}`,
+        padding: 12,
+        display: "flex", flexDirection: "column",
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+        <DeckCover deck={deck} size={40} radius={9} />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 13, fontWeight: 600, lineHeight: 1.3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{deck.title}</div>
+          <div style={{ fontSize: 10, color: accent, fontWeight: 600 }}>{cls.name}</div>
+        </div>
+      </div>
+
+      <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 11, color: C.textMuted, marginBottom: 10 }}>
+        <span style={{ color: retCol, fontWeight: 700, fontFamily: MONO }}>{retention_score}%</span>
+        <span>{t.retentionLabel}</span>
+        {overdueLabel && (
+          <>
+            <span style={{ color: C.border }}>·</span>
+            <span style={{ color: C.red, fontWeight: 600 }}>{overdueLabel}</span>
+          </>
+        )}
+      </div>
+
+      <button
+        onClick={() => onPick(item)}
+        style={{
+          width: "100%", padding: "8px 12px", borderRadius: 7, fontSize: 12, fontWeight: 600,
+          background: `linear-gradient(135deg, ${C.accent}, ${C.purple})`, color: "#fff",
+          border: "none", cursor: "pointer", fontFamily: "'Outfit',sans-serif",
+          display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6,
+        }}
+      >
+        <CIcon name="rocket" size={11} inline /> {t.launchNow}
+      </button>
+    </div>
+  );
+}
+
+// ─── Create Class Modal ────────────────────────────────────────────────────
+function CreateClassModal({ userId, t, onClose, onCreated }) {
+  const [name, setName] = useState("");
+  const [subject, setSubject] = useState("Math");
+  const [grade, setGrade] = useState("");
+  const [creating, setCreating] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleCreate = async () => {
+    if (!name.trim() || !grade.trim()) { setError(t.classNamePlaceholder); return; }
+    setError("");
+    setCreating(true);
+    // Generate a 6-character class code (uppercase letters + digits, easy to read)
+    const code = generateClassCode();
+    const { data, error: err } = await supabase.from("classes").insert({
+      teacher_id: userId,
+      name: name.trim(),
+      subject,
+      grade: grade.trim(),
+      code,
+    }).select().single();
+    setCreating(false);
+    if (err) { setError(err.message); return; }
+    onCreated(data);
+  };
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        zIndex: 100, padding: 20,
+      }}
+    >
+      <div
+        onClick={e => e.stopPropagation()}
+        className="ns-fade"
+        style={{ background: C.bg, borderRadius: 14, padding: 24, maxWidth: 460, width: "100%", boxShadow: "0 12px 40px rgba(0,0,0,0.15)" }}
+      >
+        <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 16, fontFamily: "'Outfit',sans-serif", display: "flex", alignItems: "center", gap: 8 }}>
+          <CIcon name="school" size={20} inline /> {t.createClass}
+        </h3>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <div>
+            <label style={{ display: "block", fontSize: 12, fontWeight: 500, color: C.textSecondary, marginBottom: 6 }}>{t.className}</label>
+            <input
+              value={name}
+              onChange={e => setName(e.target.value)}
+              placeholder={t.classNamePlaceholder}
+              autoFocus
+              style={inp}
+            />
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+            <div>
+              <label style={{ display: "block", fontSize: 12, fontWeight: 500, color: C.textSecondary, marginBottom: 6 }}>{t.classSubject}</label>
+              <select value={subject} onChange={e => setSubject(e.target.value)} style={sel}>
+                {SUBJECTS.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={{ display: "block", fontSize: 12, fontWeight: 500, color: C.textSecondary, marginBottom: 6 }}>{t.classGrade}</label>
+              <input
+                value={grade}
+                onChange={e => setGrade(e.target.value)}
+                placeholder={t.classGradePlaceholder}
+                style={inp}
+              />
+            </div>
+          </div>
+
+          {error && <p style={{ fontSize: 12, color: C.red, margin: 0 }}>{error}</p>}
+        </div>
+
+        <div style={{ display: "flex", gap: 8, marginTop: 20 }}>
+          <button
+            onClick={onClose}
+            style={{
+              padding: "10px 18px", borderRadius: 8, fontSize: 13, fontWeight: 500,
+              background: "transparent", color: C.textMuted,
+              border: `1px solid ${C.border}`, cursor: "pointer",
+              fontFamily: "'Outfit',sans-serif",
+            }}
+          >{t.cancel}</button>
+          <button
+            onClick={handleCreate}
+            disabled={creating}
+            style={{
+              flex: 1,
+              padding: "10px 18px", borderRadius: 8, fontSize: 13, fontWeight: 600,
+              background: creating ? C.bgSoft : `linear-gradient(135deg, ${C.accent}, ${C.purple})`,
+              color: creating ? C.textMuted : "#fff",
+              border: "none", cursor: creating ? "default" : "pointer",
+              fontFamily: "'Outfit',sans-serif",
+            }}
+          >{creating ? t.creating : t.classCreate}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function generateClassCode() {
+  // Avoid I/O/0/1 to reduce confusion. 6 chars.
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let out = "";
+  for (let i = 0; i < 6; i++) out += chars[Math.floor(Math.random() * chars.length)];
+  return out;
+}
+
 // ─── Main Export ───────────────────────────────────────────────────────────
 export default function SessionFlow({ lang = "en", setLang, onNavigateToDecks, sessionsOpts }) {
   const t = i18n[lang] || i18n.en;
@@ -702,6 +955,8 @@ export default function SessionFlow({ lang = "en", setLang, onNavigateToDecks, s
   const [step, setStep] = useState("pickDeck");
   const [selectedDeck, setSelectedDeck] = useState(null);
   const [session, setSession] = useState(null);
+  const [showCreateClass, setShowCreateClass] = useState(false);
+  const [toast, setToast] = useState(null); // { message } | null
 
   useEffect(() => {
     (async () => {
@@ -712,6 +967,18 @@ export default function SessionFlow({ lang = "en", setLang, onNavigateToDecks, s
       setClasses(cls || []);
     })();
   }, []);
+
+  // If we arrived here from "+ New class" elsewhere, auto-open the modal
+  useEffect(() => {
+    if (sessionsOpts?.openCreateClass) setShowCreateClass(true);
+  }, [sessionsOpts]);
+
+  // Auto-dismiss toast after 3s
+  useEffect(() => {
+    if (!toast) return;
+    const timer = setTimeout(() => setToast(null), 3000);
+    return () => clearTimeout(timer);
+  }, [toast]);
 
   const handleLaunch = async (config) => {
     const { deck, classId, timeLimit, showLeaderboard, showAnswers, allowGuests } = config;
@@ -743,6 +1010,20 @@ export default function SessionFlow({ lang = "en", setLang, onNavigateToDecks, s
     setStep("lobby");
   };
 
+  // Suggested-card handler: pre-fill selected deck + class, then go to options.
+  // We could skip straight to lobby with defaults, but giving the teacher one
+  // last screen to confirm timing/leaderboard/etc. is friendlier.
+  const handlePickSuggestion = (item) => {
+    setSelectedDeck(item.deck);
+    setStep("options");
+  };
+
+  const handleClassCreated = (newClass) => {
+    setClasses(prev => [newClass, ...prev]);
+    setShowCreateClass(false);
+    setToast({ message: t.classCreated });
+  };
+
   const handleCancel = async () => {
     if (session) {
       await supabase.from("sessions").update({ status: "cancelled" }).eq("id", session.id);
@@ -771,7 +1052,24 @@ export default function SessionFlow({ lang = "en", setLang, onNavigateToDecks, s
         {step === "pickDeck" && (
           <>
             <p style={{ fontSize: 14, color: C.textSecondary, marginBottom: 20 }}>{t.subtitle}</p>
-            <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 14, color: C.textSecondary }}>{t.pickDeck}</h3>
+
+            {/* Suggested for Today (only shows if there are urgent decks) */}
+            <SuggestedToday teacherId={user.id} t={t} onPickSuggestion={handlePickSuggestion} />
+
+            {/* "Pick a deck" header + "+ New class" button */}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+              <h3 style={{ fontSize: 14, fontWeight: 600, color: C.textSecondary, margin: 0 }}>{t.pickDeck}</h3>
+              <button
+                onClick={() => setShowCreateClass(true)}
+                style={{
+                  padding: "6px 12px", borderRadius: 7, fontSize: 12, fontWeight: 600,
+                  background: C.bg, color: C.accent,
+                  border: `1px dashed ${C.accent}66`,
+                  cursor: "pointer", fontFamily: "'Outfit',sans-serif",
+                }}
+              >{t.newClass}</button>
+            </div>
+
             <DeckPicker
               userId={user.id}
               t={t}
@@ -809,6 +1107,33 @@ export default function SessionFlow({ lang = "en", setLang, onNavigateToDecks, s
           />
         )}
       </div>
+
+      {/* Create class modal */}
+      {showCreateClass && (
+        <CreateClassModal
+          userId={user.id}
+          t={t}
+          onClose={() => setShowCreateClass(false)}
+          onCreated={handleClassCreated}
+        />
+      )}
+
+      {/* Toast */}
+      {toast && (
+        <div
+          className="ns-fade"
+          style={{
+            position: "fixed", bottom: 24, right: 24, zIndex: 200,
+            background: C.green, color: "#fff",
+            padding: "10px 16px", borderRadius: 10,
+            fontSize: 13, fontWeight: 600, fontFamily: "'Outfit',sans-serif",
+            boxShadow: "0 6px 20px rgba(0,0,0,0.15)",
+            display: "flex", alignItems: "center", gap: 8,
+          }}
+        >
+          <CIcon name="check" size={14} inline /> {toast.message}
+        </div>
+      )}
     </div>
   );
 }

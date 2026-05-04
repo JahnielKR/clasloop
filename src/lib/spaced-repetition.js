@@ -85,20 +85,35 @@ function calculateRetention(lastReviewedAt, intervalDays, correctRate) {
 }
 
 // ─── Update topic retention after a session ─────────
-export async function updateTopicRetention({ classId, topic, subject, totalQuestions, correctAnswers }) {
+export async function updateTopicRetention({ classId, topic, subject, totalQuestions, correctAnswers, deckId = null }) {
   if (totalQuestions === 0) return;
 
   const correctRate = correctAnswers / totalQuestions;
   const percent = Math.round(correctRate * 100);
   const quality = percentToQuality(percent);
 
-  // Get existing retention data
-  const { data: existing } = await supabase
-    .from('topic_retention')
-    .select('*')
-    .eq('class_id', classId)
-    .eq('topic', topic)
-    .single();
+  // Get existing retention data — match by deck_id when available (more reliable),
+  // otherwise fall back to topic string for legacy data.
+  let existing = null;
+  if (deckId) {
+    const { data } = await supabase
+      .from('topic_retention')
+      .select('*')
+      .eq('class_id', classId)
+      .eq('deck_id', deckId)
+      .maybeSingle();
+    existing = data;
+  }
+  if (!existing) {
+    const { data } = await supabase
+      .from('topic_retention')
+      .select('*')
+      .eq('class_id', classId)
+      .eq('topic', topic)
+      .is('deck_id', null)
+      .maybeSingle();
+    existing = data;
+  }
 
   const now = new Date().toISOString();
 
@@ -118,18 +133,22 @@ export async function updateTopicRetention({ classId, topic, subject, totalQuest
     const nextReview = new Date();
     nextReview.setDate(nextReview.getDate() + sm2.interval);
 
+    const updates = {
+      retention_score: retentionScore,
+      total_questions: newTotal,
+      correct_answers: newCorrect,
+      session_count: (existing.session_count || 0) + 1,
+      last_reviewed_at: now,
+      next_review_at: nextReview.toISOString(),
+      ease_factor: sm2.easeFactor,
+      interval_days: sm2.interval,
+    };
+    // Backfill deck_id if missing in existing row
+    if (deckId && !existing.deck_id) updates.deck_id = deckId;
+
     await supabase
       .from('topic_retention')
-      .update({
-        retention_score: retentionScore,
-        total_questions: newTotal,
-        correct_answers: newCorrect,
-        session_count: (existing.session_count || 0) + 1,
-        last_reviewed_at: now,
-        next_review_at: nextReview.toISOString(),
-        ease_factor: sm2.easeFactor,
-        interval_days: sm2.interval,
-      })
+      .update(updates)
       .eq('id', existing.id);
   } else {
     // Create new topic retention entry
@@ -143,6 +162,7 @@ export async function updateTopicRetention({ classId, topic, subject, totalQuest
       .from('topic_retention')
       .insert({
         class_id: classId,
+        deck_id: deckId,
         topic,
         subject,
         retention_score: retentionScore,
@@ -206,6 +226,9 @@ export async function updateStudentRetention({ classId, studentName, studentId, 
 
 // ─── Process all results after a session ends ───────
 export async function processSessionResults(session) {
+  // Skip retention tracking entirely for sessions without a class
+  if (!session.class_id) return;
+
   const { data: participants } = await supabase
     .from('session_participants')
     .select('*')
@@ -218,21 +241,31 @@ export async function processSessionResults(session) {
 
   if (!participants || !responses) return;
 
+  // Only count responses from non-guest, non-kicked participants — guests and
+  // kicked players don't feed retention.
+  const eligibleParticipants = participants.filter(p => !p.is_guest && !p.is_kicked && p.student_id);
+  const eligibleParticipantIds = new Set(eligibleParticipants.map(p => p.id));
+  const eligibleResponses = responses.filter(r => eligibleParticipantIds.has(r.participant_id));
+
+  // If everyone was a guest, skip retention update (deck uses_count is bumped elsewhere).
+  if (eligibleResponses.length === 0) return;
+
   // 1. Update class-level topic retention
-  const totalQ = responses.length;
-  const totalCorrect = responses.filter(r => r.is_correct).length;
+  const totalQ = eligibleResponses.length;
+  const totalCorrect = eligibleResponses.filter(r => r.is_correct).length;
 
   await updateTopicRetention({
     classId: session.class_id,
+    deckId: session.deck_id || null,
     topic: session.topic,
     subject: null,
     totalQuestions: totalQ,
     correctAnswers: totalCorrect,
   });
 
-  // 2. Update per-student retention
-  for (const participant of participants) {
-    const studentResponses = responses.filter(r => r.participant_id === participant.id);
+  // 2. Update per-student retention (only for eligible participants)
+  for (const participant of eligibleParticipants) {
+    const studentResponses = eligibleResponses.filter(r => r.participant_id === participant.id);
     const stuTotal = studentResponses.length;
     const stuCorrect = studentResponses.filter(r => r.is_correct).length;
 
@@ -249,46 +282,8 @@ export async function processSessionResults(session) {
   }
 }
 
-// ─── Get review suggestions for today ───────────────
-// ─── Scoring helpers (Phase 2) ──────────────────────
-// Higher score = more urgent. Combines retention, days overdue, and class strength.
-function urgencyMultiplier(daysSinceReview, isOverdue) {
-  if (!isOverdue) return 0;
-  if (daysSinceReview <= 3)  return 1.0;
-  if (daysSinceReview <= 7)  return 1.3;
-  if (daysSinceReview <= 14) return 1.7;
-  return 2.0;
-}
-
-function classFactor(classAverage) {
-  // Boost struggling classes, soften strong ones.
-  if (!Number.isFinite(classAverage) || classAverage === 0) return 1.0;
-  if (classAverage < 60) return 1.2;
-  if (classAverage > 80) return 0.8;
-  return 1.0;
-}
-
-// Auto-decay: topics shown as overdue for too long without action get gradually
-// deprioritized. Not hidden — just less urgent visually so they don't clog the
-// top of the list. The teacher can always find them via "View all reviews".
-function autoDecayMultiplier(daysSinceReview, isOverdue) {
-  if (!isOverdue) return 1.0;
-  if (daysSinceReview <= 14) return 1.0; // no decay first 2 weeks overdue
-  if (daysSinceReview <= 30) return 0.7; // 30% decay
-  return 0.4; // 60% decay after 30 days
-}
-
-function computeScore(retention, daysSinceReview, isOverdue, classAverage) {
-  const base = Math.max(0, 100 - retention);
-  return Math.round(
-    base
-    * urgencyMultiplier(daysSinceReview, isOverdue)
-    * classFactor(classAverage)
-    * autoDecayMultiplier(daysSinceReview, isOverdue)
-  );
-}
-
-export async function getReviewSuggestions(classId, classAverage = null) {
+// ─── Get review suggestions for one class (legacy, used by Notifications) ──
+export async function getReviewSuggestions(classId) {
   const { data: topics } = await supabase
     .from('topic_retention')
     .select('*')
@@ -298,145 +293,108 @@ export async function getReviewSuggestions(classId, classAverage = null) {
   if (!topics) return [];
 
   const now = new Date();
+  const withCurrentRetention = topics.map(t => {
+    const currentRetention = calculateRetention(
+      t.last_reviewed_at,
+      t.interval_days || 1,
+      t.total_questions > 0 ? t.correct_answers / t.total_questions : 0
+    );
+    const nextReview = t.next_review_at ? new Date(t.next_review_at) : now;
+    const isOverdue = nextReview <= now;
+    const daysSinceReview = t.last_reviewed_at
+      ? Math.round((now - new Date(t.last_reviewed_at)) / (1000 * 60 * 60 * 24))
+      : 999;
+    return {
+      ...t,
+      current_retention: currentRetention,
+      is_overdue: isOverdue,
+      days_since_review: daysSinceReview,
+      urgency: isOverdue ? (100 - currentRetention) + daysSinceReview : 0,
+    };
+  });
 
-  // Recalculate current retention for each topic
-  const withCurrentRetention = topics
-    // Filter out dismissed and currently-snoozed topics first.
-    .filter(t => {
-      if (t.dismissed === true) return false;
-      if (t.snoozed_until && new Date(t.snoozed_until) > now) return false;
-      return true;
-    })
-    .map(t => {
-      const currentRetention = calculateRetention(
-        t.last_reviewed_at,
-        t.interval_days || 1,
-        t.total_questions > 0 ? t.correct_answers / t.total_questions : 0
-      );
-
-      const nextReview = t.next_review_at ? new Date(t.next_review_at) : now;
-      const isOverdue = nextReview <= now;
-      const daysSinceReview = t.last_reviewed_at
-        ? Math.round((now - new Date(t.last_reviewed_at)) / (1000 * 60 * 60 * 24))
-        : 999;
-
-      return {
-        ...t,
-        current_retention: currentRetention,
-        is_overdue: isOverdue,
-        days_since_review: daysSinceReview,
-        urgency: isOverdue ? (100 - currentRetention) + daysSinceReview : 0, // legacy, kept for compat
-        score: computeScore(currentRetention, daysSinceReview, isOverdue, classAverage),
-      };
-    });
-
-  // Filter to actionable suggestions and sort by new score (desc)
-  const suggestions = withCurrentRetention
+  return withCurrentRetention
     .filter(t => t.is_overdue || t.current_retention < 70)
-    .sort((a, b) => b.score - a.score);
-
-  return suggestions;
+    .sort((a, b) => b.urgency - a.urgency);
 }
 
-// ─── Snooze / Dismiss management (Phase 3) ─────────────────────────────────
+// ─── Get suggested decks for today (across all teacher's classes) ───────────
+// Returns an array sorted by urgency, each item shaped as:
+//   { class: {id,name,subject,grade}, deck: {...full deck row...},
+//     retention_score, days_since_review, days_overdue, urgency }
+// Only includes topics linked to a real, still-existing deck (deck_id != null).
+export async function getSuggestedDecksForToday(teacherId) {
+  if (!teacherId) return [];
 
-// Snooze a topic for `days` days. Snoozed topics don't appear in suggestions
-// until the snooze expires. Pass days=0 to clear an existing snooze.
-export async function snoozeTopic(topicId, days) {
-  if (!topicId) return { error: 'missing_topic_id' };
-  let snoozedUntil = null;
-  if (Number.isFinite(days) && days > 0) {
-    const d = new Date();
-    d.setDate(d.getDate() + days);
-    snoozedUntil = d.toISOString();
-  }
-  const { error } = await supabase
-    .from('topic_retention')
-    .update({ snoozed_until: snoozedUntil })
-    .eq('id', topicId);
-  return error ? { error: error.message } : { ok: true, snoozed_until: snoozedUntil };
-}
-
-// Permanently dismiss a topic from suggestions. Can be reversed with undismissTopic.
-export async function dismissTopic(topicId) {
-  if (!topicId) return { error: 'missing_topic_id' };
-  const { error } = await supabase
-    .from('topic_retention')
-    .update({ dismissed: true })
-    .eq('id', topicId);
-  return error ? { error: error.message } : { ok: true };
-}
-
-// Undo a dismiss (re-enable suggestions for this topic).
-export async function undismissTopic(topicId) {
-  if (!topicId) return { error: 'missing_topic_id' };
-  const { error } = await supabase
-    .from('topic_retention')
-    .update({ dismissed: false, snoozed_until: null })
-    .eq('id', topicId);
-  return error ? { error: error.message } : { ok: true };
-}
-
-// ─── Get all reviews across all classes for a teacher ──────────────────────
-// Returns a flat list of suggestions enriched with the class info, sorted by score.
-// Used by the "View all reviews" panel in Phase 2.
-export async function getAllReviewsForTeacher(teacherId) {
+  // 1. Get all the teacher's classes
   const { data: classes } = await supabase
     .from('classes')
-    .select('*')
+    .select('id, name, subject, grade')
     .eq('teacher_id', teacherId);
-
   if (!classes || classes.length === 0) return [];
 
-  // Pull retention overviews in parallel for class average context.
-  const overviews = await Promise.all(classes.map(c => getClassRetentionOverview(c.id)));
-  const overviewByClassId = Object.fromEntries(classes.map((c, i) => [c.id, overviews[i]]));
+  const classIds = classes.map(c => c.id);
+  const classMap = Object.fromEntries(classes.map(c => [c.id, c]));
 
-  // Pull suggestions per class (with classAverage for proper scoring).
-  const perClass = await Promise.all(classes.map(c => {
-    const avg = overviewByClassId[c.id]?.average ?? null;
-    return getReviewSuggestions(c.id, avg).then(suggestions => ({ cls: c, suggestions }));
-  }));
+  // 2. Get all topic_retention rows that have a deck_id, across these classes
+  const { data: rows } = await supabase
+    .from('topic_retention')
+    .select('*')
+    .in('class_id', classIds)
+    .not('deck_id', 'is', null);
+  if (!rows || rows.length === 0) return [];
 
-  const flat = [];
-  for (const { cls, suggestions } of perClass) {
-    for (const s of suggestions) {
-      flat.push({ ...s, class: cls });
-    }
-  }
-  flat.sort((a, b) => b.score - a.score);
-  return flat;
-}
+  // 3. Get the actual deck rows
+  const deckIds = Array.from(new Set(rows.map(r => r.deck_id)));
+  const { data: decks } = await supabase
+    .from('decks')
+    .select('*')
+    .in('id', deckIds);
+  const deckMap = Object.fromEntries((decks || []).map(d => [d.id, d]));
 
-// ─── Smart batching: group weak topics by class for combined sessions ──────
-// A "batch" is offered when a class has 3+ weak topics (retention < 65%).
-// Returns an array of { cls, topics, avgRetention } objects, sorted by need.
-export function buildSmartBatches(allReviews, minTopicsPerBatch = 3, weakRetentionThreshold = 65) {
-  const byClassId = {};
-  for (const r of allReviews) {
-    if (r.current_retention >= weakRetentionThreshold) continue; // only weak ones go into batches
-    const id = r.class.id;
-    if (!byClassId[id]) byClassId[id] = { cls: r.class, topics: [] };
-    byClassId[id].topics.push(r);
-  }
+  // 4. Compute current retention + urgency for each row, keep only urgent
+  const now = new Date();
+  const items = [];
+  for (const r of rows) {
+    const deck = deckMap[r.deck_id];
+    if (!deck) continue; // deck was deleted
 
-  const batches = [];
-  for (const id of Object.keys(byClassId)) {
-    const { cls, topics } = byClassId[id];
-    if (topics.length < minTopicsPerBatch) continue;
-    // Cap batch size to keep sessions reasonable.
-    const top = topics.slice(0, 8);
-    const avgRet = Math.round(top.reduce((s, t) => s + t.current_retention, 0) / top.length);
-    batches.push({
-      cls,
-      topics: top,
-      avgRetention: avgRet,
-      // Use the highest-scored topic in the batch as the batch priority.
-      score: Math.max(...top.map(t => t.score)),
+    const correctRate = (r.total_questions || 0) > 0 ? (r.correct_answers || 0) / r.total_questions : 0;
+    const currentRetention = calculateRetention(
+      r.last_reviewed_at,
+      r.interval_days || 1,
+      correctRate
+    );
+
+    const nextReview = r.next_review_at ? new Date(r.next_review_at) : now;
+    const isOverdue = nextReview <= now;
+    const daysSinceReview = r.last_reviewed_at
+      ? Math.round((now - new Date(r.last_reviewed_at)) / (1000 * 60 * 60 * 24))
+      : 999;
+    const daysOverdue = isOverdue
+      ? Math.max(0, Math.round((now - nextReview) / (1000 * 60 * 60 * 24)))
+      : 0;
+
+    // Show as urgent if overdue OR retention dropped below 70%.
+    const isUrgent = isOverdue || currentRetention < 70;
+    if (!isUrgent) continue;
+
+    const urgency = (isOverdue ? (100 - currentRetention) + daysOverdue : (70 - currentRetention));
+
+    items.push({
+      class: classMap[r.class_id],
+      deck,
+      retention_score: Math.round(currentRetention),
+      days_since_review: daysSinceReview,
+      days_overdue: daysOverdue,
+      is_overdue: isOverdue,
+      urgency,
     });
   }
-  batches.sort((a, b) => b.score - a.score);
-  return batches;
+
+  // 5. Sort by urgency descending and return
+  items.sort((a, b) => b.urgency - a.urgency);
+  return items;
 }
 
 // ─── Get class retention overview ───────────────────

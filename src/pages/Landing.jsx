@@ -56,6 +56,9 @@ const t = {
     emailPlaceholder: "Your email address",
     joinBeta: "Join beta",
     comingSoon: "Launching 2026",
+    gotCode: "Got a code?",
+    gotCodePh: "Enter session code",
+    joinBtn: "Join",
   },
   es: {
     nav: ["Cómo funciona", "Funciones", "Precios"],
@@ -103,6 +106,9 @@ const t = {
     emailPlaceholder: "Tu correo electrónico",
     joinBeta: "Unirse a beta",
     comingSoon: "Lanzamiento 2026",
+    gotCode: "¿Tienes un código?",
+    gotCodePh: "Código de sesión",
+    joinBtn: "Entrar",
   },
   ko: {
     nav: ["사용법", "기능", "가격"],
@@ -150,6 +156,9 @@ const t = {
     emailPlaceholder: "이메일 주소",
     joinBeta: "베타 참여",
     comingSoon: "2026년 출시",
+    gotCode: "코드가 있으신가요?",
+    gotCodePh: "세션 코드",
+    joinBtn: "참여",
   },
 };
 
@@ -226,6 +235,86 @@ function EmailCapture({ d }) {
   );
 }
 
+// Compact "Got a code?" entry used in nav and hero. Submitting redirects to
+// /join?code=XXXXXX where the guest join page handles validation + name entry.
+function GotCode({ d, compact = false }) {
+  const [code, setCode] = useState("");
+  const isValid = /^[0-9]{6}$/.test(code.trim());
+
+  const handleJoin = () => {
+    if (!isValid) return;
+    window.location.href = `/join?code=${code.trim()}`;
+  };
+
+  if (compact) {
+    return (
+      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+        <input
+          type="text"
+          inputMode="numeric"
+          maxLength={6}
+          value={code}
+          onChange={e => setCode(e.target.value.replace(/[^0-9]/g, ""))}
+          onKeyDown={e => e.key === "Enter" && handleJoin()}
+          placeholder={d.gotCode}
+          style={{
+            padding: "6px 10px", fontSize: 13, fontWeight: 500,
+            border: `1px solid ${C.border}`, borderRadius: 7,
+            width: 130, fontFamily: "'JetBrains Mono', monospace",
+            letterSpacing: ".06em",
+          }}
+        />
+        <button
+          onClick={handleJoin}
+          disabled={!isValid}
+          style={{
+            padding: "6px 12px", borderRadius: 7, fontSize: 13, fontWeight: 600,
+            background: isValid ? C.accent : C.bgSoft,
+            color: isValid ? "#fff" : C.textMuted,
+            cursor: isValid ? "pointer" : "default",
+            border: "none", whiteSpace: "nowrap",
+          }}
+        >{d.joinBtn}</button>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, marginTop: 24 }}>
+      <span style={{ fontSize: 13, color: C.textMuted }}>{d.gotCode}</span>
+      <div style={{ display: "flex", gap: 8 }}>
+        <input
+          type="text"
+          inputMode="numeric"
+          maxLength={6}
+          value={code}
+          onChange={e => setCode(e.target.value.replace(/[^0-9]/g, ""))}
+          onKeyDown={e => e.key === "Enter" && handleJoin()}
+          placeholder={d.gotCodePh}
+          style={{
+            padding: "12px 16px", fontSize: 16, fontWeight: 600,
+            border: `1px solid ${C.border}`, borderRadius: 10,
+            width: 200, textAlign: "center",
+            fontFamily: "'JetBrains Mono', monospace",
+            letterSpacing: ".18em",
+          }}
+        />
+        <button
+          onClick={handleJoin}
+          disabled={!isValid}
+          style={{
+            padding: "12px 22px", borderRadius: 10, fontSize: 14, fontWeight: 600,
+            background: isValid ? C.accent : C.bgSoft,
+            color: isValid ? "#fff" : C.textMuted,
+            cursor: isValid ? "pointer" : "default",
+            border: "none",
+          }}
+        >{d.joinBtn}</button>
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   const [lang, setLang] = useState("en");
   const d = { ...t[lang], lang };
@@ -247,13 +336,14 @@ export default function App() {
             </div>
             <span style={{ fontSize: 17, fontWeight: 700, letterSpacing: "-.03em" }}>clasloop</span>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 24 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
             <div style={{ display: "flex", gap: 20 }}>
               {d.nav.map((n, i) => (
                 <a key={i} href={`#s${i}`} style={{ fontSize: 13, fontWeight: 500, color: C.textSecondary, transition: "color .15s" }}
                   onMouseEnter={e => e.target.style.color = C.text} onMouseLeave={e => e.target.style.color = C.textSecondary}>{n}</a>
               ))}
             </div>
+            <GotCode d={d} compact />
             <LangSw lang={lang} setLang={setLang} />
             <a href="#final" style={{
               padding: "8px 16px", borderRadius: 8, fontSize: 13, fontWeight: 600,
@@ -288,6 +378,12 @@ export default function App() {
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
             <EmailCapture d={d} />
             <p style={{ fontSize: 13, color: C.textMuted }}>{d.ctaSub}</p>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, margin: "20px 0 0", color: C.textMuted, fontSize: 12 }}>
+              <span style={{ width: 40, height: 1, background: C.border }} />
+              <span>—</span>
+              <span style={{ width: 40, height: 1, background: C.border }} />
+            </div>
+            <GotCode d={d} />
           </div>
         </div>
 
