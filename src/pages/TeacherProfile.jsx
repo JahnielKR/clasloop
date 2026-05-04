@@ -210,6 +210,7 @@ export default function TeacherProfile({ teacherId, profile: viewerProfile, lang
       subject: cls?.subject || deck.subject, grade: cls?.grade || deck.grade,
       language: deck.language, questions: deck.questions, tags: deck.tags, is_public: false,
       cover_color: deck.cover_color, cover_icon: deck.cover_icon, cover_image_url: deck.cover_image_url,
+      copied_from_id: deck.id, // track the original — powers Following tab + "from X" badge
     });
     if (!error) {
       await supabase.from("decks").update({ uses_count: (deck.uses_count || 0) + 1 }).eq("id", deck.id);

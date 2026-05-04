@@ -35,6 +35,9 @@ const i18n = {
     newClass: "+ New class", newClassHint: "You can create a new class from Sessions",
     groupBy: "Group by", groupByClass: "Class", groupBySubject: "Subject", groupByNone: "None",
     noFavorites: "No favorites yet. Save decks from Community to see them here.",
+    noFollowing: "Nothing followed yet. Save or copy decks from other teachers to build your following list.",
+    badgeCopy: "Copy", badgeFav: "Favorite",
+    fromTeacher: "from",
     favoriteRemove: "Remove from favorites", favoriteAdd: "Add to favorites",
     title: "Title", titlePlaceholder: "e.g. French Revolution Review",
     description: "Description", descPlaceholder: "What this deck covers...",
@@ -89,6 +92,9 @@ const i18n = {
     newClass: "+ Nueva clase", newClassHint: "Puedes crear una clase nueva desde Sesiones",
     groupBy: "Agrupar por", groupByClass: "Clase", groupBySubject: "Materia", groupByNone: "Ninguno",
     noFavorites: "Aún no tienes favoritos. Guarda decks de la Comunidad para verlos aquí.",
+    noFollowing: "Aún no sigues nada. Guarda o copia decks de otros profes para empezar.",
+    badgeCopy: "Copia", badgeFav: "Favorito",
+    fromTeacher: "de",
     favoriteRemove: "Quitar de favoritos", favoriteAdd: "Agregar a favoritos",
     title: "Título", titlePlaceholder: "ej. Repaso Revolución Francesa",
     description: "Descripción", descPlaceholder: "Qué cubre este deck...",
@@ -143,6 +149,9 @@ const i18n = {
     newClass: "+ 새 수업", newClassHint: "세션에서 새 수업을 만들 수 있습니다",
     groupBy: "그룹화", groupByClass: "수업", groupBySubject: "과목", groupByNone: "없음",
     noFavorites: "아직 즐겨찾기가 없습니다. 커뮤니티에서 덱을 저장하여 여기에 표시하세요.",
+    noFollowing: "아직 팔로우한 항목이 없습니다. 다른 선생님의 덱을 저장하거나 복사하여 시작하세요.",
+    badgeCopy: "복사", badgeFav: "즐겨찾기",
+    fromTeacher: "—",
     favoriteRemove: "즐겨찾기에서 제거", favoriteAdd: "즐겨찾기에 추가",
     title: "제목", titlePlaceholder: "예: 프랑스 혁명 복습",
     description: "설명", descPlaceholder: "이 덱의 내용...",
@@ -1920,9 +1929,14 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
   const setLang = pageSetLang || setLangLocal;
   const l = pageLang || lang;
   const [view, setView] = useState("list"); // list | create | edit
-  const [tab, setTab] = useState("myDecks"); // myDecks | favorites
+  const [tab, setTab] = useState("myDecks"); // myDecks | following | favorites
   const [myDecks, setMyDecks] = useState([]);
   const [favoriteDecks, setFavoriteDecks] = useState([]);
+  // "Following" = a merged feed of (a) decks the teacher copied from others
+  // (own decks with copied_from_id set) and (b) decks they favorited from
+  // community/profiles. Each item carries a `_kind` flag of "copy" or "fav"
+  // so the card can show the right badge.
+  const [followingDecks, setFollowingDecks] = useState([]);
   const [userId, setUserId] = useState(null);
   const [userClasses, setUserClasses] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -1946,7 +1960,7 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
     setUserClasses(cls || []);
 
     // My decks: created by user (not from community)
-    const { data: mine } = await supabase.from("decks").select("*").eq("author_id", user.id).order("created_at", { ascending: false });
+    const { data: mine } = await supabase.from("decks").select("*, originals:copied_from_id(id, author_id, profiles(full_name))").eq("author_id", user.id).order("created_at", { ascending: false });
     setMyDecks(mine || []);
 
     // Favorites: decks the user (as teacher) saved from Community via saved_decks table.
@@ -1957,6 +1971,16 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
       .eq("student_id", user.id); // table column is `student_id` but it works for any user
     const favs = (savedRows || []).map(r => r.decks).filter(Boolean);
     setFavoriteDecks(favs);
+
+    // Following = copies (decks I made by copying from another teacher) + favorites,
+    // merged into one list with a _kind discriminator. Sorted newest first by
+    // saved_at for favs and created_at for copies.
+    const copies = (mine || [])
+      .filter(d => d.copied_from_id)
+      .map(d => ({ ...d, _kind: "copy", _sortAt: d.created_at }));
+    const favsWithKind = (favs || []).map(d => ({ ...d, _kind: "fav", _sortAt: d.created_at }));
+    const merged = [...copies, ...favsWithKind].sort((a, b) => new Date(b._sortAt) - new Date(a._sortAt));
+    setFollowingDecks(merged);
 
     setLoading(false);
   };
@@ -1994,7 +2018,7 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
   );
 
   // ── Filtering and grouping logic ─────────────────────────────────────────
-  const sourceDecks = tab === "myDecks" ? myDecks : favoriteDecks;
+  const sourceDecks = tab === "myDecks" ? myDecks : tab === "following" ? followingDecks : favoriteDecks;
 
   // Apply search + filters
   const filteredDecks = sourceDecks.filter(d => {
@@ -2070,11 +2094,20 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
   const toggleGroup = (key) => setExpandedGroups(prev => ({ ...prev, [key]: !prev[key] }));
 
   // ── Reusable deck row renderer ───────────────────────────────────────────
+  // opts: { isFav } — true when rendering a favorite (read-only deck owned by
+  // someone else). Copies (decks I made by copying from another teacher) are
+  // editable like any other "my deck" — we just show a small "from X" pill.
   const renderDeckRow = (dk, i, opts = {}) => {
     const qs = dk.questions || [];
     const cls = userClasses.find(c => c.id === dk.class_id);
     const accent = resolveColor(dk);
     const isFav = opts.isFav;
+    const isCopy = !isFav && !!dk.copied_from_id;
+    // For "Following" tab, dk._kind is set; we use it to pick the right badge.
+    const kindBadge = dk._kind === "fav" ? "fav" : dk._kind === "copy" ? "copy" : null;
+    // Original author name. For copies, we joined `originals(profiles(full_name))`.
+    // For favorites, the deck row already has profiles(full_name).
+    const originalAuthor = isCopy ? dk.originals?.profiles?.full_name : (isFav ? dk.profiles?.full_name : null);
     return (
       <div key={dk.id} className="dk-card fade-up" style={{
         background: C.bg, borderRadius: 12, border: `1px solid ${C.border}`,
@@ -2085,11 +2118,23 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <DeckCover deck={dk} size={52} radius={10} />
           <div style={{ flex: 1, cursor: isFav ? "default" : "pointer", minWidth: 0 }} onClick={isFav ? undefined : () => { setEditing(dk); setView("edit"); }}>
-            <div style={{ fontSize: 15, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{dk.title}</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+              <span style={{ fontSize: 15, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{dk.title}</span>
+              {kindBadge === "fav" && (
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 3, padding: "2px 7px", borderRadius: 5, fontSize: 10, fontWeight: 600, background: C.accentSoft, color: C.accent, border: `1px solid ${C.accent}33` }}>
+                  ★ {t.badgeFav}
+                </span>
+              )}
+              {kindBadge === "copy" && (
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 3, padding: "2px 7px", borderRadius: 5, fontSize: 10, fontWeight: 600, background: C.purpleSoft, color: C.purple, border: `1px solid ${C.purple}33` }}>
+                  ⧉ {t.badgeCopy}
+                </span>
+              )}
+            </div>
             <div style={{ fontSize: 12, color: C.textMuted, marginTop: 2 }}>
               {dk.subject} · {dk.grade} · {qs.length} {t.questionCount}
               {cls && <> · <strong style={{ color: C.accent }}>{cls.name}</strong></>}
-              {isFav && dk.profiles?.full_name && <> · {t.by} <strong>{dk.profiles.full_name}</strong></>}
+              {originalAuthor && <> · {t.fromTeacher} <strong>{originalAuthor}</strong></>}
               {" · "}<LangBadge lang={dk.language} />
             </div>
           </div>
@@ -2123,7 +2168,7 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
         {/* Tabs + Create button */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, gap: 8 }}>
           <div style={{ display: "flex", gap: 4 }}>
-            {[["myDecks", t.myDecks, myDecks.length], ["favorites", t.favorites, favoriteDecks.length]].map(([id, label, count]) => (
+            {[["myDecks", t.myDecks, myDecks.length], ["following", t.following, followingDecks.length], ["favorites", t.favorites, favoriteDecks.length]].map(([id, label, count]) => (
               <button key={id} className="dk-tab" onClick={() => setTab(id)} style={{
                 padding: "8px 16px", borderRadius: 8, fontSize: 13, fontWeight: 500,
                 background: tab === id ? C.accentSoft : C.bg,
@@ -2190,8 +2235,8 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
           <p style={{ textAlign: "center", color: C.textMuted, padding: 40 }}>Loading...</p>
         ) : sourceDecks.length === 0 ? (
           <div className="fade-up" style={{ textAlign: "center", padding: 48 }}>
-            <CIcon name={tab === "myDecks" ? "book" : "star"} size={36} />
-            <p style={{ fontSize: 15, color: C.textMuted, marginTop: 12 }}>{tab === "myDecks" ? t.noDecks : t.noFavorites}</p>
+            <CIcon name={tab === "myDecks" ? "book" : tab === "following" ? "teacher" : "star"} size={36} />
+            <p style={{ fontSize: 15, color: C.textMuted, marginTop: 12 }}>{tab === "myDecks" ? t.noDecks : tab === "following" ? t.noFollowing : t.noFavorites}</p>
           </div>
         ) : filteredDecks.length === 0 ? (
           <div className="fade-up" style={{ textAlign: "center", padding: 32 }}>
@@ -2247,7 +2292,7 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
                   )}
                   {!collapsed && (
                     <div style={{ display: "flex", flexDirection: "column", gap: 10, paddingLeft: group.label ? 8 : 0 }}>
-                      {group.decks.map((dk, i) => renderDeckRow(dk, i, { isFav: tab === "favorites" }))}
+                      {group.decks.map((dk, i) => renderDeckRow(dk, i, { isFav: tab === "favorites" || (tab === "following" && dk._kind === "fav") }))}
                     </div>
                   )}
                 </div>
