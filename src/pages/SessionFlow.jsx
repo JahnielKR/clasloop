@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { generateQuestions, SUPPORTED_FILES } from "../lib/ai";
-import { processSessionResults, getReviewSuggestions, getClassRetentionOverview } from "../lib/spaced-repetition";
+import { processSessionResults, getReviewSuggestions, getClassRetentionOverview, getAllReviewsForTeacher, buildSmartBatches } from "../lib/spaced-repetition";
 import { CIcon } from "../components/Icons";
 import { DeckCover } from "../lib/deck-cover";
 
@@ -51,6 +51,16 @@ const i18n = {
     noClassesYet: "No classes yet",
     noClassesSub: "Create your first class to get started.",
     newClassBtn: "+ New Class", classCreated: "Class created!", andNMore: "and {n} more",
+    viewAllReviews: "View all reviews",
+    hideAllReviews: "Hide all reviews",
+    reviewsFilterAll: "All", reviewsFilterCritical: "Critical", reviewsFilterOverdue: "Overdue",
+    searchTopics: "Search topics...",
+    noReviewsMatch: "No reviews match your filters.",
+    noReviews: "No reviews pending. Great work!",
+    smartBatch: "Practice weak topics",
+    smartBatchSub: "topics, avg",
+    review: "Review",
+    daysOverdue: "d overdue",
   },
   es: {
     pageTitle: "Sesiones", yourClasses: "Tus Clases", yourClassesSub: "Selecciona una clase para crear una sesión, o crea una nueva.",
@@ -82,6 +92,16 @@ const i18n = {
     noClassesYet: "Aún no tienes clases",
     noClassesSub: "Crea tu primera clase para empezar.",
     newClassBtn: "+ Nueva clase", classCreated: "¡Clase creada!", andNMore: "y {n} más",
+    viewAllReviews: "Ver todos los repasos",
+    hideAllReviews: "Ocultar repasos",
+    reviewsFilterAll: "Todas", reviewsFilterCritical: "Críticas", reviewsFilterOverdue: "Vencidas",
+    searchTopics: "Buscar temas...",
+    noReviewsMatch: "Ningún repaso coincide con los filtros.",
+    noReviews: "No hay repasos pendientes. ¡Buen trabajo!",
+    smartBatch: "Practicar temas débiles",
+    smartBatchSub: "temas, promedio",
+    review: "Repasar",
+    daysOverdue: "d vencido",
   },
   ko: {
     pageTitle: "세션", yourClasses: "내 수업", yourClassesSub: "수업을 선택하여 세션을 만들거나 새 수업을 만드세요.",
@@ -113,6 +133,16 @@ const i18n = {
     noClassesYet: "아직 수업이 없습니다",
     noClassesSub: "첫 수업을 만들어 시작하세요.",
     newClassBtn: "+ 새 수업", classCreated: "수업이 생성되었습니다!", andNMore: "외 {n}개",
+    viewAllReviews: "모든 복습 보기",
+    hideAllReviews: "복습 숨기기",
+    reviewsFilterAll: "전체", reviewsFilterCritical: "중요", reviewsFilterOverdue: "기한 초과",
+    searchTopics: "주제 검색...",
+    noReviewsMatch: "필터와 일치하는 복습이 없습니다.",
+    noReviews: "대기 중인 복습이 없습니다. 잘했어요!",
+    smartBatch: "취약한 주제 연습",
+    smartBatchSub: "개 주제, 평균",
+    review: "복습",
+    daysOverdue: "일 지남",
   },
 };
 
@@ -172,6 +202,12 @@ const interactiveCSS = `
   .cl-tab:hover { color: #2383E2 !important; }
   .cl-new-class-btn:not(:disabled):hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(35,131,226,0.25); }
   .cl-new-class-btn:not(:disabled):active { transform: translateY(0) scale(.97); }
+  .cl-view-all-btn:hover { background: #E8F0FE !important; border-color: #2383E266 !important; color: #2383E2 !important; }
+  .cl-view-all-btn:active { transform: scale(.99); }
+  .cl-review-row { transition: all .12s ease; }
+  .cl-review-row:hover { background: #F5F9FF !important; border-color: #2383E266 !important; transform: translateX(2px); }
+  .cl-review-row:hover .cl-suggested-arrow { transform: translateX(3px); color: #2383E2 !important; }
+  .cl-review-row:active { transform: scale(.99); }
   @keyframes flashGlow {
     0%   { box-shadow: 0 0 0 0 #2383E266, 0 0 18px 6px #2383E244; }
     100% { box-shadow: 0 0 0 0 transparent, 0 0 0 0 transparent; }
@@ -258,6 +294,12 @@ function ClassSetup({ userId, onClassReady, t }) {
   const createFormRef = useRef(null);
   const classRefs = useRef({});
 
+  // ── Phase 2: View all reviews + filters ──
+  const [allReviews, setAllReviews] = useState([]);
+  const [showAllReviews, setShowAllReviews] = useState(false);
+  const [reviewFilter, setReviewFilter] = useState("all"); // "all" | "critical" | "overdue" | classId
+  const [reviewSearch, setReviewSearch] = useState("");
+
   useEffect(() => { loadClasses(); }, [userId]);
 
   const loadClasses = async () => {
@@ -265,14 +307,24 @@ function ClassSetup({ userId, onClassReady, t }) {
     setClasses(data || []);
     setLoading(false);
     if (data) {
+      // First pass: get retention overviews so we know each class's average.
+      const overviews = {};
       for (const cls of data) {
         const overview = await getClassRetentionOverview(cls.id);
+        overviews[cls.id] = overview;
         setRetention(prev => ({ ...prev, [cls.id]: overview }));
-        const sug = await getReviewSuggestions(cls.id);
+      }
+      // Second pass: get suggestions with proper class average for scoring.
+      for (const cls of data) {
+        const avg = overviews[cls.id]?.average ?? null;
+        const sug = await getReviewSuggestions(cls.id, avg);
         setSuggestions(prev => ({ ...prev, [cls.id]: sug }));
         const { data: decks } = await supabase.from("decks").select("*").eq("class_id", cls.id);
         setClassDecks(prev => ({ ...prev, [cls.id]: decks || [] }));
       }
+      // Third: build the global flat list for "View all reviews" panel.
+      const all = await getAllReviewsForTeacher(userId);
+      setAllReviews(all);
     }
   };
 
@@ -343,6 +395,29 @@ function ClassSetup({ userId, onClassReady, t }) {
       return sug.length > 0 ? { cls, sug } : null;
     })
     .filter(Boolean);
+
+  // ── Smart batches: classes with 3+ weak topics (Phase 2) ──
+  const smartBatches = buildSmartBatches(allReviews, 3, 65);
+  // Hide topics that are part of a batch from the "Today" individual rows to avoid double-listing.
+  const batchedTopicIds = new Set(smartBatches.flatMap(b => b.topics.map(tp => tp.id)));
+  const todaysFocusFiltered = todaysFocus
+    .map(({ cls, sug }) => ({ cls, sug: sug.filter(s => !batchedTopicIds.has(s.id)) }))
+    .filter(({ sug }) => sug.length > 0);
+
+  // ── Filtered reviews list (Phase 2) ──
+  const filteredReviews = allReviews.filter(r => {
+    if (reviewFilter === "critical" && r.current_retention >= 50) return false;
+    if (reviewFilter === "overdue" && !r.is_overdue) return false;
+    if (reviewFilter !== "all" && reviewFilter !== "critical" && reviewFilter !== "overdue") {
+      // Class id filter
+      if (r.class.id !== reviewFilter) return false;
+    }
+    if (reviewSearch.trim()) {
+      const q = reviewSearch.toLowerCase();
+      if (!r.topic.toLowerCase().includes(q) && !r.class.name.toLowerCase().includes(q)) return false;
+    }
+    return true;
+  });
 
   return (
     <div style={{ maxWidth: 600, margin: "0 auto" }}>
@@ -447,7 +522,7 @@ function ClassSetup({ userId, onClassReady, t }) {
       {/* ── Tab: Today ── */}
       {classes.length > 0 && activeTab === "today" && (
         <div>
-          {todaysFocus.length === 0 ? (
+          {smartBatches.length === 0 && todaysFocusFiltered.length === 0 ? (
             <Card style={{ textAlign: "center", padding: 36 }}>
               <div style={{ fontSize: 32, marginBottom: 8 }}>🎉</div>
               <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 6, fontFamily: "'Outfit'" }}>{t.nothingDueToday}</h3>
@@ -457,94 +532,292 @@ function ClassSetup({ userId, onClassReady, t }) {
               </Btn>
             </Card>
           ) : (
-            todaysFocus.map(({ cls, sug }) => {
-              const decksForClass = classDecks[cls.id] || [];
-              return (
-                <Card key={`sug-${cls.id}`} style={{ marginBottom: 16, padding: 16, borderLeft: `3px solid ${C.orange}`, background: C.orangeSoft + "33" }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: C.orange, marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
-                    <CIcon name="clock" size={16} inline /> {t.suggestedToday} — {cls.name}
+            <>
+              {/* Smart batch cards (Phase 2) */}
+              {smartBatches.map((batch, bi) => (
+                <Card key={`batch-${batch.cls.id}-${bi}`} style={{
+                  marginBottom: 14, padding: 16,
+                  borderLeft: `3px solid ${C.purple}`,
+                  background: `linear-gradient(135deg, ${C.purpleSoft}66, ${C.accentSoft}33)`,
+                }}>
+                  <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+                    <div style={{
+                      width: 40, height: 40, borderRadius: 10,
+                      background: `linear-gradient(135deg, ${C.purple}, ${C.accent})`,
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      flexShrink: 0,
+                      boxShadow: `0 3px 10px ${C.purple}33`,
+                    }}>
+                      <span style={{ fontSize: 20 }}>💪</span>
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: C.purple, textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 2 }}>
+                        {t.smartBatch}
+                      </div>
+                      <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 4, color: C.text }}>{batch.cls.name}</div>
+                      <div style={{ fontSize: 12, color: C.textMuted, marginBottom: 10 }}>
+                        {batch.topics.length} {t.smartBatchSub} <strong style={{ color: retCol(batch.avgRetention) }}>{batch.avgRetention}%</strong>
+                      </div>
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 12 }}>
+                        {batch.topics.slice(0, 5).map((tp, ti) => (
+                          <span key={ti} style={{
+                            padding: "2px 8px", borderRadius: 5,
+                            background: C.bg, border: `1px solid ${C.border}`,
+                            fontSize: 11, color: C.textSecondary, fontWeight: 500,
+                          }}>{tp.topic} · <span style={{ color: retCol(tp.current_retention), fontFamily: MONO, fontWeight: 700 }}>{tp.current_retention}%</span></span>
+                        ))}
+                        {batch.topics.length > 5 && (
+                          <span style={{ padding: "2px 6px", fontSize: 11, color: C.textMuted }}>
+                            +{batch.topics.length - 5} {t.more}
+                          </span>
+                        )}
+                      </div>
+                      <button
+                        className="cl-cta"
+                        onClick={() => onClassReady(batch.cls, batch.topics.map(tp => tp.topic).join(", "), "create")}
+                        style={{
+                          padding: "9px 14px", borderRadius: 8, fontSize: 13, fontWeight: 600,
+                          background: `linear-gradient(135deg, ${C.purple}, ${C.accent})`,
+                          color: "#fff", border: "none",
+                          fontFamily: "'Outfit',sans-serif",
+                          display: "inline-flex", alignItems: "center", gap: 6,
+                          cursor: "pointer",
+                        }}
+                      >
+                        <CIcon name="brain" size={14} inline /> {t.smartBatch}
+                      </button>
+                    </div>
                   </div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                    {sug.map((st, i) => {
-                      const matchingDeck = decksForClass.find(d => d.title.toLowerCase().includes(st.topic.toLowerCase()) || st.topic.toLowerCase().includes(d.title.toLowerCase()));
-                      const dayLabel = st.days_since_review === 0 ? t.today : `${st.days_since_review}${t.daysAgo}`;
+                </Card>
+              ))}
 
-                      if (!matchingDeck) {
-                        return (
-                          <button
-                            key={i}
-                            className="cl-suggested-row"
-                            onClick={() => onClassReady(cls, st.topic, "create")}
-                            style={{
-                              display: "flex", alignItems: "center", gap: 10,
-                              padding: "12px 14px", borderRadius: 8,
-                              background: C.bg, border: `1px solid ${C.border}`,
-                              textAlign: "left", width: "100%",
-                              fontFamily: "'Outfit',sans-serif",
-                            }}
-                            title={t.tapToReview}
-                          >
-                            <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 2 }}>
-                              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                                <span style={{ fontSize: 14, fontWeight: 600, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{st.topic}</span>
-                                <span style={{ fontSize: 11, color: C.textMuted, flexShrink: 0 }}>· {dayLabel}</span>
-                              </div>
-                              <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: C.accent, fontWeight: 600 }}>
-                                <CIcon name="brain" size={12} inline /> {t.reviewWithAI}
-                              </div>
-                            </div>
-                            <span style={{ fontSize: 13, fontWeight: 700, fontFamily: MONO, color: retCol(st.current_retention), minWidth: 36, textAlign: "right", flexShrink: 0 }}>{st.current_retention}%</span>
-                            <span className="cl-suggested-arrow" style={{ fontSize: 18, color: C.textMuted, flexShrink: 0, lineHeight: 1 }}>→</span>
-                          </button>
-                        );
-                      }
+              {/* Individual review cards by class */}
+              {todaysFocusFiltered.map(({ cls, sug }) => {
+                const decksForClass = classDecks[cls.id] || [];
+                return (
+                  <Card key={`sug-${cls.id}`} style={{ marginBottom: 16, padding: 16, borderLeft: `3px solid ${C.orange}`, background: C.orangeSoft + "33" }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: C.orange, marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
+                      <CIcon name="clock" size={16} inline /> {t.suggestedToday} — {cls.name}
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                      {sug.map((st, i) => {
+                        const matchingDeck = decksForClass.find(d => d.title.toLowerCase().includes(st.topic.toLowerCase()) || st.topic.toLowerCase().includes(d.title.toLowerCase()));
+                        const dayLabel = st.days_since_review === 0 ? t.today : `${st.days_since_review}${t.daysAgo}`;
 
-                      return (
-                        <div key={i} style={{
-                          display: "flex", flexDirection: "column", gap: 8,
-                          padding: 12, borderRadius: 8,
-                          background: C.bg, border: `1px solid ${C.border}`,
-                        }}>
-                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                            <div style={{ flex: 1, minWidth: 0 }}>
-                              <div style={{ fontSize: 14, fontWeight: 600, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{st.topic}</div>
-                              <div style={{ fontSize: 11, color: C.textMuted, marginTop: 1 }}>{dayLabel}</div>
-                            </div>
-                            <span style={{ fontSize: 13, fontWeight: 700, fontFamily: MONO, color: retCol(st.current_retention), minWidth: 36, textAlign: "right", flexShrink: 0 }}>{st.current_retention}%</span>
-                          </div>
-                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+                        if (!matchingDeck) {
+                          return (
                             <button
-                              className="cl-cta"
+                              key={i}
+                              className="cl-suggested-row"
                               onClick={() => onClassReady(cls, st.topic, "create")}
                               style={{
-                                padding: "9px 12px", borderRadius: 7, fontSize: 13, fontWeight: 600,
-                                background: C.accent, color: "#fff", border: "none",
+                                display: "flex", alignItems: "center", gap: 10,
+                                padding: "12px 14px", borderRadius: 8,
+                                background: C.bg, border: `1px solid ${C.border}`,
+                                textAlign: "left", width: "100%",
                                 fontFamily: "'Outfit',sans-serif",
-                                display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
                               }}
+                              title={t.tapToReview}
                             >
-                              <CIcon name="brain" size={14} inline /> {t.reviewWithAI}
+                              <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 2 }}>
+                                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                                  <span style={{ fontSize: 14, fontWeight: 600, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{st.topic}</span>
+                                  <span style={{ fontSize: 11, color: C.textMuted, flexShrink: 0 }}>· {dayLabel}</span>
+                                </div>
+                                <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: C.accent, fontWeight: 600 }}>
+                                  <CIcon name="brain" size={12} inline /> {t.reviewWithAI}
+                                </div>
+                              </div>
+                              <span style={{ fontSize: 13, fontWeight: 700, fontFamily: MONO, color: retCol(st.current_retention), minWidth: 36, textAlign: "right", flexShrink: 0 }}>{st.current_retention}%</span>
+                              <span className="cl-suggested-arrow" style={{ fontSize: 18, color: C.textMuted, flexShrink: 0, lineHeight: 1 }}>→</span>
                             </button>
-                            <button
-                              className="cl-cta cl-cta-deck"
-                              onClick={() => onClassReady(cls, null, "deckPreview", matchingDeck)}
-                              style={{
-                                padding: "9px 12px", borderRadius: 7, fontSize: 13, fontWeight: 600,
-                                background: C.purple, color: "#fff", border: "none",
-                                fontFamily: "'Outfit',sans-serif",
-                                display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
-                              }}
-                            >
-                              <CIcon name="book" size={14} inline /> {t.reviewWithDeck}
-                            </button>
+                          );
+                        }
+
+                        return (
+                          <div key={i} style={{
+                            display: "flex", flexDirection: "column", gap: 8,
+                            padding: 12, borderRadius: 8,
+                            background: C.bg, border: `1px solid ${C.border}`,
+                          }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{ fontSize: 14, fontWeight: 600, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{st.topic}</div>
+                                <div style={{ fontSize: 11, color: C.textMuted, marginTop: 1 }}>{dayLabel}</div>
+                              </div>
+                              <span style={{ fontSize: 13, fontWeight: 700, fontFamily: MONO, color: retCol(st.current_retention), minWidth: 36, textAlign: "right", flexShrink: 0 }}>{st.current_retention}%</span>
+                            </div>
+                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+                              <button
+                                className="cl-cta"
+                                onClick={() => onClassReady(cls, st.topic, "create")}
+                                style={{
+                                  padding: "9px 12px", borderRadius: 7, fontSize: 13, fontWeight: 600,
+                                  background: C.accent, color: "#fff", border: "none",
+                                  fontFamily: "'Outfit',sans-serif",
+                                  display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+                                }}
+                              >
+                                <CIcon name="brain" size={14} inline /> {t.reviewWithAI}
+                              </button>
+                              <button
+                                className="cl-cta cl-cta-deck"
+                                onClick={() => onClassReady(cls, null, "deckPreview", matchingDeck)}
+                                style={{
+                                  padding: "9px 12px", borderRadius: 7, fontSize: 13, fontWeight: 600,
+                                  background: C.purple, color: "#fff", border: "none",
+                                  fontFamily: "'Outfit',sans-serif",
+                                  display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+                                }}
+                              >
+                                <CIcon name="book" size={14} inline /> {t.reviewWithDeck}
+                              </button>
+                            </div>
                           </div>
-                        </div>
+                        );
+                      })}
+                    </div>
+                  </Card>
+                );
+              })}
+            </>
+          )}
+
+          {/* ── View all reviews (Phase 2) ── */}
+          {allReviews.length > 0 && (
+            <div style={{ marginTop: 16 }}>
+              <button
+                className="cl-view-all-btn"
+                onClick={() => setShowAllReviews(s => !s)}
+                style={{
+                  width: "100%",
+                  padding: "12px 14px",
+                  borderRadius: 10,
+                  fontSize: 13, fontWeight: 600,
+                  background: showAllReviews ? C.accentSoft : C.bg,
+                  color: showAllReviews ? C.accent : C.textSecondary,
+                  border: `1px solid ${showAllReviews ? C.accent + "44" : C.border}`,
+                  cursor: "pointer",
+                  fontFamily: "'Outfit',sans-serif",
+                  display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                  transition: "all .15s ease",
+                }}
+              >
+                {showAllReviews ? (
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M18 15L12 9L6 15" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                ) : (
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M6 9L12 15L18 9" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                )}
+                {showAllReviews ? t.hideAllReviews : `${t.viewAllReviews} (${allReviews.length})`}
+              </button>
+
+              {showAllReviews && (
+                <Card className="fade-up" style={{ marginTop: 12, padding: 14 }}>
+                  {/* Filter chips */}
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: 10 }}>
+                    {[
+                      { id: "all",      label: t.reviewsFilterAll,      count: allReviews.length },
+                      { id: "critical", label: t.reviewsFilterCritical, count: allReviews.filter(r => r.current_retention < 50).length },
+                      { id: "overdue",  label: t.reviewsFilterOverdue,  count: allReviews.filter(r => r.is_overdue).length },
+                    ].map(f => {
+                      const isActive = reviewFilter === f.id;
+                      return (
+                        <button
+                          key={f.id}
+                          onClick={() => setReviewFilter(f.id)}
+                          style={{
+                            padding: "5px 10px", borderRadius: 999, fontSize: 12, fontWeight: 600,
+                            background: isActive ? C.accent : C.bgSoft,
+                            color: isActive ? "#fff" : C.textSecondary,
+                            border: `1px solid ${isActive ? C.accent : C.border}`,
+                            cursor: "pointer", fontFamily: "'Outfit',sans-serif",
+                            display: "inline-flex", alignItems: "center", gap: 5,
+                          }}
+                        >
+                          {f.label}
+                          <span style={{ fontSize: 10, opacity: .8, fontFamily: MONO, fontWeight: 700 }}>{f.count}</span>
+                        </button>
+                      );
+                    })}
+                    {classes.map(cls => {
+                      const count = allReviews.filter(r => r.class.id === cls.id).length;
+                      if (count === 0) return null;
+                      const isActive = reviewFilter === cls.id;
+                      return (
+                        <button
+                          key={cls.id}
+                          onClick={() => setReviewFilter(cls.id)}
+                          style={{
+                            padding: "5px 10px", borderRadius: 999, fontSize: 12, fontWeight: 600,
+                            background: isActive ? C.accent : C.bgSoft,
+                            color: isActive ? "#fff" : C.textSecondary,
+                            border: `1px solid ${isActive ? C.accent : C.border}`,
+                            cursor: "pointer", fontFamily: "'Outfit',sans-serif",
+                            display: "inline-flex", alignItems: "center", gap: 5,
+                            maxWidth: 180,
+                          }}
+                          title={cls.name}
+                        >
+                          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{cls.name}</span>
+                          <span style={{ fontSize: 10, opacity: .8, fontFamily: MONO, fontWeight: 700, flexShrink: 0 }}>{count}</span>
+                        </button>
                       );
                     })}
                   </div>
+
+                  {/* Search */}
+                  {allReviews.length > 8 && (
+                    <input
+                      type="text"
+                      value={reviewSearch}
+                      onChange={e => setReviewSearch(e.target.value)}
+                      placeholder={t.searchTopics}
+                      className="cl-input"
+                      style={{ ...inp, fontSize: 13, padding: "8px 12px", marginBottom: 10 }}
+                    />
+                  )}
+
+                  {/* Reviews list */}
+                  {filteredReviews.length === 0 ? (
+                    <p style={{ fontSize: 13, color: C.textMuted, textAlign: "center", padding: 20 }}>{t.noReviewsMatch}</p>
+                  ) : (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                      {filteredReviews.map((r, i) => {
+                        const dayLabel = r.is_overdue ? `${r.days_since_review}${t.daysOverdue}` : (r.days_since_review === 0 ? t.today : `${r.days_since_review}${t.daysAgo}`);
+                        return (
+                          <button
+                            key={`${r.id}-${i}`}
+                            className="cl-review-row"
+                            onClick={() => onClassReady(r.class, r.topic, "create")}
+                            style={{
+                              display: "flex", alignItems: "center", gap: 8,
+                              padding: "9px 11px", borderRadius: 7,
+                              background: C.bg, border: `1px solid ${C.border}`,
+                              textAlign: "left", width: "100%",
+                              fontFamily: "'Outfit',sans-serif",
+                              cursor: "pointer",
+                            }}
+                          >
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontSize: 13, fontWeight: 600, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.topic}</div>
+                              <div style={{ fontSize: 11, color: C.textMuted, marginTop: 1, display: "flex", alignItems: "center", gap: 5 }}>
+                                <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 140 }}>{r.class.name}</span>
+                                <span>·</span>
+                                <span style={{ color: r.is_overdue ? C.red : C.textMuted, fontWeight: r.is_overdue ? 600 : 400 }}>{dayLabel}</span>
+                              </div>
+                            </div>
+                            <span style={{ fontSize: 12, fontWeight: 700, fontFamily: MONO, color: retCol(r.current_retention), minWidth: 34, textAlign: "right", flexShrink: 0 }}>
+                              {r.current_retention}%
+                            </span>
+                            <span className="cl-suggested-arrow" style={{ fontSize: 16, color: C.textMuted, flexShrink: 0, lineHeight: 1 }}>→</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
                 </Card>
-              );
-            })
+              )}
+            </div>
           )}
         </div>
       )}

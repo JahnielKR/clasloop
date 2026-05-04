@@ -250,7 +250,30 @@ export async function processSessionResults(session) {
 }
 
 // ─── Get review suggestions for today ───────────────
-export async function getReviewSuggestions(classId) {
+// ─── Scoring helpers (Phase 2) ──────────────────────
+// Higher score = more urgent. Combines retention, days overdue, and class strength.
+function urgencyMultiplier(daysSinceReview, isOverdue) {
+  if (!isOverdue) return 0;
+  if (daysSinceReview <= 3)  return 1.0;
+  if (daysSinceReview <= 7)  return 1.3;
+  if (daysSinceReview <= 14) return 1.7;
+  return 2.0;
+}
+
+function classFactor(classAverage) {
+  // Boost struggling classes, soften strong ones.
+  if (!Number.isFinite(classAverage) || classAverage === 0) return 1.0;
+  if (classAverage < 60) return 1.2;
+  if (classAverage > 80) return 0.8;
+  return 1.0;
+}
+
+function computeScore(retention, daysSinceReview, isOverdue, classAverage) {
+  const base = Math.max(0, 100 - retention);
+  return Math.round(base * urgencyMultiplier(daysSinceReview, isOverdue) * classFactor(classAverage));
+}
+
+export async function getReviewSuggestions(classId, classAverage = null) {
   const { data: topics } = await supabase
     .from('topic_retention')
     .select('*')
@@ -280,16 +303,79 @@ export async function getReviewSuggestions(classId) {
       current_retention: currentRetention,
       is_overdue: isOverdue,
       days_since_review: daysSinceReview,
-      urgency: isOverdue ? (100 - currentRetention) + daysSinceReview : 0,
+      urgency: isOverdue ? (100 - currentRetention) + daysSinceReview : 0, // legacy, kept for compat
+      score: computeScore(currentRetention, daysSinceReview, isOverdue, classAverage),
     };
   });
 
-  // Sort by urgency (most urgent first)
+  // Filter to actionable suggestions and sort by new score (desc)
   const suggestions = withCurrentRetention
     .filter(t => t.is_overdue || t.current_retention < 70)
-    .sort((a, b) => b.urgency - a.urgency);
+    .sort((a, b) => b.score - a.score);
 
   return suggestions;
+}
+
+// ─── Get all reviews across all classes for a teacher ──────────────────────
+// Returns a flat list of suggestions enriched with the class info, sorted by score.
+// Used by the "View all reviews" panel in Phase 2.
+export async function getAllReviewsForTeacher(teacherId) {
+  const { data: classes } = await supabase
+    .from('classes')
+    .select('*')
+    .eq('teacher_id', teacherId);
+
+  if (!classes || classes.length === 0) return [];
+
+  // Pull retention overviews in parallel for class average context.
+  const overviews = await Promise.all(classes.map(c => getClassRetentionOverview(c.id)));
+  const overviewByClassId = Object.fromEntries(classes.map((c, i) => [c.id, overviews[i]]));
+
+  // Pull suggestions per class (with classAverage for proper scoring).
+  const perClass = await Promise.all(classes.map(c => {
+    const avg = overviewByClassId[c.id]?.average ?? null;
+    return getReviewSuggestions(c.id, avg).then(suggestions => ({ cls: c, suggestions }));
+  }));
+
+  const flat = [];
+  for (const { cls, suggestions } of perClass) {
+    for (const s of suggestions) {
+      flat.push({ ...s, class: cls });
+    }
+  }
+  flat.sort((a, b) => b.score - a.score);
+  return flat;
+}
+
+// ─── Smart batching: group weak topics by class for combined sessions ──────
+// A "batch" is offered when a class has 3+ weak topics (retention < 65%).
+// Returns an array of { cls, topics, avgRetention } objects, sorted by need.
+export function buildSmartBatches(allReviews, minTopicsPerBatch = 3, weakRetentionThreshold = 65) {
+  const byClassId = {};
+  for (const r of allReviews) {
+    if (r.current_retention >= weakRetentionThreshold) continue; // only weak ones go into batches
+    const id = r.class.id;
+    if (!byClassId[id]) byClassId[id] = { cls: r.class, topics: [] };
+    byClassId[id].topics.push(r);
+  }
+
+  const batches = [];
+  for (const id of Object.keys(byClassId)) {
+    const { cls, topics } = byClassId[id];
+    if (topics.length < minTopicsPerBatch) continue;
+    // Cap batch size to keep sessions reasonable.
+    const top = topics.slice(0, 8);
+    const avgRet = Math.round(top.reduce((s, t) => s + t.current_retention, 0) / top.length);
+    batches.push({
+      cls,
+      topics: top,
+      avgRetention: avgRet,
+      // Use the highest-scored topic in the batch as the batch priority.
+      score: Math.max(...top.map(t => t.score)),
+    });
+  }
+  batches.sort((a, b) => b.score - a.score);
+  return batches;
 }
 
 // ─── Get class retention overview ───────────────────
