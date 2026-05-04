@@ -33,6 +33,10 @@ const i18n = {
     multipleCorrect: "Select all that apply",
     submitted: "Submitted",
     notGraded: "ungraded",
+    writeYourSentence: "Write your sentence",
+    sentenceMustContain: "Must contain:",
+    sentenceMustHaveWords: "min words",
+    dragSliderHint: "Drag the slider to your estimate",
   },
   es: {
     joinSession: "Unirse a Sesión", sessionPin: "PIN de Sesión", yourName: "Tu nombre",
@@ -54,6 +58,10 @@ const i18n = {
     multipleCorrect: "Selecciona todas las correctas",
     submitted: "Enviada",
     notGraded: "sin evaluar",
+    writeYourSentence: "Escribe tu oración",
+    sentenceMustContain: "Debe contener:",
+    sentenceMustHaveWords: "palabras mín.",
+    dragSliderHint: "Arrastra el control para estimar",
   },
   ko: {
     joinSession: "세션 참여", sessionPin: "세션 PIN", yourName: "이름",
@@ -75,6 +83,10 @@ const i18n = {
     multipleCorrect: "해당하는 모두 선택",
     submitted: "제출됨",
     notGraded: "채점 없음",
+    writeYourSentence: "문장을 작성하세요",
+    sentenceMustContain: "포함해야 함:",
+    sentenceMustHaveWords: "최소 단어",
+    dragSliderHint: "슬라이더를 드래그하여 추정",
   },
 };
 
@@ -102,6 +114,27 @@ const css = `
   .pop-in { animation: popIn .3s ease-out both; }
   .bounce { animation: bounce .5s ease; }
   .shake { animation: shake .4s ease; }
+  .sj-slider {
+    -webkit-appearance: none; appearance: none;
+    width: 100%; height: 8px; border-radius: 999px;
+    background: linear-gradient(90deg, #2383E2, #6940A5);
+    outline: none; cursor: pointer; padding: 0;
+  }
+  .sj-slider::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none;
+    width: 28px; height: 28px; border-radius: 50%;
+    background: #fff; border: 3px solid #2383E2;
+    box-shadow: 0 2px 8px rgba(35,131,226,0.35);
+    cursor: grab; transition: transform .15s ease;
+  }
+  .sj-slider::-webkit-slider-thumb:active { transform: scale(1.15); cursor: grabbing; }
+  .sj-slider::-moz-range-thumb {
+    width: 28px; height: 28px; border-radius: 50%;
+    background: #fff; border: 3px solid #2383E2;
+    box-shadow: 0 2px 8px rgba(35,131,226,0.35);
+    cursor: grab;
+  }
+  .sj-slider:disabled { opacity: .6; cursor: default; }
 `;
 
 const inp = { fontFamily: "'Outfit',sans-serif", background: C.bg, border: `1px solid ${C.border}`, color: C.text, padding: "11px 14px", borderRadius: 8, fontSize: 14, width: "100%", outline: "none" };
@@ -153,6 +186,23 @@ const evaluateAnswer = (q, type, raw) => {
     }
     case "free":
       return { isCorrect: null, stored: String(raw) };
+    case "sentence": {
+      const text = String(raw || "");
+      const required = String(q.required_word || "").trim().toLowerCase();
+      const minWords = Number.isFinite(q.min_words) ? q.min_words : 3;
+      const wordCount = (text.trim().match(/\S+/g) || []).length;
+      const containsRequired = required ? text.toLowerCase().includes(required) : true;
+      const ok = containsRequired && wordCount >= minWords;
+      return { isCorrect: ok, stored: text };
+    }
+    case "slider": {
+      const value = Number(raw);
+      if (!Number.isFinite(value)) return { isCorrect: false, stored: null };
+      const target = Number(q.correct);
+      const tol = Math.max(0, Number(q.tolerance) || 0);
+      const ok = Math.abs(value - target) <= tol;
+      return { isCorrect: ok, stored: value };
+    }
     case "mcq":
     default: {
       // Multi-correct: q.correct is an array → require exact set match (no partial credit).
@@ -187,6 +237,8 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null }) {
   const [tfSelected, setTfSelected] = useState(null);
   const [fillText, setFillText] = useState("");
   const [freeText, setFreeText] = useState("");
+  const [sentenceText, setSentenceText] = useState("");
+  const [sliderValue, setSliderValue] = useState(null); // null = not interacted yet
   const [orderPicked, setOrderPicked] = useState([]); // ordered list of items
   const [matchPicks, setMatchPicks] = useState({}); // { [left]: right }
   const [matchActiveLeft, setMatchActiveLeft] = useState(null);
@@ -208,6 +260,8 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null }) {
   const timeLimit = useMemo(() => {
     if (qType === "fill") return 30;
     if (qType === "free") return 90;
+    if (qType === "sentence") return 60;
+    if (qType === "slider") return 30;
     if (qType === "order" || qType === "match") return 40;
     return 20;
   }, [qType]);
@@ -256,6 +310,8 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null }) {
     setTfSelected(null);
     setFillText("");
     setFreeText("");
+    setSentenceText("");
+    setSliderValue(null);
     setOrderPicked([]);
     setMatchPicks({});
     setMatchActiveLeft(null);
@@ -338,6 +394,17 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null }) {
   const handleFillSubmit = () => {
     if (showResult || !fillText.trim()) return;
     submitAnswer(fillText);
+  };
+
+  const handleSentenceSubmit = () => {
+    if (showResult || !sentenceText.trim()) return;
+    submitAnswer(sentenceText);
+  };
+
+  const handleSliderSubmit = () => {
+    if (showResult) return;
+    const val = sliderValue ?? Math.round(((q?.min ?? 0) + (q?.max ?? 100)) / 2);
+    submitAnswer(val);
   };
 
   const handleOrderPick = (item) => {
@@ -786,6 +853,138 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null }) {
                 )}
               </div>
             )}
+
+            {/* ── Sentence Builder ── */}
+            {qType === "sentence" && (() => {
+              const required = String(q.required_word || "");
+              const minWords = q.min_words ?? 3;
+              const wordCount = (sentenceText.trim().match(/\S+/g) || []).length;
+              const hasRequired = required ? sentenceText.toLowerCase().includes(required.toLowerCase()) : true;
+              return (
+                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                  {/* Hint pill */}
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", justifyContent: "center" }}>
+                    {required && (
+                      <span style={{
+                        padding: "6px 12px", borderRadius: 8,
+                        background: hasRequired ? C.greenSoft : C.accentSoft,
+                        color: hasRequired ? C.green : C.accent,
+                        fontSize: 13, fontWeight: 600,
+                        display: "inline-flex", alignItems: "center", gap: 6,
+                        fontFamily: MONO,
+                      }}>
+                        {hasRequired && !showResult && <CIcon name="check" size={12} inline />}
+                        {t.sentenceMustContain} <strong>{required}</strong>
+                      </span>
+                    )}
+                    <span style={{
+                      padding: "6px 12px", borderRadius: 8,
+                      background: wordCount >= minWords ? C.greenSoft : C.bgSoft,
+                      color: wordCount >= minWords ? C.green : C.textMuted,
+                      fontSize: 13, fontWeight: 600,
+                      display: "inline-flex", alignItems: "center", gap: 6,
+                    }}>
+                      {wordCount >= minWords && !showResult && <CIcon name="check" size={12} inline />}
+                      {wordCount}/{minWords} {t.sentenceMustHaveWords}
+                    </span>
+                  </div>
+
+                  <textarea
+                    className="sj-input"
+                    value={sentenceText}
+                    onChange={e => setSentenceText(e.target.value)}
+                    placeholder={t.writeYourSentence}
+                    disabled={showResult}
+                    autoFocus
+                    rows={3}
+                    style={{
+                      ...inp,
+                      fontSize: 16, padding: "12px 14px",
+                      minHeight: 90, resize: "vertical",
+                      fontFamily: "'Outfit',sans-serif", lineHeight: 1.5,
+                      background: showResult ? (lastIsCorrect ? C.greenSoft : C.redSoft) : C.bg,
+                      borderColor: showResult ? (lastIsCorrect ? C.green : C.red) : C.border,
+                    }}
+                  />
+                  {!showResult && (
+                    <button
+                      className="sj-btn"
+                      onClick={handleSentenceSubmit}
+                      disabled={!sentenceText.trim()}
+                      style={{
+                        width: "100%", padding: 14, borderRadius: 10, fontSize: 15, fontWeight: 600,
+                        background: sentenceText.trim() ? `linear-gradient(135deg, ${C.accent}, ${C.purple})` : C.border,
+                        color: "#fff", opacity: sentenceText.trim() ? 1 : .5,
+                      }}
+                    >{t.submit}</button>
+                  )}
+                </div>
+              );
+            })()}
+
+            {/* ── Slider ── */}
+            {qType === "slider" && (() => {
+              const min = Number.isFinite(q.min) ? q.min : 0;
+              const max = Number.isFinite(q.max) ? q.max : 100;
+              const correct = Number.isFinite(q.correct) ? q.correct : 50;
+              const tol = Math.max(0, Number(q.tolerance) || 0);
+              const unit = q.unit || "";
+              const value = sliderValue ?? Math.round((min + max) / 2);
+              return (
+                <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                  <p style={{ fontSize: 12, color: C.textMuted, textAlign: "center", margin: 0 }}>{t.dragSliderHint}</p>
+
+                  {/* Big value display */}
+                  <div style={{
+                    fontSize: 44, fontWeight: 800, fontFamily: MONO,
+                    color: showResult ? (lastIsCorrect ? C.green : C.red) : C.accent,
+                    textAlign: "center", lineHeight: 1.1,
+                    transition: "color .15s ease",
+                  }}>
+                    {showResult ? value : value}
+                    {unit && <span style={{ fontSize: 22, marginLeft: 4, color: C.textMuted }}>{unit}</span>}
+                  </div>
+
+                  <input
+                    type="range"
+                    className="sj-slider"
+                    min={min}
+                    max={max}
+                    value={value}
+                    onChange={e => setSliderValue(Number(e.target.value))}
+                    disabled={showResult}
+                  />
+
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: C.textMuted, fontFamily: MONO }}>
+                    <span>{min}{unit}</span>
+                    <span>{max}{unit}</span>
+                  </div>
+
+                  {showResult && (
+                    <div style={{
+                      padding: "10px 14px", borderRadius: 8, textAlign: "center",
+                      background: lastIsCorrect ? C.greenSoft : C.redSoft,
+                      color: lastIsCorrect ? C.green : C.red,
+                      fontSize: 13, fontWeight: 600,
+                    }}>
+                      {t.correctAnswer}: <strong>{correct}{unit}</strong> {tol > 0 && `(±${tol}${unit})`}
+                    </div>
+                  )}
+
+                  {!showResult && (
+                    <button
+                      className="sj-btn"
+                      onClick={handleSliderSubmit}
+                      style={{
+                        width: "100%", padding: 14, borderRadius: 10, fontSize: 15, fontWeight: 600,
+                        background: `linear-gradient(135deg, ${C.accent}, ${C.purple})`,
+                        color: "#fff",
+                      }}
+                    >{t.submit}</button>
+                  )}
+                </div>
+              );
+            })()}
 
             {/* ── Result banner + Next ── */}
             {showResult && (

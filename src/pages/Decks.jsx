@@ -23,6 +23,8 @@ const ACTIVITY_TYPES = [
   { id: "order", icon: "ordering", label: { en: "Put in Order", es: "Ordenar", ko: "순서 맞추기" } },
   { id: "match", icon: "matching", label: { en: "Matching Pairs", es: "Emparejar", ko: "짝 맞추기" } },
   { id: "free", icon: "study", label: { en: "Free Text", es: "Respuesta Libre", ko: "자유 응답" } },
+  { id: "sentence", icon: "language", label: { en: "Sentence Builder", es: "Crear Oración", ko: "문장 만들기" } },
+  { id: "slider", icon: "speed", label: { en: "Slider Estimate", es: "Estimar (Slider)", ko: "슬라이더 추정" } },
 ];
 
 const i18n = {
@@ -65,6 +67,13 @@ const i18n = {
     acceptedAltsHint: "Comma-separated. Any of these will be accepted.",
     freeTextHint: "Students will write a free-form response. No automatic grading.",
     correctAnswers: "Correct answers", correctAnswer: "Correct answer",
+    useImageOptions: "Use images instead of text",
+    uploadOptionImage: "Upload image", changeOptionImage: "Change", removeOptionImage: "Remove",
+    requiredWord: "Required word or phrase", requiredWordPlaceholder: "e.g. ir, however, because",
+    minWords: "Minimum words", minWordsHint: "Student's sentence must contain the required word and have at least this many words.",
+    sliderMin: "Min", sliderMax: "Max", sliderCorrect: "Correct value", sliderTolerance: "Tolerance (±)", sliderUnit: "Unit (optional)", sliderUnitPlaceholder: "%, kg, years...",
+    sentenceHint: "Auto-graded: checks the required word is present and the sentence is long enough.",
+    sliderHint: "Student sees a slider from min to max, drags to estimate, ✓ if within tolerance.",
   },
   es: {
     pageTitle: "Decks", subtitle: "Crea y gestiona tus colecciones de preguntas",
@@ -105,6 +114,13 @@ const i18n = {
     acceptedAltsHint: "Separadas por comas. Cualquiera será aceptada.",
     freeTextHint: "Los estudiantes escribirán una respuesta libre. Sin evaluación automática.",
     correctAnswers: "Respuestas correctas", correctAnswer: "Respuesta correcta",
+    useImageOptions: "Usar imágenes en vez de texto",
+    uploadOptionImage: "Subir imagen", changeOptionImage: "Cambiar", removeOptionImage: "Quitar",
+    requiredWord: "Palabra o frase requerida", requiredWordPlaceholder: "ej. ir, sin embargo, porque",
+    minWords: "Mínimo de palabras", minWordsHint: "La oración debe contener la palabra requerida y tener al menos este número de palabras.",
+    sliderMin: "Mín", sliderMax: "Máx", sliderCorrect: "Valor correcto", sliderTolerance: "Tolerancia (±)", sliderUnit: "Unidad (opcional)", sliderUnitPlaceholder: "%, kg, años...",
+    sentenceHint: "Auto-evaluado: verifica que use la palabra requerida y tenga suficientes palabras.",
+    sliderHint: "El estudiante ve un slider de mín a máx, arrastra para estimar. ✓ si está dentro de la tolerancia.",
   },
   ko: {
     pageTitle: "덱", subtitle: "문제 모음을 만들고 관리하세요",
@@ -145,6 +161,13 @@ const i18n = {
     acceptedAltsHint: "쉼표로 구분. 모두 정답으로 인정됩니다.",
     freeTextHint: "학생이 자유롭게 응답합니다. 자동 채점 없음.",
     correctAnswers: "정답", correctAnswer: "정답",
+    useImageOptions: "텍스트 대신 이미지 사용",
+    uploadOptionImage: "이미지 업로드", changeOptionImage: "변경", removeOptionImage: "제거",
+    requiredWord: "필수 단어 또는 구", requiredWordPlaceholder: "예: 가다, 하지만, 왜냐하면",
+    minWords: "최소 단어 수", minWordsHint: "학생 문장에 필수 단어가 포함되고 최소 이만큼 단어가 있어야 합니다.",
+    sliderMin: "최소", sliderMax: "최대", sliderCorrect: "정답 값", sliderTolerance: "허용 오차 (±)", sliderUnit: "단위 (선택)", sliderUnitPlaceholder: "%, kg, 년...",
+    sentenceHint: "자동 채점: 필수 단어 포함 여부와 단어 수를 확인합니다.",
+    sliderHint: "학생이 슬라이더를 드래그하여 추정합니다. 허용 오차 내면 ✓.",
   },
 };
 
@@ -241,6 +264,13 @@ const miniDeleteBtn = {
   display: "flex", alignItems: "center", justifyContent: "center",
   padding: 0,
 };
+const iconOverImageBtn = {
+  width: 24, height: 24, borderRadius: 6,
+  background: "rgba(0,0,0,0.5)", color: "#fff",
+  border: "none", cursor: "pointer", padding: 0,
+  display: "flex", alignItems: "center", justifyContent: "center",
+  backdropFilter: "blur(4px)",
+};
 
 const LangBadge = ({ lang }) => {
   const l = { en: "EN", es: "ES", ko: "한" };
@@ -331,6 +361,8 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
     if (type === "order") return { type: "order", q: "", items: ["", "", "", ""] };
     if (type === "match") return { type: "match", q: "", pairs: [{ left: "", right: "" }, { left: "", right: "" }, { left: "", right: "" }] };
     if (type === "free")  return { type: "free",  q: "" };
+    if (type === "sentence") return { type: "sentence", q: "", required_word: "", min_words: 3 };
+    if (type === "slider") return { type: "slider", q: "", min: 0, max: 100, correct: 50, tolerance: 5, unit: "" };
     return { type: "mcq", q: "", options: ["", "", "", ""], correct: 0, multi: false };
   };
 
@@ -448,6 +480,98 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
     return q.correct === optIdx;
   };
 
+  // Detect whether an MCQ is in image-mode (any option is an object with image_url
+  // OR explicit q.image_options flag from the toggle).
+  const isMcqImageMode = (q) => {
+    if (q.image_options === true) return true;
+    if (q.image_options === false) return false;
+    return Array.isArray(q.options) && q.options.some(o => typeof o === "object" && o?.image_url);
+  };
+
+  // Toggle MCQ between text and image options. Convert format both ways without
+  // losing data the user has entered.
+  const toggleMcqImageMode = (qIdx) => setQuestions(prev => prev.map((q, i) => {
+    if (i !== qIdx) return q;
+    const willBeImage = !isMcqImageMode(q);
+    const newOptions = (q.options || []).map(o => {
+      if (willBeImage) {
+        // Convert "text" → { text: "text", image_url: null } so existing labels are preserved.
+        if (typeof o === "string") return { text: o, image_url: null };
+        return o; // already object
+      }
+      // Going back to text-only: keep .text if present, otherwise empty string.
+      if (typeof o === "object") return o.text || "";
+      return o;
+    });
+    return { ...q, options: newOptions, image_options: willBeImage };
+  }));
+
+  // Set image URL for a specific MCQ option (called after upload).
+  const setOptionImage = (qIdx, optIdx, url) => setQuestions(prev => prev.map((q, i) => {
+    if (i !== qIdx) return q;
+    return {
+      ...q,
+      options: q.options.map((o, j) => {
+        if (j !== optIdx) return o;
+        const base = typeof o === "object" ? o : { text: o };
+        return { ...base, image_url: url };
+      }),
+    };
+  }));
+
+  // Per-option upload state — { "qi:oi": true } while uploading.
+  const [optionUploading, setOptionUploading] = useState({});
+  const optionFileRef = useRef(null);
+  const optionUploadTargetRef = useRef(null); // { qi, oi }
+
+  const triggerOptionUpload = (qi, oi) => {
+    optionUploadTargetRef.current = { qi, oi };
+    optionFileRef.current?.click();
+  };
+
+  const handleOptionFileChange = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    const target = optionUploadTargetRef.current;
+    if (!target) return;
+    const key = `${target.qi}:${target.oi}`;
+    setOptionUploading(prev => ({ ...prev, [key]: true }));
+    const result = await uploadDeckCover(file, userId);
+    setOptionUploading(prev => {
+      const { [key]: _, ...rest } = prev;
+      return rest;
+    });
+    if (!result.error) {
+      // Delete previous custom image if any (best-effort).
+      setQuestions(prev => {
+        const q = prev[target.qi];
+        const prevUrl = q?.options?.[target.oi]?.image_url;
+        if (prevUrl && !prevUrl.startsWith("preset:")) {
+          deleteDeckCover(prevUrl).catch(() => {});
+        }
+        return prev;
+      });
+      setOptionImage(target.qi, target.oi, result.url);
+    }
+  };
+
+  const removeOptionImage = (qIdx, optIdx) => setQuestions(prev => prev.map((q, i) => {
+    if (i !== qIdx) return q;
+    const opt = q.options[optIdx];
+    if (typeof opt === "object" && opt?.image_url) {
+      deleteDeckCover(opt.image_url).catch(() => {});
+    }
+    return {
+      ...q,
+      options: q.options.map((o, j) => {
+        if (j !== optIdx) return o;
+        if (typeof o === "object") return { ...o, image_url: null };
+        return o;
+      }),
+    };
+  }));
+
   const removeQ = (idx) => {
     setQuestions(prev => prev.filter((_, i) => i !== idx));
     setExpandedQ(curr => curr === idx ? null : (curr !== null && curr > idx ? curr - 1 : curr));
@@ -487,7 +611,9 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
     if (type === "fill")  return !!q.answer?.trim();
     if (type === "order") return Array.isArray(q.items) && q.items.length >= 2 && q.items.every(it => it?.trim());
     if (type === "match") return Array.isArray(q.pairs) && q.pairs.length >= 2 && q.pairs.every(p => p?.left?.trim() && p?.right?.trim());
-    if (type === "free")  return true; // having a question text is enough
+    if (type === "free")  return true;
+    if (type === "sentence") return !!q.required_word?.trim() && Number.isFinite(q.min_words) && q.min_words >= 1;
+    if (type === "slider") return Number.isFinite(q.min) && Number.isFinite(q.max) && Number.isFinite(q.correct) && q.max > q.min && q.correct >= q.min && q.correct <= q.max && Number.isFinite(q.tolerance) && q.tolerance >= 0;
     return true;
   };
 
@@ -681,6 +807,15 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
 
   return (
     <div style={{ maxWidth: 600, margin: "0 auto" }}>
+      {/* Hidden file input for MCQ option image uploads */}
+      <input
+        ref={optionFileRef}
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        onChange={handleOptionFileChange}
+        style={{ display: "none" }}
+      />
+
       <button className="dk-back" onClick={onBack} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 8, fontSize: 13, fontWeight: 500, color: C.accent, background: C.accentSoft, border: "none", marginBottom: 20, fontFamily: "'Outfit',sans-serif" }}>
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M19 12H5M5 12L11 6M5 12L11 18" stroke={C.accent} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
         {t.back}
@@ -1126,20 +1261,129 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
                       />
 
                       {/* MCQ */}
-                      {(q.type === "mcq" || (!q.type && activityType === "mcq")) && q.options && (
+                      {(q.type === "mcq" || (!q.type && activityType === "mcq")) && q.options && (() => {
+                        const imageMode = isMcqImageMode(q);
+                        return (
                         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                          {/* Multi-correct toggle */}
-                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 0" }}>
-                            <span style={{ fontSize: 12, fontWeight: 500, color: C.textSecondary }}>{t.multipleCorrect}</span>
-                            <button onClick={() => toggleMcqMulti(qi)} style={{ width: 38, height: 22, borderRadius: 11, padding: 2, background: q.multi ? C.accent : C.border, border: "none", display: "flex", alignItems: "center", cursor: "pointer" }}>
-                              <div style={{ width: 18, height: 18, borderRadius: "50%", background: "#fff", transform: q.multi ? "translateX(16px)" : "translateX(0)", transition: "transform .2s", boxShadow: "0 1px 3px rgba(0,0,0,.15)" }} />
-                            </button>
+                          {/* Toggles row */}
+                          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 0" }}>
+                              <span style={{ fontSize: 12, fontWeight: 500, color: C.textSecondary }}>{t.multipleCorrect}</span>
+                              <button onClick={() => toggleMcqMulti(qi)} style={{ width: 38, height: 22, borderRadius: 11, padding: 2, background: q.multi ? C.accent : C.border, border: "none", display: "flex", alignItems: "center", cursor: "pointer" }}>
+                                <div style={{ width: 18, height: 18, borderRadius: "50%", background: "#fff", transform: q.multi ? "translateX(16px)" : "translateX(0)", transition: "transform .2s", boxShadow: "0 1px 3px rgba(0,0,0,.15)" }} />
+                              </button>
+                            </div>
+                            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 0", borderTop: `1px solid ${C.border}` }}>
+                              <span style={{ fontSize: 12, fontWeight: 500, color: C.textSecondary }}>{t.useImageOptions}</span>
+                              <button onClick={() => toggleMcqImageMode(qi)} style={{ width: 38, height: 22, borderRadius: 11, padding: 2, background: imageMode ? C.accent : C.border, border: "none", display: "flex", alignItems: "center", cursor: "pointer" }}>
+                                <div style={{ width: 18, height: 18, borderRadius: "50%", background: "#fff", transform: imageMode ? "translateX(16px)" : "translateX(0)", transition: "transform .2s", boxShadow: "0 1px 3px rgba(0,0,0,.15)" }} />
+                              </button>
+                            </div>
                           </div>
 
                           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
                             {q.options.map((o, oi) => {
                               const correct = isMcqCorrect(q, oi);
                               const optText = typeof o === "string" ? o : (o?.text || "");
+                              const optImg  = typeof o === "object" ? o?.image_url : null;
+                              const uploadingThis = optionUploading[`${qi}:${oi}`];
+
+                              if (imageMode) {
+                                return (
+                                  <div key={oi} style={{
+                                    position: "relative",
+                                    borderRadius: 10,
+                                    overflow: "hidden",
+                                    border: `2px solid ${correct ? C.green : C.border}`,
+                                    background: optImg ? "#000" : C.bg,
+                                  }}>
+                                    {optImg ? (
+                                      <div style={{
+                                        width: "100%", aspectRatio: "1 / 1",
+                                        backgroundImage: `url(${optImg})`,
+                                        backgroundSize: "cover", backgroundPosition: "center",
+                                      }} />
+                                    ) : (
+                                      <button
+                                        type="button"
+                                        onClick={() => triggerOptionUpload(qi, oi)}
+                                        disabled={uploadingThis}
+                                        style={{
+                                          width: "100%", aspectRatio: "1 / 1",
+                                          background: C.bgSoft, border: "none",
+                                          display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 6,
+                                          color: C.textMuted, fontSize: 11, fontWeight: 600,
+                                          cursor: uploadingThis ? "default" : "pointer",
+                                          fontFamily: "'Outfit',sans-serif",
+                                        }}
+                                      >
+                                        <CIcon name="art" size={24} />
+                                        {uploadingThis ? t.uploading : `${t.uploadOptionImage} ${oi + 1}`}
+                                      </button>
+                                    )}
+
+                                    {/* Optional caption (always editable in image mode) */}
+                                    <input
+                                      className="dk-input"
+                                      value={optText}
+                                      onChange={e => updateOption(qi, oi, { ...(typeof o === "object" ? o : {}), text: e.target.value, image_url: optImg })}
+                                      placeholder={`Caption ${oi + 1} (optional)`}
+                                      style={{ ...inp, fontSize: 12, padding: "6px 10px", borderRadius: 0, border: "none", borderTop: `1px solid ${C.border}` }}
+                                    />
+
+                                    {/* Action buttons over image */}
+                                    <div style={{ position: "absolute", top: 6, left: 6, display: "flex", gap: 4 }}>
+                                      <button
+                                        type="button"
+                                        onClick={() => toggleMcqCorrect(qi, oi)}
+                                        title={correct ? t.correctAnswer : ""}
+                                        style={{
+                                          width: 24, height: 24,
+                                          borderRadius: q.multi ? 6 : "50%",
+                                          border: `2px solid ${correct ? C.green : "rgba(255,255,255,0.7)"}`,
+                                          background: correct ? C.green : "rgba(0,0,0,0.4)",
+                                          color: "#fff", fontSize: 11, cursor: "pointer", padding: 0,
+                                          display: "flex", alignItems: "center", justifyContent: "center",
+                                        }}
+                                      >{correct && "✓"}</button>
+                                    </div>
+                                    <div style={{ position: "absolute", top: 6, right: 6, display: "flex", gap: 4 }}>
+                                      {optImg && (
+                                        <button
+                                          type="button"
+                                          onClick={() => triggerOptionUpload(qi, oi)}
+                                          title={t.changeOptionImage}
+                                          style={iconOverImageBtn}
+                                        >
+                                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C14.7614 3 17.2614 4.13579 19.0711 6.04822" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/><path d="M16 4L19 7L22 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                                        </button>
+                                      )}
+                                      {optImg && (
+                                        <button
+                                          type="button"
+                                          onClick={() => removeOptionImage(qi, oi)}
+                                          title={t.removeOptionImage}
+                                          style={iconOverImageBtn}
+                                        >
+                                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M6 6L18 18M18 6L6 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
+                                        </button>
+                                      )}
+                                      {q.options.length > 2 && (
+                                        <button
+                                          type="button"
+                                          onClick={() => removeOption(qi, oi)}
+                                          title={t.removeOption}
+                                          style={iconOverImageBtn}
+                                        >
+                                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M3 6H21M8 6V4C8 3.4 8.4 3 9 3H15C15.6 3 16 3.4 16 4V6M19 6L18 20C18 20.6 17.6 21 17 21H7C6.4 21 6 20.6 6 20L5 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                                        </button>
+                                      )}
+                                    </div>
+                                  </div>
+                                );
+                              }
+
+                              // ── Text mode ──
                               return (
                                 <div key={oi} style={{ position: "relative" }}>
                                   <input
@@ -1161,9 +1405,7 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
                                       cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
                                       fontSize: 10, color: "#fff", padding: 0,
                                     }}
-                                  >
-                                    {correct && "✓"}
-                                  </button>
+                                  >{correct && "✓"}</button>
                                   {q.options.length > 2 && (
                                     <button
                                       onClick={() => removeOption(qi, oi)}
@@ -1191,7 +1433,8 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
                             </button>
                           )}
                         </div>
-                      )}
+                        );
+                      })()}
 
                       {/* True/False */}
                       {(q.type === "tf" || (!q.type && activityType === "tf")) && (
@@ -1276,6 +1519,101 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
                         <div style={{ padding: "12px 14px", borderRadius: 8, background: C.bg, border: `1px dashed ${C.border}`, fontSize: 12, color: C.textMuted, display: "flex", alignItems: "center", gap: 8 }}>
                           <CIcon name="study" size={14} inline />
                           {t.freeTextHint}
+                        </div>
+                      )}
+
+                      {/* Sentence Builder */}
+                      {(q.type === "sentence") && (
+                        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                          <div>
+                            <label style={{ display: "block", fontSize: 12, fontWeight: 500, color: C.textSecondary, marginBottom: 4 }}>{t.requiredWord} *</label>
+                            <input
+                              className="dk-input"
+                              value={q.required_word || ""}
+                              onChange={e => updateQ(qi, "required_word", e.target.value)}
+                              placeholder={t.requiredWordPlaceholder}
+                              style={{ ...inp, fontFamily: MONO, fontWeight: 600, background: C.accentSoft, borderColor: C.accent + "44" }}
+                            />
+                          </div>
+                          <div>
+                            <label style={{ display: "block", fontSize: 12, fontWeight: 500, color: C.textSecondary, marginBottom: 4 }}>{t.minWords}</label>
+                            <input
+                              className="dk-input"
+                              type="number"
+                              min={1}
+                              max={50}
+                              value={q.min_words ?? 3}
+                              onChange={e => updateQ(qi, "min_words", Math.max(1, parseInt(e.target.value || "1", 10)))}
+                              style={{ ...inp, width: 100 }}
+                            />
+                          </div>
+                          <div style={{ padding: "10px 12px", borderRadius: 8, background: C.bg, border: `1px dashed ${C.border}`, fontSize: 11, color: C.textMuted }}>
+                            <CIcon name="lightbulb" size={12} inline /> {t.minWordsHint}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Slider */}
+                      {(q.type === "slider") && (
+                        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                            <div>
+                              <label style={{ display: "block", fontSize: 12, fontWeight: 500, color: C.textSecondary, marginBottom: 4 }}>{t.sliderMin}</label>
+                              <input
+                                className="dk-input"
+                                type="number"
+                                value={q.min ?? 0}
+                                onChange={e => updateQ(qi, "min", Number(e.target.value))}
+                                style={{ ...inp, fontFamily: MONO }}
+                              />
+                            </div>
+                            <div>
+                              <label style={{ display: "block", fontSize: 12, fontWeight: 500, color: C.textSecondary, marginBottom: 4 }}>{t.sliderMax}</label>
+                              <input
+                                className="dk-input"
+                                type="number"
+                                value={q.max ?? 100}
+                                onChange={e => updateQ(qi, "max", Number(e.target.value))}
+                                style={{ ...inp, fontFamily: MONO }}
+                              />
+                            </div>
+                          </div>
+                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                            <div>
+                              <label style={{ display: "block", fontSize: 12, fontWeight: 500, color: C.textSecondary, marginBottom: 4 }}>{t.sliderCorrect} *</label>
+                              <input
+                                className="dk-input"
+                                type="number"
+                                value={q.correct ?? 50}
+                                onChange={e => updateQ(qi, "correct", Number(e.target.value))}
+                                style={{ ...inp, fontFamily: MONO, background: C.greenSoft, borderColor: C.green + "44" }}
+                              />
+                            </div>
+                            <div>
+                              <label style={{ display: "block", fontSize: 12, fontWeight: 500, color: C.textSecondary, marginBottom: 4 }}>{t.sliderTolerance}</label>
+                              <input
+                                className="dk-input"
+                                type="number"
+                                min={0}
+                                value={q.tolerance ?? 5}
+                                onChange={e => updateQ(qi, "tolerance", Math.max(0, Number(e.target.value)))}
+                                style={{ ...inp, fontFamily: MONO }}
+                              />
+                            </div>
+                          </div>
+                          <div>
+                            <label style={{ display: "block", fontSize: 12, fontWeight: 500, color: C.textSecondary, marginBottom: 4 }}>{t.sliderUnit}</label>
+                            <input
+                              className="dk-input"
+                              value={q.unit || ""}
+                              onChange={e => updateQ(qi, "unit", e.target.value)}
+                              placeholder={t.sliderUnitPlaceholder}
+                              style={{ ...inp, width: 200, fontSize: 13 }}
+                            />
+                          </div>
+                          <div style={{ padding: "10px 12px", borderRadius: 8, background: C.bg, border: `1px dashed ${C.border}`, fontSize: 11, color: C.textMuted }}>
+                            <CIcon name="lightbulb" size={12} inline /> {t.sliderHint}
+                          </div>
                         </div>
                       )}
                     </div>

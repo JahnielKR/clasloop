@@ -641,6 +641,40 @@ function CreateSession({ cls, userId, onSessionCreated, onBack, t, lang, reviewT
                 Open response — students will type freely
               </div>
             )}
+
+            {/* Sentence Builder */}
+            {qt === "sentence" && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center" }}>
+                  {q.required_word && (
+                    <span style={{ padding: "4px 10px", borderRadius: 6, background: C.accentSoft, color: C.accent, fontSize: 12, fontWeight: 600, fontFamily: MONO }}>
+                      {q.required_word}
+                    </span>
+                  )}
+                  <span style={{ fontSize: 11, color: C.textMuted }}>
+                    min {q.min_words ?? 3} words
+                  </span>
+                </div>
+                <div style={{ padding: "6px 12px", borderRadius: 6, background: C.bgSoft, fontSize: 12, color: C.textMuted, fontStyle: "italic", border: `1px dashed ${C.border}` }}>
+                  Auto-graded sentence — student must use the required word
+                </div>
+              </div>
+            )}
+
+            {/* Slider */}
+            {qt === "slider" && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: C.textSecondary, fontFamily: MONO }}>
+                  <span style={{ color: C.textMuted }}>{q.min ?? 0}{q.unit || ""}</span>
+                  <div style={{ flex: 1, height: 4, borderRadius: 2, background: `linear-gradient(90deg, ${C.accent}, ${C.purple})` }} />
+                  <span style={{ color: C.textMuted }}>{q.max ?? 100}{q.unit || ""}</span>
+                </div>
+                <div style={{ padding: "4px 10px", borderRadius: 6, background: C.greenSoft, color: C.green, fontSize: 12, fontWeight: 600, alignSelf: "flex-start", display: "inline-flex", alignItems: "center", gap: 6, fontFamily: MONO }}>
+                  <CIcon name="check" size={12} inline /> {q.correct ?? 50}{q.unit || ""}
+                  {(q.tolerance ?? 0) > 0 && <span style={{ color: C.textMuted, fontWeight: 400 }}>± {q.tolerance}{q.unit || ""}</span>}
+                </div>
+              </div>
+            )}
           </Card>
           );
         })}
