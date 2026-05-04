@@ -3,6 +3,7 @@ import { supabase } from "../lib/supabase";
 import { LogoMark, CIcon } from "../components/Icons";
 import { Avatar } from "../components/Avatars";
 import { checkAndGrantUnlocks } from "../lib/unlock-checker";
+import { generateGuestToken, saveGuestSession, validateGuestName } from "../lib/guest-session";
 
 const C = {
   bg: "#FFFFFF", bgSoft: "#F7F7F5", accent: "#2383E2", accentSoft: "#E8F0FE",
@@ -235,14 +236,16 @@ const evaluateAnswer = (q, type, raw) => {
   }
 };
 
-export default function StudentJoin({ lang: pageLang = "en", profile = null, practiceDeck = null, onPracticeExit = null }) {
+export default function StudentJoin({ lang: pageLang = "en", profile = null, practiceDeck = null, onPracticeExit = null, guestMode = false, guestPin = "", guestName = "" }) {
   // Practice mode: start straight in the quiz with the deck's questions, no PIN, no live session.
   const isPractice = Boolean(practiceDeck);
+  // Guest mode: prefilled pin + name from the /join page; no profile linkage.
+  const isGuest = Boolean(guestMode);
 
-  const [step, setStep] = useState(isPractice ? "quiz" : "join");
-  const [pin, setPin] = useState("");
-  const [name, setName] = useState(profile?.full_name || "");
-  const isLoggedIn = Boolean(profile?.full_name);
+  const [step, setStep] = useState(isPractice ? "quiz" : (isGuest ? "joining" : "join"));
+  const [pin, setPin] = useState(isGuest ? guestPin : "");
+  const [name, setName] = useState(isGuest ? guestName : (profile?.full_name || ""));
+  const isLoggedIn = !isGuest && Boolean(profile?.full_name);
   const [error, setError] = useState("");
   const [session, setSession] = useState(isPractice
     ? { id: `practice-${practiceDeck.id}`, questions: practiceDeck.questions || [], topic: practiceDeck.title, class_id: practiceDeck.class_id, status: "active", _isPractice: true }
@@ -278,6 +281,16 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
     if (profile?.full_name && step === "join") setName(profile.full_name);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profile?.full_name]);
+
+  // Guest auto-join: when the parent passed pre-filled pin+name, join immediately.
+  // Runs once on mount.
+  useEffect(() => {
+    if (!isGuest) return;
+    if (step !== "joining") return;
+    if (!guestPin || !guestName) return;
+    handleJoin();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const questions = session?.questions || [];
   const q = questions[current];
@@ -395,12 +408,32 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
     setError("");
     const { data: sess, error: findErr } = await supabase.from("sessions").select("*").eq("pin", pin).in("status", ["lobby", "active"]).single();
     if (findErr || !sess) { setError(t.notFound); return; }
-    const insertData = { session_id: sess.id, student_name: name.trim() };
-    // Persist student_id when the user is logged in — required for unlock tracking.
-    if (profile?.id) insertData.student_id = profile.id;
+
+    let insertData = { session_id: sess.id, student_name: name.trim() };
+
+    if (isGuest) {
+      // Block guests from sessions where guests aren't allowed
+      if (!sess.allow_guests) { setError(t.notFound); return; }
+      const token = generateGuestToken();
+      insertData = {
+        session_id: sess.id,
+        student_name: name.trim(), // legacy column kept populated for older queries
+        guest_name: name.trim(),
+        guest_token: token,
+        is_guest: true,
+        student_id: null,
+      };
+      // Persist locally so a page refresh can reconnect to the same row
+      saveGuestSession({ sessionId: sess.id, token, name: name.trim() });
+    } else if (profile?.id) {
+      // Persist student_id when the user is logged in — required for unlock tracking.
+      insertData.student_id = profile.id;
+    }
+
     const { data: part, error: joinErr } = await supabase.from("session_participants").insert(insertData).select().single();
     if (joinErr) {
       if (joinErr.code === "23505") {
+        // Re-join: same student_name, same session — fetch existing row
         const { data: existing } = await supabase.from("session_participants").select("*").eq("session_id", sess.id).eq("student_name", name.trim()).single();
         setParticipant(existing);
       } else { setError(joinErr.message); return; }
@@ -421,7 +454,7 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
     setAnswers(prev => [...prev, { isCorrect, raw }]);
     if (participant) {
       try {
-        await supabase.from("responses").insert({
+        const insertData = {
           session_id: session.id,
           participant_id: participant.id,
           question_index: current,
@@ -431,7 +464,13 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
           // graded vs ungraded via the question type, not this column.
           is_correct: isCorrect === null ? true : isCorrect,
           time_taken_ms: (timeLimit - timeLeft) * 1000,
-        });
+        };
+        // For guests, attach the guest_token so the row passes the RLS policy
+        // and can be linked back to the right participant.
+        if (isGuest && participant.guest_token) {
+          insertData.guest_token = participant.guest_token;
+        }
+        await supabase.from("responses").insert(insertData);
       } catch (_) { /* swallow – UI already reflects state */ }
     }
   };
@@ -519,6 +558,22 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
     if (current + 1 >= questions.length) setStep("results");
     else setCurrent(c => c + 1);
   };
+
+  // ── Joining (guest auto-join in flight) ──
+  if (step === "joining") return (
+    <>
+      <style>{css}</style>
+      <div style={{ maxWidth: 380, margin: "0 auto", padding: "100px 20px", textAlign: "center" }}>
+        <div className="fade-up" style={{ display: "inline-flex", marginBottom: 16 }}><LogoMark size={48} /></div>
+        <p style={{ fontSize: 14, color: C.textMuted, marginBottom: 8, fontFamily: "'Outfit',sans-serif" }}>{t.joining || "Joining..."}</p>
+        {error && (
+          <div style={{ marginTop: 14, padding: "10px 14px", borderRadius: 8, background: C.redSoft, color: C.red, fontSize: 13, display: "inline-flex", alignItems: "center", gap: 6, fontFamily: "'Outfit',sans-serif" }}>
+            <CIcon name="warning" size={14} inline /> {error}
+          </div>
+        )}
+      </div>
+    </>
+  );
 
   // ── Join ──
   if (step === "join") return (
