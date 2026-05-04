@@ -9,11 +9,11 @@ import Landing from './pages/Landing';
 import Onboarding from './pages/Onboarding';
 import Community from './pages/Community';
 import Achievements from './pages/Achievements';
-import Activities from './pages/Activities';
 import Settings from './pages/Settings';
 import Director from './pages/Director';
 import Notifications from './pages/Notifications';
 import Decks from './pages/Decks';
+import MyClasses from './pages/MyClasses';
 
 const C = {
   bg: "#FFFFFF", bgSoft: "#F7F7F5", accent: "#2383E2", accentSoft: "#E8F0FE",
@@ -21,7 +21,7 @@ const C = {
   red: "#E03E3E", redSoft: "#FDECEC", purple: "#6940A5", purpleSoft: "#F3EEFB",
   text: "#191919", textSecondary: "#6B6B6B", textMuted: "#9B9B9B", border: "#E8E8E4",
 };
-const COMPONENTS = { sessions: SessionFlow, studentJoin: StudentJoin, mainApp: MainApp, landing: Landing, onboarding: Onboarding, community: Community, achievements: Achievements, activities: Activities, settings: Settings, director: Director, notifications: Notifications, decks: Decks };
+const COMPONENTS = { sessions: SessionFlow, studentJoin: StudentJoin, mainApp: MainApp, landing: Landing, onboarding: Onboarding, community: Community, achievements: Achievements, settings: Settings, director: Director, notifications: Notifications, decks: Decks, myClasses: MyClasses };
 
 function AuthScreen() {
   const [mode, setMode] = useState("select");
@@ -105,7 +105,7 @@ function Sidebar({ page, setPage, profile, lang, setLang, open, setOpen, onSignO
   const isT = profile ? profile.role === "teacher" : (page === "sessions" || page === "decks" || page === "director");
   const nav = isT
     ? [{ id:"sessions",icon:(a)=><SessionsIcon size={28} active={a}/>,l:"Sessions" },{ id:"decks",icon:(a)=><DecksIcon size={28} active={a}/>,l:"Decks" },{ id:"director",icon:(a)=><SchoolIcon size={28} active={a}/>,l:"School" },{ id:"community",icon:(a)=><CommunityIcon size={28} active={a}/>,l:"Community" },{ id:"notifications",icon:(a)=><NotificationsIcon size={28} active={a}/>,l:"Notifications" },{ id:"settings",icon:(a)=><SettingsIcon size={28} active={a}/>,l:"Settings" }]
-    : [{ id:"studentJoin",icon:(a)=><JoinSessionIcon size={28} active={a}/>,l:"Join Session" },{ id:"mainApp",icon:(a)=><ProgressIcon size={28} active={a}/>,l:"My Progress" },{ id:"achievements",icon:(a)=><AchievementsIcon size={28} active={a}/>,l:"Achievements" },{ id:"activities",icon:(a)=><ActivitiesIcon size={28} active={a}/>,l:"Activities" },{ id:"community",icon:(a)=><CommunityIcon size={28} active={a}/>,l:"Community" },{ id:"settings",icon:(a)=><SettingsIcon size={28} active={a}/>,l:"Settings" }];
+    : [{ id:"myClasses",icon:(a)=><SchoolIcon size={28} active={a}/>,l:"My Classes" },{ id:"studentJoin",icon:(a)=><JoinSessionIcon size={28} active={a}/>,l:"Join Session" },{ id:"achievements",icon:(a)=><AchievementsIcon size={28} active={a}/>,l:"Achievements" },{ id:"community",icon:(a)=><CommunityIcon size={28} active={a}/>,l:"Community" },{ id:"settings",icon:(a)=><SettingsIcon size={28} active={a}/>,l:"Settings" }];
 
   return (
     <div style={{ width: open ? 210 : 56, background: C.bg, borderRight: `1px solid ${C.border}`, display: "flex", flexDirection: "column", height: "100vh", position: "fixed", left: 0, top: 0, zIndex: 50, transition: "width .2s", overflow: "hidden" }}>
@@ -177,6 +177,7 @@ export default function App() {
   const [pageKey, setPageKey] = useState(0);
   const [lang, setLang] = useState("en");
   const [open, setOpen] = useState(true);
+  const [practiceDeck, setPracticeDeck] = useState(null); // when set, render StudentJoin in practice mode
 
   useEffect(() => {
     // Initial session check
@@ -221,7 +222,7 @@ export default function App() {
         setLang(data.language || "en");
         // Set default page based on role
         if (data.role === "student") {
-          setPage("mainApp");
+          setPage("myClasses");
         } else {
           setPage("sessions");
         }
@@ -261,12 +262,33 @@ export default function App() {
   `;
 
   const P = COMPONENTS[page];
+  // When the student launches a practice from MyClasses, we render StudentJoin in
+  // "practice mode" — bypassing the PIN/lobby flow and going straight to the deck.
+  const inPractice = practiceDeck !== null;
+
   return (
     <div style={{ display: "flex", minHeight: "100vh" }}>
       <style>{sidebarCSS}</style>
-      <Sidebar page={page} setPage={setPage} profile={profile} lang={lang} setLang={setLang} open={open} setOpen={setOpen} onSignOut={handleSignOut} onNavClick={() => setPageKey(k => k + 1)} />
+      <Sidebar page={page} setPage={(p) => { setPracticeDeck(null); setPage(p); }} profile={profile} lang={lang} setLang={setLang} open={open} setOpen={setOpen} onSignOut={handleSignOut} onNavClick={() => setPageKey(k => k + 1)} />
       <div style={{ marginLeft: open ? 210 : 56, flex: 1, transition: "margin-left .2s", minHeight: "100vh", background: C.bgSoft }}>
-        {P && <P key={pageKey} lang={lang} setLang={setLang} />}
+        {inPractice ? (
+          <StudentJoin
+            key={`practice-${practiceDeck.id}`}
+            lang={lang}
+            setLang={setLang}
+            profile={profile}
+            practiceDeck={practiceDeck}
+            onPracticeExit={() => setPracticeDeck(null)}
+          />
+        ) : (
+          P && <P
+            key={pageKey}
+            lang={lang}
+            setLang={setLang}
+            profile={profile}
+            onLaunchPractice={(deck) => setPracticeDeck(deck)}
+          />
+        )}
       </div>
     </div>
   );

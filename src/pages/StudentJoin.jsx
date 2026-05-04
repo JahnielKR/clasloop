@@ -42,6 +42,7 @@ const i18n = {
     youUnlocked: "You unlocked a new avatar!",
     awesome: "Awesome!",
     moreUnlocks: "more to see",
+    backToClass: "Back to class",
   },
   es: {
     joinSession: "Unirse a Sesión", sessionPin: "PIN de Sesión", yourName: "Tu nombre",
@@ -70,6 +71,7 @@ const i18n = {
     youUnlocked: "¡Desbloqueaste un avatar!",
     awesome: "¡Genial!",
     moreUnlocks: "más por ver",
+    backToClass: "Volver a la clase",
   },
   ko: {
     joinSession: "세션 참여", sessionPin: "세션 PIN", yourName: "이름",
@@ -98,6 +100,7 @@ const i18n = {
     youUnlocked: "새 아바타를 잠금 해제했습니다!",
     awesome: "최고!",
     moreUnlocks: "개 더 보기",
+    backToClass: "수업으로 돌아가기",
   },
 };
 
@@ -232,13 +235,18 @@ const evaluateAnswer = (q, type, raw) => {
   }
 };
 
-export default function StudentJoin({ lang: pageLang = "en", profile = null }) {
-  const [step, setStep] = useState("join");
+export default function StudentJoin({ lang: pageLang = "en", profile = null, practiceDeck = null, onPracticeExit = null }) {
+  // Practice mode: start straight in the quiz with the deck's questions, no PIN, no live session.
+  const isPractice = Boolean(practiceDeck);
+
+  const [step, setStep] = useState(isPractice ? "quiz" : "join");
   const [pin, setPin] = useState("");
   const [name, setName] = useState(profile?.full_name || "");
   const isLoggedIn = Boolean(profile?.full_name);
   const [error, setError] = useState("");
-  const [session, setSession] = useState(null);
+  const [session, setSession] = useState(isPractice
+    ? { id: `practice-${practiceDeck.id}`, questions: practiceDeck.questions || [], topic: practiceDeck.title, class_id: practiceDeck.class_id, status: "active", _isPractice: true }
+    : null);
   const [participant, setParticipant] = useState(null);
   const [current, setCurrent] = useState(0);
   const [answers, setAnswers] = useState([]); // [{ isCorrect, raw }]
@@ -327,6 +335,24 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null }) {
     let cancelled = false;
     (async () => {
       try {
+        // Practice mode: persist progress to student_topic_progress so the
+        // spaced-repetition engine sees these answers even though there's
+        // no live session.
+        if (isPractice && session?.class_id && session?.topic) {
+          const graded = answers.filter(a => a?.isCorrect !== null && a?.isCorrect !== undefined);
+          const correct = graded.filter(a => a.isCorrect).length;
+          if (graded.length > 0) {
+            const { updateStudentRetention } = await import("../lib/spaced-repetition");
+            await updateStudentRetention({
+              classId: session.class_id,
+              studentName: profile.full_name,
+              studentId: profile.id,
+              topic: session.topic,
+              totalQuestions: graded.length,
+              correctAnswers: correct,
+            });
+          }
+        }
         const granted = await checkAndGrantUnlocks(profile.id);
         if (!cancelled && granted.length > 0) {
           setNewUnlocks(granted);
@@ -1143,10 +1169,16 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null }) {
             </div>
           </div>
 
-          <button className="sj-btn sj-btn-secondary" onClick={() => { setStep("join"); setPin(""); setName(profile?.full_name || ""); setAnswers([]); setCurrent(0); setSession(null); }} style={{
+          <button className="sj-btn sj-btn-secondary" onClick={() => {
+            if (isPractice && onPracticeExit) {
+              onPracticeExit();
+            } else {
+              setStep("join"); setPin(""); setName(profile?.full_name || ""); setAnswers([]); setCurrent(0); setSession(null);
+            }
+          }} style={{
             marginTop: 20, padding: "12px 24px", borderRadius: 10, fontSize: 14, fontWeight: 500,
             background: C.bg, color: C.textSecondary, border: `1px solid ${C.border}`,
-          }}>{t.joinAnother}</button>
+          }}>{isPractice ? t.backToClass : t.joinAnother}</button>
         </div>
 
         {/* ── Unlock celebration overlay ── */}
