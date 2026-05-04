@@ -263,7 +263,7 @@ export default function App() {
           || authUser?.user_metadata?.name
           || (authUser?.email ? authUser.email.split("@")[0] : "User");
         const insert = await supabase.from("profiles").insert({
-          id, email: authUser?.email, full_name: fullName, role,
+          id, full_name: fullName, role,
         }).select().single();
         data = insert.data;
         error = insert.error;
