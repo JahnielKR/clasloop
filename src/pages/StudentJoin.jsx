@@ -1253,11 +1253,11 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
             <div className="fade-up" style={{ background: C.bg, borderRadius: 16, border: `1px solid ${C.border}`, padding: 32, boxShadow: "0 4px 20px rgba(0,0,0,0.06)" }}>
               <div style={{
                 width: 64, height: 64, borderRadius: "50%",
-                background: C.bgSoft, color: C.textMuted,
+                background: C.purpleSoft, color: C.purple,
                 display: "inline-flex", alignItems: "center", justifyContent: "center",
                 marginBottom: 16,
               }}>
-                <CIcon name="clock" size={28} inline />
+                <CIcon name="hourglass" size={28} inline />
               </div>
               <h2 style={{ fontFamily: "'Outfit'", fontSize: 20, fontWeight: 700, marginBottom: 8 }}>{t.waitingEndedTitle}</h2>
               <p style={{ color: C.textSecondary, fontSize: 14, marginBottom: 20, lineHeight: 1.5 }}>{t.waitingEndedHint}</p>
