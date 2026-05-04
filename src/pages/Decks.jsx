@@ -30,7 +30,11 @@ const ACTIVITY_TYPES = [
 const i18n = {
   en: {
     pageTitle: "Decks", subtitle: "Create and manage your question collections",
-    myDecks: "My Decks", following: "Following", create: "+ Create deck",
+    myDecks: "My Decks", following: "Following", favorites: "Favorites", create: "+ Create deck",
+    search: "Search decks...", filterAll: "All", filterSubject: "Subject", filterClass: "Class", filterAllSubjects: "All subjects", filterAllClasses: "All classes", filterUnassigned: "Unassigned",
+    groupBy: "Group by", groupByClass: "Class", groupBySubject: "Subject", groupByNone: "None",
+    noFavorites: "No favorites yet. Save decks from Community to see them here.",
+    favoriteRemove: "Remove from favorites", favoriteAdd: "Add to favorites",
     title: "Title", titlePlaceholder: "e.g. French Revolution Review",
     description: "Description", descPlaceholder: "What this deck covers...",
     addToClass: "Add to class (optional)", noClass: "No class — general deck",
@@ -79,7 +83,11 @@ const i18n = {
   },
   es: {
     pageTitle: "Decks", subtitle: "Crea y gestiona tus colecciones de preguntas",
-    myDecks: "Mis Decks", following: "Siguiendo", create: "+ Crear deck",
+    myDecks: "Mis Decks", following: "Siguiendo", favorites: "Favoritos", create: "+ Crear deck",
+    search: "Buscar decks...", filterAll: "Todos", filterSubject: "Materia", filterClass: "Clase", filterAllSubjects: "Todas las materias", filterAllClasses: "Todas las clases", filterUnassigned: "Sin clase",
+    groupBy: "Agrupar por", groupByClass: "Clase", groupBySubject: "Materia", groupByNone: "Ninguno",
+    noFavorites: "Aún no tienes favoritos. Guarda decks de la Comunidad para verlos aquí.",
+    favoriteRemove: "Quitar de favoritos", favoriteAdd: "Agregar a favoritos",
     title: "Título", titlePlaceholder: "ej. Repaso Revolución Francesa",
     description: "Descripción", descPlaceholder: "Qué cubre este deck...",
     addToClass: "Agregar a clase (opcional)", noClass: "Sin clase — deck general",
@@ -128,7 +136,11 @@ const i18n = {
   },
   ko: {
     pageTitle: "덱", subtitle: "문제 모음을 만들고 관리하세요",
-    myDecks: "내 덱", following: "팔로잉", create: "+ 덱 만들기",
+    myDecks: "내 덱", following: "팔로잉", favorites: "즐겨찾기", create: "+ 덱 만들기",
+    search: "덱 검색...", filterAll: "전체", filterSubject: "과목", filterClass: "수업", filterAllSubjects: "모든 과목", filterAllClasses: "모든 수업", filterUnassigned: "미지정",
+    groupBy: "그룹화", groupByClass: "수업", groupBySubject: "과목", groupByNone: "없음",
+    noFavorites: "아직 즐겨찾기가 없습니다. 커뮤니티에서 덱을 저장하여 여기에 표시하세요.",
+    favoriteRemove: "즐겨찾기에서 제거", favoriteAdd: "즐겨찾기에 추가",
     title: "제목", titlePlaceholder: "예: 프랑스 혁명 복습",
     description: "설명", descPlaceholder: "이 덱의 내용...",
     addToClass: "수업에 추가 (선택)", noClass: "수업 없음 — 일반 덱",
@@ -1907,13 +1919,19 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang }) {
   const setLang = pageSetLang || setLangLocal;
   const l = pageLang || lang;
   const [view, setView] = useState("list"); // list | create | edit
-  const [tab, setTab] = useState("myDecks");
+  const [tab, setTab] = useState("myDecks"); // myDecks | favorites
   const [myDecks, setMyDecks] = useState([]);
-  const [followingDecks, setFollowingDecks] = useState([]);
+  const [favoriteDecks, setFavoriteDecks] = useState([]);
   const [userId, setUserId] = useState(null);
   const [userClasses, setUserClasses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(null);
+  // Organization controls
+  const [search, setSearch] = useState("");
+  const [filterSubject, setFilterSubject] = useState(""); // "" = all
+  const [filterClass, setFilterClass] = useState("");     // "" = all
+  const [groupBy, setGroupBy] = useState("class");        // class | subject | none
+  const [collapsedGroups, setCollapsedGroups] = useState({}); // { groupKey: true }
   const t = i18n[l] || i18n.en;
 
   useEffect(() => { loadData(); }, []);
@@ -1928,14 +1946,26 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang }) {
 
     // My decks: created by user (not from community)
     const { data: mine } = await supabase.from("decks").select("*").eq("author_id", user.id).order("created_at", { ascending: false });
-    // Split: original mine vs copies from community
-    // Following = decks where author is current user but were copied (we'll track via a tag or description)
-    // For simplicity: My Decks = all author_id = me. Following = none for now (until we add proper following table)
     setMyDecks(mine || []);
-    // For now Following is empty - we'll implement following with a separate logic later
-    setFollowingDecks([]);
+
+    // Favorites: decks the user (as teacher) saved from Community via saved_decks table.
+    // Pull saved_decks rows + join the actual deck data + author profile for "by X" labels.
+    const { data: savedRows } = await supabase
+      .from("saved_decks")
+      .select("deck_id, decks(*, profiles(full_name))")
+      .eq("student_id", user.id); // table column is `student_id` but it works for any user
+    const favs = (savedRows || []).map(r => r.decks).filter(Boolean);
+    setFavoriteDecks(favs);
 
     setLoading(false);
+  };
+
+  // Toggle favorite (remove). For adding, the action happens in Community.
+  const handleRemoveFavorite = async (deckId) => {
+    if (!userId) return;
+    await supabase.from("saved_decks").delete()
+      .eq("student_id", userId).eq("deck_id", deckId);
+    setFavoriteDecks(prev => prev.filter(d => d.id !== deckId));
   };
 
   const handleDelete = async (deckId) => {
@@ -1962,6 +1992,125 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang }) {
     </div>
   );
 
+  // ── Filtering and grouping logic ─────────────────────────────────────────
+  const sourceDecks = tab === "myDecks" ? myDecks : favoriteDecks;
+
+  // Apply search + filters
+  const filteredDecks = sourceDecks.filter(d => {
+    if (search) {
+      const q = search.toLowerCase();
+      const hay = [d.title, d.description, ...(d.tags || [])].filter(Boolean).join(" ").toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    if (filterSubject && d.subject !== filterSubject) return false;
+    if (filterClass) {
+      if (filterClass === "__unassigned__") {
+        if (d.class_id) return false;
+      } else {
+        if (d.class_id !== filterClass) return false;
+      }
+    }
+    return true;
+  });
+
+  // Build groups based on groupBy. Returns [{ key, label, decks }, ...]
+  const buildGroups = () => {
+    if (groupBy === "none") return [{ key: "all", label: null, decks: filteredDecks }];
+    if (groupBy === "class") {
+      const byClass = new Map();
+      filteredDecks.forEach(d => {
+        const key = d.class_id || "__unassigned__";
+        if (!byClass.has(key)) byClass.set(key, []);
+        byClass.get(key).push(d);
+      });
+      const result = [];
+      // Ordered by userClasses order, then unassigned at the end
+      userClasses.forEach(c => {
+        if (byClass.has(c.id)) {
+          result.push({ key: c.id, label: c.name, sublabel: `${c.subject} · ${c.grade}`, icon: SUBJ_ICON[c.subject] || "book", decks: byClass.get(c.id) });
+        }
+      });
+      if (byClass.has("__unassigned__")) {
+        result.push({ key: "__unassigned__", label: t.filterUnassigned, sublabel: null, icon: "other", decks: byClass.get("__unassigned__") });
+      }
+      // Favorites tab: decks belong to OTHER teachers' classes — those won't match userClasses.
+      // Push any leftover class_ids as "Other" buckets keyed by class_id.
+      byClass.forEach((decks, key) => {
+        if (key === "__unassigned__") return;
+        if (!userClasses.find(c => c.id === key)) {
+          result.push({ key: `other-${key}`, label: null, sublabel: null, icon: "other", decks });
+        }
+      });
+      // Merge any "other" leftovers into a single bucket if multiple
+      const others = result.filter(g => g.key.startsWith("other-"));
+      if (others.length > 0) {
+        const mergedDecks = others.flatMap(g => g.decks);
+        const filtered = result.filter(g => !g.key.startsWith("other-"));
+        filtered.push({ key: "other", label: t.filterUnassigned, sublabel: null, icon: "other", decks: mergedDecks });
+        return filtered;
+      }
+      return result;
+    }
+    if (groupBy === "subject") {
+      const bySubject = new Map();
+      filteredDecks.forEach(d => {
+        const key = d.subject || "Other";
+        if (!bySubject.has(key)) bySubject.set(key, []);
+        bySubject.get(key).push(d);
+      });
+      return Array.from(bySubject.entries()).sort((a, b) => a[0].localeCompare(b[0])).map(([subj, decks]) => ({
+        key: subj, label: subj, sublabel: null, icon: SUBJ_ICON[subj] || "book", decks
+      }));
+    }
+    return [];
+  };
+  const groups = buildGroups();
+
+  const toggleGroup = (key) => setCollapsedGroups(prev => ({ ...prev, [key]: !prev[key] }));
+
+  // ── Reusable deck row renderer ───────────────────────────────────────────
+  const renderDeckRow = (dk, i, opts = {}) => {
+    const qs = dk.questions || [];
+    const cls = userClasses.find(c => c.id === dk.class_id);
+    const accent = resolveColor(dk);
+    const isFav = opts.isFav;
+    return (
+      <div key={dk.id} className="dk-card fade-up" style={{
+        background: C.bg, borderRadius: 12, border: `1px solid ${C.border}`,
+        borderLeft: `4px solid ${accent}`,
+        padding: 14, paddingLeft: 14,
+        animationDelay: `${i * .04}s`,
+      }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <DeckCover deck={dk} size={52} radius={10} />
+          <div style={{ flex: 1, cursor: isFav ? "default" : "pointer", minWidth: 0 }} onClick={isFav ? undefined : () => { setEditing(dk); setView("edit"); }}>
+            <div style={{ fontSize: 15, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{dk.title}</div>
+            <div style={{ fontSize: 12, color: C.textMuted, marginTop: 2 }}>
+              {dk.subject} · {dk.grade} · {qs.length} {t.questionCount}
+              {cls && <> · <strong style={{ color: C.accent }}>{cls.name}</strong></>}
+              {isFav && dk.profiles?.full_name && <> · {t.by} <strong>{dk.profiles.full_name}</strong></>}
+              {" · "}<LangBadge lang={dk.language} />
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: 6 }}>
+            {isFav ? (
+              <button className="dk-btn-danger" onClick={() => handleRemoveFavorite(dk.id)} style={{ padding: "6px 12px", borderRadius: 6, fontSize: 12, fontWeight: 500, background: C.bg, color: C.textSecondary, border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: "'Outfit',sans-serif" }} title={t.favoriteRemove}>★ {t.favoriteRemove}</button>
+            ) : (
+              <>
+                <button className="dk-btn-secondary" onClick={() => handleTogglePublic(dk)} style={{ padding: "6px 12px", borderRadius: 6, fontSize: 12, fontWeight: 500, background: C.bgSoft, color: dk.is_public ? C.green : C.textMuted, border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: "'Outfit',sans-serif" }}>{dk.is_public ? t.public : t.private}</button>
+                <button className="dk-btn-secondary" onClick={() => { setEditing(dk); setView("edit"); }} style={{ padding: "6px 12px", borderRadius: 6, fontSize: 12, fontWeight: 500, background: C.bg, color: C.textSecondary, border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: "'Outfit',sans-serif" }}>{t.edit}</button>
+                <button className="dk-btn-danger" onClick={() => handleDelete(dk.id)} style={{ padding: "6px 12px", borderRadius: 6, fontSize: 12, fontWeight: 500, background: C.bg, color: C.red, border: `1px solid ${C.redSoft}`, cursor: "pointer", fontFamily: "'Outfit',sans-serif" }}>{t.delete}</button>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Subject options for filter (collected from decks themselves so we don't show empty subjects)
+  const allSubjects = Array.from(new Set(sourceDecks.map(d => d.subject).filter(Boolean))).sort();
+
   return (
     <div style={{ padding: "28px 20px" }}>
       <style>{css}</style>
@@ -1970,72 +2119,103 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang }) {
       <div style={{ maxWidth: 800, margin: "0 auto" }}>
         <p style={{ fontSize: 14, color: C.textSecondary, marginBottom: 20 }}>{t.subtitle}</p>
 
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20, gap: 8 }}>
+        {/* Tabs + Create button */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, gap: 8 }}>
           <div style={{ display: "flex", gap: 4 }}>
-            {[["myDecks", t.myDecks, myDecks.length], ["following", t.following, followingDecks.length]].map(([id, label, count]) => (
+            {[["myDecks", t.myDecks, myDecks.length], ["favorites", t.favorites, favoriteDecks.length]].map(([id, label, count]) => (
               <button key={id} className="dk-tab" onClick={() => setTab(id)} style={{
                 padding: "8px 16px", borderRadius: 8, fontSize: 13, fontWeight: 500,
                 background: tab === id ? C.accentSoft : C.bg,
                 color: tab === id ? C.accent : C.textSecondary,
                 border: `1px solid ${tab === id ? C.accent + "33" : C.border}`,
-                display: "flex", alignItems: "center", gap: 6,
+                display: "flex", alignItems: "center", gap: 6, cursor: "pointer",
               }}>{label} {count > 0 && <span style={{ fontSize: 11, padding: "1px 6px", borderRadius: 8, background: tab === id ? C.accent : C.bgSoft, color: tab === id ? "#fff" : C.textMuted, fontWeight: 700 }}>{count}</span>}</button>
             ))}
           </div>
-          <button className="dk-btn" onClick={() => setView("create")} style={{ padding: "8px 16px", borderRadius: 8, fontSize: 13, fontWeight: 600, background: `linear-gradient(135deg, ${C.accent}, ${C.purple})`, color: "#fff" }}>{t.create}</button>
+          {tab === "myDecks" && (
+            <button className="dk-btn" onClick={() => setView("create")} style={{ padding: "8px 16px", borderRadius: 8, fontSize: 13, fontWeight: 600, background: `linear-gradient(135deg, ${C.accent}, ${C.purple})`, color: "#fff", border: "none", cursor: "pointer", fontFamily: "'Outfit',sans-serif" }}>{t.create}</button>
+          )}
         </div>
+
+        {/* Search + Filters bar */}
+        {sourceDecks.length > 0 && (
+          <div style={{ marginBottom: 16, display: "flex", flexDirection: "column", gap: 8 }}>
+            <div style={{ position: "relative" }}>
+              <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)" }}><CIcon name="target" size={14} inline /></span>
+              <input
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder={t.search}
+                style={{ ...inp, paddingLeft: 38, width: "100%" }}
+              />
+            </div>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <select value={filterSubject} onChange={e => setFilterSubject(e.target.value)} style={{ ...sel, flex: 1, minWidth: 140 }}>
+                <option value="">{t.filterAllSubjects}</option>
+                {allSubjects.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+              {tab === "myDecks" && userClasses.length > 0 && (
+                <select value={filterClass} onChange={e => setFilterClass(e.target.value)} style={{ ...sel, flex: 1, minWidth: 140 }}>
+                  <option value="">{t.filterAllClasses}</option>
+                  {userClasses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  <option value="__unassigned__">{t.filterUnassigned}</option>
+                </select>
+              )}
+              <select value={groupBy} onChange={e => setGroupBy(e.target.value)} style={{ ...sel, flex: 1, minWidth: 140 }}>
+                <option value="class">{t.groupBy}: {t.groupByClass}</option>
+                <option value="subject">{t.groupBy}: {t.groupBySubject}</option>
+                <option value="none">{t.groupBy}: {t.groupByNone}</option>
+              </select>
+            </div>
+          </div>
+        )}
 
         {loading ? (
           <p style={{ textAlign: "center", color: C.textMuted, padding: 40 }}>Loading...</p>
-        ) : tab === "myDecks" ? (
-          myDecks.length === 0 ? (
-            <div className="fade-up" style={{ textAlign: "center", padding: 48 }}>
-              <CIcon name="book" size={36} />
-              <p style={{ fontSize: 15, color: C.textMuted, marginTop: 12 }}>{t.noDecks}</p>
-            </div>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              {myDecks.map((dk, i) => {
-                const qs = dk.questions || [];
-                const cls = userClasses.find(c => c.id === dk.class_id);
-                const accent = resolveColor(dk);
-                return (
-                  <div key={dk.id} className="dk-card fade-up" style={{
-                    background: C.bg, borderRadius: 12, border: `1px solid ${C.border}`,
-                    borderLeft: `4px solid ${accent}`,
-                    padding: 14, paddingLeft: 14,
-                    animationDelay: `${i * .04}s`,
-                  }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                      <DeckCover deck={dk} size={52} radius={10} />
-                      <div style={{ flex: 1, cursor: "pointer", minWidth: 0 }} onClick={() => { setEditing(dk); setView("edit"); }}>
-                        <div style={{ fontSize: 15, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{dk.title}</div>
-                        <div style={{ fontSize: 12, color: C.textMuted, marginTop: 2 }}>
-                          {dk.subject} · {dk.grade} · {qs.length} {t.questionCount}
-                          {cls && <> · <strong style={{ color: C.accent }}>{cls.name}</strong></>}
-                          {" · "}<LangBadge lang={dk.language} />
-                        </div>
-                      </div>
-                      <div style={{ display: "flex", gap: 6 }}>
-                        <button className="dk-btn-secondary" onClick={() => handleTogglePublic(dk)} style={{ padding: "6px 12px", borderRadius: 6, fontSize: 12, fontWeight: 500, background: C.bgSoft, color: dk.is_public ? C.green : C.textMuted, border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: "'Outfit',sans-serif" }}>{dk.is_public ? t.public : t.private}</button>
-                        <button className="dk-btn-secondary" onClick={() => { setEditing(dk); setView("edit"); }} style={{ padding: "6px 12px", borderRadius: 6, fontSize: 12, fontWeight: 500, background: C.bg, color: C.textSecondary, border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: "'Outfit',sans-serif" }}>{t.edit}</button>
-                        <button className="dk-btn-danger" onClick={() => handleDelete(dk.id)} style={{ padding: "6px 12px", borderRadius: 6, fontSize: 12, fontWeight: 500, background: C.bg, color: C.red, border: `1px solid ${C.redSoft}`, cursor: "pointer", fontFamily: "'Outfit',sans-serif" }}>{t.delete}</button>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )
+        ) : sourceDecks.length === 0 ? (
+          <div className="fade-up" style={{ textAlign: "center", padding: 48 }}>
+            <CIcon name={tab === "myDecks" ? "book" : "star"} size={36} />
+            <p style={{ fontSize: 15, color: C.textMuted, marginTop: 12 }}>{tab === "myDecks" ? t.noDecks : t.noFavorites}</p>
+          </div>
+        ) : filteredDecks.length === 0 ? (
+          <div className="fade-up" style={{ textAlign: "center", padding: 32 }}>
+            <p style={{ fontSize: 14, color: C.textMuted }}>No matches</p>
+          </div>
         ) : (
-          followingDecks.length === 0 ? (
-            <div className="fade-up" style={{ textAlign: "center", padding: 48 }}>
-              <CIcon name="globe" size={36} />
-              <p style={{ fontSize: 15, color: C.textMuted, marginTop: 12 }}>{t.noFollowing}</p>
-            </div>
-          ) : (
-            <div>{/* TODO: show followed decks */}</div>
-          )
+          <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+            {groups.map(group => {
+              const collapsed = !!collapsedGroups[group.key];
+              return (
+                <div key={group.key}>
+                  {group.label && (
+                    <button
+                      onClick={() => toggleGroup(group.key)}
+                      style={{
+                        width: "100%",
+                        display: "flex", alignItems: "center", gap: 8,
+                        padding: "8px 4px", marginBottom: 8,
+                        background: "transparent", border: "none", cursor: "pointer",
+                        fontFamily: "'Outfit',sans-serif", textAlign: "left",
+                      }}
+                    >
+                      <CIcon name={group.icon} size={16} inline />
+                      <span style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{group.label}</span>
+                      {group.sublabel && <span style={{ fontSize: 11, color: C.textMuted }}>· {group.sublabel}</span>}
+                      <span style={{ fontSize: 11, color: C.textMuted, padding: "1px 7px", borderRadius: 8, background: C.bgSoft, fontWeight: 600 }}>{group.decks.length}</span>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style={{ marginLeft: "auto", transform: collapsed ? "rotate(-90deg)" : "rotate(0deg)", transition: "transform .15s ease" }}>
+                        <path d="M6 9l6 6 6-6" stroke={C.textMuted} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    </button>
+                  )}
+                  {!collapsed && (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                      {group.decks.map((dk, i) => renderDeckRow(dk, i, { isFav: tab === "favorites" }))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         )}
       </div>
     </div>
