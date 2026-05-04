@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from './lib/supabase';
-import Icon, { LogoMark, SessionsIcon, AIGenIcon, SchoolIcon, CommunityIcon, NotificationsIcon, SettingsIcon, JoinSessionIcon, ProgressIcon, AchievementsIcon, ActivitiesIcon, TeacherInline, StudentInline, TeacherAvatar, StudentAvatar, BackArrow } from './components/Icons';
+import Icon, { LogoMark, SessionsIcon, AIGenIcon, SchoolIcon, CommunityIcon, DecksIcon, NotificationsIcon, SettingsIcon, JoinSessionIcon, ProgressIcon, AchievementsIcon, ActivitiesIcon, TeacherInline, StudentInline, TeacherAvatar, StudentAvatar, BackArrow } from './components/Icons';
 import SessionFlow from './pages/SessionFlow';
 import StudentJoin from './pages/StudentJoin';
 import MainApp from './pages/MainApp';
@@ -103,7 +103,7 @@ function Sidebar({ page, setPage, profile, lang, setLang, open, setOpen, onSignO
   // This prevents the sidebar from flipping during token refresh
   const isT = profile ? profile.role === "teacher" : (page === "sessions" || page === "decks" || page === "director");
   const nav = isT
-    ? [{ id:"sessions",icon:(a)=><SessionsIcon size={28} active={a}/>,l:"Sessions" },{ id:"decks",icon:(a)=><CommunityIcon size={28} active={a}/>,l:"Decks" },{ id:"director",icon:(a)=><SchoolIcon size={28} active={a}/>,l:"School" },{ id:"community",icon:(a)=><CommunityIcon size={28} active={a}/>,l:"Community" },{ id:"notifications",icon:(a)=><NotificationsIcon size={28} active={a}/>,l:"Notifications" },{ id:"settings",icon:(a)=><SettingsIcon size={28} active={a}/>,l:"Settings" }]
+    ? [{ id:"sessions",icon:(a)=><SessionsIcon size={28} active={a}/>,l:"Sessions" },{ id:"decks",icon:(a)=><DecksIcon size={28} active={a}/>,l:"Decks" },{ id:"director",icon:(a)=><SchoolIcon size={28} active={a}/>,l:"School" },{ id:"community",icon:(a)=><CommunityIcon size={28} active={a}/>,l:"Community" },{ id:"notifications",icon:(a)=><NotificationsIcon size={28} active={a}/>,l:"Notifications" },{ id:"settings",icon:(a)=><SettingsIcon size={28} active={a}/>,l:"Settings" }]
     : [{ id:"studentJoin",icon:(a)=><JoinSessionIcon size={28} active={a}/>,l:"Join Session" },{ id:"mainApp",icon:(a)=><ProgressIcon size={28} active={a}/>,l:"My Progress" },{ id:"achievements",icon:(a)=><AchievementsIcon size={28} active={a}/>,l:"Achievements" },{ id:"activities",icon:(a)=><ActivitiesIcon size={28} active={a}/>,l:"Activities" },{ id:"community",icon:(a)=><CommunityIcon size={28} active={a}/>,l:"Community" },{ id:"settings",icon:(a)=><SettingsIcon size={28} active={a}/>,l:"Settings" }];
 
   return (
@@ -237,7 +237,7 @@ export default function App() {
       <style>{sidebarCSS}</style>
       <Sidebar page={page} setPage={setPage} profile={profile} lang={lang} setLang={setLang} open={open} setOpen={setOpen} onSignOut={handleSignOut} onNavClick={() => setPageKey(k => k + 1)} />
       <div style={{ marginLeft: open ? 210 : 56, flex: 1, transition: "margin-left .2s", minHeight: "100vh", background: C.bgSoft }}>
-        {P && <P key={pageKey} lang={lang} setLang={setLang} profile={profile} user={user} />}
+        {P && <P key={pageKey} lang={lang} setLang={setLang} />}
       </div>
     </div>
   );

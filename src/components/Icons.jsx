@@ -96,6 +96,45 @@ export function CommunityIcon({ size = 32, active = false }) {
   );
 }
 
+// Deck of cards: two cards stacked with a slight rotation offset.
+// Front card has a horizontal line (text) + a small star/sparkle accent.
+export function DecksIcon({ size = 32, active = false }) {
+  const c = active ? D.purple : D.muted;
+  const accent = active ? D.gold : D.muted;
+  return (
+    <IconBg bg={active ? "#F3EEFB" : D.bg} border={active ? D.purple + "33" : "transparent"} size={size}>
+      {S(size * 0.6, "0 0 24 24", <>
+        {/* Back card — rotated counter-clockwise */}
+        <rect
+          x="5" y="5" width="12" height="15" rx="2"
+          fill={active ? D.purple + "10" : "none"}
+          stroke={c} strokeWidth="1.6"
+          transform="rotate(-8 11 12.5)"
+        />
+        {/* Front card — slight clockwise rotation, slightly lower-right */}
+        <rect
+          x="8" y="6" width="12" height="15" rx="2"
+          fill={active ? "#FFFFFF" : D.bg}
+          stroke={c} strokeWidth="1.8"
+          transform="rotate(5 14 13.5)"
+        />
+        {/* Content lines on the front card (rotated with it) */}
+        <g transform="rotate(5 14 13.5)">
+          <line x1="11" y1="11" x2="17" y2="11" stroke={c} strokeWidth="1.6" strokeLinecap="round"/>
+          <line x1="11" y1="14" x2="16" y2="14" stroke={c} strokeWidth="1.6" strokeLinecap="round" opacity="0.6"/>
+          <line x1="11" y1="17" x2="15" y2="17" stroke={c} strokeWidth="1.6" strokeLinecap="round" opacity="0.4"/>
+        </g>
+        {/* Sparkle accent (top-right) */}
+        <path
+          d="M19,4 L19.6,5.4 L21,6 L19.6,6.6 L19,8 L18.4,6.6 L17,6 L18.4,5.4 Z"
+          fill={accent}
+          opacity={active ? 1 : 0.6}
+        />
+      </>)}
+    </IconBg>
+  );
+}
+
 export function NotificationsIcon({ size = 32, active = false, badge = 0 }) {
   const c = active ? D.orange : D.muted;
   return (
