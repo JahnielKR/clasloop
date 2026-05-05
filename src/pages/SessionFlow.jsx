@@ -281,7 +281,7 @@ function DeckPicker({ userId, t, onPick, navigateToDecks }) {
       {filtered.length === 0 ? (
         <p style={{ textAlign: "center", color: C.textMuted, padding: 40 }}>{t.noResults}</p>
       ) : (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 14 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 14 }}>
           {filtered.map(dk => {
             const qs = dk.questions || [];
             const cls = classes.find(c => c.id === dk.class_id);
@@ -800,7 +800,7 @@ function SuggestedToday({ teacherId, t, onPickSuggestion }) {
       </h3>
       <p style={{ fontSize: 12, color: C.textMuted, marginBottom: 12 }}>{t.suggestedHint}</p>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 10 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 10 }}>
         {visible.map(item => <SuggestedCard key={`${item.class.id}-${item.deck.id}`} item={item} t={t} onPick={onPickSuggestion} />)}
       </div>
 
@@ -934,7 +934,7 @@ function CreateClassModal({ userId, t, onClose, onCreated }) {
             />
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 10 }}>
             <div>
               <label style={{ display: "block", fontSize: 12, fontWeight: 500, color: C.textSecondary, marginBottom: 6 }}>{t.classSubject}</label>
               <select value={subject} onChange={e => setSubject(e.target.value)} style={sel}>
