@@ -31,6 +31,8 @@ const i18n = {
     saveToMyDecks: "Save to my decks",
     addToWhich: "Add to which class?", noClass: "No class — keep as personal", saved: "Saved!",
     by: "by", back: "Back",
+    searchPlaceholder: "Search decks...", filterAllSubjects: "All subjects", filterAllGrades: "All grades", filterAllLanguages: "All languages",
+    noResults: "No decks match your filters.", clearFilters: "Clear filters",
   },
   es: {
     pageTitle: "Perfil", teacher: "Profesor",
@@ -45,6 +47,8 @@ const i18n = {
     saveToMyDecks: "Guardar en mis decks",
     addToWhich: "¿A qué clase?", noClass: "Sin clase — mantener personal", saved: "¡Guardado!",
     by: "por", back: "Volver",
+    searchPlaceholder: "Buscar decks...", filterAllSubjects: "Todas las materias", filterAllGrades: "Todos los grados", filterAllLanguages: "Todos los idiomas",
+    noResults: "Ningún deck coincide con los filtros.", clearFilters: "Limpiar filtros",
   },
   ko: {
     pageTitle: "프로필", teacher: "교사",
@@ -59,6 +63,8 @@ const i18n = {
     saveToMyDecks: "내 덱에 저장",
     addToWhich: "어느 수업에?", noClass: "수업 없음 — 개인용", saved: "저장됨!",
     by: "", back: "뒤로",
+    searchPlaceholder: "덱 검색...", filterAllSubjects: "모든 과목", filterAllGrades: "모든 학년", filterAllLanguages: "모든 언어",
+    noResults: "필터와 일치하는 덱이 없습니다.", clearFilters: "필터 지우기",
   },
 };
 
@@ -140,6 +146,14 @@ export default function TeacherProfile({ teacherId, profile: viewerProfile, lang
   const [selectedDeck, setSelectedDeck] = useState(null); // deck open in detail view
   const [toast, setToast] = useState(null);
 
+  // Filters: search + subject/grade/language. We default each to "" (all).
+  // Search is always shown; the dropdowns are populated from the deck list
+  // (only values the teacher actually has appear), and shown unconditionally.
+  const [search, setSearch] = useState("");
+  const [filterSubject, setFilterSubject] = useState("");
+  const [filterGrade, setFilterGrade] = useState("");
+  const [filterLanguage, setFilterLanguage] = useState("");
+
   // Fetch profile + decks
   useEffect(() => {
     if (!teacherId) { setNotAvailable(true); setLoading(false); return; }
@@ -217,7 +231,7 @@ export default function TeacherProfile({ teacherId, profile: viewerProfile, lang
       subject: cls?.subject || deck.subject, grade: cls?.grade || deck.grade,
       language: deck.language, questions: deck.questions, tags: deck.tags, is_public: false,
       cover_color: deck.cover_color, cover_icon: deck.cover_icon, cover_image_url: deck.cover_image_url,
-      copied_from_id: deck.id, // track the original — powers Following tab + "from X" badge
+      copied_from_id: deck.id, // track the original — powers the "from X" / "Adapted from" badge
     });
     if (!error) {
       await supabase.from("decks").update({ uses_count: (deck.uses_count || 0) + 1 }).eq("id", deck.id);
@@ -418,14 +432,76 @@ export default function TeacherProfile({ teacherId, profile: viewerProfile, lang
           <p style={{ textAlign: "center", color: C.textMuted, fontSize: 13, padding: "40px 20px" }}>
             {t.noDecks}
           </p>
-        ) : (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 14 }}>
-            {decks.map(dk => {
-              const tint = colorTint(dk, "0F");
-              const qs = dk.questions || [];
-              const isSaved = !!saved[dk.id];
-              const accent = resolveColor(dk);
-              return (
+        ) : (() => {
+          // ── Filters ────────────────────────────────────────────────
+          // Populate dropdowns only with values that exist among this
+          // teacher's decks. Languages are mapped to their code ("en" etc.)
+          // and a label that's displayed to the user.
+          const subjects = Array.from(new Set(decks.map(d => d.subject).filter(Boolean))).sort();
+          const grades = Array.from(new Set(decks.map(d => d.grade).filter(Boolean))).sort();
+          const langs = Array.from(new Set(decks.map(d => d.language).filter(Boolean))).sort();
+          const langLabel = (code) => code === "en" ? "English" : code === "es" ? "Español" : code === "ko" ? "한국어" : code;
+
+          const q = search.trim().toLowerCase();
+          const filteredDecks = decks.filter(d => {
+            if (q && !(d.title || "").toLowerCase().includes(q)) return false;
+            if (filterSubject && d.subject !== filterSubject) return false;
+            if (filterGrade && d.grade !== filterGrade) return false;
+            if (filterLanguage && d.language !== filterLanguage) return false;
+            return true;
+          });
+          const hasFilters = Boolean(q || filterSubject || filterGrade || filterLanguage);
+          const clearAll = () => { setSearch(""); setFilterSubject(""); setFilterGrade(""); setFilterLanguage(""); };
+
+          return (
+            <>
+              {/* Filter row — search input + 3 dropdowns. Wrap freely on mobile. */}
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 16 }}>
+                <input
+                  type="text"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder={t.searchPlaceholder}
+                  style={{
+                    fontFamily: "'Outfit',sans-serif",
+                    background: C.bg, border: `1px solid ${C.border}`, color: C.text,
+                    padding: "8px 12px", borderRadius: 8, fontSize: 13,
+                    flex: "1 1 220px", minWidth: 0, outline: "none",
+                  }}
+                />
+                <select value={filterSubject} onChange={(e) => setFilterSubject(e.target.value)} style={{ ...sel, flex: "1 1 140px", width: "auto", flexShrink: 1, fontSize: 13, padding: "8px 26px 8px 12px" }}>
+                  <option value="">{t.filterAllSubjects}</option>
+                  {subjects.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+                <select value={filterGrade} onChange={(e) => setFilterGrade(e.target.value)} style={{ ...sel, flex: "1 1 120px", width: "auto", flexShrink: 1, fontSize: 13, padding: "8px 26px 8px 12px" }}>
+                  <option value="">{t.filterAllGrades}</option>
+                  {grades.map(g => <option key={g} value={g}>{g}</option>)}
+                </select>
+                <select value={filterLanguage} onChange={(e) => setFilterLanguage(e.target.value)} style={{ ...sel, flex: "1 1 130px", width: "auto", flexShrink: 1, fontSize: 13, padding: "8px 26px 8px 12px" }}>
+                  <option value="">{t.filterAllLanguages}</option>
+                  {langs.map(c => <option key={c} value={c}>{langLabel(c)}</option>)}
+                </select>
+              </div>
+
+              {filteredDecks.length === 0 ? (
+                <div style={{ textAlign: "center", padding: "40px 20px" }}>
+                  <p style={{ color: C.textMuted, fontSize: 13, marginBottom: 12 }}>{t.noResults}</p>
+                  {hasFilters && (
+                    <button onClick={clearAll} style={{
+                      padding: "6px 14px", borderRadius: 8, fontSize: 12, fontWeight: 500,
+                      background: C.accentSoft, color: C.accent, border: "none", cursor: "pointer",
+                      fontFamily: "'Outfit',sans-serif",
+                    }}>{t.clearFilters}</button>
+                  )}
+                </div>
+              ) : (
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 14 }}>
+                  {filteredDecks.map(dk => {
+                    const tint = colorTint(dk, "0F");
+                    const qs = dk.questions || [];
+                    const isSaved = !!saved[dk.id];
+                    const accent = resolveColor(dk);
+                    return (
                 <div
                   key={dk.id}
                   className="tp-card"
@@ -466,8 +542,11 @@ export default function TeacherProfile({ teacherId, profile: viewerProfile, lang
                 </div>
               );
             })}
-          </div>
-        )}
+                </div>
+              )}
+            </>
+          );
+        })()}
       </div>
 
       {savingDeck && (
