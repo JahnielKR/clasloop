@@ -18,9 +18,12 @@ const CONTRIBUTION_THRESHOLD = 40; // %  — own additions above this = enough e
 // Normalize a question's prompt for comparison. We compare on prompt only
 // because it's the strongest signal of "same question". Reordering MCQ options
 // or rewording an option doesn't make a new question.
-function normalizePrompt(q) {
-  if (!q) return "";
-  const raw = (q.prompt || q.question || q.text || "").toString();
+//
+// The deck schema in this app stores prompt under `q`. We also check
+// alternative names (prompt/question/text) for safety.
+function normalizePrompt(question) {
+  if (!question) return "";
+  const raw = (question.q || question.prompt || question.question || question.text || "").toString();
   return raw.trim().toLowerCase().replace(/\s+/g, " ");
 }
 
