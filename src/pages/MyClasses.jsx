@@ -3,7 +3,7 @@ import { supabase } from "../lib/supabase";
 import { CIcon, LogoMark } from "../components/Icons";
 import { Avatar } from "../components/Avatars";
 import { DeckCover, colorTint } from "../lib/deck-cover";
-import MobileMenuButton from "../components/MobileMenuButton";
+import MobileMenuButton, { useIsMobile } from "../components/MobileMenuButton";
 
 const C = {
   bg: "#FFFFFF", bgSoft: "#F7F7F5", accent: "#2383E2", accentSoft: "#E8F0FE",
@@ -144,6 +144,8 @@ const css = `
   .mc-tab:hover { color: #2383E2 !important; }
   .mc-join-btn:not(:disabled):hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(35,131,226,0.25); }
   .mc-join-btn:not(:disabled):active { transform: translateY(0) scale(.97); }
+  .mc-scroll-x { overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; -ms-overflow-style: none; }
+  .mc-scroll-x::-webkit-scrollbar { display: none; }
 `;
 
 function PageHeader({ title, icon, lang, setLang, maxWidth = 800, onOpenMobileMenu }) {
@@ -490,7 +492,7 @@ export default function MyClasses({ lang: pageLang = "en", setLang: pageSetLang,
                         <p style={{ fontSize: 12, color: C.textMuted, margin: "0 0 8px 0" }}>
                           {cls.subject} · {cls.grade} · {teacher?.full_name || t.teacher}
                         </p>
-                        <div style={{ display: "flex", gap: 12, fontSize: 12 }}>
+                        <div style={{ display: "flex", gap: 12, fontSize: 12, flexWrap: "wrap", rowGap: 4 }}>
                           {cls.reviewsDue > 0 && (
                             <span style={{ display: "inline-flex", alignItems: "center", gap: 4, color: C.orange, fontWeight: 600 }}>
                               <CIcon name="clock" size={12} inline /> {cls.reviewsDue} {t.reviewsDue}
@@ -666,6 +668,7 @@ function SavedDeckCard({ deck, t, onPractice, onToggleFavorite, onUnsave }) {
 
 // ─── Class Detail ───────────────────────────────────────────────────────────
 function ClassDetail({ cls, profile, t, lang, onBack, onLaunchPractice }) {
+  const isMobile = useIsMobile();
   const [activeTab, setActiveTab] = useState("reviews");
   const [decks, setDecks] = useState([]);
   const [progress, setProgress] = useState([]);
@@ -742,7 +745,7 @@ function ClassDetail({ cls, profile, t, lang, onBack, onLaunchPractice }) {
             )}
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4, flexWrap: "wrap" }}>
               <h2 style={{ fontFamily: "'Outfit'", fontSize: 20, fontWeight: 700, margin: 0 }}>{cls.name}</h2>
               <span style={{ fontSize: 11, fontFamily: MONO, fontWeight: 700, color: C.accent, background: C.accentSoft, padding: "2px 7px", borderRadius: 4 }}>{cls.class_code}</span>
             </div>
@@ -750,16 +753,33 @@ function ClassDetail({ cls, profile, t, lang, onBack, onLaunchPractice }) {
               {cls.subject} · {cls.grade} · {teacher?.full_name || t.teacher}
             </p>
           </div>
+          {!isMobile && (
+            <button
+              onClick={() => setLeavingConfirm(true)}
+              style={{
+                padding: "6px 12px", borderRadius: 7, fontSize: 12, fontWeight: 500,
+                background: "transparent", color: C.red,
+                border: `1px solid ${C.redSoft}`, cursor: "pointer",
+                fontFamily: "'Outfit',sans-serif",
+                flexShrink: 0,
+              }}
+            >{t.leaveClass}</button>
+          )}
+        </div>
+
+        {isMobile && (
           <button
             onClick={() => setLeavingConfirm(true)}
             style={{
-              padding: "6px 12px", borderRadius: 7, fontSize: 12, fontWeight: 500,
+              width: "100%",
+              padding: "8px 12px", borderRadius: 7, fontSize: 12, fontWeight: 500,
               background: "transparent", color: C.red,
               border: `1px solid ${C.redSoft}`, cursor: "pointer",
               fontFamily: "'Outfit',sans-serif",
+              marginBottom: 12,
             }}
           >{t.leaveClass}</button>
-        </div>
+        )}
 
         {avgRetention > 0 && (
           <div style={{ display: "flex", alignItems: "center", gap: 14, paddingTop: 12, borderTop: `1px solid ${C.border}` }}>
@@ -788,7 +808,10 @@ function ClassDetail({ cls, profile, t, lang, onBack, onLaunchPractice }) {
       )}
 
       {/* Tabs */}
-      <div style={{ display: "flex", gap: 4, marginBottom: 16, borderBottom: `1px solid ${C.border}` }}>
+      <div className={isMobile ? "mc-scroll-x" : ""} style={{
+        display: "flex", gap: 4, marginBottom: 16, borderBottom: `1px solid ${C.border}`,
+        ...(isMobile ? { flexWrap: "nowrap" } : {}),
+      }}>
         {tabs.map(tab => {
           const isActive = activeTab === tab.id;
           return (
@@ -805,6 +828,7 @@ function ClassDetail({ cls, profile, t, lang, onBack, onLaunchPractice }) {
                 cursor: "pointer", marginBottom: -1,
                 display: "flex", alignItems: "center", gap: 6,
                 transition: "all .15s ease",
+                whiteSpace: "nowrap", flexShrink: 0,
               }}
             >
               <CIcon name={tab.icon} size={14} inline />
@@ -878,7 +902,7 @@ function ClassDetail({ cls, profile, t, lang, onBack, onLaunchPractice }) {
                   <p style={{ fontSize: 13, color: C.textMuted, margin: 0, lineHeight: 1.5 }}>{t.noDecksSub}</p>
                 </Card>
               ) : (
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 14 }}>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 14 }}>
                   {decks.map(deck => {
                     const qs = deck.questions || [];
                     const tint = colorTint(deck, "0F");
