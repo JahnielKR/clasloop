@@ -42,6 +42,10 @@ const i18n = {
     emptyClassHint: "This class has no decks yet.",
     addDeckToClass: "Create deck for this class",
     favoriteRemove: "Remove from favorites", favoriteAdd: "Add to favorites",
+    customizeFav: "Customize", customizeFavHint: "Make a copy you can edit and assign to a class",
+    addToWhichFav: "Add to which class?", noClassFav: "No class — keep as personal deck",
+    noClassesYetFav: "You don't have any classes yet. The copy will be saved without a class.",
+    savedToMyDecks: "Saved to My Decks!",
     title: "Title", titlePlaceholder: "e.g. French Revolution Review",
     description: "Description", descPlaceholder: "What this deck covers...",
     addToClass: "Add to class (optional)", noClass: "No class — general deck",
@@ -111,6 +115,10 @@ const i18n = {
     emptyClassHint: "Esta clase aún no tiene decks.",
     addDeckToClass: "Crear deck para esta clase",
     favoriteRemove: "Quitar de favoritos", favoriteAdd: "Agregar a favoritos",
+    customizeFav: "Personalizar", customizeFavHint: "Crea una copia que puedes editar y asignar a una clase",
+    addToWhichFav: "¿A qué clase agregarlo?", noClassFav: "Sin clase — mantener como deck personal",
+    noClassesYetFav: "Aún no tienes clases. La copia se guardará sin clase.",
+    savedToMyDecks: "¡Guardado en Mis Decks!",
     title: "Título", titlePlaceholder: "ej. Repaso Revolución Francesa",
     description: "Descripción", descPlaceholder: "Qué cubre este deck...",
     addToClass: "Agregar a clase (opcional)", noClass: "Sin clase — deck general",
@@ -180,6 +188,10 @@ const i18n = {
     emptyClassHint: "이 수업에는 아직 덱이 없습니다.",
     addDeckToClass: "이 수업을 위한 덱 만들기",
     favoriteRemove: "즐겨찾기에서 제거", favoriteAdd: "즐겨찾기에 추가",
+    customizeFav: "커스터마이즈", customizeFavHint: "편집하고 수업에 배정할 수 있는 복사본 만들기",
+    addToWhichFav: "어느 수업에 추가하시겠습니까?", noClassFav: "수업 없음 — 개인 덱으로 유지",
+    noClassesYetFav: "아직 수업이 없습니다. 복사본이 수업 없이 저장됩니다.",
+    savedToMyDecks: "내 덱에 저장되었습니다!",
     title: "제목", titlePlaceholder: "예: 프랑스 혁명 복습",
     description: "설명", descPlaceholder: "이 덱의 내용...",
     addToClass: "수업에 추가 (선택)", noClass: "수업 없음 — 일반 덱",
@@ -2112,6 +2124,9 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
   // When the teacher clicks "+ Create deck" inside an empty class group, we
   // remember which class so the editor can pre-fill it.
   const [createForClassId, setCreateForClassId] = useState(null);
+  // Favorite deck currently being customized (= copied to My Decks).
+  // When set, we render a class-picker modal to choose the destination class.
+  const [customizingFav, setCustomizingFav] = useState(null);
   // Organization controls
   const [search, setSearch] = useState("");
   const [filterSubject, setFilterSubject] = useState(""); // "" = all
@@ -2172,6 +2187,37 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
     await supabase.from("saved_decks").delete()
       .eq("student_id", userId).eq("deck_id", deckId);
     setFavoriteDecks(prev => prev.filter(d => d.id !== deckId));
+  };
+
+  // "Customize" a favorite — INSERT a personal copy into `decks` with
+  // copied_from_id pointing back to the original. The favorite stays in
+  // saved_decks so the user can keep it as inspiration if they want.
+  // Mirrors the same flow Community uses, but launched from the Favorites tab.
+  const handleCustomizeFavorite = async (deck, classId) => {
+    if (!userId) return;
+    const cls = classId ? userClasses.find(c => c.id === classId) : null;
+    const { data: inserted, error } = await supabase.from("decks").insert({
+      author_id: userId, class_id: classId || null,
+      title: deck.title, description: deck.description,
+      subject: cls?.subject || deck.subject, grade: cls?.grade || deck.grade,
+      language: deck.language, questions: deck.questions, tags: deck.tags, is_public: false,
+      cover_color: deck.cover_color, cover_icon: deck.cover_icon, cover_image_url: deck.cover_image_url,
+      copied_from_id: deck.id,
+    }).select().single();
+    if (error) {
+      console.error("customize favorite failed", error);
+      return;
+    }
+    // Bump uses_count on the original (same behavior as Community's save flow)
+    await supabase.from("decks").update({ uses_count: (deck.uses_count || 0) + 1 }).eq("id", deck.id);
+    // Add the new copy to MyDecks state so the user sees it in My Decks
+    // immediately without a refetch.
+    setMyDecks(prev => [inserted, ...prev]);
+    setCustomizingFav(null);
+    setTab("myDecks"); // bounce them into My Decks where their copy lives now
+    // Open the editor on the fresh copy so they can immediately personalize it.
+    setEditing(inserted);
+    setView("edit");
   };
 
   const handleDelete = async (deckId) => {
@@ -2381,7 +2427,34 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
             flexWrap: "wrap",
           }}>
             {isFav ? (
-              <button className="dk-btn-danger" onClick={() => handleRemoveFavorite(dk.id)} style={{ padding: "6px 12px", borderRadius: 6, fontSize: 12, fontWeight: 500, background: C.bg, color: C.textSecondary, border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: "'Outfit',sans-serif" }} title={t.favoriteRemove}>★ {t.favoriteRemove}</button>
+              <>
+                <button
+                  className="dk-btn-primary"
+                  onClick={() => setCustomizingFav(dk)}
+                  style={{
+                    padding: "6px 12px", borderRadius: 6, fontSize: 12, fontWeight: 600,
+                    background: C.accentSoft, color: C.accent,
+                    border: `1px solid ${C.accent}33`, cursor: "pointer",
+                    fontFamily: "'Outfit',sans-serif",
+                    display: "inline-flex", alignItems: "center", gap: 5,
+                  }}
+                  title={t.customizeFavHint}
+                >
+                  <CIcon name="sparkle" size={12} inline /> {t.customizeFav}
+                </button>
+                <button
+                  onClick={() => handleRemoveFavorite(dk.id)}
+                  style={{
+                    width: 28, height: 28, borderRadius: 6,
+                    background: C.bg, color: C.textMuted,
+                    border: `1px solid ${C.border}`, cursor: "pointer",
+                    fontSize: 14, lineHeight: 1,
+                    display: "inline-flex", alignItems: "center", justifyContent: "center",
+                    fontFamily: "'Outfit',sans-serif",
+                  }}
+                  title={t.favoriteRemove}
+                >×</button>
+              </>
             ) : (
               <>
                 <button className="dk-btn-secondary" onClick={() => handleTogglePublic(dk)} style={{ padding: "6px 12px", borderRadius: 6, fontSize: 12, fontWeight: 500, background: C.bgSoft, color: dk.is_public ? C.green : C.textMuted, border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: "'Outfit',sans-serif" }}>{dk.is_public ? t.public : t.private}</button>
@@ -2595,6 +2668,84 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
           </div>
         )}
       </div>
+
+      {/* Customize favorite modal — class picker. The user is taken into the
+          editor immediately after picking a class (or "no class"), so this is
+          a quick decision rather than a config form. */}
+      {customizingFav && (
+        <div
+          onClick={() => setCustomizingFav(null)}
+          style={{
+            position: "fixed", inset: 0,
+            background: "rgba(0,0,0,.4)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            zIndex: 100, padding: 20,
+            fontFamily: "'Outfit',sans-serif",
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: C.bg, borderRadius: 14, padding: 24,
+              maxWidth: 420, width: "100%",
+              maxHeight: "85vh", overflowY: "auto",
+              boxShadow: "0 12px 40px rgba(0,0,0,0.18)",
+            }}
+          >
+            <h3 style={{ fontSize: 17, fontWeight: 700, marginBottom: 4 }}>{t.addToWhichFav}</h3>
+            <p style={{ fontSize: 13, color: C.textSecondary, marginBottom: 6 }}>{customizingFav.title}</p>
+            <p style={{ fontSize: 12, color: C.textMuted, marginBottom: 16 }}>{t.customizeFavHint}</p>
+
+            {userClasses.length === 0 ? (
+              <p style={{ fontSize: 13, color: C.textMuted, padding: "12px 8px", textAlign: "center", marginBottom: 8 }}>
+                {t.noClassesYetFav}
+              </p>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 12 }}>
+                {userClasses.map((c) => (
+                  <button
+                    key={c.id}
+                    onClick={() => handleCustomizeFavorite(customizingFav, c.id)}
+                    style={{
+                      padding: 12, borderRadius: 10,
+                      background: C.bg, border: `1px solid ${C.border}`,
+                      textAlign: "left",
+                      display: "flex", alignItems: "center", gap: 10,
+                      fontFamily: "'Outfit',sans-serif", cursor: "pointer",
+                    }}
+                  >
+                    <CIcon name={SUBJ_ICON[c.subject] || "book"} size={20} inline />
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 14, fontWeight: 600 }}>{c.name}</div>
+                      <div style={{ fontSize: 11, color: C.textMuted }}>{c.subject} · {c.grade}</div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+            <button
+              onClick={() => handleCustomizeFavorite(customizingFav, null)}
+              style={{
+                width: "100%", padding: 10, borderRadius: 8,
+                fontSize: 13, fontWeight: 500,
+                background: C.bgSoft, color: C.textSecondary,
+                border: `1px solid ${C.border}`, cursor: "pointer",
+                fontFamily: "'Outfit',sans-serif", marginBottom: 8,
+              }}
+            >{t.noClassFav}</button>
+            <button
+              onClick={() => setCustomizingFav(null)}
+              style={{
+                width: "100%", padding: 10, borderRadius: 8,
+                fontSize: 13, fontWeight: 500,
+                background: "transparent", color: C.textMuted,
+                border: "none", cursor: "pointer",
+                fontFamily: "'Outfit',sans-serif",
+              }}
+            >{t.cancel}</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
