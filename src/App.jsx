@@ -16,6 +16,7 @@ import Notifications from './pages/Notifications';
 import Decks from './pages/Decks';
 import MyClasses from './pages/MyClasses';
 import TeacherProfile from './pages/TeacherProfile';
+import { useIsMobile } from './components/MobileMenuButton';
 
 const C = {
   bg: "#FFFFFF", bgSoft: "#F7F7F5", accent: "#2383E2", accentSoft: "#E8F0FE",
@@ -24,28 +25,6 @@ const C = {
   text: "#191919", textSecondary: "#6B6B6B", textMuted: "#9B9B9B", border: "#E8E8E4",
 };
 const COMPONENTS = { sessions: SessionFlow, studentJoin: StudentJoin, mainApp: MainApp, landing: Landing, onboarding: Onboarding, community: Community, achievements: Achievements, settings: Settings, director: Director, notifications: Notifications, decks: Decks, myClasses: MyClasses, teacherProfile: TeacherProfile };
-
-// Mobile breakpoint = 768px. We listen via matchMedia so resizing / device
-// rotation flips the layout cleanly without re-mounting components.
-function useIsMobile() {
-  const [isMobile, setIsMobile] = useState(() => {
-    if (typeof window === "undefined") return false;
-    return window.matchMedia("(max-width: 768px)").matches;
-  });
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const mq = window.matchMedia("(max-width: 768px)");
-    const onChange = (e) => setIsMobile(e.matches);
-    // Safari < 14 uses addListener instead of addEventListener
-    if (mq.addEventListener) mq.addEventListener("change", onChange);
-    else mq.addListener(onChange);
-    return () => {
-      if (mq.removeEventListener) mq.removeEventListener("change", onChange);
-      else mq.removeListener(onChange);
-    };
-  }, []);
-  return isMobile;
-}
 
 function AuthScreen() {
   const [mode, setMode] = useState("select");
@@ -443,27 +422,6 @@ export default function App() {
   return (
     <div style={{ display: "flex", minHeight: "100vh" }}>
       <style>{sidebarCSS}</style>
-      {/* Mobile hamburger — fixed top-left, hidden when drawer is open (B option from plan) */}
-      {isMobile && !mobileDrawerOpen && (
-        <button
-          onClick={() => setMobileDrawerOpen(true)}
-          aria-label="Open menu"
-          style={{
-            position: "fixed",
-            top: "max(12px, env(safe-area-inset-top, 0px))",
-            left: "max(12px, env(safe-area-inset-left, 0px))",
-            width: 44, height: 44, borderRadius: 10,
-            background: C.bg, border: `1px solid ${C.border}`,
-            display: "flex", alignItems: "center", justifyContent: "center",
-            zIndex: 55, cursor: "pointer",
-            boxShadow: "0 2px 8px rgba(0,0,0,.06)",
-          }}
-        >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-            <path d="M4 7h16M4 12h16M4 17h16" stroke={C.text} strokeWidth="1.8" strokeLinecap="round"/>
-          </svg>
-        </button>
-      )}
       {/* Backdrop — covers everything below the drawer, click-to-close */}
       {isMobile && mobileDrawerOpen && (
         <div
@@ -504,6 +462,7 @@ export default function App() {
             lang={lang}
             setLang={setLang}
             profile={profile}
+            onOpenMobileMenu={isMobile ? () => setMobileDrawerOpen(true) : undefined}
             onLaunchPractice={(deck) => setPracticeDeck(deck)}
             onNavigateToDecks={(opts) => { setDecksOpts(opts || null); setPage("decks"); }}
             onNavigateToSessions={(opts) => { setSessionsOpts(opts || {}); setPage("sessions"); }}
