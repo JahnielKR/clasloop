@@ -22,7 +22,7 @@ const i18n = {
     mostUsed: "Most used", topRated: "Top rated", newest: "Newest",
     questions: "questions", uses: "uses",
     saveToMyDecks: "Save to my decks", saved: "Saved!", back: "Back",
-    by: "by", noResults: "No decks found.",
+    by: "by", adaptedFrom: "Adapted from", noResults: "No decks found.",
     favorite: "Favorite", favorited: "Favorited", favoriteAdd: "Add to favorites", favoriteRemove: "Remove from favorites",
     addToWhich: "Add to which class?", noClass: "Save without class",
     noClassesYet: "You don't have any classes yet. Create one in Sessions first.",
@@ -34,7 +34,7 @@ const i18n = {
     mostUsed: "Más usados", topRated: "Mejor valorados", newest: "Más recientes",
     questions: "preguntas", uses: "usos",
     saveToMyDecks: "Guardar en mis decks", saved: "¡Guardado!", back: "Volver",
-    by: "por", noResults: "No se encontraron decks.",
+    by: "por", adaptedFrom: "Adaptado de", noResults: "No se encontraron decks.",
     favorite: "Favorito", favorited: "En favoritos", favoriteAdd: "Agregar a favoritos", favoriteRemove: "Quitar de favoritos",
     addToWhich: "¿A qué clase agregarlo?", noClass: "Guardar sin clase",
     noClassesYet: "No tienes clases aún. Crea una en Sesiones primero.",
@@ -46,7 +46,7 @@ const i18n = {
     mostUsed: "최다 사용", topRated: "최고 평점", newest: "최신순",
     questions: "문제", uses: "사용",
     saveToMyDecks: "내 덱에 저장", saved: "저장됨!", back: "뒤로",
-    by: "", noResults: "덱을 찾을 수 없습니다.",
+    by: "", adaptedFrom: "원작 각색:", noResults: "덱을 찾을 수 없습니다.",
     favorite: "즐겨찾기", favorited: "즐겨찾기됨", favoriteAdd: "즐겨찾기에 추가", favoriteRemove: "즐겨찾기에서 제거",
     addToWhich: "어느 수업에 추가하시겠습니까?", noClass: "수업 없이 저장",
     noClassesYet: "아직 수업이 없습니다. 세션에서 먼저 만드세요.",
@@ -132,7 +132,13 @@ export default function Community({ lang: pageLang = "en", setLang: pageSetLang,
         setUserClasses(cls || []);
       }
     }
-    const { data } = await supabase.from("decks").select("*, profiles(full_name)").eq("is_public", true).order("uses_count", { ascending: false });
+    // Pull each public deck plus its author and (if it's a copy) the original
+    // author. We use the latter to render "Adapted from X" attribution.
+    const { data } = await supabase
+      .from("decks")
+      .select("*, profiles(full_name), originals:copied_from_id(id, author_id, profiles(full_name))")
+      .eq("is_public", true)
+      .order("uses_count", { ascending: false });
     setDecks(data || []);
     setLoading(false);
   };
@@ -210,6 +216,22 @@ export default function Community({ lang: pageLang = "en", setLang: pageSetLang,
                 >{dk.profiles?.full_name || "Unknown"}</button>
                 {" · "}{qs.length} {t.questions} · {dk.uses_count || 0} {t.uses}
               </div>
+              {dk.is_adapted && dk.originals?.profiles?.full_name && (
+                <div style={{
+                  display: "inline-flex", alignItems: "center", gap: 5,
+                  padding: "3px 8px", borderRadius: 6, marginBottom: 12,
+                  background: C.purpleSoft, color: C.purple,
+                  fontSize: 11, fontWeight: 600,
+                  border: `1px solid ${C.purple}33`,
+                }}>
+                  <CIcon name="sparkle" size={11} inline />
+                  {t.adaptedFrom}{" "}
+                  <button
+                    onClick={() => onNavigateToTeacher && onNavigateToTeacher(dk.originals.author_id)}
+                    style={{ color: C.purple, fontWeight: 700, background: "transparent", border: "none", cursor: "pointer", padding: 0, fontSize: "inherit", fontFamily: "inherit", textDecoration: "underline" }}
+                  >{dk.originals.profiles.full_name}</button>
+                </div>
+              )}
               {(dk.tags || []).length > 0 && (
                 <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 16 }}>
                   {dk.tags.map((tag, i) => <span key={i} style={{ padding: "3px 8px", borderRadius: 6, background: C.bg, border: `1px solid ${C.border}`, fontSize: 11, color: C.textSecondary }}>#{tag}</span>)}
@@ -346,6 +368,18 @@ export default function Community({ lang: pageLang = "en", setLang: pageSetLang,
                       <div style={{ marginLeft: "auto" }}><LangBadge lang={dk.language} /></div>
                     </div>
                     <h3 style={{ fontSize: 15, fontWeight: 600, marginBottom: 6, lineHeight: 1.3, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{dk.title}</h3>
+                    {dk.is_adapted && dk.originals?.profiles?.full_name && (
+                      <div style={{
+                        display: "inline-flex", alignItems: "center", gap: 4,
+                        padding: "1px 7px", borderRadius: 5, marginBottom: 8,
+                        background: C.purpleSoft, color: C.purple,
+                        fontSize: 10, fontWeight: 600,
+                        border: `1px solid ${C.purple}33`,
+                      }}>
+                        <CIcon name="sparkle" size={10} inline />
+                        {t.adaptedFrom} {dk.originals.profiles.full_name}
+                      </div>
+                    )}
                     {dk.description && <p style={{ fontSize: 12, color: C.textSecondary, lineHeight: 1.4, marginBottom: 10, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{dk.description}</p>}
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingTop: 8, marginTop: "auto", borderTop: `1px solid ${C.border}`, fontSize: 11, color: C.textMuted }}>
                       <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>

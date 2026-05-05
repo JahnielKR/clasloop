@@ -3,6 +3,7 @@ import { supabase } from "../lib/supabase";
 import { CIcon } from "../components/Icons";
 import { DeckCover, DECK_COLORS, DECK_ICONS, DEFAULT_DECK_COLOR, DEFAULT_DECK_ICON, SUBJ_ICON, SUBJ_COLOR, PRESET_PATTERNS, presetToDataUrl, resolveColor, colorTint } from "../lib/deck-cover";
 import { uploadDeckCover, deleteDeckCover } from "../lib/deck-image-upload";
+import { analyzeDerivation } from "../lib/deck-derivation";
 
 const C = {
   bg: "#FFFFFF", bgSoft: "#F7F7F5", accent: "#2383E2", accentSoft: "#E8F0FE",
@@ -49,6 +50,16 @@ const i18n = {
     activityType: "Activity type", questions: "Questions", addQuestion: "+ Add question",
     questionText: "Question", option: "Option", removeQuestion: "Remove",
     publish: "Save deck", publishing: "Saving...", makePublic: "Make public to community",
+    derivIdentical: "Identical to original — cannot publish",
+    derivBlocked: "Not enough adaptation — cannot publish",
+    derivAdapted: "Will be published as Adapted",
+    derivIndependent: "Substantially different — will be published as your own",
+    derivStats: "Original coverage: {coverage}% · Your contribution: {contribution}%",
+    derivOriginalBy: "Original by",
+    derivBlockedHint: "Add or change more questions before publishing. The original creator's work shouldn't be republished as-is.",
+    publishBlockedIdentical: "This deck is identical to the original. Modify it before publishing.",
+    publishBlockedLowEffort: "This deck still relies heavily on the original. Add more of your own questions before publishing.",
+    publishBlockedTooltip: "Modify the deck before publishing.",
     selectSubject: "Select subject...", selectGrade: "Select grade...",
     gradePlaceholder: "e.g. 6th, 7th–9th, Mixed",
     lockedByClass: "Locked — this is set by the selected class.",
@@ -110,6 +121,16 @@ const i18n = {
     activityType: "Tipo de actividad", questions: "Preguntas", addQuestion: "+ Agregar pregunta",
     questionText: "Pregunta", option: "Opción", removeQuestion: "Eliminar",
     publish: "Guardar deck", publishing: "Guardando...", makePublic: "Hacer público en comunidad",
+    derivIdentical: "Idéntico al original — no se puede publicar",
+    derivBlocked: "Adaptación insuficiente — no se puede publicar",
+    derivAdapted: "Se publicará como Adaptado",
+    derivIndependent: "Sustancialmente diferente — se publicará como tuyo",
+    derivStats: "Cobertura del original: {coverage}% · Tu aporte: {contribution}%",
+    derivOriginalBy: "Original de",
+    derivBlockedHint: "Agrega o cambia más preguntas antes de publicar. El trabajo del autor original no debería re-publicarse tal cual.",
+    publishBlockedIdentical: "Este deck es idéntico al original. Modifícalo antes de publicar.",
+    publishBlockedLowEffort: "Este deck aún depende mucho del original. Agrega más preguntas propias antes de publicar.",
+    publishBlockedTooltip: "Modifica el deck antes de publicar.",
     selectSubject: "Seleccionar materia...", selectGrade: "Seleccionar grado...",
     gradePlaceholder: "ej. 6to, 7mo–9no, Mixto",
     lockedByClass: "Bloqueado — lo define la clase seleccionada.",
@@ -171,6 +192,16 @@ const i18n = {
     activityType: "활동 유형", questions: "문제", addQuestion: "+ 문제 추가",
     questionText: "문제", option: "선택지", removeQuestion: "삭제",
     publish: "덱 저장", publishing: "저장 중...", makePublic: "커뮤니티에 공개",
+    derivIdentical: "원본과 동일합니다 — 게시할 수 없습니다",
+    derivBlocked: "적응 부족 — 게시할 수 없습니다",
+    derivAdapted: "각색됨으로 게시됩니다",
+    derivIndependent: "충분히 다릅니다 — 본인의 작품으로 게시됩니다",
+    derivStats: "원본 커버리지: {coverage}% · 본인 기여: {contribution}%",
+    derivOriginalBy: "원작자:",
+    derivBlockedHint: "게시하기 전에 더 많은 문제를 추가하거나 변경하세요. 원작자의 작업을 그대로 재게시해서는 안 됩니다.",
+    publishBlockedIdentical: "이 덱은 원본과 동일합니다. 게시하기 전에 수정하세요.",
+    publishBlockedLowEffort: "이 덱은 아직 원본에 크게 의존합니다. 게시하기 전에 자신의 문제를 더 추가하세요.",
+    publishBlockedTooltip: "게시하기 전에 덱을 수정하세요.",
     selectSubject: "과목 선택...", selectGrade: "학년 선택...",
     gradePlaceholder: "예: 6학년, 7-9학년, 혼합",
     lockedByClass: "잠김 — 선택된 수업이 정합니다.",
@@ -427,6 +458,33 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
   const [uploadError, setUploadError] = useState("");
   const [editorTab, setEditorTab] = useState("general");
   const fileInputRef = useRef(null);
+
+  // ── Derivation tracking ──
+  // If this deck is a copy of someone else's, fetch the original's questions
+  // so we can show live feedback on whether the user has adapted it enough to
+  // publish, and how it would be attributed in Community.
+  const copiedFromId = existingDeck?.copied_from_id || null;
+  const [originalQuestions, setOriginalQuestions] = useState(null);
+  const [originalAuthorName, setOriginalAuthorName] = useState("");
+  useEffect(() => {
+    if (!copiedFromId) return;
+    (async () => {
+      const { data } = await supabase
+        .from("decks")
+        .select("questions, profiles(full_name)")
+        .eq("id", copiedFromId)
+        .maybeSingle();
+      if (data) {
+        setOriginalQuestions(data.questions || []);
+        setOriginalAuthorName(data.profiles?.full_name || "");
+      }
+    })();
+  }, [copiedFromId]);
+
+  // Live derivation analysis as the user edits questions.
+  const derivation = (copiedFromId && originalQuestions)
+    ? analyzeDerivation(originalQuestions, questions)
+    : null;
 
   // ── Question list UX (expand/drag/scroll) ──
   const [expandedQ, setExpandedQ] = useState(null); // index of currently expanded question
@@ -918,11 +976,26 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
 
   const handleSave = async () => {
     if (!canSave) return;
+
+    // If the user toggled "Make public" but this is a copy that fails the
+    // derivation rules, force is_public back to false and warn. This keeps
+    // the gate honest even if the toggle wasn't disabled at the right time.
+    let finalPublic = makePublic;
+    let finalAdapted = false;
+    if (makePublic && derivation && !derivation.canPublish) {
+      alert(derivation.status === "identical" ? t.publishBlockedIdentical : t.publishBlockedLowEffort);
+      finalPublic = false;
+    } else if (makePublic && derivation && derivation.showAdaptedBadge) {
+      finalAdapted = true;
+    }
+
     setSaving(true);
     const tagArr = tags.split(",").map(t => t.trim()).filter(Boolean);
     const payload = {
       author_id: userId, class_id: classId || null, title: title.trim(), description: desc.trim(),
-      subject, grade, language: deckLang, questions, tags: tagArr, is_public: makePublic,
+      subject, grade, language: deckLang, questions, tags: tagArr,
+      is_public: finalPublic,
+      is_adapted: finalAdapted,
       cover_color: coverColor, cover_icon: coverIcon,
       cover_image_url: coverImageUrl || null,
     };
@@ -1063,12 +1136,71 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
           </div>
 
           {/* Make public toggle (lives inside General — affects metadata, not content) */}
-          <div style={{ padding: "12px 14px", borderRadius: 10, background: C.bgSoft, display: "flex", alignItems: "center", justifyContent: "space-between", border: `1px solid ${C.border}` }}>
-            <div style={{ fontSize: 14, fontWeight: 500 }}>{t.makePublic}</div>
-            <button onClick={() => setMakePublic(!makePublic)} style={{ width: 44, height: 24, borderRadius: 12, padding: 2, background: makePublic ? C.accent : C.border, border: "none", display: "flex", alignItems: "center", cursor: "pointer" }}>
-              <div style={{ width: 20, height: 20, borderRadius: "50%", background: "#fff", transform: makePublic ? "translateX(20px)" : "translateX(0)", transition: "transform .2s", boxShadow: "0 1px 3px rgba(0,0,0,.15)" }} />
-            </button>
-          </div>
+          {(() => {
+            // For copies of someone else's deck, the publish toggle is gated
+            // by the derivation analysis (anti-republish rule). We show the
+            // teacher inline why they can or can't publish, and what the
+            // attribution will look like.
+            const blocked = derivation && !derivation.canPublish;
+            const isAdaptedCase = derivation && derivation.canPublish && derivation.showAdaptedBadge;
+            const isIndependentCase = derivation && derivation.canPublish && !derivation.showAdaptedBadge;
+            const toggleDisabled = blocked;
+            const handleToggle = () => {
+              if (toggleDisabled) return;
+              setMakePublic(!makePublic);
+            };
+            return (
+              <div style={{
+                padding: "12px 14px", borderRadius: 10,
+                background: blocked ? C.redSoft : C.bgSoft,
+                border: `1px solid ${blocked ? C.red + "44" : C.border}`,
+              }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <div style={{ fontSize: 14, fontWeight: 500, color: blocked ? C.red : C.text }}>{t.makePublic}</div>
+                  <button
+                    onClick={handleToggle}
+                    disabled={toggleDisabled}
+                    title={blocked ? t.publishBlockedTooltip : ""}
+                    style={{
+                      width: 44, height: 24, borderRadius: 12, padding: 2,
+                      background: blocked ? C.border : (makePublic ? C.accent : C.border),
+                      border: "none", display: "flex", alignItems: "center",
+                      cursor: blocked ? "not-allowed" : "pointer",
+                      opacity: blocked ? 0.5 : 1,
+                    }}
+                  >
+                    <div style={{ width: 20, height: 20, borderRadius: "50%", background: "#fff", transform: (!blocked && makePublic) ? "translateX(20px)" : "translateX(0)", transition: "transform .2s", boxShadow: "0 1px 3px rgba(0,0,0,.15)" }} />
+                  </button>
+                </div>
+
+                {/* Derivation feedback */}
+                {derivation && (
+                  <div style={{ marginTop: 10, paddingTop: 10, borderTop: `1px solid ${blocked ? C.red + "33" : C.border}` }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 600, marginBottom: 6,
+                      color: blocked ? C.red : isAdaptedCase ? C.accent : C.green }}>
+                      <CIcon name={blocked ? "warning" : isAdaptedCase ? "sparkle" : "check"} size={13} inline />
+                      {blocked && (derivation.status === "identical" ? t.derivIdentical : t.derivBlocked)}
+                      {isAdaptedCase && t.derivAdapted}
+                      {isIndependentCase && t.derivIndependent}
+                    </div>
+                    <div style={{ fontSize: 11, color: C.textMuted, lineHeight: 1.5 }}>
+                      {t.derivStats
+                        .replace("{coverage}", derivation.originalCoverage)
+                        .replace("{contribution}", derivation.ownContribution)}
+                      {originalAuthorName && (isAdaptedCase || blocked) && (
+                        <> · {t.derivOriginalBy} <strong>{originalAuthorName}</strong></>
+                      )}
+                    </div>
+                    {blocked && derivation.status !== "identical" && (
+                      <div style={{ fontSize: 11, color: C.red, marginTop: 6, lineHeight: 1.5 }}>
+                        {t.derivBlockedHint}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
         </div>
         )}
 
@@ -2056,8 +2188,41 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
 
   const handleTogglePublic = async (deck) => {
     const newPublic = !deck.is_public;
-    await supabase.from("decks").update({ is_public: newPublic }).eq("id", deck.id);
-    setMyDecks(prev => prev.map(d => d.id === deck.id ? { ...d, is_public: newPublic } : d));
+
+    // Un-publishing is always allowed.
+    if (!newPublic) {
+      await supabase.from("decks").update({ is_public: false, is_adapted: false }).eq("id", deck.id);
+      setMyDecks(prev => prev.map(d => d.id === deck.id ? { ...d, is_public: false, is_adapted: false } : d));
+      return;
+    }
+
+    // Publishing — gate it if this is a copy of someone else's deck.
+    let isAdapted = false;
+    if (deck.copied_from_id) {
+      const { data: original } = await supabase
+        .from("decks")
+        .select("questions")
+        .eq("id", deck.copied_from_id)
+        .maybeSingle();
+
+      if (original) {
+        const result = analyzeDerivation(original.questions, deck.questions);
+        if (!result.canPublish) {
+          // Tell the teacher why and bail. The setToast pattern doesn't exist
+          // here, so a friendly alert keeps things simple.
+          alert(
+            result.status === "identical"
+              ? t.publishBlockedIdentical
+              : t.publishBlockedLowEffort
+          );
+          return;
+        }
+        isAdapted = result.showAdaptedBadge;
+      }
+    }
+
+    await supabase.from("decks").update({ is_public: true, is_adapted: isAdapted }).eq("id", deck.id);
+    setMyDecks(prev => prev.map(d => d.id === deck.id ? { ...d, is_public: true, is_adapted: isAdapted } : d));
   };
 
   if (view === "create" || view === "edit") return (
