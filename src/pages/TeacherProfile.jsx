@@ -3,6 +3,7 @@ import { supabase } from "../lib/supabase";
 import { CIcon } from "../components/Icons";
 import { Avatar as CatalogAvatar } from "../components/Avatars";
 import { DeckCover, resolveColor, colorTint } from "../lib/deck-cover";
+import MobileMenuButton from "../components/MobileMenuButton";
 
 const C = {
   bg: "#FFFFFF", bgSoft: "#F7F7F5",
@@ -78,12 +79,15 @@ const css = `
   .tp-back:hover { background: ${C.accentSoft} !important; }
 `;
 
-function PageHeader({ title, lang, setLang, maxWidth = 800 }) {
+function PageHeader({ title, lang, setLang, maxWidth = 800, onOpenMobileMenu }) {
   return (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", maxWidth, margin: "0 auto 24px", paddingBottom: 18, borderBottom: `1px solid ${C.border}` }}>
-      <h1 style={{ fontFamily: "'Outfit',sans-serif", fontSize: 22, fontWeight: 700, color: C.text, display: "flex", alignItems: "center", gap: 10 }}>
-        <CIcon name="teacher" size={22} /> {title}
-      </h1>
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, maxWidth, margin: "0 auto 24px", paddingBottom: 18, borderBottom: `1px solid ${C.border}` }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+        <MobileMenuButton onOpen={onOpenMobileMenu} />
+        <h1 style={{ fontFamily: "'Outfit',sans-serif", fontSize: 22, fontWeight: 700, color: C.text, display: "flex", alignItems: "center", gap: 10 }}>
+          <CIcon name="teacher" size={22} /> {title}
+        </h1>
+      </div>
       <select value={lang} onChange={(e) => setLang(e.target.value)} style={sel}>
         <option value="en">EN</option><option value="es">ES</option><option value="ko">한</option>
       </select>
@@ -118,7 +122,7 @@ function ProfilePic({ url, avatarId, name, size = 88 }) {
   );
 }
 
-export default function TeacherProfile({ teacherId, profile: viewerProfile, lang = "en", setLang, onNavigateToCommunity }) {
+export default function TeacherProfile({ teacherId, profile: viewerProfile, lang = "en", setLang, onNavigateToCommunity, onOpenMobileMenu }) {
   const t = i18n[lang] || i18n.en;
   const viewerId = viewerProfile?.id;
   const viewerRole = viewerProfile?.role; // "student" | "teacher"
@@ -236,7 +240,7 @@ export default function TeacherProfile({ teacherId, profile: viewerProfile, lang
     return (
       <div style={{ padding: "28px 20px" }}>
         <style>{css}</style>
-        <PageHeader title={t.pageTitle} lang={lang} setLang={setLang} />
+        <PageHeader title={t.pageTitle} lang={lang} setLang={setLang} onOpenMobileMenu={onOpenMobileMenu} />
         <p style={{ textAlign: "center", color: C.textMuted, padding: 40 }}>...</p>
       </div>
     );
@@ -247,7 +251,7 @@ export default function TeacherProfile({ teacherId, profile: viewerProfile, lang
     return (
       <div style={{ padding: "28px 20px" }}>
         <style>{css}</style>
-        <PageHeader title={t.pageTitle} lang={lang} setLang={setLang} />
+        <PageHeader title={t.pageTitle} lang={lang} setLang={setLang} onOpenMobileMenu={onOpenMobileMenu} />
         <div className="tp-fade" style={{ maxWidth: 460, margin: "60px auto 0", textAlign: "center", padding: "32px 20px" }}>
           <div style={{
             width: 64, height: 64, borderRadius: "50%",
@@ -286,7 +290,7 @@ export default function TeacherProfile({ teacherId, profile: viewerProfile, lang
     return (
       <div style={{ padding: "28px 20px" }}>
         <style>{css}</style>
-        <PageHeader title={t.pageTitle} lang={lang} setLang={setLang} maxWidth={600} />
+        <PageHeader title={t.pageTitle} lang={lang} setLang={setLang} maxWidth={600} onOpenMobileMenu={onOpenMobileMenu} />
         <div className="tp-fade" style={{ maxWidth: 600, margin: "0 auto" }}>
           <button
             onClick={() => setSelectedDeck(null)}
@@ -369,7 +373,7 @@ export default function TeacherProfile({ teacherId, profile: viewerProfile, lang
   return (
     <div style={{ padding: "28px 20px" }}>
       <style>{css}</style>
-      <PageHeader title={t.pageTitle} lang={lang} setLang={setLang} />
+      <PageHeader title={t.pageTitle} lang={lang} setLang={setLang} onOpenMobileMenu={onOpenMobileMenu} />
 
       <div className="tp-fade" style={{ maxWidth: 800, margin: "0 auto" }}>
         {/* Header — minimalist */}

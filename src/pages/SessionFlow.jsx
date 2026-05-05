@@ -4,6 +4,7 @@ import { supabase } from "../lib/supabase";
 import { processSessionResults, getSuggestedDecksForToday } from "../lib/spaced-repetition";
 import { CIcon } from "../components/Icons";
 import { DeckCover, resolveColor } from "../lib/deck-cover";
+import MobileMenuButton from "../components/MobileMenuButton";
 
 // ─── Theme ─────────────────────────────────────────────────────────────────
 const C = {
@@ -153,12 +154,15 @@ const css = `
 `;
 
 // ─── PageHeader ────────────────────────────────────────────────────────────
-function PageHeader({ title, icon, lang, setLang, maxWidth = 800 }) {
+function PageHeader({ title, icon, lang, setLang, maxWidth = 800, onOpenMobileMenu }) {
   return (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", maxWidth, margin: "0 auto 24px", paddingBottom: 18, borderBottom: `1px solid ${C.border}` }}>
-      <h1 style={{ fontFamily: "'Outfit',sans-serif", fontSize: 22, fontWeight: 700, color: C.text, display: "flex", alignItems: "center", gap: 10 }}>
-        <CIcon name={icon} size={22} /> {title}
-      </h1>
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, maxWidth, margin: "0 auto 24px", paddingBottom: 18, borderBottom: `1px solid ${C.border}` }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+        <MobileMenuButton onOpen={onOpenMobileMenu} />
+        <h1 style={{ fontFamily: "'Outfit',sans-serif", fontSize: 22, fontWeight: 700, color: C.text, display: "flex", alignItems: "center", gap: 10 }}>
+          <CIcon name={icon} size={22} /> {title}
+        </h1>
+      </div>
       <select value={lang} onChange={(e) => setLang(e.target.value)} style={{ ...sel, width: "auto", fontSize: 12, padding: "6px 26px 6px 10px" }}>
         <option value="en">EN</option><option value="es">ES</option><option value="ko">한</option>
       </select>
@@ -988,7 +992,7 @@ function generateClassCode() {
 }
 
 // ─── Main Export ───────────────────────────────────────────────────────────
-export default function SessionFlow({ lang = "en", setLang, onNavigateToDecks, sessionsOpts, onConsumeSessionsOpts }) {
+export default function SessionFlow({ lang = "en", setLang, onNavigateToDecks, sessionsOpts, onConsumeSessionsOpts, onOpenMobileMenu }) {
   const t = i18n[lang] || i18n.en;
   const [user, setUser] = useState(null);
   const [classes, setClasses] = useState([]);
@@ -1095,7 +1099,14 @@ export default function SessionFlow({ lang = "en", setLang, onNavigateToDecks, s
     <div style={{ padding: "28px 20px" }}>
       <style>{css}</style>
       {step !== "lobby" && step !== "live" && (
-        <PageHeader title={t.pageTitle} icon="rocket" lang={lang} setLang={setLang} />
+        <PageHeader title={t.pageTitle} icon="rocket" lang={lang} setLang={setLang} onOpenMobileMenu={onOpenMobileMenu} />
+      )}
+      {/* In lobby/live there's no PageHeader, so render the hamburger on its
+          own so the user can still open the drawer on mobile. */}
+      {(step === "lobby" || step === "live") && (
+        <div style={{ maxWidth: 800, margin: "0 auto 16px" }}>
+          <MobileMenuButton onOpen={onOpenMobileMenu} />
+        </div>
       )}
 
       <div style={{ maxWidth: 800, margin: "0 auto" }}>

@@ -3,6 +3,7 @@ import { supabase } from "../lib/supabase";
 import { CIcon } from "../components/Icons";
 import { Avatar as CatalogAvatar, AVATARS } from "../components/Avatars";
 import { getStudentStats } from "../lib/unlock-checker";
+import MobileMenuButton from "../components/MobileMenuButton";
 
 const C = {
   bg: "#FFFFFF", bgSoft: "#F7F7F5",
@@ -159,12 +160,15 @@ function unlockText(unlock, t) {
   }
 }
 
-function PageHeader({ title, lang, setLang, maxWidth = 800 }) {
+function PageHeader({ title, lang, setLang, maxWidth = 800, onOpenMobileMenu }) {
   return (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", maxWidth, margin: "0 auto 24px", paddingBottom: 18, borderBottom: `1px solid ${C.border}` }}>
-      <h1 style={{ fontFamily: "'Outfit',sans-serif", fontSize: 22, fontWeight: 700, color: C.text, display: "flex", alignItems: "center", gap: 10 }}>
-        <CIcon name="trophy" size={22} /> {title}
-      </h1>
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, maxWidth, margin: "0 auto 24px", paddingBottom: 18, borderBottom: `1px solid ${C.border}` }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+        <MobileMenuButton onOpen={onOpenMobileMenu} />
+        <h1 style={{ fontFamily: "'Outfit',sans-serif", fontSize: 22, fontWeight: 700, color: C.text, display: "flex", alignItems: "center", gap: 10 }}>
+          <CIcon name="trophy" size={22} /> {title}
+        </h1>
+      </div>
       <select value={lang} onChange={(e) => setLang(e.target.value)} style={sel}>
         <option value="en">EN</option><option value="es">ES</option><option value="ko">한</option>
       </select>
@@ -328,7 +332,7 @@ function AchModal({ avatar, unlocked, progress, lang, t, onClose }) {
 }
 
 // ─── Main ─────────────────────────────────────────────────────────────────
-export default function Achievements({ lang = "en", setLang, profile = null }) {
+export default function Achievements({ lang = "en", setLang, profile = null, onOpenMobileMenu }) {
   const t = i18n[lang] || i18n.en;
   const [filter, setFilter] = useState("all"); // all | unlocked | locked
   const [rarityFilter, setRarityFilter] = useState("all"); // all | common | rare | legendary
@@ -394,7 +398,7 @@ export default function Achievements({ lang = "en", setLang, profile = null }) {
     return (
       <div style={{ padding: "28px 20px" }}>
         <style>{css}</style>
-        <PageHeader title={t.pageTitle} lang={lang} setLang={setLang} />
+        <PageHeader title={t.pageTitle} lang={lang} setLang={setLang} onOpenMobileMenu={onOpenMobileMenu} />
         <div className="ach-fade" style={{ maxWidth: 480, margin: "60px auto", textAlign: "center", padding: "20px" }}>
           <div style={{
             width: 64, height: 64, borderRadius: "50%",
@@ -419,7 +423,7 @@ export default function Achievements({ lang = "en", setLang, profile = null }) {
     return (
       <div style={{ padding: "28px 20px" }}>
         <style>{css}</style>
-        <PageHeader title={t.pageTitle} lang={lang} setLang={setLang} />
+        <PageHeader title={t.pageTitle} lang={lang} setLang={setLang} onOpenMobileMenu={onOpenMobileMenu} />
         <p style={{ textAlign: "center", color: C.textMuted, padding: 40 }}>{t.loading}</p>
       </div>
     );
@@ -428,7 +432,7 @@ export default function Achievements({ lang = "en", setLang, profile = null }) {
   return (
     <div style={{ padding: "28px 20px" }}>
       <style>{css}</style>
-      <PageHeader title={t.pageTitle} lang={lang} setLang={setLang} />
+      <PageHeader title={t.pageTitle} lang={lang} setLang={setLang} onOpenMobileMenu={onOpenMobileMenu} />
       {selected && (
         <AchModal
           avatar={selected.avatar}

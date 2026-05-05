@@ -4,6 +4,7 @@ import { CIcon } from "../components/Icons";
 import { DeckCover, DECK_COLORS, DECK_ICONS, DEFAULT_DECK_COLOR, DEFAULT_DECK_ICON, SUBJ_ICON, SUBJ_COLOR, PRESET_PATTERNS, presetToDataUrl, resolveColor, colorTint } from "../lib/deck-cover";
 import { uploadDeckCover, deleteDeckCover } from "../lib/deck-image-upload";
 import { analyzeDerivation } from "../lib/deck-derivation";
+import MobileMenuButton from "../components/MobileMenuButton";
 
 const C = {
   bg: "#FFFFFF", bgSoft: "#F7F7F5", accent: "#2383E2", accentSoft: "#E8F0FE",
@@ -358,12 +359,15 @@ const LangBadge = ({ lang }) => {
   return <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 6px", borderRadius: 4, background: (c[lang] || C.accent) + "14", color: c[lang] || C.accent }}>{l[lang] || lang}</span>;
 };
 
-function PageHeader({ title, icon, lang, setLang, maxWidth = 800 }) {
+function PageHeader({ title, icon, lang, setLang, maxWidth = 800, onOpenMobileMenu }) {
   return (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", maxWidth, margin: "0 auto 24px", paddingBottom: 18, borderBottom: `1px solid ${C.border}` }}>
-      <h1 style={{ fontFamily: "'Outfit',sans-serif", fontSize: 22, fontWeight: 700, color: C.text, display: "flex", alignItems: "center", gap: 10 }}>
-        <CIcon name={icon} size={22} /> {title}
-      </h1>
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, maxWidth, margin: "0 auto 24px", paddingBottom: 18, borderBottom: `1px solid ${C.border}` }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+        <MobileMenuButton onOpen={onOpenMobileMenu} />
+        <h1 style={{ fontFamily: "'Outfit',sans-serif", fontSize: 22, fontWeight: 700, color: C.text, display: "flex", alignItems: "center", gap: 10 }}>
+          <CIcon name={icon} size={22} /> {title}
+        </h1>
+      </div>
       <select value={lang} onChange={(e) => setLang(e.target.value)} style={{ ...sel, width: "auto", fontSize: 12, padding: "6px 26px 6px 10px" }}>
         <option value="en">EN</option><option value="es">ES</option><option value="ko">한</option>
       </select>
@@ -2088,7 +2092,7 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
 }
 
 // ─── Main ───────────────────────────────────────────
-export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onNavigateToSessions, decksOpts, onConsumeDecksOpts }) {
+export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onNavigateToSessions, decksOpts, onConsumeDecksOpts, onOpenMobileMenu }) {
   const [lang, setLangLocal] = useState(pageLang);
   const setLang = pageSetLang || setLangLocal;
   const l = pageLang || lang;
@@ -2240,7 +2244,7 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
   if (view === "create" || view === "edit") return (
     <div style={{ padding: "28px 20px" }}>
       <style>{css}</style>
-      <PageHeader title={t.pageTitle} icon="book" lang={l} setLang={setLang} maxWidth={600} />
+      <PageHeader title={t.pageTitle} icon="book" lang={l} setLang={setLang} maxWidth={600} onOpenMobileMenu={onOpenMobileMenu} />
       <CreateDeckEditor t={t} l={l} onBack={() => { setView("list"); setEditing(null); setCreateForClassId(null); }} userId={userId} userClasses={userClasses} existingDeck={editing} prefilledClassId={createForClassId} onCreated={(d) => {
         if (editing) setMyDecks(prev => prev.map(dk => dk.id === d.id ? d : dk));
         else setMyDecks(prev => [d, ...prev]);
@@ -2404,7 +2408,7 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
   return (
     <div style={{ padding: "28px 20px" }}>
       <style>{css}</style>
-      <PageHeader title={t.pageTitle} icon="book" lang={l} setLang={setLang} />
+      <PageHeader title={t.pageTitle} icon="book" lang={l} setLang={setLang} onOpenMobileMenu={onOpenMobileMenu} />
 
       <div style={{ maxWidth: 800, margin: "0 auto" }}>
         <p style={{ fontSize: 14, color: C.textSecondary, marginBottom: 20 }}>{t.subtitle}</p>

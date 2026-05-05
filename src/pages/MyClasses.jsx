@@ -3,6 +3,7 @@ import { supabase } from "../lib/supabase";
 import { CIcon, LogoMark } from "../components/Icons";
 import { Avatar } from "../components/Avatars";
 import { DeckCover, colorTint } from "../lib/deck-cover";
+import MobileMenuButton from "../components/MobileMenuButton";
 
 const C = {
   bg: "#FFFFFF", bgSoft: "#F7F7F5", accent: "#2383E2", accentSoft: "#E8F0FE",
@@ -145,13 +146,16 @@ const css = `
   .mc-join-btn:not(:disabled):active { transform: translateY(0) scale(.97); }
 `;
 
-function PageHeader({ title, icon, lang, setLang, maxWidth = 800 }) {
+function PageHeader({ title, icon, lang, setLang, maxWidth = 800, onOpenMobileMenu }) {
   const langSel = { fontFamily: "'Outfit',sans-serif", background: C.bg, border: `1px solid ${C.border}`, color: C.text, borderRadius: 8, outline: "none", cursor: "pointer", appearance: "none", backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2 4l4 4 4-4' fill='none' stroke='%239B9B9B' stroke-width='1.5'/%3E%3C/svg%3E")`, backgroundRepeat: "no-repeat", backgroundPosition: "right 12px center", padding: "6px 26px 6px 10px", fontSize: 12, width: "auto", flexShrink: 0 };
   return (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", maxWidth, margin: "0 auto 24px", paddingBottom: 18, borderBottom: `1px solid ${C.border}` }}>
-      <h1 style={{ fontFamily: "'Outfit',sans-serif", fontSize: 22, fontWeight: 700, color: C.text, display: "flex", alignItems: "center", gap: 10 }}>
-        <CIcon name={icon} size={22} /> {title}
-      </h1>
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, maxWidth, margin: "0 auto 24px", paddingBottom: 18, borderBottom: `1px solid ${C.border}` }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+        <MobileMenuButton onOpen={onOpenMobileMenu} />
+        <h1 style={{ fontFamily: "'Outfit',sans-serif", fontSize: 22, fontWeight: 700, color: C.text, display: "flex", alignItems: "center", gap: 10 }}>
+          <CIcon name={icon} size={22} /> {title}
+        </h1>
+      </div>
       <select value={lang} onChange={(e) => setLang(e.target.value)} style={langSel}>
         <option value="en">EN</option><option value="es">ES</option><option value="ko">한</option>
       </select>
@@ -168,7 +172,7 @@ const Card = ({ children, style = {}, onClick, className = "" }) => (
 const retCol = (r) => r >= 80 ? C.green : r >= 60 ? C.orange : C.red;
 
 // ─── Main page ──────────────────────────────────────────────────────────────
-export default function MyClasses({ lang: pageLang = "en", setLang: pageSetLang, profile = null, onLaunchPractice = null }) {
+export default function MyClasses({ lang: pageLang = "en", setLang: pageSetLang, profile = null, onLaunchPractice = null, onOpenMobileMenu }) {
   const l = pageLang || "en";
   const t = i18n[l] || i18n.en;
   const setLang = pageSetLang || (() => {});
@@ -335,7 +339,7 @@ export default function MyClasses({ lang: pageLang = "en", setLang: pageSetLang,
   if (loading) return (
     <div style={{ padding: "28px 20px" }}>
       <style>{css}</style>
-      <PageHeader title={t.pageTitle} icon="school" lang={l} setLang={setLang} maxWidth={720} />
+      <PageHeader title={t.pageTitle} icon="school" lang={l} setLang={setLang} maxWidth={720} onOpenMobileMenu={onOpenMobileMenu} />
       <div style={{ maxWidth: 720, margin: "0 auto", padding: 40, textAlign: "center", color: C.textMuted, fontFamily: "'Outfit',sans-serif" }}>{t.loading}</div>
     </div>
   );
@@ -351,7 +355,7 @@ export default function MyClasses({ lang: pageLang = "en", setLang: pageSetLang,
     return (
       <div style={{ padding: "28px 20px" }}>
         <style>{css}</style>
-        <PageHeader title={t.pageTitle} icon="school" lang={l} setLang={setLang} maxWidth={720} />
+        <PageHeader title={t.pageTitle} icon="school" lang={l} setLang={setLang} maxWidth={720} onOpenMobileMenu={onOpenMobileMenu} />
         <ClassDetail
           cls={cls}
           profile={profile}
@@ -368,7 +372,7 @@ export default function MyClasses({ lang: pageLang = "en", setLang: pageSetLang,
   return (
     <div style={{ padding: "28px 20px" }}>
       <style>{css}</style>
-      <PageHeader title={t.pageTitle} icon="school" lang={l} setLang={setLang} maxWidth={720} />
+      <PageHeader title={t.pageTitle} icon="school" lang={l} setLang={setLang} maxWidth={720} onOpenMobileMenu={onOpenMobileMenu} />
       <div style={{ maxWidth: 720, margin: "0 auto" }}>
         {/* Title + action row */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, gap: 12 }}>
