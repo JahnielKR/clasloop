@@ -167,6 +167,23 @@ function Sidebar({ page, setPage, profile, lang, setLang, open, setOpen, onSignO
       </div>
       <div style={{ padding: "10px 12px", borderTop: `1px solid ${C.border}` }}>
         {showLabels ? <>
+          {isMobile && (
+            <div style={{ display: "flex", gap: 4, marginBottom: 10 }}>
+              {[["en", "EN"], ["es", "ES"], ["ko", "한"]].map(([code, label]) => (
+                <button
+                  key={code}
+                  onClick={() => setLang(code)}
+                  style={{
+                    flex: 1, padding: "6px 0", borderRadius: 6, fontSize: 11, fontWeight: 600,
+                    background: lang === code ? C.accentSoft : "transparent",
+                    color: lang === code ? C.accent : C.textMuted,
+                    border: `1px solid ${lang === code ? C.accent + "33" : C.border}`,
+                    cursor: "pointer", fontFamily: "'Outfit',sans-serif",
+                  }}
+                >{label}</button>
+              ))}
+            </div>
+          )}
           <button
             className="cl-profile-chip"
             onClick={() => handleNav(() => setPage("settings"))}

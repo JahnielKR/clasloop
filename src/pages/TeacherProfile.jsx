@@ -3,7 +3,7 @@ import { supabase } from "../lib/supabase";
 import { CIcon } from "../components/Icons";
 import { Avatar as CatalogAvatar } from "../components/Avatars";
 import { DeckCover, resolveColor, colorTint } from "../lib/deck-cover";
-import MobileMenuButton from "../components/MobileMenuButton";
+import MobileMenuButton, { useIsMobile } from "../components/MobileMenuButton";
 
 const C = {
   bg: "#FFFFFF", bgSoft: "#F7F7F5",
@@ -80,17 +80,20 @@ const css = `
 `;
 
 function PageHeader({ title, lang, setLang, maxWidth = 800, onOpenMobileMenu }) {
+  const isMobile = useIsMobile();
   return (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, maxWidth, margin: "0 auto 24px", paddingBottom: 18, borderBottom: `1px solid ${C.border}` }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
         <MobileMenuButton onOpen={onOpenMobileMenu} />
-        <h1 style={{ fontFamily: "'Outfit',sans-serif", fontSize: 22, fontWeight: 700, color: C.text, display: "flex", alignItems: "center", gap: 10 }}>
-          <CIcon name="teacher" size={22} /> {title}
+        <h1 style={{ fontFamily: "'Outfit',sans-serif", fontSize: isMobile ? 18 : 22, fontWeight: 700, color: C.text, display: "flex", alignItems: "center", gap: 10 }}>
+          <CIcon name="teacher" size={isMobile ? 18 : 22} /> {title}
         </h1>
       </div>
-      <select value={lang} onChange={(e) => setLang(e.target.value)} style={sel}>
-        <option value="en">EN</option><option value="es">ES</option><option value="ko">한</option>
-      </select>
+      {!isMobile && (
+        <select value={lang} onChange={(e) => setLang(e.target.value)} style={sel}>
+          <option value="en">EN</option><option value="es">ES</option><option value="ko">한</option>
+        </select>
+      )}
     </div>
   );
 }
