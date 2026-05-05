@@ -5,7 +5,7 @@ import { Avatar as ProfileAvatar } from './components/Avatars';
 import SessionFlow from './pages/SessionFlow';
 import StudentJoin from './pages/StudentJoin';
 import MainApp from './pages/MainApp';
-import Landing from './pages/Landing';
+import PublicHome from './pages/PublicHome';
 import Onboarding from './pages/Onboarding'; // legacy — kept for now, may be removed
 import AvatarOnboarding from './pages/AvatarOnboarding';
 import Community from './pages/Community';
@@ -24,11 +24,11 @@ const C = {
   red: "#E03E3E", redSoft: "#FDECEC", purple: "#6940A5", purpleSoft: "#F3EEFB",
   text: "#191919", textSecondary: "#6B6B6B", textMuted: "#9B9B9B", border: "#E8E8E4",
 };
-const COMPONENTS = { sessions: SessionFlow, studentJoin: StudentJoin, mainApp: MainApp, landing: Landing, onboarding: Onboarding, community: Community, achievements: Achievements, settings: Settings, director: Director, notifications: Notifications, decks: Decks, myClasses: MyClasses, teacherProfile: TeacherProfile };
+const COMPONENTS = { sessions: SessionFlow, studentJoin: StudentJoin, mainApp: MainApp, onboarding: Onboarding, community: Community, achievements: Achievements, settings: Settings, director: Director, notifications: Notifications, decks: Decks, myClasses: MyClasses, teacherProfile: TeacherProfile };
 
-function AuthScreen() {
-  const [mode, setMode] = useState("select");
-  const [role, setRole] = useState("teacher");
+function AuthScreen({ initialMode = "select", initialRole = "teacher", onBack }) {
+  const [mode, setMode] = useState(initialMode);
+  const [role, setRole] = useState(initialRole);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [pass, setPass] = useState("");
@@ -81,7 +81,16 @@ function AuthScreen() {
   return (
     <div style={{ minHeight: "100vh", background: C.bgSoft, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
       <div style={{ maxWidth: 400, width: "100%" }}>
-        <button onClick={() => { setMode("select"); setError(""); }} style={{ background: "transparent", border: "none", color: C.textSecondary, fontSize: 13, cursor: "pointer", marginBottom: 16, fontFamily: "'Outfit'" }}>← Back</button>
+        <button onClick={() => {
+          // If we entered straight into login/signup from the public home,
+          // "back" should take us back there. Otherwise (came in via the
+          // role-select screen), stay inside AuthScreen and reset to select.
+          if (initialMode !== "select" && onBack) {
+            onBack();
+          } else {
+            setMode("select"); setError("");
+          }
+        }} style={{ background: "transparent", border: "none", color: C.textSecondary, fontSize: 13, cursor: "pointer", marginBottom: 16, fontFamily: "'Outfit'" }}>← Back</button>
         <div style={{ background: C.bg, borderRadius: 14, border: `1px solid ${C.border}`, padding: 28 }}>
           <h2 style={{ fontFamily: "'Outfit'", fontSize: 22, fontWeight: 700, marginBottom: 4 }}>{mode === "signup" ? "Create your account" : "Welcome back"}</h2>
           <p style={{ fontSize: 13, color: C.textSecondary, marginBottom: 20, fontFamily: "'Outfit'", display: "flex", alignItems: "center", gap: 6 }}>{mode === "signup" ? <>{role === "teacher" ? <><TeacherInline size={16}/> Teacher account</> : <><StudentInline size={16}/> Student account</>}</> : "Sign in to your account"}</p>
@@ -236,6 +245,12 @@ export default function App() {
   const isMobile = useIsMobile();
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const [practiceDeck, setPracticeDeck] = useState(null); // when set, render StudentJoin in practice mode
+  // When unauthenticated, this controls which screen we show:
+  //   null  → PublicHome (Blooket-style entry with code input)
+  //   { mode: "select" }                       → AuthScreen role picker
+  //   { mode: "signup", role: "teacher"|"student" } → AuthScreen sign-up direct
+  //   { mode: "login" }                        → AuthScreen sign-in direct
+  const [authIntent, setAuthIntent] = useState(null);
   const [sessionsOpts, setSessionsOpts] = useState(null); // options passed when navigating to sessions (e.g. {openCreateClass:true})
   const [decksOpts, setDecksOpts] = useState(null); // options passed when navigating to decks (e.g. {focusClassId})
   // When viewing a public teacher profile (via /teacher/:id link or click in
@@ -401,7 +416,23 @@ export default function App() {
     </div>
   );
 
-  if (!user) return <AuthScreen />;
+  if (!user) {
+    if (authIntent) {
+      return (
+        <AuthScreen
+          initialMode={authIntent.mode}
+          initialRole={authIntent.role || "teacher"}
+          onBack={() => setAuthIntent(null)}
+        />
+      );
+    }
+    return (
+      <PublicHome
+        onSignIn={() => setAuthIntent({ mode: "login" })}
+        onSignUp={(role) => setAuthIntent({ mode: "signup", role })}
+      />
+    );
+  }
 
   // First-time avatar pick for students. We only intercept if we have the
   // profile loaded (so we know the role) and they're a student without an
