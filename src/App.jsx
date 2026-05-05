@@ -63,9 +63,7 @@ function AuthScreen({ initialMode = "select", initialRole = "teacher", onBack })
     <div style={{ minHeight: "100vh", background: C.bgSoft, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
       <div style={{ maxWidth: 400, width: "100%", textAlign: "center" }}>
         <div style={{ display: "flex", justifyContent: "center", marginBottom: 16 }}>
-          <div style={{ width: 48, height: 48, borderRadius: 12, background: `linear-gradient(135deg,${C.accent},${C.purple})`, display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="#fff" strokeWidth="1.8"/><path d="M12 8v4l2.5 2.5" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-          </div>
+          <LogoMark size={48} />
         </div>
         <h1 style={{ fontFamily: "'Outfit'", fontSize: 26, fontWeight: 700, marginBottom: 6 }}>Welcome to Clasloop</h1>
         <p style={{ color: C.textSecondary, fontSize: 15, marginBottom: 32 }}>Help your students actually remember what you teach</p>
@@ -408,8 +406,8 @@ export default function App() {
   if (loading && !user) return (
     <div style={{ minHeight: "100vh", background: C.bgSoft, display: "flex", alignItems: "center", justifyContent: "center" }}>
       <div style={{ textAlign: "center" }}>
-        <div style={{ width: 44, height: 44, borderRadius: 11, background: `linear-gradient(135deg,${C.accent},${C.purple})`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 12px" }}>
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="#fff" strokeWidth="1.8"/><path d="M12 8v4l2.5 2.5" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+        <div style={{ margin: "0 auto 12px", display: "inline-flex" }}>
+          <LogoMark size={44} />
         </div>
         <p style={{ color: C.textMuted, fontSize: 14 }}>Loading...</p>
       </div>

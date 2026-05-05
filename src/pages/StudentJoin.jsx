@@ -3,7 +3,7 @@ import { supabase } from "../lib/supabase";
 import { LogoMark, CIcon } from "../components/Icons";
 import { Avatar } from "../components/Avatars";
 import { checkAndGrantUnlocks } from "../lib/unlock-checker";
-import { generateGuestToken, saveGuestSession, validateGuestName } from "../lib/guest-session";
+import { generateGuestToken, saveGuestSession, validateGuestName, clearGuestSession } from "../lib/guest-session";
 
 const C = {
   bg: "#FFFFFF", bgSoft: "#F7F7F5", accent: "#2383E2", accentSoft: "#E8F0FE",
@@ -28,6 +28,7 @@ const i18n = {
     joinAnother: "Join another session", noQuestions: "No questions available",
     teacherEndedTitle: "Teacher ended the session", teacherEndedHint: "Here's how you did so far.",
     waitingEndedTitle: "Session ended", waitingEndedHint: "The teacher ended the session before it started.",
+    returningHome: "Returning to home...",
     timeUp: "Time's up!",
     true_: "True", false_: "False",
     typeAnswer: "Type your answer...", submit: "Submit",
@@ -59,6 +60,7 @@ const i18n = {
     joinAnother: "Unirse a otra sesión", noQuestions: "No hay preguntas",
     teacherEndedTitle: "El profe terminó la sesión", teacherEndedHint: "Aquí tu progreso hasta ahora.",
     waitingEndedTitle: "Sesión terminada", waitingEndedHint: "El profe terminó la sesión antes de empezar.",
+    returningHome: "Regresando al inicio...",
     timeUp: "¡Tiempo!",
     true_: "Verdadero", false_: "Falso",
     typeAnswer: "Escribe tu respuesta...", submit: "Enviar",
@@ -90,6 +92,7 @@ const i18n = {
     joinAnother: "다른 세션 참여", noQuestions: "문제가 없습니다",
     teacherEndedTitle: "선생님이 세션을 종료했습니다", teacherEndedHint: "지금까지의 결과입니다.",
     waitingEndedTitle: "세션 종료됨", waitingEndedHint: "선생님이 시작 전에 세션을 종료했습니다.",
+    returningHome: "홈으로 돌아가는 중...",
     timeUp: "시간 초과!",
     true_: "참", false_: "거짓",
     typeAnswer: "답을 입력하세요...", submit: "제출",
@@ -131,6 +134,7 @@ const css = `
   @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .4; } }
   @keyframes bounce { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
   @keyframes shake { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
+  @keyframes sj-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
   .fade-up { animation: fadeUp .35s ease-out both; }
   .pop-in { animation: popIn .3s ease-out both; }
   @keyframes unlockBgIn { from { opacity: 0; } to { opacity: 1; } }
@@ -442,6 +446,21 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
     setMatchPicks({});
     setMatchActiveLeft(null);
   }, [current, timeLimit]);
+
+  // Guest auto-redirect: when the teacher ends the session before the guest
+  // has answered anything, there's nothing to show — bounce them back to the
+  // public home after a short delay so they can join another session.
+  useEffect(() => {
+    if (!isGuest) return;
+    if (!endedByTeacher) return;
+    if (answers.length > 0) return;
+    if (step !== "results") return;
+    const t = setTimeout(() => {
+      try { clearGuestSession(guestPin); } catch (_) {}
+      window.location.href = "/";
+    }, 2000);
+    return () => clearTimeout(t);
+  }, [isGuest, endedByTeacher, answers.length, step, guestPin]);
 
   const handleJoin = async () => {
     if (pin.length !== 6 || !name.trim()) return;
@@ -1261,7 +1280,20 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
               </div>
               <h2 style={{ fontFamily: "'Outfit'", fontSize: 20, fontWeight: 700, marginBottom: 8 }}>{t.waitingEndedTitle}</h2>
               <p style={{ color: C.textSecondary, fontSize: 14, marginBottom: 20, lineHeight: 1.5 }}>{t.waitingEndedHint}</p>
-              {!isGuest && (
+              {isGuest ? (
+                <div style={{
+                  fontSize: 13, color: C.textMuted,
+                  fontFamily: "'Outfit',sans-serif",
+                  display: "inline-flex", alignItems: "center", gap: 8,
+                }}>
+                  <span style={{
+                    display: "inline-block", width: 12, height: 12,
+                    border: `2px solid ${C.border}`, borderTopColor: C.accent,
+                    borderRadius: "50%", animation: "sj-spin 0.8s linear infinite",
+                  }} />
+                  {t.returningHome}
+                </div>
+              ) : (
                 <button onClick={() => {
                   setStep("join"); setPin(""); setName(profile?.full_name || ""); setAnswers([]); setCurrent(0); setSession(null); setParticipant(null); setEndedByTeacher(false);
                 }} style={{
@@ -1337,6 +1369,12 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
           <button className="sj-btn sj-btn-secondary" onClick={() => {
             if (isPractice && onPracticeExit) {
               onPracticeExit();
+            } else if (isGuest) {
+              // Guest mode: bounce back to the public home so they can pick
+              // any code, instead of the unmounted reset path that doesn't
+              // really work for guests (their entry point was /join).
+              try { clearGuestSession(guestPin); } catch (_) {}
+              window.location.href = "/";
             } else {
               setStep("join"); setPin(""); setName(profile?.full_name || ""); setAnswers([]); setCurrent(0); setSession(null);
             }

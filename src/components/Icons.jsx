@@ -13,14 +13,30 @@ const S = (size, vb, children) => (
 
 // ─── Logo ───────────────────────────────────────────
 export function LogoMark({ size = 28 }) {
+  // F2 — sky→ocean clock. Uses inline <svg> with a unique gradient id per
+  // instance so multiple LogoMarks on the same page don't share a gradient
+  // (would happen with a hardcoded id).
+  const gid = `clasloop-logo-${size}-${Math.random().toString(36).slice(2, 8)}`;
   return (
-    <div style={{ width: size, height: size, borderRadius: size * 0.25, background: `linear-gradient(135deg, ${D.blue}, ${D.purple})`, display: "flex", alignItems: "center", justifyContent: "center" }}>
-      {S(size * 0.6, "0 0 20 20", <>
-        <path d="M10.5,4 C7.5,4 5.5,6.5 5.5,10 C5.5,13.5 7.5,16 10.5,16" stroke="#fff" strokeWidth="2" strokeLinecap="round"/>
-        <path d="M11.5,4 L11.5,16 L15.5,16" stroke="rgba(255,255,255,0.6)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
-        <circle cx="15.5" cy="16" r="1.3" fill="#FFEAA7"/>
-      </>)}
-    </div>
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 32 32"
+      xmlns="http://www.w3.org/2000/svg"
+      style={{ display: "block", borderRadius: Math.round(size * 0.22) }}
+      aria-hidden="true"
+    >
+      <defs>
+        <linearGradient id={gid} x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor="#38A1F0" />
+          <stop offset="1" stopColor="#1452A8" />
+        </linearGradient>
+      </defs>
+      <rect width="32" height="32" rx="8" fill={`url(#${gid})`} />
+      <circle cx="16" cy="16" r="9" fill="none" stroke="#fff" strokeWidth="2" />
+      <path d="M16 11 L16 16 L19.5 17.5" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx="16" cy="6" r="1.6" fill="#FFEAA7" />
+    </svg>
   );
 }
 
