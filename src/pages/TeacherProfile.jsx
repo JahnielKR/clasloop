@@ -30,6 +30,7 @@ const i18n = {
     saveToFavorites: "Save to favorites", removeFromFavorites: "Remove from favorites",
     saveToMyDecks: "Save to my decks",
     addToWhich: "Add to which class?", noClass: "No class — keep as personal", saved: "Saved!",
+    cancel: "Cancel",
     by: "by", back: "Back",
     searchPlaceholder: "Search decks...", filterAllSubjects: "All subjects", filterAllGrades: "All grades", filterAllLanguages: "All languages",
     noResults: "No decks match your filters.", clearFilters: "Clear filters",
@@ -46,6 +47,7 @@ const i18n = {
     saveToFavorites: "Guardar en favoritos", removeFromFavorites: "Quitar de favoritos",
     saveToMyDecks: "Guardar en mis decks",
     addToWhich: "¿A qué clase?", noClass: "Sin clase — mantener personal", saved: "¡Guardado!",
+    cancel: "Cancelar",
     by: "por", back: "Volver",
     searchPlaceholder: "Buscar decks...", filterAllSubjects: "Todas las materias", filterAllGrades: "Todos los grados", filterAllLanguages: "Todos los idiomas",
     noResults: "Ningún deck coincide con los filtros.", clearFilters: "Limpiar filtros",
@@ -62,6 +64,7 @@ const i18n = {
     saveToFavorites: "즐겨찾기에 저장", removeFromFavorites: "즐겨찾기에서 제거",
     saveToMyDecks: "내 덱에 저장",
     addToWhich: "어느 수업에?", noClass: "수업 없음 — 개인용", saved: "저장됨!",
+    cancel: "취소",
     by: "", back: "뒤로",
     searchPlaceholder: "덱 검색...", filterAllSubjects: "모든 과목", filterAllGrades: "모든 학년", filterAllLanguages: "모든 언어",
     noResults: "필터와 일치하는 덱이 없습니다.", clearFilters: "필터 지우기",
@@ -83,6 +86,9 @@ const css = `
   .tp-card { transition: transform .15s ease, box-shadow .15s ease; cursor: pointer; }
   .tp-card:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(0,0,0,0.06); }
   .tp-back:hover { background: ${C.accentSoft} !important; }
+  .tp-fav-circle { transition: all .15s ease; }
+  .tp-fav-circle:hover { transform: translateY(-1px); box-shadow: 0 3px 10px rgba(217,115,13,.18); border-color: #D9730D !important; }
+  .tp-fav-circle:active { transform: translateY(0) scale(.95); }
 `;
 
 function PageHeader({ title, lang, setLang, maxWidth = 800, onOpenMobileMenu }) {
@@ -528,13 +534,17 @@ export default function TeacherProfile({ teacherId, profile: viewerProfile, lang
                         <button
                           onClick={e => { e.stopPropagation(); handleToggleFavorite(dk); }}
                           title={isSaved ? t.removeFromFavorites : t.saveToFavorites}
+                          className="tp-fav-circle"
                           style={{
-                            background: "transparent", border: "none", cursor: "pointer",
-                            padding: 4, borderRadius: 6, color: isSaved ? accent : C.textMuted,
-                            display: "inline-flex", alignItems: "center",
+                            width: 30, height: 30, padding: 0, borderRadius: "50%",
+                            background: isSaved ? "#FFF3E0" : C.bg,
+                            border: `1px solid ${isSaved ? "#D9730D" : C.border}`,
+                            cursor: "pointer",
+                            display: "inline-flex", alignItems: "center", justifyContent: "center",
+                            flexShrink: 0,
                           }}
                         >
-                          <CIcon name="star" size={14} inline />
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill={isSaved ? "#D9730D" : "none"} stroke={isSaved ? "#D9730D" : C.textSecondary} strokeWidth="2" strokeLinejoin="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
                         </button>
                       )}
                     </div>
@@ -592,8 +602,18 @@ function SaveModal({ t, deck, userClasses, onClose, onSave }) {
             background: C.bgSoft, color: C.textSecondary,
             border: `1px solid ${C.border}`, cursor: "pointer",
             fontFamily: "'Outfit',sans-serif",
+            marginBottom: 8,
           }}
         >{t.noClass}</button>
+        <button
+          onClick={onClose}
+          style={{
+            width: "100%", padding: 10, borderRadius: 8, fontSize: 13, fontWeight: 500,
+            background: "transparent", color: C.textMuted,
+            border: "none", cursor: "pointer",
+            fontFamily: "'Outfit',sans-serif",
+          }}
+        >{t.cancel}</button>
       </div>
     </div>
   );
