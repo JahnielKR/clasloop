@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabase";
 import { getReviewSuggestions } from "../lib/spaced-repetition";
+import { loadDismissed, saveDismissed } from "../lib/notifications";
 import { CIcon } from "../components/Icons";
 import MobileMenuButton, { useIsMobile } from "../components/MobileMenuButton";
 
@@ -23,6 +24,7 @@ const i18n = {
     newSession: "New session available", joinNow: "Join now",
     reviewNow: "Review now", viewResults: "View results",
     justNow: "Just now", minsAgo: "m ago", hoursAgo: "h ago", daysAgo: "d ago",
+    markAllRead: "Mark all as read",
   },
   es: {
     pageTitle: "Notificaciones", all: "Todas", review: "Repaso", sessions: "Sesiones", system: "Sistema",
@@ -34,6 +36,7 @@ const i18n = {
     newSession: "Nueva sesión disponible", joinNow: "Unirse ahora",
     reviewNow: "Repasar ahora", viewResults: "Ver resultados",
     justNow: "Ahora", minsAgo: "min", hoursAgo: "h", daysAgo: "d",
+    markAllRead: "Marcar todas como leídas",
   },
   ko: {
     pageTitle: "알림", all: "전체", review: "복습", sessions: "세션", system: "시스템",
@@ -45,8 +48,14 @@ const i18n = {
     newSession: "새 세션 가능", joinNow: "참여하기",
     reviewNow: "복습 시작", viewResults: "결과 보기",
     justNow: "방금", minsAgo: "분 전", hoursAgo: "시간 전", daysAgo: "일 전",
+    markAllRead: "모두 읽음으로 표시",
   },
 };
+
+// Persistent dismissed notifications: live in localStorage so dismissals
+// survive a refresh and stay in sync with App.jsx (which uses the same
+// helpers for the sidebar badge count). See lib/notifications.js.
+
 
 const css = `
   .nt-filter { transition: all .15s ease; cursor: pointer; border: none; font-family: 'Outfit',sans-serif; }
@@ -92,17 +101,42 @@ function PageHeader({ title, icon, lang, setLang, maxWidth = 600, onOpenMobileMe
   );
 }
 
-export default function Notifications({ lang: pageLang = "en", setLang: pageSetLang, onOpenMobileMenu }) {
+export default function Notifications({ lang: pageLang = "en", setLang: pageSetLang, onOpenMobileMenu, onNavigate }) {
   const [lang, setLangLocal] = useState(pageLang);
   const setLang = pageSetLang || setLangLocal;
   const l = pageLang || lang;
   const [filter, setFilter] = useState("all");
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [dismissed, setDismissed] = useState({});
+  // Persistent across reloads — see DISMISSED_KEY above. We initialize from
+  // localStorage on first render so dismiss survives a refresh.
+  const [dismissed, setDismissed] = useState(() => loadDismissed());
   const t = i18n[l] || i18n.en;
 
   useEffect(() => { generateNotifications(); }, []);
+
+  // Persist dismissed map every time it changes
+  useEffect(() => { saveDismissed(dismissed); }, [dismissed]);
+
+  // ── Action dispatcher ────────────────────────────────────────────
+  // Each notification carries a `_action` describing what to do when the
+  // user clicks it (or the inline action button). We map that to a page +
+  // opts and let the parent (App.jsx) handle the actual navigation.
+  const handleAction = (n) => {
+    if (!n || !n._action || !onNavigate) return;
+    const a = n._action;
+    if (a.kind === "openCreateSession") {
+      onNavigate("sessions", { focusClassId: a.classId, openCreateSession: true });
+    } else if (a.kind === "viewSessionResults") {
+      onNavigate("sessions", { focusSessionId: a.sessionId });
+    } else if (a.kind === "openCreateClass") {
+      onNavigate("sessions", { openCreateClass: true });
+    } else if (a.kind === "joinSession") {
+      onNavigate("myClasses", { focusPin: a.pin });
+    } else if (a.kind === "openMyClasses") {
+      onNavigate("myClasses", {});
+    }
+  };
 
   const generateNotifications = async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -130,6 +164,7 @@ export default function Notifications({ lang: pageLang = "en", setLang: pageSetL
               desc: `${cls.name} — ${sug.map(s => s.topic).slice(0, 3).join(", ")} ${t.belowRetention}`,
               time: new Date(),
               action: t.reviewNow,
+              _action: { kind: "openCreateSession", classId: cls.id },
             });
           }
         }
@@ -159,6 +194,7 @@ export default function Notifications({ lang: pageLang = "en", setLang: pageSetL
               desc: `${t.avgScore}: ${avg}% · ${participants} ${t.students}`,
               time: new Date(sess.completed_at || sess.created_at),
               action: t.viewResults,
+              _action: { kind: "viewSessionResults", sessionId: sess.id },
             });
           }
         }
@@ -172,6 +208,7 @@ export default function Notifications({ lang: pageLang = "en", setLang: pageSetL
           title: t.welcomeBack,
           desc: t.welcomeDesc,
           time: new Date(),
+          _action: { kind: "openCreateClass" },
         });
       }
     } else {
@@ -194,6 +231,7 @@ export default function Notifications({ lang: pageLang = "en", setLang: pageSetL
             desc: `PIN: ${sess.pin} · ${sess.classes?.name || ""}`,
             time: new Date(sess.created_at),
             action: t.joinNow,
+            _action: { kind: "joinSession", pin: sess.pin },
           });
         }
       }
@@ -209,6 +247,7 @@ export default function Notifications({ lang: pageLang = "en", setLang: pageSetL
           title: t.streakReminder,
           desc: `${t.currentStreak}: ${streak} ${t.daysStreak}`,
           time: new Date(),
+          _action: { kind: "openMyClasses" },
         });
       }
 
@@ -222,6 +261,7 @@ export default function Notifications({ lang: pageLang = "en", setLang: pageSetL
           title: t.welcomeBack,
           desc: t.welcomeDesc,
           time: new Date(),
+          _action: { kind: "openMyClasses" },
         });
       }
     }
@@ -242,16 +282,41 @@ export default function Notifications({ lang: pageLang = "en", setLang: pageSetL
 
       <div style={{ maxWidth: 600, margin: "0 auto" }}>
 
-        {/* Filters */}
-        <div style={{ display: "flex", gap: 4, marginBottom: 20, flexWrap: "wrap" }}>
-          {[["all", t.all], ["review", t.review], ["session", t.sessions], ["system", t.system]].map(([k, label]) => (
-            <button key={k} className="nt-filter" onClick={() => setFilter(k)} style={{
-              padding: "6px 14px", borderRadius: 20, fontSize: 12, fontWeight: 500,
-              background: filter === k ? C.accentSoft : C.bg,
-              color: filter === k ? C.accent : C.textSecondary,
-              border: `1px solid ${filter === k ? C.accent + "33" : C.border}`,
-            }}>{label}</button>
-          ))}
+        {/* Filters + mark-all-read */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 20, flexWrap: "wrap" }}>
+          <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+            {[["all", t.all], ["review", t.review], ["session", t.sessions], ["system", t.system]].map(([k, label]) => (
+              <button key={k} className="nt-filter" onClick={() => setFilter(k)} style={{
+                padding: "6px 14px", borderRadius: 20, fontSize: 12, fontWeight: 500,
+                background: filter === k ? C.accentSoft : C.bg,
+                color: filter === k ? C.accent : C.textSecondary,
+                border: `1px solid ${filter === k ? C.accent + "33" : C.border}`,
+              }}>{label}</button>
+            ))}
+          </div>
+          {!loading && visibleNotifs.length > 0 && (
+            <button
+              onClick={() => {
+                // Mark all *currently visible* notifications as dismissed.
+                // We don't dismiss filtered-out ones — that would be confusing
+                // when the user comes back to a different filter and finds
+                // them gone.
+                const m = { ...dismissed };
+                for (const n of visibleNotifs) m[n.id] = true;
+                setDismissed(m);
+              }}
+              className="nt-filter"
+              style={{
+                padding: "6px 12px", borderRadius: 20, fontSize: 11, fontWeight: 500,
+                background: C.bg, color: C.textSecondary,
+                border: `1px solid ${C.border}`,
+                display: "inline-flex", alignItems: "center", gap: 5,
+              }}
+              title={t.markAllRead}
+            >
+              <CIcon name="check" size={11} inline /> {t.markAllRead}
+            </button>
+          )}
         </div>
 
         {loading ? (
@@ -263,44 +328,66 @@ export default function Notifications({ lang: pageLang = "en", setLang: pageSetL
           </div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {visibleNotifs.map((n, i) => (
-              <div key={n.id} className="nt-card fade-up" style={{
-                display: "flex", gap: 12, padding: "14px 16px", borderRadius: 12,
-                background: C.bg, border: `1px solid ${n.color + "33"}`,
-                boxShadow: `0 2px 8px ${n.color}11`,
-                animationDelay: `${i * .04}s`, cursor: "default",
-              }}>
-                {/* Icon */}
-                <div style={{
-                  width: 42, height: 42, borderRadius: 11, flexShrink: 0,
-                  background: n.color + "14", display: "flex", alignItems: "center", justifyContent: "center",
-                }}>
-                  <CIcon name={n.icon} size={20} inline />
-                </div>
-
-                {/* Content */}
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 3 }}>
-                    <span style={{ fontSize: 14, fontWeight: 600 }}>{n.title}</span>
-                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                      <span style={{ fontSize: 11, color: C.textMuted, flexShrink: 0 }}>{timeAgo(n.time, t)}</span>
-                      <button onClick={() => setDismissed(prev => ({ ...prev, [n.id]: true }))} style={{ width: 18, height: 18, borderRadius: 4, background: "transparent", border: "none", cursor: "pointer", color: C.textMuted, fontSize: 12, display: "flex", alignItems: "center", justifyContent: "center" }} title="Dismiss">×</button>
-                    </div>
+            {visibleNotifs.map((n, i) => {
+              const clickable = Boolean(n._action && onNavigate);
+              return (
+                <div
+                  key={n.id}
+                  className="nt-card fade-up"
+                  onClick={clickable ? () => handleAction(n) : undefined}
+                  style={{
+                    display: "flex", gap: 12, padding: "14px 16px", borderRadius: 12,
+                    background: C.bg, border: `1px solid ${n.color + "33"}`,
+                    boxShadow: `0 2px 8px ${n.color}11`,
+                    animationDelay: `${i * .04}s`,
+                    cursor: clickable ? "pointer" : "default",
+                  }}
+                >
+                  {/* Icon */}
+                  <div style={{
+                    width: 42, height: 42, borderRadius: 11, flexShrink: 0,
+                    background: n.color + "14", display: "flex", alignItems: "center", justifyContent: "center",
+                  }}>
+                    <CIcon name={n.icon} size={20} inline />
                   </div>
-                  <p style={{ fontSize: 13, color: C.textSecondary, lineHeight: 1.45 }}>{n.desc}</p>
-                  {n.action && (
-                    <button className="nt-action" style={{
-                      marginTop: 8, padding: "5px 14px", borderRadius: 6, fontSize: 12, fontWeight: 600,
-                      background: n.color + "14", color: n.color,
-                      display: "inline-flex", alignItems: "center", gap: 4,
-                    }}>
-                      {n.action}
-                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none"><path d="M5 12H19M19 12L13 6M19 12L13 18" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                    </button>
-                  )}
+
+                  {/* Content */}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 3 }}>
+                      <span style={{ fontSize: 14, fontWeight: 600 }}>{n.title}</span>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <span style={{ fontSize: 11, color: C.textMuted, flexShrink: 0 }}>{timeAgo(n.time, t)}</span>
+                        <button
+                          onClick={(e) => {
+                            // stopPropagation so we don't also trigger the
+                            // card-level click handler.
+                            e.stopPropagation();
+                            setDismissed(prev => ({ ...prev, [n.id]: true }));
+                          }}
+                          style={{ width: 18, height: 18, borderRadius: 4, background: "transparent", border: "none", cursor: "pointer", color: C.textMuted, fontSize: 12, display: "flex", alignItems: "center", justifyContent: "center" }}
+                          title="Dismiss"
+                        >×</button>
+                      </div>
+                    </div>
+                    <p style={{ fontSize: 13, color: C.textSecondary, lineHeight: 1.45 }}>{n.desc}</p>
+                    {n.action && (
+                      <button
+                        className="nt-action"
+                        onClick={(e) => { e.stopPropagation(); handleAction(n); }}
+                        style={{
+                          marginTop: 8, padding: "5px 14px", borderRadius: 6, fontSize: 12, fontWeight: 600,
+                          background: n.color + "14", color: n.color,
+                          display: "inline-flex", alignItems: "center", gap: 4,
+                        }}
+                      >
+                        {n.action}
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none"><path d="M5 12H19M19 12L13 6M19 12L13 18" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                      </button>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

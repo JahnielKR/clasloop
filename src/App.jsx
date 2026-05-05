@@ -17,6 +17,7 @@ import Decks from './pages/Decks';
 import MyClasses from './pages/MyClasses';
 import TeacherProfile from './pages/TeacherProfile';
 import { useIsMobile } from './components/MobileMenuButton';
+import { countVisibleNotifications } from './lib/notifications';
 
 const C = {
   bg: "#FFFFFF", bgSoft: "#F7F7F5", accent: "#2383E2", accentSoft: "#E8F0FE",
@@ -113,13 +114,13 @@ function AuthScreen({ initialMode = "select", initialRole = "teacher", onBack })
   );
 }
 
-function Sidebar({ page, setPage, profile, lang, setLang, open, setOpen, onSignOut, onNavClick, isMobile, mobileDrawerOpen, setMobileDrawerOpen }) {
+function Sidebar({ page, setPage, profile, lang, setLang, open, setOpen, onSignOut, onNavClick, isMobile, mobileDrawerOpen, setMobileDrawerOpen, notifsCount = 0 }) {
   // Default to teacher unless we know for sure they're a student
   // This prevents the sidebar from flipping during token refresh
   const isT = profile ? profile.role === "teacher" : (page === "sessions" || page === "decks" || page === "director");
   const nav = isT
-    ? [{ id:"sessions",icon:(a)=><SessionsIcon size={28} active={a}/>,l:"Sessions" },{ id:"decks",icon:(a)=><DecksIcon size={28} active={a}/>,l:"Decks" },{ id:"director",icon:(a)=><SchoolIcon size={28} active={a}/>,l:"School" },{ id:"community",icon:(a)=><CommunityIcon size={28} active={a}/>,l:"Community" },{ id:"notifications",icon:(a)=><NotificationsIcon size={28} active={a}/>,l:"Notifications" },{ id:"settings",icon:(a)=><SettingsIcon size={28} active={a}/>,l:"Settings" }]
-    : [{ id:"myClasses",icon:(a)=><SchoolIcon size={28} active={a}/>,l:"My Classes" },{ id:"studentJoin",icon:(a)=><JoinSessionIcon size={28} active={a}/>,l:"Join Session" },{ id:"achievements",icon:(a)=><AchievementsIcon size={28} active={a}/>,l:"Achievements" },{ id:"community",icon:(a)=><CommunityIcon size={28} active={a}/>,l:"Community" },{ id:"settings",icon:(a)=><SettingsIcon size={28} active={a}/>,l:"Settings" }];
+    ? [{ id:"sessions",icon:(a)=><SessionsIcon size={28} active={a}/>,l:"Sessions" },{ id:"decks",icon:(a)=><DecksIcon size={28} active={a}/>,l:"Decks" },{ id:"director",icon:(a)=><SchoolIcon size={28} active={a}/>,l:"School" },{ id:"community",icon:(a)=><CommunityIcon size={28} active={a}/>,l:"Community" },{ id:"notifications",icon:(a)=><NotificationsIcon size={28} active={a} badge={notifsCount}/>,l:"Notifications" },{ id:"settings",icon:(a)=><SettingsIcon size={28} active={a}/>,l:"Settings" }]
+    : [{ id:"myClasses",icon:(a)=><SchoolIcon size={28} active={a}/>,l:"My Classes" },{ id:"studentJoin",icon:(a)=><JoinSessionIcon size={28} active={a}/>,l:"Join Session" },{ id:"achievements",icon:(a)=><AchievementsIcon size={28} active={a}/>,l:"Achievements" },{ id:"community",icon:(a)=><CommunityIcon size={28} active={a}/>,l:"Community" },{ id:"notifications",icon:(a)=><NotificationsIcon size={28} active={a} badge={notifsCount}/>,l:"Notifications" },{ id:"settings",icon:(a)=><SettingsIcon size={28} active={a}/>,l:"Settings" }];
 
   // In mobile, the sidebar acts as a drawer: full-width-ish, slides in from
   // the left, always shows labels (no collapsed state). In desktop it keeps
@@ -249,6 +250,12 @@ export default function App() {
   //   { mode: "signup", role: "teacher"|"student" } → AuthScreen sign-up direct
   //   { mode: "login" }                        → AuthScreen sign-in direct
   const [authIntent, setAuthIntent] = useState(null);
+
+  // Count of currently-visible (i.e. not-yet-dismissed) notifications. The
+  // Notifications page calls back into us so we can paint a badge on the
+  // sidebar icon. Source of truth lives in Notifications.jsx — App just
+  // mirrors the number for display.
+  const [notifsCount, setNotifsCount] = useState(0);
   const [sessionsOpts, setSessionsOpts] = useState(null); // options passed when navigating to sessions (e.g. {openCreateClass:true})
   const [decksOpts, setDecksOpts] = useState(null); // options passed when navigating to decks (e.g. {focusClassId})
   // When viewing a public teacher profile (via /teacher/:id link or click in
@@ -331,6 +338,19 @@ export default function App() {
   useEffect(() => {
     if (!isMobile && mobileDrawerOpen) setMobileDrawerOpen(false);
   }, [isMobile, mobileDrawerOpen]);
+
+  // Count active (non-dismissed) notifications so the sidebar badge stays in
+  // sync. We re-count on profile load and whenever the user navigates away
+  // from the notifications page (in case they dismissed some). We don't
+  // re-count on every page change — only the transitions that matter.
+  useEffect(() => {
+    if (!profile) return;
+    let cancelled = false;
+    countVisibleNotifications(profile).then(n => {
+      if (!cancelled) setNotifsCount(n);
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [profile, page]);
 
   const fetchProfile = async (id, isInitial = true) => {
     try {
@@ -491,6 +511,7 @@ export default function App() {
         isMobile={isMobile}
         mobileDrawerOpen={mobileDrawerOpen}
         setMobileDrawerOpen={setMobileDrawerOpen}
+        notifsCount={notifsCount}
       />
       <div style={{ marginLeft: isMobile ? 0 : (open ? 210 : 56), flex: 1, transition: "margin-left .2s", minHeight: "100vh", background: C.bgSoft }}>
         {inPractice ? (
@@ -519,6 +540,21 @@ export default function App() {
             teacherId={page === "teacherProfile" ? viewingTeacherId : null}
             onNavigateToTeacher={(id) => { setViewingTeacherId(id); setPage("teacherProfile"); }}
             onNavigateToCommunity={() => { setViewingTeacherId(null); setPage("community"); }}
+            onNavigate={(targetPage, opts) => {
+              // Generic navigator used by Notifications. Routes any target
+              // page with optional opts that the destination understands.
+              if (targetPage === "sessions") {
+                setSessionsOpts(opts || {});
+                setPage("sessions");
+              } else if (targetPage === "decks") {
+                setDecksOpts(opts || null);
+                setPage("decks");
+              } else if (targetPage === "myClasses") {
+                setPage("myClasses");
+              } else {
+                setPage(targetPage);
+              }
+            }}
           />
         )}
       </div>
