@@ -20,10 +20,26 @@ import {
 } from "../../lib/deck-cover";
 import { uploadDeckCover, deleteDeckCover } from "../../lib/deck-image-upload";
 import { analyzeDerivation } from "../../lib/deck-derivation";
+import { useIsMobile } from "../../components/MobileMenuButton";
 import { MONO } from "../../components/tokens";
 import { C, css } from "./styles";
 
 const SUBJECTS = ["Math", "Science", "History", "Language", "Geography", "Art", "Music", "Other"];
+
+// Question type catalog — used by the type-selector grid and the per-question
+// header to render the right icon + label. Same definition Decks.jsx had
+// before the split; duplicated here (rather than imported) because it's the
+// editor's domain and lives close to where it's used.
+const ACTIVITY_TYPES = [
+  { id: "mcq", icon: "mcq", label: { en: "Multiple Choice", es: "Opción Múltiple", ko: "객관식" } },
+  { id: "tf", icon: "truefalse", label: { en: "True / False", es: "Verdadero / Falso", ko: "참 / 거짓" } },
+  { id: "fill", icon: "fillblank", label: { en: "Fill in the Blank", es: "Completar", ko: "빈칸 채우기" } },
+  { id: "order", icon: "ordering", label: { en: "Put in Order", es: "Ordenar", ko: "순서 맞추기" } },
+  { id: "match", icon: "matching", label: { en: "Matching Pairs", es: "Emparejar", ko: "짝 맞추기" } },
+  { id: "free", icon: "study", label: { en: "Free Text", es: "Respuesta Libre", ko: "자유 응답" } },
+  { id: "sentence", icon: "language", label: { en: "Sentence Builder", es: "Crear Oración", ko: "문장 만들기" } },
+  { id: "slider", icon: "speed", label: { en: "Slider Estimate", es: "Estimar (Slider)", ko: "슬라이더 추정" } },
+];
 
 // ── Editor-local style objects ─────────────────────────────────────────────
 // Shared by the editor's inputs/selects/buttons. Kept here (not in styles.js)
