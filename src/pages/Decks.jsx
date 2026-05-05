@@ -4,7 +4,7 @@ import { CIcon } from "../components/Icons";
 import { DeckCover, DECK_COLORS, DECK_ICONS, DEFAULT_DECK_COLOR, DEFAULT_DECK_ICON, SUBJ_ICON, SUBJ_COLOR, PRESET_PATTERNS, presetToDataUrl, resolveColor, colorTint } from "../lib/deck-cover";
 import { uploadDeckCover, deleteDeckCover } from "../lib/deck-image-upload";
 import { analyzeDerivation } from "../lib/deck-derivation";
-import MobileMenuButton from "../components/MobileMenuButton";
+import MobileMenuButton, { useIsMobile } from "../components/MobileMenuButton";
 
 const C = {
   bg: "#FFFFFF", bgSoft: "#F7F7F5", accent: "#2383E2", accentSoft: "#E8F0FE",
@@ -327,6 +327,8 @@ const css = `
   .dk-lang:hover { background: #E8F0FE !important; color: #2383E2 !important; }
   @keyframes fadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
   .fade-up { animation: fadeUp .3s ease-out both; }
+  .dk-scroll-x { overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; -ms-overflow-style: none; }
+  .dk-scroll-x::-webkit-scrollbar { display: none; }
 `;
 
 const inp = { fontFamily: "'Outfit',sans-serif", background: C.bg, border: `1px solid ${C.border}`, color: C.text, padding: "10px 14px", borderRadius: 8, fontSize: 14, width: "100%", outline: "none" };
@@ -440,6 +442,7 @@ function AutoResizeTextarea({ value, onChange, placeholder, minHeight = 44, maxH
 }
 
 function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existingDeck, prefilledClassId = null }) {
+  const isMobile = useIsMobile();
   const [title, setTitle] = useState(existingDeck?.title || "");
   const [desc, setDesc] = useState(existingDeck?.description || "");
   // If we're creating fresh AND a class was pre-selected (came from "Add deck"
@@ -1045,7 +1048,10 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
         </div>
 
         {/* ── Tabs ── */}
-        <div style={{ display: "flex", gap: 4, marginBottom: 18, borderBottom: `1px solid ${C.border}` }}>
+        <div className={isMobile ? "dk-scroll-x" : ""} style={{
+          display: "flex", gap: 4, marginBottom: 18, borderBottom: `1px solid ${C.border}`,
+          ...(isMobile ? { flexWrap: "nowrap" } : {}),
+        }}>
           {[
             { id: "general",   label: t.tabGeneral,   icon: "settings" },
             { id: "customize", label: t.tabCustomize, icon: "paint" },
@@ -1067,6 +1073,7 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
                 marginBottom: -1,
                 display: "flex", alignItems: "center", gap: 6,
                 transition: "all .15s ease",
+                whiteSpace: "nowrap", flexShrink: 0,
               }}
             >
               <CIcon name={tab.icon} size={14} inline />
@@ -1100,7 +1107,7 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
               {userClasses.map(c => <option key={c.id} value={c.id}>{c.name} ({c.subject} · {c.grade})</option>)}
             </select>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 10 }}>
             <div>
               <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: C.textSecondary, marginBottom: 5 }}>{t.subject} *</label>
               <select
@@ -2093,6 +2100,7 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
 
 // ─── Main ───────────────────────────────────────────
 export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onNavigateToSessions, decksOpts, onConsumeDecksOpts, onOpenMobileMenu }) {
+  const isMobile = useIsMobile();
   const [lang, setLangLocal] = useState(pageLang);
   const setLang = pageSetLang || setLangLocal;
   const l = pageLang || lang;
@@ -2363,30 +2371,43 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
         padding: 14, paddingLeft: 14,
         animationDelay: `${i * .04}s`,
       }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <DeckCover deck={dk} size={52} radius={10} />
-          <div style={{ flex: 1, cursor: isFav ? "default" : "pointer", minWidth: 0 }} onClick={isFav ? undefined : () => { setEditing(dk); setView("edit"); }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-              <span style={{ fontSize: 15, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{dk.title}</span>
-              {kindBadge === "fav" && (
-                <span style={{ display: "inline-flex", alignItems: "center", gap: 3, padding: "2px 7px", borderRadius: 5, fontSize: 10, fontWeight: 600, background: C.accentSoft, color: C.accent, border: `1px solid ${C.accent}33` }}>
-                  ★ {t.badgeFav}
-                </span>
-              )}
-              {kindBadge === "copy" && (
-                <span style={{ display: "inline-flex", alignItems: "center", gap: 3, padding: "2px 7px", borderRadius: 5, fontSize: 10, fontWeight: 600, background: C.purpleSoft, color: C.purple, border: `1px solid ${C.purple}33` }}>
-                  ⧉ {t.badgeCopy}
-                </span>
-              )}
-            </div>
-            <div style={{ fontSize: 12, color: C.textMuted, marginTop: 2 }}>
-              {dk.subject} · {dk.grade} · {qs.length} {t.questionCount}
-              {cls && <> · <strong style={{ color: C.accent }}>{cls.name}</strong></>}
-              {originalAuthor && <> · {t.fromTeacher} <strong>{originalAuthor}</strong></>}
-              {" · "}<LangBadge lang={dk.language} />
+        <div style={{
+          display: "flex",
+          flexDirection: isMobile ? "column" : "row",
+          alignItems: isMobile ? "stretch" : "center",
+          gap: isMobile ? 10 : 12,
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0, flex: 1 }}>
+            <DeckCover deck={dk} size={52} radius={10} />
+            <div style={{ flex: 1, cursor: isFav ? "default" : "pointer", minWidth: 0 }} onClick={isFav ? undefined : () => { setEditing(dk); setView("edit"); }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                <span style={{ fontSize: 15, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{dk.title}</span>
+                {kindBadge === "fav" && (
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 3, padding: "2px 7px", borderRadius: 5, fontSize: 10, fontWeight: 600, background: C.accentSoft, color: C.accent, border: `1px solid ${C.accent}33` }}>
+                    ★ {t.badgeFav}
+                  </span>
+                )}
+                {kindBadge === "copy" && (
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 3, padding: "2px 7px", borderRadius: 5, fontSize: 10, fontWeight: 600, background: C.purpleSoft, color: C.purple, border: `1px solid ${C.purple}33` }}>
+                    ⧉ {t.badgeCopy}
+                  </span>
+                )}
+              </div>
+              <div style={{ fontSize: 12, color: C.textMuted, marginTop: 2 }}>
+                {dk.subject} · {dk.grade} · {qs.length} {t.questionCount}
+                {cls && <> · <strong style={{ color: C.accent }}>{cls.name}</strong></>}
+                {originalAuthor && <> · {t.fromTeacher} <strong>{originalAuthor}</strong></>}
+                {" · "}<LangBadge lang={dk.language} />
+              </div>
             </div>
           </div>
-          <div style={{ display: "flex", gap: 6 }}>
+          <div style={{
+            display: "flex",
+            gap: 6,
+            justifyContent: isMobile ? "flex-end" : "flex-start",
+            flexShrink: 0,
+            flexWrap: "wrap",
+          }}>
             {isFav ? (
               <button className="dk-btn-danger" onClick={() => handleRemoveFavorite(dk.id)} style={{ padding: "6px 12px", borderRadius: 6, fontSize: 12, fontWeight: 500, background: C.bg, color: C.textSecondary, border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: "'Outfit',sans-serif" }} title={t.favoriteRemove}>★ {t.favoriteRemove}</button>
             ) : (
@@ -2414,8 +2435,19 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
         <p style={{ fontSize: 14, color: C.textSecondary, marginBottom: 20 }}>{t.subtitle}</p>
 
         {/* Tabs + Create button */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, gap: 8 }}>
-          <div style={{ display: "flex", gap: 4 }}>
+        <div style={{
+          display: "flex",
+          flexDirection: isMobile ? "column" : "row",
+          alignItems: isMobile ? "stretch" : "center",
+          justifyContent: "space-between",
+          marginBottom: 16,
+          gap: isMobile ? 10 : 8,
+        }}>
+          <div className={isMobile ? "dk-scroll-x" : ""} style={{
+            display: "flex",
+            gap: 4,
+            ...(isMobile ? { flexWrap: "nowrap", margin: "0 -20px", padding: "0 20px" } : {}),
+          }}>
             {[["myDecks", t.myDecks, myDecks.length], ["following", t.following, followingDecks.length], ["favorites", t.favorites, favoriteDecks.length]].map(([id, label, count]) => (
               <button key={id} className="dk-tab" onClick={() => setTab(id)} style={{
                 padding: "8px 16px", borderRadius: 8, fontSize: 13, fontWeight: 500,
@@ -2423,11 +2455,18 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
                 color: tab === id ? C.accent : C.textSecondary,
                 border: `1px solid ${tab === id ? C.accent + "33" : C.border}`,
                 display: "flex", alignItems: "center", gap: 6, cursor: "pointer",
+                whiteSpace: "nowrap", flexShrink: 0,
               }}>{label} {count > 0 && <span style={{ fontSize: 11, padding: "1px 6px", borderRadius: 8, background: tab === id ? C.accent : C.bgSoft, color: tab === id ? "#fff" : C.textMuted, fontWeight: 700 }}>{count}</span>}</button>
             ))}
           </div>
           {tab === "myDecks" && (
-            <button className="dk-btn" onClick={() => setView("create")} style={{ padding: "8px 16px", borderRadius: 8, fontSize: 13, fontWeight: 600, background: `linear-gradient(135deg, ${C.accent}, ${C.purple})`, color: "#fff", border: "none", cursor: "pointer", fontFamily: "'Outfit',sans-serif" }}>{t.create}</button>
+            <button className="dk-btn" onClick={() => setView("create")} style={{
+              padding: "8px 16px", borderRadius: 8, fontSize: 13, fontWeight: 600,
+              background: `linear-gradient(135deg, ${C.accent}, ${C.purple})`,
+              color: "#fff", border: "none", cursor: "pointer",
+              fontFamily: "'Outfit',sans-serif",
+              width: isMobile ? "100%" : "auto",
+            }}>{t.create}</button>
           )}
         </div>
 
