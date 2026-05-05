@@ -185,6 +185,7 @@ export default function App() {
   const [open, setOpen] = useState(true);
   const [practiceDeck, setPracticeDeck] = useState(null); // when set, render StudentJoin in practice mode
   const [sessionsOpts, setSessionsOpts] = useState(null); // options passed when navigating to sessions (e.g. {openCreateClass:true})
+  const [decksOpts, setDecksOpts] = useState(null); // options passed when navigating to decks (e.g. {focusClassId})
   // When viewing a public teacher profile (via /teacher/:id link or click in
   // Community), this holds the id. We read the URL once at mount and then
   // immediately clean it — otherwise tab focus / token refresh / OAuth bounces
@@ -366,7 +367,7 @@ export default function App() {
   return (
     <div style={{ display: "flex", minHeight: "100vh" }}>
       <style>{sidebarCSS}</style>
-      <Sidebar page={page} setPage={(p) => { setPracticeDeck(null); setSessionsOpts(null); setViewingTeacherId(null); setPage(p); }} profile={profile} lang={lang} setLang={setLang} open={open} setOpen={setOpen} onSignOut={handleSignOut} onNavClick={() => setPageKey(k => k + 1)} />
+      <Sidebar page={page} setPage={(p) => { setPracticeDeck(null); setSessionsOpts(null); setDecksOpts(null); setViewingTeacherId(null); setPage(p); }} profile={profile} lang={lang} setLang={setLang} open={open} setOpen={setOpen} onSignOut={handleSignOut} onNavClick={() => setPageKey(k => k + 1)} />
       <div style={{ marginLeft: open ? 210 : 56, flex: 1, transition: "margin-left .2s", minHeight: "100vh", background: C.bgSoft }}>
         {inPractice ? (
           <StudentJoin
@@ -384,10 +385,12 @@ export default function App() {
             setLang={setLang}
             profile={profile}
             onLaunchPractice={(deck) => setPracticeDeck(deck)}
-            onNavigateToDecks={() => setPage("decks")}
+            onNavigateToDecks={(opts) => { setDecksOpts(opts || null); setPage("decks"); }}
             onNavigateToSessions={(opts) => { setSessionsOpts(opts || {}); setPage("sessions"); }}
             sessionsOpts={page === "sessions" ? sessionsOpts : null}
             onConsumeSessionsOpts={() => setSessionsOpts(null)}
+            decksOpts={page === "decks" ? decksOpts : null}
+            onConsumeDecksOpts={() => setDecksOpts(null)}
             teacherId={page === "teacherProfile" ? viewingTeacherId : null}
             onNavigateToTeacher={(id) => { setViewingTeacherId(id); setPage("teacherProfile"); }}
             onNavigateToCommunity={() => { setViewingTeacherId(null); setPage("community"); }}

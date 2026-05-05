@@ -1065,7 +1065,13 @@ export default function SessionFlow({ lang = "en", setLang, onNavigateToDecks, s
   const handleClassCreated = (newClass) => {
     setClasses(prev => [newClass, ...prev]);
     setShowCreateClass(false);
-    setToast({ message: t.classCreated });
+    // Navigate to Decks with the new class focused so the teacher SEES where
+    // their class lives (and can immediately add a deck to it).
+    if (onNavigateToDecks) {
+      onNavigateToDecks({ focusClassId: newClass.id });
+    } else {
+      setToast({ message: t.classCreated });
+    }
   };
 
   const handleCancel = async () => {

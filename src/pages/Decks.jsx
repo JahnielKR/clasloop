@@ -38,6 +38,8 @@ const i18n = {
     noFollowing: "Nothing followed yet. Save or copy decks from other teachers to build your following list.",
     badgeCopy: "Copy", badgeFav: "Favorite",
     fromTeacher: "from",
+    emptyClassHint: "This class has no decks yet.",
+    addDeckToClass: "Create deck for this class",
     favoriteRemove: "Remove from favorites", favoriteAdd: "Add to favorites",
     title: "Title", titlePlaceholder: "e.g. French Revolution Review",
     description: "Description", descPlaceholder: "What this deck covers...",
@@ -97,6 +99,8 @@ const i18n = {
     noFollowing: "Aún no sigues nada. Guarda o copia decks de otros profes para empezar.",
     badgeCopy: "Copia", badgeFav: "Favorito",
     fromTeacher: "de",
+    emptyClassHint: "Esta clase aún no tiene decks.",
+    addDeckToClass: "Crear deck para esta clase",
     favoriteRemove: "Quitar de favoritos", favoriteAdd: "Agregar a favoritos",
     title: "Título", titlePlaceholder: "ej. Repaso Revolución Francesa",
     description: "Descripción", descPlaceholder: "Qué cubre este deck...",
@@ -156,6 +160,8 @@ const i18n = {
     noFollowing: "아직 팔로우한 항목이 없습니다. 다른 선생님의 덱을 저장하거나 복사하여 시작하세요.",
     badgeCopy: "복사", badgeFav: "즐겨찾기",
     fromTeacher: "—",
+    emptyClassHint: "이 수업에는 아직 덱이 없습니다.",
+    addDeckToClass: "이 수업을 위한 덱 만들기",
     favoriteRemove: "즐겨찾기에서 제거", favoriteAdd: "즐겨찾기에 추가",
     title: "제목", titlePlaceholder: "예: 프랑스 혁명 복습",
     description: "설명", descPlaceholder: "이 덱의 내용...",
@@ -394,14 +400,18 @@ function AutoResizeTextarea({ value, onChange, placeholder, minHeight = 44, maxH
   );
 }
 
-function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existingDeck }) {
+function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existingDeck, prefilledClassId = null }) {
   const [title, setTitle] = useState(existingDeck?.title || "");
   const [desc, setDesc] = useState(existingDeck?.description || "");
-  const [subject, setSubject] = useState(existingDeck?.subject || "");
-  const [grade, setGrade] = useState(existingDeck?.grade || "");
+  // If we're creating fresh AND a class was pre-selected (came from "Add deck"
+  // CTA inside an empty class group), copy the class's subject/grade as initial
+  // values. The editor will lock these because classId is set.
+  const prefilledClass = prefilledClassId ? userClasses.find(c => c.id === prefilledClassId) : null;
+  const [subject, setSubject] = useState(existingDeck?.subject || prefilledClass?.subject || "");
+  const [grade, setGrade] = useState(existingDeck?.grade || prefilledClass?.grade || "");
   const [deckLang, setDeckLang] = useState(existingDeck?.language || l);
   const [tags, setTags] = useState((existingDeck?.tags || []).join(", "));
-  const [classId, setClassId] = useState(existingDeck?.class_id || "");
+  const [classId, setClassId] = useState(existingDeck?.class_id || prefilledClassId || "");
   const [makePublic, setMakePublic] = useState(existingDeck?.is_public || false);
   const [activityType, setActivityType] = useState(existingDeck?.questions?.[0]?.type || "mcq");
   const [questions, setQuestions] = useState(existingDeck?.questions || []);
@@ -1942,7 +1952,7 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
 }
 
 // ─── Main ───────────────────────────────────────────
-export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onNavigateToSessions }) {
+export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onNavigateToSessions, decksOpts, onConsumeDecksOpts }) {
   const [lang, setLangLocal] = useState(pageLang);
   const setLang = pageSetLang || setLangLocal;
   const l = pageLang || lang;
@@ -1959,6 +1969,9 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
   const [userClasses, setUserClasses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(null);
+  // When the teacher clicks "+ Create deck" inside an empty class group, we
+  // remember which class so the editor can pre-fill it.
+  const [createForClassId, setCreateForClassId] = useState(null);
   // Organization controls
   const [search, setSearch] = useState("");
   const [filterSubject, setFilterSubject] = useState(""); // "" = all
@@ -1968,6 +1981,27 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
   const t = i18n[l] || i18n.en;
 
   useEffect(() => { loadData(); }, []);
+
+  // Cross-page navigation hint: when arriving from "Create class" in Sessions
+  // we get a focusClassId so we can show the teacher exactly where their new
+  // class lives. We switch to grouped-by-class, focus that class via filter,
+  // expand its group, and scroll to it. Then consume the opt so it doesn't fire
+  // again on re-renders (e.g. token refresh).
+  useEffect(() => {
+    if (!decksOpts?.focusClassId) return;
+    const id = decksOpts.focusClassId;
+    setTab("myDecks");
+    setGroupBy("class");
+    setFilterClass(id);
+    setExpandedGroups(prev => ({ ...prev, [id]: true }));
+    if (onConsumeDecksOpts) onConsumeDecksOpts();
+    // Scroll into view shortly after render
+    setTimeout(() => {
+      const el = document.querySelector(`[data-group-id="${id}"]`);
+      if (el && el.scrollIntoView) el.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 200);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [decksOpts?.focusClassId]);
 
   const loadData = async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -2027,10 +2061,10 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
     <div style={{ padding: "28px 20px" }}>
       <style>{css}</style>
       <PageHeader title={t.pageTitle} icon="book" lang={l} setLang={setLang} maxWidth={600} />
-      <CreateDeckEditor t={t} l={l} onBack={() => { setView("list"); setEditing(null); }} userId={userId} userClasses={userClasses} existingDeck={editing} onCreated={(d) => {
+      <CreateDeckEditor t={t} l={l} onBack={() => { setView("list"); setEditing(null); setCreateForClassId(null); }} userId={userId} userClasses={userClasses} existingDeck={editing} prefilledClassId={createForClassId} onCreated={(d) => {
         if (editing) setMyDecks(prev => prev.map(dk => dk.id === d.id ? d : dk));
         else setMyDecks(prev => [d, ...prev]);
-        setView("list"); setEditing(null);
+        setView("list"); setEditing(null); setCreateForClassId(null);
       }} />
     </div>
   );
@@ -2067,10 +2101,22 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
         byClass.get(key).push(d);
       });
       const result = [];
-      // Ordered by userClasses order, then unassigned at the end
+      // For "My Decks" we show every class the teacher owns — even empty ones —
+      // so newly-created classes are visible immediately and a + CTA appears
+      // inside, telling the teacher exactly where to add their first deck.
+      // For "Favorites" / "Following", only show classes that actually have
+      // matching decks (empty placeholder doesn't make sense for borrowed decks).
+      const showEmptyClasses = tab === "myDecks";
       userClasses.forEach(c => {
         if (byClass.has(c.id)) {
-          result.push({ key: c.id, label: c.name, sublabel: `${c.subject} · ${c.grade}`, icon: SUBJ_ICON[c.subject] || "book", decks: byClass.get(c.id) });
+          result.push({ key: c.id, label: c.name, sublabel: `${c.subject} · ${c.grade}`, icon: SUBJ_ICON[c.subject] || "book", decks: byClass.get(c.id), classObj: c });
+        } else if (showEmptyClasses) {
+          // Skip empty classes if a search/filter narrowed results — would be misleading
+          // to show "0 decks" when really the empty state is from filtering.
+          const isFiltered = !!search || !!filterSubject || (!!filterClass && filterClass !== c.id);
+          if (!isFiltered) {
+            result.push({ key: c.id, label: c.name, sublabel: `${c.subject} · ${c.grade}`, icon: SUBJ_ICON[c.subject] || "book", decks: [], classObj: c, isEmpty: true });
+          }
         }
       });
       if (byClass.has("__unassigned__")) {
@@ -2264,12 +2310,14 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
           <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
             {groups.map(group => {
               const collapsed = !expandedGroups[group.key];
-              // Tint header by deck color of the first deck in the group (when grouped by class/subject they share traits).
-              // Fallback to subject icon color via a neutral tint.
+              // Tint header by the class's subject color (when grouped by class
+              // and the group corresponds to a real class — even if empty), or
+              // by the first deck's color, or fall back to the accent.
               const firstDeck = group.decks[0];
-              const groupAccent = firstDeck ? resolveColor(firstDeck) : C.accent;
+              const subjAccent = group.classObj ? (SUBJ_COLOR?.[group.classObj.subject] || C.accent) : null;
+              const groupAccent = subjAccent || (firstDeck ? resolveColor(firstDeck) : C.accent);
               return (
-                <div key={group.key}>
+                <div key={group.key} data-group-id={group.key}>
                   {group.label && (
                     <button
                       onClick={() => toggleGroup(group.key)}
@@ -2309,9 +2357,37 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
                     </button>
                   )}
                   {!collapsed && (
-                    <div style={{ display: "flex", flexDirection: "column", gap: 10, paddingLeft: group.label ? 8 : 0 }}>
-                      {group.decks.map((dk, i) => renderDeckRow(dk, i, { isFav: tab === "favorites" || (tab === "following" && dk._kind === "fav") }))}
-                    </div>
+                    group.isEmpty ? (
+                      // Empty class — show a friendly CTA in the middle of the group
+                      <div style={{
+                        marginLeft: group.label ? 8 : 0,
+                        padding: "28px 20px",
+                        background: groupAccent + "08",
+                        border: `1px dashed ${groupAccent}44`,
+                        borderRadius: 12,
+                        textAlign: "center",
+                      }}>
+                        <p style={{ fontSize: 13, color: C.textSecondary, marginBottom: 14, fontFamily: "'Outfit',sans-serif" }}>
+                          {t.emptyClassHint}
+                        </p>
+                        <button
+                          onClick={() => { setCreateForClassId(group.classObj.id); setView("create"); }}
+                          style={{
+                            padding: "10px 20px", borderRadius: 10, fontSize: 13, fontWeight: 600,
+                            background: groupAccent, color: "#fff",
+                            border: "none", cursor: "pointer", fontFamily: "'Outfit',sans-serif",
+                            display: "inline-flex", alignItems: "center", gap: 6,
+                          }}
+                        >
+                          <span style={{ fontSize: 16, fontWeight: 700, lineHeight: 1 }}>+</span>
+                          {t.addDeckToClass}
+                        </button>
+                      </div>
+                    ) : (
+                      <div style={{ display: "flex", flexDirection: "column", gap: 10, paddingLeft: group.label ? 8 : 0 }}>
+                        {group.decks.map((dk, i) => renderDeckRow(dk, i, { isFav: tab === "favorites" || (tab === "following" && dk._kind === "fav") }))}
+                      </div>
+                    )
                   )}
                 </div>
               );
