@@ -3,7 +3,7 @@ import { supabase } from "../lib/supabase";
 import { CIcon } from "../components/Icons";
 import { Avatar as CatalogAvatar, AVATARS } from "../components/Avatars";
 import { getStudentStats } from "../lib/unlock-checker";
-import MobileMenuButton from "../components/MobileMenuButton";
+import MobileMenuButton, { useIsMobile } from "../components/MobileMenuButton";
 
 const C = {
   bg: "#FFFFFF", bgSoft: "#F7F7F5",
@@ -333,6 +333,7 @@ function AchModal({ avatar, unlocked, progress, lang, t, onClose }) {
 
 // ─── Main ─────────────────────────────────────────────────────────────────
 export default function Achievements({ lang = "en", setLang, profile = null, onOpenMobileMenu }) {
+  const isMobile = useIsMobile();
   const t = i18n[lang] || i18n.en;
   const [filter, setFilter] = useState("all"); // all | unlocked | locked
   const [rarityFilter, setRarityFilter] = useState("all"); // all | common | rare | legendary
@@ -523,7 +524,7 @@ export default function Achievements({ lang = "en", setLang, profile = null, onO
               }}
             >{t[f]}</button>
           ))}
-          <div style={{ width: 1, height: 28, background: C.border, margin: "0 4px" }} />
+          {!isMobile && <div style={{ width: 1, height: 28, background: C.border, margin: "0 4px" }} />}
           {["all", "common", "rare", "legendary"].map(r => (
             <button
               key={r}

@@ -416,7 +416,7 @@ export default function TeacherProfile({ teacherId, profile: viewerProfile, lang
             {t.noDecks}
           </p>
         ) : (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 14 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 14 }}>
             {decks.map(dk => {
               const tint = colorTint(dk, "0F");
               const qs = dk.questions || [];

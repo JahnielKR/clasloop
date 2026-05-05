@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabase";
 import { getClassRetentionOverview, getStudentProgress } from "../lib/spaced-repetition";
 import { CIcon } from "../components/Icons";
-import MobileMenuButton from "../components/MobileMenuButton";
+import MobileMenuButton, { useIsMobile } from "../components/MobileMenuButton";
 
 const C = {
   bg: "#FFFFFF", bgSoft: "#F7F7F5", accent: "#2383E2", accentSoft: "#E8F0FE",
@@ -75,6 +75,8 @@ const css = `
   .sd-lang:hover { background: #E8F0FE !important; color: #2383E2 !important; }
   @keyframes fadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
   .fade-up { animation: fadeUp .3s ease-out both; }
+  .sd-scroll-x { overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; -ms-overflow-style: none; }
+  .sd-scroll-x::-webkit-scrollbar { display: none; }
 `;
 
 const Bar = ({ value, max = 100, color = C.accent, h = 6 }) => (
@@ -101,6 +103,7 @@ function PageHeader({ title, icon, lang, setLang, maxWidth = 860, onOpenMobileMe
 }
 
 export default function Director({ lang: pageLang = "en", setLang: pageSetLang, onOpenMobileMenu }) {
+  const isMobile = useIsMobile();
   const [lang, setLangLocal] = useState(pageLang);
   const setLang = pageSetLang || setLangLocal;
   const l = pageLang || lang;
@@ -206,7 +209,10 @@ export default function Director({ lang: pageLang = "en", setLang: pageSetLang, 
         ) : (
           <>
             {/* Tabs */}
-            <div style={{ display: "flex", gap: 4, marginBottom: 20 }}>
+            <div className={isMobile ? "sd-scroll-x" : ""} style={{
+              display: "flex", gap: 4, marginBottom: 20,
+              ...(isMobile ? { flexWrap: "nowrap" } : {}),
+            }}>
               {[["overview", t.overview], ["byClass", t.byClass], ["students", t.students], ["alerts", t.alerts]].map(([id, label]) => (
                 <button key={id} className="sd-tab" onClick={() => setTab(id)} style={{
                   padding: "8px 16px", borderRadius: 8, fontSize: 13, fontWeight: 500,
@@ -214,6 +220,7 @@ export default function Director({ lang: pageLang = "en", setLang: pageSetLang, 
                   color: tab === id ? C.accent : C.textSecondary,
                   border: `1px solid ${tab === id ? C.accent + "33" : C.border}`,
                   display: "flex", alignItems: "center", gap: 6,
+                  whiteSpace: "nowrap", flexShrink: 0,
                 }}>
                   {label}
                   {id === "alerts" && alertCount > 0 && <span style={{ padding: "1px 6px", borderRadius: 10, background: C.red, color: "#fff", fontSize: 10, fontWeight: 700 }}>{alertCount}</span>}
@@ -330,22 +337,41 @@ export default function Director({ lang: pageLang = "en", setLang: pageSetLang, 
                   </div>
                 ) : (
                   <div className="sd-card" style={{ background: C.bg, borderRadius: 12, border: `1px solid ${C.border}`, overflow: "hidden" }}>
-                    <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", gap: 0, padding: "12px 16px", borderBottom: `1px solid ${C.border}`, fontSize: 12, fontWeight: 600, color: C.textMuted }}>
-                      <span>{t.students}</span><span>{t.className}</span><span>{t.retention}</span><span>{t.sessions}</span>
-                    </div>
-                    {[...allStudents].sort((a, b) => b.avgRetention - a.avgRetention).map((s, i) => (
-                      <div key={i} className="sd-row" style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", gap: 0, padding: "12px 16px", borderBottom: `1px solid ${C.border}`, alignItems: "center", background: i % 2 === 0 ? C.bgSoft : C.bg }}>
-                        <div>
-                          <div style={{ fontSize: 14, fontWeight: 500 }}>{s.name}</div>
-                          <div style={{ fontSize: 11, color: C.textMuted }}>{s.strongTopics} {t.strong.toLowerCase()} · {s.weakTopics} {t.weak.toLowerCase()}</div>
-                        </div>
-                        <span style={{ fontSize: 13, color: C.textSecondary }}>{s.className}</span>
-                        <div>
-                          <span style={{ fontSize: 14, fontWeight: 700, fontFamily: MONO, color: retCol(s.avgRetention) }}>{s.avgRetention}%</span>
-                          <div style={{ marginTop: 4 }}><Bar value={s.avgRetention} color={retCol(s.avgRetention)} h={4} /></div>
-                        </div>
-                        <span style={{ fontSize: 13, fontFamily: MONO }}>{s.topics.length}</span>
+                    {!isMobile && (
+                      <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", gap: 0, padding: "12px 16px", borderBottom: `1px solid ${C.border}`, fontSize: 12, fontWeight: 600, color: C.textMuted }}>
+                        <span>{t.students}</span><span>{t.className}</span><span>{t.retention}</span><span>{t.sessions}</span>
                       </div>
+                    )}
+                    {[...allStudents].sort((a, b) => b.avgRetention - a.avgRetention).map((s, i) => (
+                      isMobile ? (
+                        <div key={i} className="sd-row" style={{ padding: "12px 16px", borderBottom: `1px solid ${C.border}`, background: i % 2 === 0 ? C.bgSoft : C.bg }}>
+                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 8 }}>
+                            <div style={{ minWidth: 0, flex: 1 }}>
+                              <div style={{ fontSize: 14, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.name}</div>
+                              <div style={{ fontSize: 11, color: C.textMuted, marginTop: 2 }}>{s.className}</div>
+                            </div>
+                            <span style={{ fontSize: 16, fontWeight: 700, fontFamily: MONO, color: retCol(s.avgRetention), flexShrink: 0 }}>{s.avgRetention}%</span>
+                          </div>
+                          <div style={{ marginBottom: 8 }}><Bar value={s.avgRetention} color={retCol(s.avgRetention)} h={4} /></div>
+                          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: C.textMuted }}>
+                            <span>{s.strongTopics} {t.strong.toLowerCase()} · {s.weakTopics} {t.weak.toLowerCase()}</span>
+                            <span style={{ fontFamily: MONO }}>{s.topics.length} {t.sessions.toLowerCase()}</span>
+                          </div>
+                        </div>
+                      ) : (
+                        <div key={i} className="sd-row" style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", gap: 0, padding: "12px 16px", borderBottom: `1px solid ${C.border}`, alignItems: "center", background: i % 2 === 0 ? C.bgSoft : C.bg }}>
+                          <div>
+                            <div style={{ fontSize: 14, fontWeight: 500 }}>{s.name}</div>
+                            <div style={{ fontSize: 11, color: C.textMuted }}>{s.strongTopics} {t.strong.toLowerCase()} · {s.weakTopics} {t.weak.toLowerCase()}</div>
+                          </div>
+                          <span style={{ fontSize: 13, color: C.textSecondary }}>{s.className}</span>
+                          <div>
+                            <span style={{ fontSize: 14, fontWeight: 700, fontFamily: MONO, color: retCol(s.avgRetention) }}>{s.avgRetention}%</span>
+                            <div style={{ marginTop: 4 }}><Bar value={s.avgRetention} color={retCol(s.avgRetention)} h={4} /></div>
+                          </div>
+                          <span style={{ fontSize: 13, fontFamily: MONO }}>{s.topics.length}</span>
+                        </div>
+                      )
                     ))}
                   </div>
                 )}
