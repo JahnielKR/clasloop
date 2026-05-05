@@ -2199,11 +2199,17 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
     // Publishing — gate it if this is a copy of someone else's deck.
     let isAdapted = false;
     if (deck.copied_from_id) {
-      const { data: original } = await supabase
+      const { data: original, error: origErr } = await supabase
         .from("decks")
         .select("questions")
         .eq("id", deck.copied_from_id)
         .maybeSingle();
+
+      if (origErr) {
+        console.error("Failed to load original for derivation check:", origErr);
+        alert(t.publishBlockedLowEffort);
+        return;
+      }
 
       if (original) {
         const result = analyzeDerivation(original.questions, deck.questions);
@@ -2218,6 +2224,15 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
           return;
         }
         isAdapted = result.showAdaptedBadge;
+      } else {
+        // We have a copied_from_id but can't see the original. Could be:
+        //   - The original was deleted (uncommon)
+        //   - RLS is blocking us from reading it (the most likely case for
+        //     copies of someone else's deck — by default Supabase only lets
+        //     you read your own rows unless an explicit RLS policy allows it).
+        // In either case, we can't verify and the safe thing is to assume
+        // it's still derivative and force the "adapted" attribution on.
+        isAdapted = true;
       }
     }
 
