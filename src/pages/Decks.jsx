@@ -2188,9 +2188,11 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
 
   const handleTogglePublic = async (deck) => {
     const newPublic = !deck.is_public;
+    console.log("[publish-gate] click — deck:", deck.id, "title:", deck.title, "copied_from_id:", deck.copied_from_id, "going to public:", newPublic);
 
     // Un-publishing is always allowed.
     if (!newPublic) {
+      console.log("[publish-gate] un-publishing, no gate");
       await supabase.from("decks").update({ is_public: false, is_adapted: false }).eq("id", deck.id);
       setMyDecks(prev => prev.map(d => d.id === deck.id ? { ...d, is_public: false, is_adapted: false } : d));
       return;
@@ -2199,11 +2201,14 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
     // Publishing — gate it if this is a copy of someone else's deck.
     let isAdapted = false;
     if (deck.copied_from_id) {
+      console.log("[publish-gate] this is a copy, fetching original:", deck.copied_from_id);
       const { data: original, error: origErr } = await supabase
         .from("decks")
         .select("questions")
         .eq("id", deck.copied_from_id)
         .maybeSingle();
+
+      console.log("[publish-gate] original:", original, "error:", origErr);
 
       if (origErr) {
         console.error("Failed to load original for derivation check:", origErr);
@@ -2213,9 +2218,9 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
 
       if (original) {
         const result = analyzeDerivation(original.questions, deck.questions);
+        console.log("[publish-gate] derivation result:", result);
         if (!result.canPublish) {
-          // Tell the teacher why and bail. The setToast pattern doesn't exist
-          // here, so a friendly alert keeps things simple.
+          console.log("[publish-gate] BLOCKED:", result.status);
           alert(
             result.status === "identical"
               ? t.publishBlockedIdentical
@@ -2224,16 +2229,13 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
           return;
         }
         isAdapted = result.showAdaptedBadge;
+        console.log("[publish-gate] allowed, isAdapted:", isAdapted);
       } else {
-        // We have a copied_from_id but can't see the original. Could be:
-        //   - The original was deleted (uncommon)
-        //   - RLS is blocking us from reading it (the most likely case for
-        //     copies of someone else's deck — by default Supabase only lets
-        //     you read your own rows unless an explicit RLS policy allows it).
-        // In either case, we can't verify and the safe thing is to assume
-        // it's still derivative and force the "adapted" attribution on.
+        console.log("[publish-gate] no original found — assuming derivative");
         isAdapted = true;
       }
+    } else {
+      console.log("[publish-gate] not a copy, no gate");
     }
 
     await supabase.from("decks").update({ is_public: true, is_adapted: isAdapted }).eq("id", deck.id);
