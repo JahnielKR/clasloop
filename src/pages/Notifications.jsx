@@ -100,12 +100,12 @@ export default function Notifications({ lang: pageLang = "en", setLang: pageSetL
     const a = n._action;
     if (a.kind === "openCreateSession") {
       onNavigate("sessions", { focusClassId: a.classId, openCreateSession: true });
-    } else if (a.kind === "viewSessionResults") {
-      onNavigate("sessions", { focusSessionId: a.sessionId });
     } else if (a.kind === "openCreateClass") {
       onNavigate("sessions", { openCreateClass: true });
     } else if (a.kind === "joinSession") {
-      onNavigate("myClasses", { focusPin: a.pin });
+      // Take the student straight to the StudentJoin page with the PIN
+      // pre-filled so they can hit Enter and they're in.
+      onNavigate("studentJoin", { prefilledPin: a.pin });
     } else if (a.kind === "openMyClasses") {
       onNavigate("myClasses", {});
     }
@@ -166,8 +166,9 @@ export default function Notifications({ lang: pageLang = "en", setLang: pageSetL
               title: `${t.sessionCompleted}: ${sess.topic}`,
               desc: `${t.avgScore}: ${avg}% · ${participants} ${t.students}`,
               time: new Date(sess.completed_at || sess.created_at),
-              action: t.viewResults,
-              _action: { kind: "viewSessionResults", sessionId: sess.id },
+              // Note: intentionally no action/_action — there's no dedicated
+              // session-results view yet. The notif stays informational until
+              // we build that view; clicking the card itself also no-ops.
             });
           }
         }

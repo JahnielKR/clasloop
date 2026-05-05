@@ -146,13 +146,19 @@ const css = `
 
 // ─── PageHeader ────────────────────────────────────────────────────────────
 // ─── Step 1: Deck Picker ───────────────────────────────────────────────────
-function DeckPicker({ userId, t, onPick, navigateToDecks }) {
+function DeckPicker({ userId, t, onPick, navigateToDecks, initialClassFilter = "" }) {
   const [decks, setDecks] = useState([]);
   const [classes, setClasses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [filterSubject, setFilterSubject] = useState("");
-  const [filterClass, setFilterClass] = useState("");
+  const [filterClass, setFilterClass] = useState(initialClassFilter);
+
+  // If the prop changes after mount (e.g. user clicked a notif and we routed
+  // them here with a class focus), pick that up.
+  useEffect(() => {
+    if (initialClassFilter) setFilterClass(initialClassFilter);
+  }, [initialClassFilter]);
 
   useEffect(() => {
     (async () => {
@@ -996,6 +1002,17 @@ export default function SessionFlow({ lang = "en", setLang, onNavigateToDecks, s
     }
   }, [sessionsOpts, onConsumeSessionsOpts]);
 
+  // If we arrived with a class focus (e.g. from a notification's "Review now"),
+  // we let DeckPicker pick it up via initialClassFilter; once that prop has
+  // landed, clear the opts so we don't re-apply the filter on every nav.
+  useEffect(() => {
+    if (sessionsOpts?.focusClassId && onConsumeSessionsOpts) {
+      // Defer one tick so DeckPicker's mount effect reads the prop first.
+      const t = setTimeout(() => onConsumeSessionsOpts(), 0);
+      return () => clearTimeout(t);
+    }
+  }, [sessionsOpts, onConsumeSessionsOpts]);
+
   // Auto-dismiss toast after 3s
   useEffect(() => {
     if (!toast) return;
@@ -1111,6 +1128,7 @@ export default function SessionFlow({ lang = "en", setLang, onNavigateToDecks, s
               t={t}
               onPick={(dk) => { setSelectedDeck(dk); setStep("options"); }}
               navigateToDecks={onNavigateToDecks || (() => {})}
+              initialClassFilter={sessionsOpts?.focusClassId || ""}
             />
           </>
         )}

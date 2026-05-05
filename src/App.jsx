@@ -257,6 +257,7 @@ export default function App() {
   const [notifsCount, setNotifsCount] = useState(0);
   const [sessionsOpts, setSessionsOpts] = useState(null); // options passed when navigating to sessions (e.g. {openCreateClass:true})
   const [decksOpts, setDecksOpts] = useState(null); // options passed when navigating to decks (e.g. {focusClassId})
+  const [studentJoinOpts, setStudentJoinOpts] = useState(null); // options for StudentJoin (e.g. {prefilledPin: "123456"} from notif "Join now")
   // When viewing a public teacher profile (via /teacher/:id link or click in
   // Community), this holds the id. We read the URL once at mount and then
   // immediately clean it — otherwise tab focus / token refresh / OAuth bounces
@@ -499,7 +500,7 @@ export default function App() {
       )}
       <Sidebar
         page={page}
-        setPage={(p) => { setPracticeDeck(null); setSessionsOpts(null); setDecksOpts(null); setViewingTeacherId(null); setPage(p); }}
+        setPage={(p) => { setPracticeDeck(null); setSessionsOpts(null); setDecksOpts(null); setStudentJoinOpts(null); setViewingTeacherId(null); setPage(p); }}
         profile={profile}
         lang={lang}
         setLang={setLang}
@@ -536,6 +537,7 @@ export default function App() {
             onConsumeSessionsOpts={() => setSessionsOpts(null)}
             decksOpts={page === "decks" ? decksOpts : null}
             onConsumeDecksOpts={() => setDecksOpts(null)}
+            prefilledPin={page === "studentJoin" ? (studentJoinOpts?.prefilledPin || "") : ""}
             teacherId={page === "teacherProfile" ? viewingTeacherId : null}
             onNavigateToTeacher={(id) => { setViewingTeacherId(id); setPage("teacherProfile"); }}
             onNavigateToCommunity={() => { setViewingTeacherId(null); setPage("community"); }}
@@ -550,6 +552,9 @@ export default function App() {
                 setPage("decks");
               } else if (targetPage === "myClasses") {
                 setPage("myClasses");
+              } else if (targetPage === "studentJoin") {
+                setStudentJoinOpts(opts || null);
+                setPage("studentJoin");
               } else {
                 setPage(targetPage);
               }

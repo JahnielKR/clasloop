@@ -246,14 +246,14 @@ const evaluateAnswer = (q, type, raw) => {
   }
 };
 
-export default function StudentJoin({ lang: pageLang = "en", profile = null, practiceDeck = null, onPracticeExit = null, guestMode = false, guestPin = "", guestName = "", guestToken = "", onGuestKicked = null }) {
+export default function StudentJoin({ lang: pageLang = "en", profile = null, practiceDeck = null, onPracticeExit = null, guestMode = false, guestPin = "", guestName = "", guestToken = "", onGuestKicked = null, prefilledPin = "" }) {
   // Practice mode: start straight in the quiz with the deck's questions, no PIN, no live session.
   const isPractice = Boolean(practiceDeck);
   // Guest mode: prefilled pin + name from the /join page; no profile linkage.
   const isGuest = Boolean(guestMode);
 
   const [step, setStep] = useState(isPractice ? "quiz" : (isGuest ? "joining" : "join"));
-  const [pin, setPin] = useState(isGuest ? guestPin : "");
+  const [pin, setPin] = useState(isGuest ? guestPin : (prefilledPin || ""));
   const [name, setName] = useState(isGuest ? guestName : (profile?.full_name || ""));
   const isLoggedIn = !isGuest && Boolean(profile?.full_name);
   const [error, setError] = useState("");
