@@ -2,17 +2,15 @@ import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabase";
 import { getClassRetentionOverview, getStudentProgress } from "../lib/spaced-repetition";
 import { CIcon } from "../components/Icons";
-import MobileMenuButton, { useIsMobile } from "../components/MobileMenuButton";
+import { useIsMobile } from "../components/MobileMenuButton";
+import PageHeader from "../components/PageHeader";
+import { C as BASE_C, MONO } from "../components/tokens";
 
-const C = {
-  bg: "#FFFFFF", bgSoft: "#F7F7F5", accent: "#2383E2", accentSoft: "#E8F0FE",
-  green: "#0F7B6C", greenSoft: "#EEFBF5", orange: "#D9730D", orangeSoft: "#FFF3E0",
-  red: "#E03E3E", redSoft: "#FDECEC", purple: "#6940A5", purpleSoft: "#F3EEFB",
-  yellow: "#D4A017",
-  text: "#191919", textSecondary: "#6B6B6B", textMuted: "#9B9B9B",
-  border: "#E8E8E4", shadow: "0 1px 3px rgba(0,0,0,0.04)",
-};
-const MONO = "'JetBrains Mono', monospace";
+// Director adds a single yellow accent (used for warning-tier indicators
+// in the dashboard). No paired yellowSoft because Director uses bgSoft for
+// soft backgrounds when needed.
+const C = { ...BASE_C, yellow: "#D4A017" };
+
 const retCol = (v) => v >= 70 ? C.green : v >= 40 ? C.orange : C.red;
 
 const i18n = {
@@ -85,26 +83,6 @@ const Bar = ({ value, max = 100, color = C.accent, h = 6 }) => (
   </div>
 );
 
-function PageHeader({ title, icon, lang, setLang, maxWidth = 860, onOpenMobileMenu }) {
-  const isMobile = useIsMobile();
-  const langSel = { fontFamily: "'Outfit',sans-serif", background: C.bg, border: `1px solid ${C.border}`, color: C.text, borderRadius: 8, outline: "none", cursor: "pointer", appearance: "none", backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2 4l4 4 4-4' fill='none' stroke='%239B9B9B' stroke-width='1.5'/%3E%3C/svg%3E")`, backgroundRepeat: "no-repeat", backgroundPosition: "right 12px center", padding: "6px 26px 6px 10px", fontSize: 12, width: "auto", flexShrink: 0 };
-  return (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, maxWidth, margin: "0 auto 24px", paddingBottom: 18, borderBottom: `1px solid ${C.border}` }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
-        <MobileMenuButton onOpen={onOpenMobileMenu} />
-        <h1 style={{ fontFamily: "'Outfit',sans-serif", fontSize: isMobile ? 18 : 22, fontWeight: 700, color: C.text, display: "flex", alignItems: "center", gap: 10 }}>
-          <CIcon name={icon} size={isMobile ? 18 : 22} /> {title}
-        </h1>
-      </div>
-      {!isMobile && (
-        <select value={lang} onChange={(e) => setLang(e.target.value)} style={langSel}>
-          <option value="en">EN</option><option value="es">ES</option><option value="ko">한</option>
-        </select>
-      )}
-    </div>
-  );
-}
-
 export default function Director({ lang: pageLang = "en", setLang: pageSetLang, onOpenMobileMenu }) {
   const isMobile = useIsMobile();
   const [lang, setLangLocal] = useState(pageLang);
@@ -165,7 +143,7 @@ export default function Director({ lang: pageLang = "en", setLang: pageSetLang, 
   if (loading) return (
     <div style={{ padding: "28px 20px" }}>
       <style>{css}</style>
-      <PageHeader title={t.pageTitle} icon="school" lang={l} setLang={setLang} onOpenMobileMenu={onOpenMobileMenu} />
+      <PageHeader title={t.pageTitle} icon="school" lang={l} setLang={setLang} maxWidth={860} onOpenMobileMenu={onOpenMobileMenu} />
       <p style={{ textAlign: "center", color: C.textMuted, padding: 40 }}>{t.loading}</p>
     </div>
   );
@@ -199,7 +177,7 @@ export default function Director({ lang: pageLang = "en", setLang: pageSetLang, 
   return (
     <div style={{ padding: "28px 20px" }}>
       <style>{css}</style>
-      <PageHeader title={t.pageTitle} icon="school" lang={l} setLang={setLang} onOpenMobileMenu={onOpenMobileMenu} />
+      <PageHeader title={t.pageTitle} icon="school" lang={l} setLang={setLang} maxWidth={860} onOpenMobileMenu={onOpenMobileMenu} />
 
       <div style={{ maxWidth: 860, margin: "0 auto" }}>
         <p style={{ fontSize: 14, color: C.textSecondary, marginBottom: 20 }}>{t.subtitle}</p>

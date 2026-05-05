@@ -3,20 +3,13 @@ import { supabase } from "../lib/supabase";
 import { CIcon } from "../components/Icons";
 import { Avatar as CatalogAvatar, AVATARS } from "../components/Avatars";
 import { getStudentStats } from "../lib/unlock-checker";
-import MobileMenuButton, { useIsMobile } from "../components/MobileMenuButton";
+import { useIsMobile } from "../components/MobileMenuButton";
+import PageHeader from "../components/PageHeader";
+import { C as BASE_C, MONO } from "../components/tokens";
 
-const C = {
-  bg: "#FFFFFF", bgSoft: "#F7F7F5",
-  accent: "#2383E2", accentSoft: "#E8F0FE",
-  green: "#0F7B6C", greenSoft: "#EEFBF5",
-  orange: "#D9730D", orangeSoft: "#FFF3E0",
-  red: "#E03E3E", redSoft: "#FDECEC",
-  purple: "#6940A5", purpleSoft: "#F3EEFB",
-  pink: "#D34185", pinkSoft: "#FCE8F0",
-  text: "#191919", textSecondary: "#6B6B6B", textMuted: "#9B9B9B",
-  border: "#E8E8E4", shadow: "0 1px 3px rgba(0,0,0,0.04)",
-};
-const MONO = "'JetBrains Mono', monospace";
+// Achievements adds two domain-specific colors (pink for "rare" tier
+// avatars) on top of the shared palette.
+const C = { ...BASE_C, pink: "#D34185", pinkSoft: "#FCE8F0" };
 
 const RARITY = {
   common:    { bg: C.bgSoft,    border: C.border,        text: C.textSecondary, label: { en: "Common",    es: "Común",      ko: "일반"   } },
@@ -97,14 +90,6 @@ const i18n = {
   },
 };
 
-const sel = {
-  fontFamily: "'Outfit',sans-serif", background: C.bg, border: `1px solid ${C.border}`,
-  color: C.text, borderRadius: 8, outline: "none", cursor: "pointer", appearance: "none",
-  backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2 4l4 4 4-4' fill='none' stroke='%239B9B9B' stroke-width='1.5'/%3E%3C/svg%3E")`,
-  backgroundRepeat: "no-repeat", backgroundPosition: "right 12px center",
-  padding: "6px 26px 6px 10px", fontSize: 12, width: "auto", flexShrink: 0,
-};
-
 const css = `
   .ach-card { transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease; cursor: pointer; }
   .ach-card:hover { transform: translateY(-2px); box-shadow: 0 4px 14px rgba(0,0,0,0.08); }
@@ -158,25 +143,6 @@ function unlockText(unlock, t) {
     case "retention": return t.cond_retention.replace("{n}", unlock.min);
     default: return "";
   }
-}
-
-function PageHeader({ title, lang, setLang, maxWidth = 800, onOpenMobileMenu }) {
-  const isMobile = useIsMobile();
-  return (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, maxWidth, margin: "0 auto 24px", paddingBottom: 18, borderBottom: `1px solid ${C.border}` }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
-        <MobileMenuButton onOpen={onOpenMobileMenu} />
-        <h1 style={{ fontFamily: "'Outfit',sans-serif", fontSize: isMobile ? 18 : 22, fontWeight: 700, color: C.text, display: "flex", alignItems: "center", gap: 10 }}>
-          <CIcon name="trophy" size={isMobile ? 18 : 22} /> {title}
-        </h1>
-      </div>
-      {!isMobile && (
-        <select value={lang} onChange={(e) => setLang(e.target.value)} style={sel}>
-          <option value="en">EN</option><option value="es">ES</option><option value="ko">한</option>
-        </select>
-      )}
-    </div>
-  );
 }
 
 // ─── Card per avatar ──────────────────────────────────────────────────────
@@ -402,7 +368,7 @@ export default function Achievements({ lang = "en", setLang, profile = null, onO
     return (
       <div style={{ padding: "28px 20px" }}>
         <style>{css}</style>
-        <PageHeader title={t.pageTitle} lang={lang} setLang={setLang} onOpenMobileMenu={onOpenMobileMenu} />
+        <PageHeader title={t.pageTitle} icon="trophy" lang={lang} setLang={setLang} onOpenMobileMenu={onOpenMobileMenu} />
         <div className="ach-fade" style={{ maxWidth: 480, margin: "60px auto", textAlign: "center", padding: "20px" }}>
           <div style={{
             width: 64, height: 64, borderRadius: "50%",
@@ -427,7 +393,7 @@ export default function Achievements({ lang = "en", setLang, profile = null, onO
     return (
       <div style={{ padding: "28px 20px" }}>
         <style>{css}</style>
-        <PageHeader title={t.pageTitle} lang={lang} setLang={setLang} onOpenMobileMenu={onOpenMobileMenu} />
+        <PageHeader title={t.pageTitle} icon="trophy" lang={lang} setLang={setLang} onOpenMobileMenu={onOpenMobileMenu} />
         <p style={{ textAlign: "center", color: C.textMuted, padding: 40 }}>{t.loading}</p>
       </div>
     );
@@ -436,7 +402,7 @@ export default function Achievements({ lang = "en", setLang, profile = null, onO
   return (
     <div style={{ padding: "28px 20px" }}>
       <style>{css}</style>
-      <PageHeader title={t.pageTitle} lang={lang} setLang={setLang} onOpenMobileMenu={onOpenMobileMenu} />
+      <PageHeader title={t.pageTitle} icon="trophy" lang={lang} setLang={setLang} onOpenMobileMenu={onOpenMobileMenu} />
       {selected && (
         <AchModal
           avatar={selected.avatar}

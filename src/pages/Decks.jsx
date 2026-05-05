@@ -4,17 +4,14 @@ import { CIcon } from "../components/Icons";
 import { DeckCover, DECK_COLORS, DECK_ICONS, DEFAULT_DECK_COLOR, DEFAULT_DECK_ICON, SUBJ_ICON, SUBJ_COLOR, PRESET_PATTERNS, presetToDataUrl, resolveColor, colorTint } from "../lib/deck-cover";
 import { uploadDeckCover, deleteDeckCover } from "../lib/deck-image-upload";
 import { analyzeDerivation } from "../lib/deck-derivation";
-import MobileMenuButton, { useIsMobile } from "../components/MobileMenuButton";
+import { useIsMobile } from "../components/MobileMenuButton";
+import PageHeader from "../components/PageHeader";
+import { C as BASE_C, MONO } from "../components/tokens";
 
-const C = {
-  bg: "#FFFFFF", bgSoft: "#F7F7F5", accent: "#2383E2", accentSoft: "#E8F0FE",
-  green: "#0F7B6C", greenSoft: "#EEFBF5", orange: "#D9730D", orangeSoft: "#FFF3E0",
-  red: "#E03E3E", redSoft: "#FDECEC", purple: "#6940A5", purpleSoft: "#F3EEFB",
-  yellow: "#D4A017", yellowSoft: "#FEF9E7",
-  text: "#191919", textSecondary: "#6B6B6B", textMuted: "#9B9B9B",
-  border: "#E8E8E4", shadow: "0 1px 3px rgba(0,0,0,0.04)",
-};
-const MONO = "'JetBrains Mono', monospace";
+// Decks-specific extension: yellow tints used on the deck list (badges,
+// favorite-derived borders, etc.).
+const C = { ...BASE_C, yellow: "#D4A017", yellowSoft: "#FEF9E7" };
+
 const SUBJECTS = ["Math", "Science", "History", "Language", "Geography", "Art", "Music", "Other"];
 const GRADES = ["6th-7th", "7th-8th", "8th-9th", "9th-10th", "10th-11th", "11th-12th"];
 
@@ -371,25 +368,6 @@ const LangBadge = ({ lang }) => {
   const c = { en: C.accent, es: C.orange, ko: C.green };
   return <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 6px", borderRadius: 4, background: (c[lang] || C.accent) + "14", color: c[lang] || C.accent }}>{l[lang] || lang}</span>;
 };
-
-function PageHeader({ title, icon, lang, setLang, maxWidth = 800, onOpenMobileMenu }) {
-  const isMobile = useIsMobile();
-  return (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, maxWidth, margin: "0 auto 24px", paddingBottom: 18, borderBottom: `1px solid ${C.border}` }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
-        <MobileMenuButton onOpen={onOpenMobileMenu} />
-        <h1 style={{ fontFamily: "'Outfit',sans-serif", fontSize: isMobile ? 18 : 22, fontWeight: 700, color: C.text, display: "flex", alignItems: "center", gap: 10 }}>
-          <CIcon name={icon} size={isMobile ? 18 : 22} /> {title}
-        </h1>
-      </div>
-      {!isMobile && (
-        <select value={lang} onChange={(e) => setLang(e.target.value)} style={{ ...sel, width: "auto", fontSize: 12, padding: "6px 26px 6px 10px" }}>
-          <option value="en">EN</option><option value="es">ES</option><option value="ko">한</option>
-        </select>
-      )}
-    </div>
-  );
-}
 
 // ─── Create Deck Editor ─────────────────────────────
 // ─── Live preview of a deck card while editing ──────────────────────────────
