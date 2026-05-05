@@ -221,6 +221,10 @@ const css = `
   .dk-group-header { transition: all .18s ease; cursor: pointer; }
   .dk-group-header:hover { transform: translateY(-1px); box-shadow: 0 3px 10px rgba(0,0,0,0.06); filter: brightness(0.98); }
   .dk-group-header:active { transform: translateY(0); }
+  .dk-plus-tile { position: relative; }
+  .dk-plus-tile:hover { background: var(--accent, #2383E2)15 !important; border-color: var(--accent, #2383E2)88 !important; }
+  .dk-plus-tile:hover .dk-plus-icon { transform: rotate(180deg) scale(1.08); background: var(--accent, #2383E2)33 !important; box-shadow: 0 0 0 6px var(--accent, #2383E2)10; }
+  .dk-plus-tile:active .dk-plus-icon { transform: rotate(180deg) scale(.95); }
   .dk-btn { transition: all .15s ease; cursor: pointer; border: none; font-family: 'Outfit',sans-serif; }
   .dk-btn:hover { transform: translateY(-1px); filter: brightness(1.05); }
   .dk-btn-secondary:hover { background: #E8F0FE !important; border-color: #2383E244 !important; color: #2383E2 !important; }
@@ -1984,15 +1988,14 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
 
   // Cross-page navigation hint: when arriving from "Create class" in Sessions
   // we get a focusClassId so we can show the teacher exactly where their new
-  // class lives. We switch to grouped-by-class, focus that class via filter,
-  // expand its group, and scroll to it. Then consume the opt so it doesn't fire
-  // again on re-renders (e.g. token refresh).
+  // class lives. We switch to grouped-by-class and expand that class's group +
+  // scroll to it — but we DON'T set filterClass, so all classes stay visible
+  // (otherwise the screen would only show the new class and feel empty).
   useEffect(() => {
     if (!decksOpts?.focusClassId) return;
     const id = decksOpts.focusClassId;
     setTab("myDecks");
     setGroupBy("class");
-    setFilterClass(id);
     setExpandedGroups(prev => ({ ...prev, [id]: true }));
     if (onConsumeDecksOpts) onConsumeDecksOpts();
     // Scroll into view shortly after render
@@ -2358,29 +2361,34 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
                   )}
                   {!collapsed && (
                     group.isEmpty ? (
-                      // Empty class — show a friendly CTA in the middle of the group
-                      <div style={{
-                        marginLeft: group.label ? 8 : 0,
-                        padding: "28px 20px",
-                        background: groupAccent + "08",
-                        border: `1px dashed ${groupAccent}44`,
-                        borderRadius: 12,
-                        textAlign: "center",
-                      }}>
-                        <p style={{ fontSize: 13, color: C.textSecondary, marginBottom: 14, fontFamily: "'Outfit',sans-serif" }}>
-                          {t.emptyClassHint}
-                        </p>
+                      // Empty class — minimal "+" tile that rotates on hover
+                      <div style={{ marginLeft: group.label ? 8 : 0 }}>
                         <button
                           onClick={() => { setCreateForClassId(group.classObj.id); setView("create"); }}
+                          className="dk-plus-tile"
+                          aria-label={t.addDeckToClass}
+                          title={t.addDeckToClass}
                           style={{
-                            padding: "10px 20px", borderRadius: 10, fontSize: 13, fontWeight: 600,
-                            background: groupAccent, color: "#fff",
-                            border: "none", cursor: "pointer", fontFamily: "'Outfit',sans-serif",
-                            display: "inline-flex", alignItems: "center", gap: 6,
+                            width: "100%",
+                            padding: "32px 20px",
+                            background: groupAccent + "08",
+                            border: `1.5px dashed ${groupAccent}55`,
+                            borderRadius: 12,
+                            cursor: "pointer",
+                            display: "flex", alignItems: "center", justifyContent: "center",
+                            color: groupAccent,
+                            fontFamily: "'Outfit',sans-serif",
+                            transition: "background .2s ease, border-color .2s ease",
+                            "--accent": groupAccent,
                           }}
                         >
-                          <span style={{ fontSize: 16, fontWeight: 700, lineHeight: 1 }}>+</span>
-                          {t.addDeckToClass}
+                          <span className="dk-plus-icon" style={{
+                            display: "inline-flex", alignItems: "center", justifyContent: "center",
+                            width: 44, height: 44, borderRadius: "50%",
+                            background: groupAccent + "1A",
+                            transition: "transform .35s cubic-bezier(.4,1.6,.5,1), background .2s ease, box-shadow .2s ease",
+                            fontSize: 26, fontWeight: 300, lineHeight: 1,
+                          }}>+</span>
                         </button>
                       </div>
                     ) : (
