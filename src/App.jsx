@@ -25,6 +25,28 @@ const C = {
 };
 const COMPONENTS = { sessions: SessionFlow, studentJoin: StudentJoin, mainApp: MainApp, landing: Landing, onboarding: Onboarding, community: Community, achievements: Achievements, settings: Settings, director: Director, notifications: Notifications, decks: Decks, myClasses: MyClasses, teacherProfile: TeacherProfile };
 
+// Mobile breakpoint = 768px. We listen via matchMedia so resizing / device
+// rotation flips the layout cleanly without re-mounting components.
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return window.matchMedia("(max-width: 768px)").matches;
+  });
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const mq = window.matchMedia("(max-width: 768px)");
+    const onChange = (e) => setIsMobile(e.matches);
+    // Safari < 14 uses addListener instead of addEventListener
+    if (mq.addEventListener) mq.addEventListener("change", onChange);
+    else mq.addListener(onChange);
+    return () => {
+      if (mq.removeEventListener) mq.removeEventListener("change", onChange);
+      else mq.removeListener(onChange);
+    };
+  }, []);
+  return isMobile;
+}
+
 function AuthScreen() {
   const [mode, setMode] = useState("select");
   const [role, setRole] = useState("teacher");
@@ -105,7 +127,7 @@ function AuthScreen() {
   );
 }
 
-function Sidebar({ page, setPage, profile, lang, setLang, open, setOpen, onSignOut, onNavClick }) {
+function Sidebar({ page, setPage, profile, lang, setLang, open, setOpen, onSignOut, onNavClick, isMobile, mobileDrawerOpen, setMobileDrawerOpen }) {
   // Default to teacher unless we know for sure they're a student
   // This prevents the sidebar from flipping during token refresh
   const isT = profile ? profile.role === "teacher" : (page === "sessions" || page === "decks" || page === "director");
@@ -113,30 +135,62 @@ function Sidebar({ page, setPage, profile, lang, setLang, open, setOpen, onSignO
     ? [{ id:"sessions",icon:(a)=><SessionsIcon size={28} active={a}/>,l:"Sessions" },{ id:"decks",icon:(a)=><DecksIcon size={28} active={a}/>,l:"Decks" },{ id:"director",icon:(a)=><SchoolIcon size={28} active={a}/>,l:"School" },{ id:"community",icon:(a)=><CommunityIcon size={28} active={a}/>,l:"Community" },{ id:"notifications",icon:(a)=><NotificationsIcon size={28} active={a}/>,l:"Notifications" },{ id:"settings",icon:(a)=><SettingsIcon size={28} active={a}/>,l:"Settings" }]
     : [{ id:"myClasses",icon:(a)=><SchoolIcon size={28} active={a}/>,l:"My Classes" },{ id:"studentJoin",icon:(a)=><JoinSessionIcon size={28} active={a}/>,l:"Join Session" },{ id:"achievements",icon:(a)=><AchievementsIcon size={28} active={a}/>,l:"Achievements" },{ id:"community",icon:(a)=><CommunityIcon size={28} active={a}/>,l:"Community" },{ id:"settings",icon:(a)=><SettingsIcon size={28} active={a}/>,l:"Settings" }];
 
+  // In mobile, the sidebar acts as a drawer: full-width-ish, slides in from
+  // the left, always shows labels (no collapsed state). In desktop it keeps
+  // its existing collapsible behavior — completely untouched.
+  const sidebarWidth = isMobile ? 240 : (open ? 210 : 56);
+  const showLabels = isMobile ? true : open;
+  const sidebarTransform = isMobile && !mobileDrawerOpen ? "translateX(-100%)" : "translateX(0)";
+
+  // In mobile, every nav action also closes the drawer.
+  const handleNav = (cb) => {
+    cb();
+    if (onNavClick) onNavClick();
+    if (isMobile) setMobileDrawerOpen(false);
+  };
+
   return (
-    <div style={{ width: open ? 210 : 56, background: C.bg, borderRight: `1px solid ${C.border}`, display: "flex", flexDirection: "column", height: "100vh", position: "fixed", left: 0, top: 0, zIndex: 50, transition: "width .2s", overflow: "hidden" }}>
+    <div style={{
+      width: sidebarWidth,
+      background: C.bg,
+      borderRight: `1px solid ${C.border}`,
+      display: "flex",
+      flexDirection: "column",
+      height: "100vh",
+      position: "fixed",
+      left: 0,
+      top: 0,
+      zIndex: 60,
+      transition: isMobile ? "transform .25s ease" : "width .2s",
+      overflow: "hidden",
+      transform: sidebarTransform,
+      boxShadow: isMobile && mobileDrawerOpen ? "0 0 24px rgba(0,0,0,.12)" : "none",
+    }}>
       <div style={{ padding: "14px 12px 8px", display: "flex", alignItems: "center", justifyContent: "space-between", minHeight: 50 }}>
-        {open && <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+        {showLabels && <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
           <LogoMark size={26} />
           <span style={{ fontSize: 15, fontWeight: 700, letterSpacing: "-.03em", fontFamily: "'Outfit',sans-serif" }}>clasloop</span>
         </div>}
-        {!open && <LogoMark size={26} />}
-        {open && <button className="cl-collapse" onClick={() => setOpen(!open)} style={{ width: 26, height: 26, borderRadius: 6, background: C.bgSoft, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, color: C.textMuted, flexShrink: 0, border: "none", cursor: "pointer" }}>◀</button>}
+        {!showLabels && <LogoMark size={26} />}
+        {/* Desktop collapse arrow — hidden in mobile */}
+        {!isMobile && open && <button className="cl-collapse" onClick={() => setOpen(!open)} style={{ width: 26, height: 26, borderRadius: 6, background: C.bgSoft, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, color: C.textMuted, flexShrink: 0, border: "none", cursor: "pointer" }}>◀</button>}
+        {/* Mobile close (×) — only when drawer is open */}
+        {isMobile && <button onClick={() => setMobileDrawerOpen(false)} aria-label="Close menu" style={{ width: 32, height: 32, borderRadius: 8, background: C.bgSoft, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, lineHeight: 1, color: C.textSecondary, flexShrink: 0, border: "none", cursor: "pointer" }}>×</button>}
       </div>
-      {!open && <button className="cl-collapse" onClick={() => setOpen(true)} style={{ margin: "4px 6px", padding: "6px", borderRadius: 6, background: C.bgSoft, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, color: C.textMuted, border: "none", cursor: "pointer" }}>▶</button>}
+      {!isMobile && !open && <button className="cl-collapse" onClick={() => setOpen(true)} style={{ margin: "4px 6px", padding: "6px", borderRadius: 6, background: C.bgSoft, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, color: C.textMuted, border: "none", cursor: "pointer" }}>▶</button>}
       <div style={{ flex: 1, overflow: "auto", padding: "0 6px" }}>
         {nav.map(n => {
           const isActive = page === n.id;
-          return <button key={n.id} className={isActive ? "cl-nav cl-nav-active" : "cl-nav"} onClick={() => { setPage(n.id); if (onNavClick) onNavClick(); }} style={{ display: "flex", alignItems: "center", gap: 10, padding: open?"9px 10px":"9px", borderRadius: 8, width: "100%", background: isActive?C.accentSoft:"transparent", fontSize: 13, fontWeight: isActive?600:500, color: isActive?C.accent:C.textSecondary, marginBottom: 2, textAlign: "left", justifyContent: open?"flex-start":"center", border: "none", cursor: "pointer" }}>
-            <span style={{ flexShrink: 0, display: "flex", alignItems: "center" }}>{n.icon(isActive)}</span>{open && n.l}
+          return <button key={n.id} className={isActive ? "cl-nav cl-nav-active" : "cl-nav"} onClick={() => handleNav(() => setPage(n.id))} style={{ display: "flex", alignItems: "center", gap: 10, padding: showLabels?"9px 10px":"9px", borderRadius: 8, width: "100%", background: isActive?C.accentSoft:"transparent", fontSize: 13, fontWeight: isActive?600:500, color: isActive?C.accent:C.textSecondary, marginBottom: 2, textAlign: "left", justifyContent: showLabels?"flex-start":"center", border: "none", cursor: "pointer" }}>
+            <span style={{ flexShrink: 0, display: "flex", alignItems: "center" }}>{n.icon(isActive)}</span>{showLabels && n.l}
           </button>;
         })}
       </div>
       <div style={{ padding: "10px 12px", borderTop: `1px solid ${C.border}` }}>
-        {open ? <>
+        {showLabels ? <>
           <button
             className="cl-profile-chip"
-            onClick={() => { setPage("settings"); if (onNavClick) onNavClick(); }}
+            onClick={() => handleNav(() => setPage("settings"))}
             title="Open Settings"
             style={{
               display: "flex", alignItems: "center", gap: 8, marginBottom: 8,
@@ -157,7 +211,7 @@ function Sidebar({ page, setPage, profile, lang, setLang, open, setOpen, onSignO
         </> : <div style={{ display: "flex", justifyContent: "center" }}>
           <button
             className="cl-profile-chip"
-            onClick={() => { setPage("settings"); if (onNavClick) onNavClick(); }}
+            onClick={() => handleNav(() => setPage("settings"))}
             title="Open Settings"
             style={{
               width: 32, height: 32, padding: 0, borderRadius: "50%",
@@ -183,6 +237,8 @@ export default function App() {
   const [pageKey, setPageKey] = useState(0);
   const [lang, setLang] = useState("en");
   const [open, setOpen] = useState(true);
+  const isMobile = useIsMobile();
+  const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const [practiceDeck, setPracticeDeck] = useState(null); // when set, render StudentJoin in practice mode
   const [sessionsOpts, setSessionsOpts] = useState(null); // options passed when navigating to sessions (e.g. {openCreateClass:true})
   const [decksOpts, setDecksOpts] = useState(null); // options passed when navigating to decks (e.g. {focusClassId})
@@ -246,6 +302,26 @@ export default function App() {
 
     return () => subscription.unsubscribe();
   }, []);
+
+  // Lock body scroll while the mobile drawer is open so the page underneath
+  // doesn't scroll behind the backdrop.
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const prev = document.body.style.overflow;
+    if (isMobile && mobileDrawerOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = prev || "";
+    }
+    return () => { document.body.style.overflow = prev || ""; };
+  }, [isMobile, mobileDrawerOpen]);
+
+  // If we're transitioning from mobile back to desktop while the drawer was
+  // open, close it — otherwise it would stay "open" in the desktop layout
+  // (which doesn't use it).
+  useEffect(() => {
+    if (!isMobile && mobileDrawerOpen) setMobileDrawerOpen(false);
+  }, [isMobile, mobileDrawerOpen]);
 
   const fetchProfile = async (id, isInitial = true) => {
     try {
@@ -367,8 +443,52 @@ export default function App() {
   return (
     <div style={{ display: "flex", minHeight: "100vh" }}>
       <style>{sidebarCSS}</style>
-      <Sidebar page={page} setPage={(p) => { setPracticeDeck(null); setSessionsOpts(null); setDecksOpts(null); setViewingTeacherId(null); setPage(p); }} profile={profile} lang={lang} setLang={setLang} open={open} setOpen={setOpen} onSignOut={handleSignOut} onNavClick={() => setPageKey(k => k + 1)} />
-      <div style={{ marginLeft: open ? 210 : 56, flex: 1, transition: "margin-left .2s", minHeight: "100vh", background: C.bgSoft }}>
+      {/* Mobile hamburger — fixed top-left, hidden when drawer is open (B option from plan) */}
+      {isMobile && !mobileDrawerOpen && (
+        <button
+          onClick={() => setMobileDrawerOpen(true)}
+          aria-label="Open menu"
+          style={{
+            position: "fixed",
+            top: "max(12px, env(safe-area-inset-top, 0px))",
+            left: "max(12px, env(safe-area-inset-left, 0px))",
+            width: 44, height: 44, borderRadius: 10,
+            background: C.bg, border: `1px solid ${C.border}`,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            zIndex: 55, cursor: "pointer",
+            boxShadow: "0 2px 8px rgba(0,0,0,.06)",
+          }}
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+            <path d="M4 7h16M4 12h16M4 17h16" stroke={C.text} strokeWidth="1.8" strokeLinecap="round"/>
+          </svg>
+        </button>
+      )}
+      {/* Backdrop — covers everything below the drawer, click-to-close */}
+      {isMobile && mobileDrawerOpen && (
+        <div
+          onClick={() => setMobileDrawerOpen(false)}
+          style={{
+            position: "fixed", inset: 0, background: "rgba(0,0,0,.4)",
+            zIndex: 55, animation: "fadeIn .2s ease-out",
+          }}
+        />
+      )}
+      <Sidebar
+        page={page}
+        setPage={(p) => { setPracticeDeck(null); setSessionsOpts(null); setDecksOpts(null); setViewingTeacherId(null); setPage(p); }}
+        profile={profile}
+        lang={lang}
+        setLang={setLang}
+        open={open}
+        setOpen={setOpen}
+        onSignOut={handleSignOut}
+        onNavClick={() => setPageKey(k => k + 1)}
+        isMobile={isMobile}
+        mobileDrawerOpen={mobileDrawerOpen}
+        setMobileDrawerOpen={setMobileDrawerOpen}
+      />
+      <div style={{ marginLeft: isMobile ? 0 : (open ? 210 : 56), flex: 1, transition: "margin-left .2s", minHeight: "100vh", background: C.bgSoft }}>
         {inPractice ? (
           <StudentJoin
             key={`practice-${practiceDeck.id}`}
