@@ -2178,12 +2178,16 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
     await supabase.from("saved_decks").delete()
       .eq("student_id", userId).eq("deck_id", deckId);
     setFavoriteDecks(prev => prev.filter(d => d.id !== deckId));
+    // Also drop it from the following feed (which mixes copies + favs).
+    setFollowingDecks(prev => prev.filter(d => !(d._kind === "fav" && d.id === deckId)));
   };
 
   const handleDelete = async (deckId) => {
     if (!confirm(t.deleteConfirm)) return;
     await supabase.from("decks").delete().eq("id", deckId);
     setMyDecks(prev => prev.filter(d => d.id !== deckId));
+    // If the deleted deck is a copy that lived in Following, drop it there too.
+    setFollowingDecks(prev => prev.filter(d => !(d._kind === "copy" && d.id === deckId)));
   };
 
   const handleTogglePublic = async (deck) => {
