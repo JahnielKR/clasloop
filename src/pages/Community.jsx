@@ -340,11 +340,11 @@ export default function Community({ lang: pageLang = "en", setLang: pageSetLang,
           </select>
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, gap: 8, flexWrap: "wrap" }}>
           <span style={{ fontSize: 13, color: C.textMuted }}>{filtered.length} decks</span>
-          <div style={{ display: "flex", gap: 4 }}>
+          <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
             {[["uses_count", t.mostUsed], ["rating", t.topRated], ["created_at", t.newest]].map(([k, label]) => (
-              <button key={k} className="cm-sort" onClick={() => setSort(k)} style={{ padding: "5px 12px", borderRadius: 6, fontSize: 12, fontWeight: 500, background: sort === k ? C.accentSoft : "transparent", color: sort === k ? C.accent : C.textMuted }}>{label}</button>
+              <button key={k} className="cm-sort" onClick={() => setSort(k)} style={{ padding: "5px 12px", borderRadius: 6, fontSize: 12, fontWeight: 500, background: sort === k ? C.accentSoft : "transparent", color: sort === k ? C.accent : C.textMuted, whiteSpace: "nowrap" }}>{label}</button>
             ))}
           </div>
         </div>
@@ -353,7 +353,7 @@ export default function Community({ lang: pageLang = "en", setLang: pageSetLang,
         filtered.length === 0 ? (
           <div className="fade-up" style={{ textAlign: "center", padding: 48 }}><CIcon name="other" size={36} /><p style={{ fontSize: 15, color: C.textMuted, marginTop: 12 }}>{t.noResults}</p></div>
         ) : (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 14 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 14 }}>
             {filtered.map((dk, i) => {
               const qs = dk.questions || [];
               const tint = colorTint(dk, "0F");
