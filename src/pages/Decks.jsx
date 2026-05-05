@@ -267,6 +267,11 @@ const css = `
   .dk-btn:hover { transform: translateY(-1px); filter: brightness(1.05); }
   .dk-btn-secondary:hover { background: #E8F0FE !important; border-color: #2383E244 !important; color: #2383E2 !important; }
   .dk-btn-danger:hover { background: #E03E3E !important; color: #fff !important; }
+  .dk-fav-customize { transition: all .15s ease; }
+  .dk-fav-customize:hover { background: #2383E2 !important; color: #fff !important; border-color: #2383E2 !important; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(35,131,226,.25); }
+  .dk-fav-customize:active { transform: translateY(0); }
+  .dk-fav-remove { transition: all .15s ease; }
+  .dk-fav-remove:hover { background: #FDECEC !important; color: #E03E3E !important; border-color: #E03E3E44 !important; }
   .dk-pill { transition: all .15s ease; cursor: pointer; }
   .dk-pill:hover { background: #E8F0FE !important; border-color: #2383E244 !important; color: #2383E2 !important; }
   .dk-color-swatch:hover { transform: scale(1.1); }
@@ -2388,12 +2393,17 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
     // already has profiles(full_name).
     const originalAuthor = isCopy ? dk.originals?.profiles?.full_name : (isFav ? dk.profiles?.full_name : null);
     return (
-      <div key={dk.id} className="dk-card fade-up" style={{
-        background: C.bg, borderRadius: 12, border: `1px solid ${C.border}`,
-        borderLeft: `4px solid ${accent}`,
-        padding: 14, paddingLeft: 14,
-        animationDelay: `${i * .04}s`,
-      }}>
+      <div
+        key={dk.id}
+        className="dk-card fade-up"
+        onClick={isFav ? () => setCustomizingFav(dk) : undefined}
+        style={{
+          background: C.bg, borderRadius: 12, border: `1px solid ${C.border}`,
+          borderLeft: `4px solid ${accent}`,
+          padding: 14, paddingLeft: 14,
+          animationDelay: `${i * .04}s`,
+        }}
+      >
         <div style={{
           display: "flex",
           flexDirection: isMobile ? "column" : "row",
@@ -2402,7 +2412,10 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
         }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0, flex: 1 }}>
             <DeckCover deck={dk} size={52} radius={10} />
-            <div style={{ flex: 1, cursor: isFav ? "default" : "pointer", minWidth: 0 }} onClick={isFav ? undefined : () => { setEditing(dk); setView("edit"); }}>
+            <div
+              style={{ flex: 1, cursor: "pointer", minWidth: 0 }}
+              onClick={isFav ? undefined : () => { setEditing(dk); setView("edit"); }}
+            >
               <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                 <span style={{ fontSize: 15, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{dk.title}</span>
                 {isCopy && (
@@ -2429,8 +2442,8 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
             {isFav ? (
               <>
                 <button
-                  className="dk-btn-primary"
-                  onClick={() => setCustomizingFav(dk)}
+                  className="dk-fav-customize"
+                  onClick={(e) => { e.stopPropagation(); setCustomizingFav(dk); }}
                   style={{
                     padding: "6px 12px", borderRadius: 6, fontSize: 12, fontWeight: 600,
                     background: C.accentSoft, color: C.accent,
@@ -2443,7 +2456,8 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
                   <CIcon name="sparkle" size={12} inline /> {t.customizeFav}
                 </button>
                 <button
-                  onClick={() => handleRemoveFavorite(dk.id)}
+                  className="dk-fav-remove"
+                  onClick={(e) => { e.stopPropagation(); handleRemoveFavorite(dk.id); }}
                   style={{
                     width: 28, height: 28, borderRadius: 6,
                     background: C.bg, color: C.textMuted,
