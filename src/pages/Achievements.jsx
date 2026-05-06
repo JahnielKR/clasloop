@@ -9,7 +9,7 @@ import { C as BASE_C, MONO } from "../components/tokens";
 
 // Achievements adds two domain-specific colors (pink for "rare" tier
 // avatars) on top of the shared palette.
-const C = { ...BASE_C, pink: "#D34185", pinkSoft: "#FCE8F0" };
+const C = BASE_C;
 
 const RARITY = {
   common:    { bg: C.bgSoft,    border: C.border,        text: C.textSecondary, label: { en: "Common",    es: "Común",      ko: "일반"   } },

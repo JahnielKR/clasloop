@@ -9,7 +9,7 @@ import { C as BASE_C, MONO } from "../components/tokens";
 // Director adds a single yellow accent (used for warning-tier indicators
 // in the dashboard). No paired yellowSoft because Director uses bgSoft for
 // soft backgrounds when needed.
-const C = { ...BASE_C, yellow: "#D4A017" };
+const C = BASE_C;
 
 const retCol = (v) => v >= 70 ? C.green : v >= 40 ? C.orange : C.red;
 
@@ -60,17 +60,17 @@ const i18n = {
 
 const css = `
   .sd-tab { transition: all .15s ease; cursor: pointer; border: none; font-family: 'Outfit',sans-serif; }
-  .sd-tab:hover { background: #E8F0FE !important; border-color: #2383E244 !important; color: #2383E2 !important; }
+  .sd-tab:hover { background: ${C.accentSoft} !important; border-color: ${C.accent} !important; color: ${C.accent} !important; }
   .sd-stat { transition: all .2s ease; }
   .sd-stat:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,.06); }
   .sd-card { transition: all .2s ease; }
-  .sd-card:hover { border-color: #2383E233 !important; box-shadow: 0 2px 8px rgba(0,0,0,.06); }
+  .sd-card:hover { border-color: ${C.accent} !important; box-shadow: 0 2px 8px rgba(0,0,0,.06); }
   .sd-row { transition: all .15s ease; }
-  .sd-row:hover { background: #E8F0FE !important; }
+  .sd-row:hover { background: ${C.accentSoft} !important; }
   .sd-alert { transition: all .15s ease; }
   .sd-alert:hover { filter: brightness(.97); transform: translateX(2px); }
   .sd-lang { transition: all .12s ease; cursor: pointer; }
-  .sd-lang:hover { background: #E8F0FE !important; color: #2383E2 !important; }
+  .sd-lang:hover { background: ${C.accentSoft} !important; color: ${C.accent} !important; }
   @keyframes fadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
   .fade-up { animation: fadeUp .3s ease-out both; }
   .sd-scroll-x { overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; -ms-overflow-style: none; }

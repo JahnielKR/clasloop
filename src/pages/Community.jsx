@@ -8,7 +8,7 @@ import { C as BASE_C } from "../components/tokens";
 
 // Community-specific extension: yellow tints for highlighting popular/
 // featured community decks.
-const C = { ...BASE_C, yellow: "#D4A017", yellowSoft: "#FEF9E7" };
+const C = BASE_C;
 
 const SUBJ_ICON = { Math: "math", Science: "science", History: "history", Language: "language", Geography: "geo", Art: "art", Music: "music", Other: "book" };
 const SUBJECTS = ["Math", "Science", "History", "Language", "Geography", "Art", "Music", "Other"];
@@ -54,22 +54,22 @@ const i18n = {
 
 const css = `
   .cm-card { transition: all .2s ease; cursor: pointer; }
-  .cm-card:hover { border-color: #2383E244 !important; box-shadow: 0 4px 16px rgba(35,131,226,.1) !important; transform: translateY(-2px); }
+  .cm-card:hover { border-color: ${C.accent} !important; box-shadow: 0 4px 16px rgba(35,131,226,.1) !important; transform: translateY(-2px); }
   .cm-sort { transition: all .15s ease; cursor: pointer; border: none; font-family: 'Outfit',sans-serif; }
-  .cm-sort:hover { background: #E8F0FE !important; color: #2383E2 !important; }
+  .cm-sort:hover { background: ${C.accentSoft} !important; color: ${C.accent} !important; }
   .cm-btn { transition: all .15s ease; cursor: pointer; border: none; font-family: 'Outfit',sans-serif; }
   .cm-btn:hover { transform: translateY(-1px); filter: brightness(1.05); }
   .cm-back { transition: all .15s ease; cursor: pointer; }
-  .cm-back:hover { background: #E8F0FE !important; }
+  .cm-back:hover { background: ${C.accentSoft} !important; }
   .cm-input { transition: border-color .15s, box-shadow .15s; }
-  .cm-input:hover { border-color: #2383E266 !important; }
-  .cm-input:focus { border-color: #2383E2 !important; box-shadow: 0 0 0 3px #E8F0FE !important; }
+  .cm-input:hover { border-color: ${C.accent} !important; }
+  .cm-input:focus { border-color: ${C.accent} !important; box-shadow: 0 0 0 3px ${C.accentSoft} !important; }
   .cm-class-pick { transition: all .15s ease; cursor: pointer; }
-  .cm-class-pick:hover { border-color: #2383E244 !important; background: #E8F0FE !important; }
+  .cm-class-pick:hover { border-color: ${C.accent} !important; background: ${C.accentSoft} !important; }
   .cm-lang { transition: all .12s ease; cursor: pointer; }
-  .cm-lang:hover { background: #E8F0FE !important; color: #2383E2 !important; }
+  .cm-lang:hover { background: ${C.accentSoft} !important; color: ${C.accent} !important; }
   .cm-fav-circle { transition: all .15s ease; }
-  .cm-fav-circle:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(217,115,13,.18); border-color: #D9730D !important; }
+  .cm-fav-circle:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(217,115,13,.18); border-color: ${C.orange} !important; }
   .cm-fav-circle:active { transform: translateY(0) scale(.95); }
   @keyframes fadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
   .fade-up { animation: fadeUp .3s ease-out both; }
@@ -245,13 +245,13 @@ export default function Community({ lang: pageLang = "en", setLang: pageSetLang,
                     style={{
                       width: 50, height: 50, borderRadius: "50%",
                       flexShrink: 0,
-                      background: saved[dk.id] ? "#FFF3E0" : C.bg,
-                      border: `1px solid ${saved[dk.id] ? "#D9730D" : C.border}`,
+                      background: saved[dk.id] ? C.orangeSoft : C.bg,
+                      border: `1px solid ${saved[dk.id] ? C.orange : C.border}`,
                       cursor: "pointer", fontFamily: "'Outfit',sans-serif",
                       display: "inline-flex", alignItems: "center", justifyContent: "center",
                     }}
                   >
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill={saved[dk.id] ? "#D9730D" : "none"} stroke={saved[dk.id] ? "#D9730D" : C.textSecondary} strokeWidth="2" strokeLinejoin="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill={saved[dk.id] ? C.orange : "none"} stroke={saved[dk.id] ? C.orange : C.textSecondary} strokeWidth="2" strokeLinejoin="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
                   </button>
                   <button className="cm-btn" onClick={() => setSavingDeck(dk)} style={{
                     flex: 1, padding: 14, borderRadius: 10, fontSize: 15, fontWeight: 600,

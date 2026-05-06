@@ -48,6 +48,12 @@ export const THEME_CSS = `
   --c-border: #E8E8E4;
   --c-shadow: 0 1px 3px rgba(0,0,0,0.04);
 
+  /* Brand extras — used by specific pages (achievements pink, community/director/decks yellow) */
+  --c-yellow: #D4A017;
+  --c-yellow-soft: #FEF9E7;
+  --c-pink: #D34185;
+  --c-pink-soft: #FCE8F0;
+
   /* Body baseline (used by index.css) */
   --c-body-bg: #F7F7F5;
 }
@@ -79,6 +85,12 @@ export const THEME_CSS = `
   /* Misc */
   --c-border: #2C2D31;
   --c-shadow: 0 1px 3px rgba(0,0,0,0.4);
+
+  /* Brand extras — dark variants of yellow/pink */
+  --c-yellow: #E8B73D;
+  --c-yellow-soft: #2E2618;
+  --c-pink: #E66BA8;
+  --c-pink-soft: #2E1F28;
 
   /* Body baseline */
   --c-body-bg: #16171A;
@@ -119,6 +131,12 @@ export const C = {
   // Misc
   border: "var(--c-border)",
   shadow: "var(--c-shadow)",
+
+  // Brand extras
+  yellow: "var(--c-yellow)",
+  yellowSoft: "var(--c-yellow-soft)",
+  pink: "var(--c-pink)",
+  pinkSoft: "var(--c-pink-soft)",
 };
 
 // Mono font stack — used for deck PINs, codes, code-like values.
