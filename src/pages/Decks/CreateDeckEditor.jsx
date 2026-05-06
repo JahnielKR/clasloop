@@ -397,15 +397,19 @@ function AIGeneratePanel({
         />
       </div>
 
-      {/* Settings row: type + count + context */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 10, marginBottom: 14 }}>
-        <div>
+      {/* Settings row: type + count + context + language.
+          Usamos flex con flex-basis en vez de grid uniforme porque "How many"
+          y "Language" tienen contenido corto (números, idiomas) y no se
+          merecen el mismo ancho que "Type" (que muestra "Mixed (recommended)").
+          flex-wrap permite reorganizarse en pantallas chicas. */}
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 14 }}>
+        <div style={{ flex: "2 1 160px", minWidth: 0 }}>
           <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: C.textSecondary, marginBottom: 4 }}>{t.aiTypeLabel}</label>
           <select
             value={aiActivityType}
             onChange={(e) => setAiActivityType(e.target.value)}
             disabled={generating}
-            style={{ ...sel, padding: "7px 28px 7px 10px", fontSize: 12 }}
+            style={{ ...sel, padding: "7px 28px 7px 10px", fontSize: 12, width: "100%" }}
           >
             {AI_SUPPORTED_TYPES.map(typeId => {
               // "mix" es virtual, no está en ACTIVITY_TYPES; usamos el label
@@ -417,37 +421,37 @@ function AIGeneratePanel({
             })}
           </select>
         </div>
-        <div>
+        <div style={{ flex: "0 0 90px" }}>
           <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: C.textSecondary, marginBottom: 4 }}>{t.aiCountLabel}</label>
           <select
             value={numQuestions}
             onChange={(e) => setNumQuestions(Number(e.target.value))}
             disabled={generating}
-            style={{ ...sel, padding: "7px 28px 7px 10px", fontSize: 12 }}
+            style={{ ...sel, padding: "7px 28px 7px 10px", fontSize: 12, width: "100%" }}
           >
             {[3, 5, 10, 15, 20].map(n => <option key={n} value={n}>{n}</option>)}
           </select>
         </div>
-        <div>
+        <div style={{ flex: "1.5 1 140px", minWidth: 0 }}>
           <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: C.textSecondary, marginBottom: 4 }}>{t.aiContextLabel}</label>
           <select
             value={lessonContext}
             onChange={(e) => setLessonContext(e.target.value)}
             disabled={generating}
-            style={{ ...sel, padding: "7px 28px 7px 10px", fontSize: 12 }}
+            style={{ ...sel, padding: "7px 28px 7px 10px", fontSize: 12, width: "100%" }}
           >
             <option value="warmup">{t.aiContextWarmup}</option>
             <option value="exitTicket">{t.aiContextExit}</option>
             <option value="general">{t.aiContextGeneral}</option>
           </select>
         </div>
-        <div>
+        <div style={{ flex: "0 0 130px" }}>
           <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: C.textSecondary, marginBottom: 4 }}>{t.aiLanguageLabel}</label>
           <select
             value={aiLanguage}
             onChange={(e) => setAiLanguage(e.target.value)}
             disabled={generating}
-            style={{ ...sel, padding: "7px 28px 7px 10px", fontSize: 12 }}
+            style={{ ...sel, padding: "7px 28px 7px 10px", fontSize: 12, width: "100%" }}
           >
             <option value="en">English</option>
             <option value="es">Español</option>
