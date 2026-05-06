@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { LogoMark, CIcon, TeacherInline, StudentInline } from "../components/Icons";
+import Cleo from "../components/Cleo";
 
 const C = {
   bg: "#FFFFFF", bgSoft: "#F7F7F5", accent: "#2383E2", accentSoft: "#E8F0FE",
@@ -70,6 +71,8 @@ const css = `
     .ph-tagline { font-size: 22px !important; line-height: 1.3 !important }
     .ph-sub { font-size: 14px !important }
     .ph-code-input { font-size: 24px !important; padding: 12px !important }
+    .ph-cleo { top: -68px !important; right: -16px !important; width: 84px !important }
+    .ph-cleo svg { width: 84px !important; height: auto !important }
   }
 `;
 
@@ -141,8 +144,25 @@ export default function PublicHome({ onSignIn, onSignUp }) {
           }}>{t.sub}</p>
         </div>
 
-        {/* ── Main card: code input or auth select ── */}
-        {mode === "home" ? (
+        {/* ── Main card (with Cleo hanging from top-right corner) ── */}
+        <div className="ph-card-wrap" style={{
+          position: "relative",
+          width: "100%",
+          maxWidth: 440,
+        }}>
+          {/* Cleo, hanging from her own thread off the card's top-right corner */}
+          <div className="ph-cleo" aria-hidden="true" style={{
+            position: "absolute",
+            top: -110,
+            right: -90,
+            width: 120,
+            pointerEvents: "none",
+            zIndex: 2,
+          }}>
+            <Cleo size={120} />
+          </div>
+
+          {mode === "home" ? (
           <div className="ph-card ph-fade" style={{
             background: C.bg, borderRadius: 20,
             border: `1px solid ${C.border}`,
@@ -318,6 +338,7 @@ export default function PublicHome({ onSignIn, onSignUp }) {
             </p>
           </div>
         )}
+        </div>
 
         {/* ── Lang switcher (bottom) ── */}
         <div style={{ display: "flex", gap: 4, marginTop: 24 }}>
