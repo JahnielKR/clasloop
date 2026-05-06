@@ -5,6 +5,7 @@ import { Avatar } from "../components/Avatars";
 import { checkAndGrantUnlocks } from "../lib/unlock-checker";
 import { generateGuestToken, saveGuestSession, validateGuestName, clearGuestSession } from "../lib/guest-session";
 import { C, MONO } from "../components/tokens";
+import { resolveTimeLimit } from "../lib/time-limits";
 
 // Quiz option colors — kahoot-style fixed palette. NOT theme-aware on purpose:
 // students need to see the same colors the teacher launches the session with.
@@ -22,6 +23,9 @@ const i18n = {
     sessionComplete: "Session Complete", greatJob: "Great job!",
     keepPracticing: "Keep practicing!", correctLabel: "correct", incorrectLabel: "incorrect",
     joinAnother: "Join another session", noQuestions: "No questions available",
+    timerOnTip: "Timer on. Tap to study without time pressure.",
+    timerOffTip: "Timer off. Tap to turn on the recommended timing.",
+    totalTimeLabel: "Time left",
     teacherEndedTitle: "Teacher ended the session", teacherEndedHint: "Here's how you did so far.",
     waitingEndedTitle: "Session ended", waitingEndedHint: "The teacher ended the session before it started.",
     returningHome: "Returning to home...",
@@ -54,6 +58,9 @@ const i18n = {
     sessionComplete: "Sesión Completa", greatJob: "¡Buen trabajo!",
     keepPracticing: "¡Sigue practicando!", correctLabel: "correctas", incorrectLabel: "incorrectas",
     joinAnother: "Unirse a otra sesión", noQuestions: "No hay preguntas",
+    timerOnTip: "Timer activo. Toca para estudiar sin presión.",
+    timerOffTip: "Timer apagado. Toca para activar el tiempo recomendado.",
+    totalTimeLabel: "Tiempo restante",
     teacherEndedTitle: "El profe terminó la sesión", teacherEndedHint: "Aquí tu progreso hasta ahora.",
     waitingEndedTitle: "Sesión terminada", waitingEndedHint: "El profe terminó la sesión antes de empezar.",
     returningHome: "Regresando al inicio...",
@@ -86,6 +93,9 @@ const i18n = {
     sessionComplete: "세션 완료", greatJob: "잘했어요!",
     keepPracticing: "계속 연습하세요!", correctLabel: "정답", incorrectLabel: "오답",
     joinAnother: "다른 세션 참여", noQuestions: "문제가 없습니다",
+    timerOnTip: "타이머 켜짐. 시간 압박 없이 학습하려면 탭하세요.",
+    timerOffTip: "타이머 꺼짐. 권장 시간을 활성화하려면 탭하세요.",
+    totalTimeLabel: "남은 시간",
     teacherEndedTitle: "선생님이 세션을 종료했습니다", teacherEndedHint: "지금까지의 결과입니다.",
     waitingEndedTitle: "세션 종료됨", waitingEndedHint: "선생님이 시작 전에 세션을 종료했습니다.",
     returningHome: "홈으로 돌아가는 중...",
@@ -262,10 +272,30 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
   const [showResult, setShowResult] = useState(false);
   const [resultAnim, setResultAnim] = useState("");
   const [timeLeft, setTimeLeft] = useState(20);
+  // Timer global para modo "total" — countdown único que cuenta toda la sesión.
+  // Se inicializa cuando el estudiante entra al quiz si el modo es total. null
+  // cuando no aplica (modo per_question, practice, sin timer total). Al llegar
+  // a 0 se cierra la sesión y se muestran resultados.
+  const [totalTimeLeft, setTotalTimeLeft] = useState(null);
   const [lastIsCorrect, setLastIsCorrect] = useState(false);
   // True when the teacher ends the live session (status → completed/cancelled)
   // while the student is still in lobby/quiz. Used to show a banner on results.
   const [endedByTeacher, setEndedByTeacher] = useState(false);
+  // En practice mode el estudiante puede apagar/prender el timer. Default ON.
+  // La preferencia persiste en localStorage por estudiante (no por deck) —
+  // si lo apaga, queda apagado para sus prácticas siguientes hasta que lo
+  // prenda de nuevo. Solo aplica si isPractice; en sesión en vivo el profe
+  // controla.
+  const [practiceTimerOn, setPracticeTimerOn] = useState(() => {
+    if (typeof window === "undefined") return true;
+    const saved = window.localStorage?.getItem("clasloop_practice_timer");
+    if (saved === "off") return false;
+    return true;
+  });
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage?.setItem("clasloop_practice_timer", practiceTimerOn ? "on" : "off");
+  }, [practiceTimerOn]);
 
   // ── Unlock celebration (Phase 3) ──
   const [newUnlocks, setNewUnlocks] = useState([]);  // queue of just-unlocked avatars
@@ -305,20 +335,26 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
   const q = questions[current];
   const qType = getQType(q, session);
 
-  // Time limit per question. The teacher can set a global override in
-  // session_settings.time_limit (10, 20, 30, 60 seconds). When set to 0 or
-  // missing (e.g. practice mode, or "No limit" not chosen), fall back to
-  // per-type defaults — typed/order/match need more thinking time.
+  // Time limit per question. Tres escenarios:
+  //   1) Practice mode con timer apagado → null (sin countdown, el estudiante
+  //      avanza a su ritmo).
+  //   2) Sesión en vivo modo "total" → null per-pregunta (el timer global
+  //      cuenta para toda la sesión, no per-pregunta).
+  //   3) Per question (default live, o practice con timer on) → leemos
+  //      q.time_limit (sugerido por AI) o caemos al default por tipo via
+  //      resolveTimeLimit.
   const timeLimit = useMemo(() => {
-    const teacherOverride = session?.session_settings?.time_limit;
-    if (teacherOverride && teacherOverride > 0) return teacherOverride;
-    if (qType === "fill") return 30;
-    if (qType === "free") return 90;
-    if (qType === "sentence") return 60;
-    if (qType === "slider") return 30;
-    if (qType === "order" || qType === "match") return 40;
-    return 20;
-  }, [qType, session?.session_settings?.time_limit]);
+    // Practice con timer apagado.
+    if (isPractice && !practiceTimerOn) return null;
+    // Modo total: el timer corre arriba en lugar de en cada pregunta.
+    const mode = session?.session_settings?.time_mode;
+    if (mode === "total") return null;
+    // Per-question: usamos resolveTimeLimit que ya conoce el set permitido y
+    // los defaults por tipo.
+    const t = resolveTimeLimit(q);
+    return t || null;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [q, isPractice, practiceTimerOn, session?.session_settings?.time_mode]);
 
   // Stable shuffles per question. Re-shuffle when `current` changes.
   const shuffledItems = useMemo(() => {
@@ -390,6 +426,49 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
     if (timeLeft === 0 && !showResult && step === "quiz") submitAnswer(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [timeLeft, showResult, step]);
+
+  // ── Total time mode: timer global ──
+  // Cuando el modo de la sesión es "total", iniciamos un countdown único al
+  // entrar al quiz. Vive en `totalTimeLeft` y NO se resetea entre preguntas.
+  // Al llegar a 0 se forza el final del quiz: lo que el estudiante haya
+  // contestado cuenta, lo que no, queda como sin responder.
+  useEffect(() => {
+    if (step !== "quiz") return;
+    const mode = session?.session_settings?.time_mode;
+    const totalSec = session?.session_settings?.time_limit;
+    if (mode !== "total" || !totalSec || totalSec <= 0) return;
+    // Solo inicializamos una vez (cuando entramos al quiz, no en cada
+    // re-render). Si ya tenemos totalTimeLeft no lo tocamos.
+    if (totalTimeLeft === null) {
+      setTotalTimeLeft(totalSec);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, session?.session_settings?.time_mode, session?.session_settings?.time_limit]);
+
+  // Decremento del timer global cada segundo mientras dure el quiz.
+  useEffect(() => {
+    if (step !== "quiz" || totalTimeLeft === null || totalTimeLeft <= 0) return;
+    const tm = setTimeout(() => setTotalTimeLeft(s => (s !== null ? s - 1 : null)), 1000);
+    return () => clearTimeout(tm);
+  }, [totalTimeLeft, step]);
+
+  // Al llegar a 0 en modo total → forzamos el cierre del quiz. Si el estudiante
+  // estaba mostrando el resultado de la última, no hacemos nada (ya estaba a
+  // punto de ver results); si estaba en una pregunta sin responder, hacemos
+  // submit null y saltamos directo a results.
+  useEffect(() => {
+    if (totalTimeLeft !== 0) return;
+    if (step !== "quiz") return;
+    // Submit lo que tenga (puede ser null) para registrar la respuesta vacía
+    // y avanzar; el flow normal va a llevar al estudiante a results al final
+    // del array. Para forzar el final, marcamos current = última y dejamos
+    // que el flow normal cierre.
+    if (!showResult) submitAnswer(null);
+    // Si quedan preguntas, las saltamos: ponemos current al final.
+    // (submitAnswer ya avanza al next; al llegar al último, va a results.)
+    setCurrent(questions.length - 1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [totalTimeLeft, step]);
 
   // ── Phase 3: when student reaches results, evaluate avatar unlocks ──
   useEffect(() => {
@@ -554,7 +633,10 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
           // submission still counts toward participation. The client distinguishes
           // graded vs ungraded via the question type, not this column.
           is_correct: isCorrect === null ? true : isCorrect,
-          time_taken_ms: (timeLimit - timeLeft) * 1000,
+          // Si no hay timer (modo total, practice apagado), no podemos medir
+          // time_taken_ms — guardamos 0. La métrica se mantiene válida solo
+          // cuando hay timer per-question.
+          time_taken_ms: (timeLimit && timeLeft != null) ? (timeLimit - timeLeft) * 1000 : 0,
         };
         // For guests, attach the guest_token so the row passes the RLS policy
         // and can be linked back to the right participant.
@@ -747,20 +829,82 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
   if (step === "quiz") {
     if (!q) return <><style>{css}</style><p style={{ textAlign: "center", padding: 40, color: C.textMuted }}>{t.noQuestions}</p></>;
     const isLast = current === questions.length - 1;
-    const pct = timeLeft > 0 ? (timeLeft / timeLimit) * 100 : 0;
+    // Si no hay timer (modo total live, o practice apagado), pct/timerCol no
+    // se usan — protegemos contra NaN.
+    const hasTimer = typeof timeLimit === "number" && timeLimit > 0;
+    const pct = hasTimer && timeLeft > 0 ? (timeLeft / timeLimit) * 100 : 0;
     const timerCol = pct > 50 ? C.green : pct > 25 ? C.orange : C.red;
 
     return (
       <>
         <style>{css}</style>
+        {/* Total mode countdown bar — fijo arriba mientras hay tiempo. */}
+        {totalTimeLeft !== null && totalTimeLeft > 0 && (() => {
+          const totalSec = session?.session_settings?.time_limit || 1;
+          const pct = Math.max(0, (totalTimeLeft / totalSec) * 100);
+          const mm = Math.floor(totalTimeLeft / 60);
+          const ss = totalTimeLeft % 60;
+          const lowTime = totalTimeLeft <= 30; // últimos 30s warn
+          return (
+            <div style={{
+              position: "sticky", top: 0, zIndex: 30,
+              background: C.bg,
+              borderBottom: `1px solid ${C.border}`,
+            }}>
+              <div style={{ maxWidth: 480, margin: "0 auto", padding: "10px 20px 8px" }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                  <span style={{ fontSize: 11, color: C.textSecondary, fontWeight: 500, textTransform: "uppercase", letterSpacing: 0.5 }}>{t.totalTimeLabel}</span>
+                  <span style={{
+                    fontSize: 14, fontWeight: 700, fontFamily: MONO,
+                    color: lowTime ? C.red : C.text,
+                  }}>{String(mm).padStart(2, "0")}:{String(ss).padStart(2, "0")}</span>
+                </div>
+                <div style={{ width: "100%", height: 4, background: C.bgSoft, borderRadius: 4 }}>
+                  <div style={{
+                    width: `${pct}%`, height: "100%", borderRadius: 4,
+                    background: lowTime ? C.red : C.accent,
+                    transition: "width 1s linear, background .3s ease",
+                  }} />
+                </div>
+              </div>
+            </div>
+          );
+        })()}
         <div style={{ maxWidth: 480, margin: "0 auto", padding: 20 }}>
           {/* Header */}
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
             <span style={{ fontSize: 13, color: C.textSecondary, fontWeight: 500 }}>
               {current + 1} {t.of} {questions.length}
             </span>
-            <div style={{ width: 44, height: 44, borderRadius: "50%", background: `conic-gradient(${timerCol} ${pct}%, ${C.bgSoft} ${pct}%)`, display: "flex", alignItems: "center", justifyContent: "center", transition: "all .3s" }}>
-              <div style={{ width: 34, height: 34, borderRadius: "50%", background: C.bg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 700, fontFamily: MONO, color: timerCol }}>{timeLeft}</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              {/* Toggle de timer en practice mode. Solo visible en practice;
+                  en live el profe controla y el estudiante no decide. */}
+              {isPractice && (
+                <button
+                  onClick={() => setPracticeTimerOn(v => !v)}
+                  title={practiceTimerOn ? t.timerOnTip : t.timerOffTip}
+                  aria-label={practiceTimerOn ? t.timerOnTip : t.timerOffTip}
+                  style={{
+                    width: 32, height: 32, borderRadius: "50%",
+                    background: practiceTimerOn ? C.accentSoft : C.bgSoft,
+                    border: `1px solid ${practiceTimerOn ? C.accent + "44" : C.border}`,
+                    cursor: "pointer", padding: 0,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    fontSize: 14, color: practiceTimerOn ? C.accent : C.textMuted,
+                    transition: "all .15s ease",
+                  }}
+                >
+                  {practiceTimerOn ? "⏱" : "∞"}
+                </button>
+              )}
+              {/* Círculo countdown — solo si hay timer per-question activo. En
+                  modo total el countdown es global y se muestra arriba (no acá).
+                  En practice apagado simplemente no hay círculo. */}
+              {hasTimer && (
+                <div style={{ width: 44, height: 44, borderRadius: "50%", background: `conic-gradient(${timerCol} ${pct}%, ${C.bgSoft} ${pct}%)`, display: "flex", alignItems: "center", justifyContent: "center", transition: "all .3s" }}>
+                  <div style={{ width: 34, height: 34, borderRadius: "50%", background: C.bg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 700, fontFamily: MONO, color: timerCol }}>{timeLeft}</div>
+                </div>
+              )}
             </div>
           </div>
 

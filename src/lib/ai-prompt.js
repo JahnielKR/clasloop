@@ -49,6 +49,20 @@ UNIVERSAL RULES (apply always)
 - Vary difficulty across the set: roughly 30% easy recall, 50% medium application, 20% harder reasoning.
 - Vary question stems: don't start every question with "What is...".
 
+TIME LIMITS (per question)
+Each question MUST include a "time_limit" field in seconds. Choose ONE value from the allowed set for that question's type, based on the actual cognitive load of THAT question (stem length, options length, complexity of reasoning required). Short/simple → lower value. Long stem or reasoning → higher value. Match the value to the real difficulty, don't just always pick the middle.
+
+Allowed values by type:
+- mcq:      15, 30, or 45    (short MCQ → 15; standard → 30; long stem/options → 45)
+- tf:       10, 15, or 20    (default 15; longer wording → 20)
+- fill:     20, 30, or 45    (one-word answer → 20; phrase or technical term → 30+)
+- order:    30, 45, or 60    (3-4 items → 30-45; 5-6 items → 60)
+- match:    30, 45, or 60    (3 pairs → 30; 4-5 pairs → 45-60)
+- free:     60, 90, or 120   (one short paragraph → 60-90; multi-part → 120)
+- sentence: 45, 60, or 90    (simple sentence → 45-60; longer construction → 90)
+- slider:   15, 25, or 40    (familiar number → 15-25; estimation needed → 40)
+- poll:     omit time_limit  (polls have no countdown; opinion questions don't time-out)
+
 OUTPUT FORMAT
 Respond with ONLY a valid JSON array of question objects. No markdown fences, no commentary, no preamble. Just the JSON array starting with [ and ending with ].`,
 
@@ -79,6 +93,20 @@ REGLAS UNIVERSALES (aplican siempre)
 - Varía la dificultad del set: aproximadamente 30% recordar fácil, 50% aplicación media, 20% razonamiento más exigente.
 - Varía los inicios de las preguntas: no empieces todas con "¿Qué es...?".
 
+LÍMITES DE TIEMPO (por pregunta)
+Cada pregunta DEBE incluir un campo "time_limit" en segundos. Elige UN valor del set permitido para el tipo de esa pregunta, basándote en la carga cognitiva real de ESA pregunta (largo del enunciado, largo de las opciones, complejidad del razonamiento). Corta/simple → valor bajo. Enunciado largo o razonamiento → valor alto. Ajusta el valor a la dificultad real, no elijas siempre el medio.
+
+Valores permitidos por tipo:
+- mcq:      15, 30, o 45    (MCQ corto → 15; estándar → 30; enunciado/opciones largas → 45)
+- tf:       10, 15, o 20    (default 15; redacción más larga → 20)
+- fill:     20, 30, o 45    (respuesta de una palabra → 20; frase o término técnico → 30+)
+- order:    30, 45, o 60    (3-4 ítems → 30-45; 5-6 ítems → 60)
+- match:    30, 45, o 60    (3 pares → 30; 4-5 pares → 45-60)
+- free:     60, 90, o 120   (un párrafo corto → 60-90; respuesta de varias partes → 120)
+- sentence: 45, 60, o 90    (oración simple → 45-60; construcción más larga → 90)
+- slider:   15, 25, o 40    (número conocido → 15-25; estimación requerida → 40)
+- poll:     omite time_limit  (las polls no tienen countdown; opiniones no caducan)
+
 FORMATO DE SALIDA
 Responde SOLO con un array JSON válido de objetos pregunta. Sin code fences, sin comentarios, sin preámbulo. Solo el array JSON que empieza con [ y termina con ].`,
 
@@ -108,6 +136,20 @@ ${getTypeRules("ko", activityType)}
 - "본문에 따르면", "문서에서", "슬라이드에서" 같은 placeholder 표현을 쓰지 마세요. 개념 자체를 직접 묻습니다.
 - 난이도를 다양하게: 약 30% 쉬운 회상, 50% 중간 적용, 20% 더 어려운 추론.
 - 문제 시작을 다양하게: 모든 문제를 "...은(는) 무엇인가요?"로 시작하지 마세요.
+
+시간 제한 (문제별)
+모든 문제는 "time_limit" 필드(초 단위)를 포함해야 합니다. 해당 문제 유형의 허용된 값 중에서 그 문제의 실제 인지 부하(지문 길이, 보기 길이, 추론 복잡도)에 맞춰 하나를 선택하세요. 짧고 간단한 문제 → 낮은 값. 긴 지문이나 추론이 필요한 문제 → 높은 값. 항상 가운데 값을 고르지 말고 실제 난이도에 맞추세요.
+
+유형별 허용 값:
+- mcq:      15, 30, 45    (짧은 MCQ → 15; 표준 → 30; 긴 지문/보기 → 45)
+- tf:       10, 15, 20    (기본 15; 더 긴 표현 → 20)
+- fill:     20, 30, 45    (한 단어 답 → 20; 구절이나 전문용어 → 30+)
+- order:    30, 45, 60    (3-4 항목 → 30-45; 5-6 항목 → 60)
+- match:    30, 45, 60    (3쌍 → 30; 4-5쌍 → 45-60)
+- free:     60, 90, 120   (짧은 단락 → 60-90; 여러 부분 답변 → 120)
+- sentence: 45, 60, 90    (단순 문장 → 45-60; 더 긴 구성 → 90)
+- slider:   15, 25, 40    (익숙한 숫자 → 15-25; 추정 필요 → 40)
+- poll:     time_limit 생략  (poll은 카운트다운 없음; 의견은 시간 제한 없음)
 
 출력 형식
 유효한 JSON 배열만 응답하세요. 코드 펜스, 주석, 서두 없이. [로 시작해서 ]로 끝나는 JSON 배열만.`,

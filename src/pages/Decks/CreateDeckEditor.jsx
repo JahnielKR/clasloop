@@ -10,6 +10,7 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "../../lib/supabase";
 import { generateQuestions, AIError, SUPPORTED_FILES } from "../../lib/ai";
+import { TIME_LIMITS, estimateDeckSeconds, formatDeckDuration } from "../../lib/time-limits";
 import { CIcon } from "../../components/Icons";
 import {
   DeckCover,
@@ -712,6 +713,19 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
         if (typeof base.correct !== "number") base.correct = 50;
         if (typeof base.tolerance !== "number") base.tolerance = 5;
         if (typeof base.unit !== "string") base.unit = "";
+      }
+      // Normalizar time_limit: si la AI mandó un valor fuera del set permitido,
+      // lo descartamos (resolveTimeLimit caerá al default del tipo en runtime).
+      // Para polls, removemos el campo siempre (no aplica).
+      if (base.type === "poll") {
+        delete base.time_limit;
+      } else {
+        const config = TIME_LIMITS[base.type];
+        if (config && typeof base.time_limit === "number" && !config.allowed.includes(base.time_limit)) {
+          // Valor fuera de set → lo borramos. resolveTimeLimit usará default.
+          console.warn(`[AI] Out-of-set time_limit ${base.time_limit} for ${base.type}; falling back to default`);
+          delete base.time_limit;
+        }
       }
       return base;
     });
@@ -1719,6 +1733,26 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
             <button className="dk-btn" onClick={openTypeSelector} disabled={showTypeSelector || showAIPanel} style={{ padding: "8px 16px", borderRadius: 8, fontSize: 13, fontWeight: 600, background: (showTypeSelector || showAIPanel) ? C.bgSoft : C.accentSoft, color: (showTypeSelector || showAIPanel) ? C.textMuted : C.accent, opacity: (showTypeSelector || showAIPanel) ? 0.6 : 1 }}>{t.addQuestion}</button>
           </div>
         </div>
+
+        {/* Estimated session time — sumando time_limit (AI) o defaults por
+            tipo. Sirve para que el profe sepa la duración aproximada del
+            deck antes de lanzar la sesión. Solo se muestra si hay
+            preguntas (con 0 no tiene sentido). */}
+        {questions.length > 0 && (() => {
+          const seconds = estimateDeckSeconds(questions);
+          if (seconds <= 0) return null;
+          return (
+            <div style={{
+              display: "inline-flex", alignItems: "center", gap: 6,
+              padding: "6px 10px", marginBottom: 12, borderRadius: 6,
+              background: C.bgSoft, border: `1px solid ${C.border}`,
+              fontSize: 12, color: C.textSecondary,
+            }}>
+              <span aria-hidden="true">⏱</span>
+              <span>{t.estimatedTime}: <strong style={{ color: C.text, fontWeight: 600 }}>≈ {formatDeckDuration(seconds, l)}</strong></span>
+            </div>
+          );
+        })()}
 
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           {questions.map((q, qi) => {

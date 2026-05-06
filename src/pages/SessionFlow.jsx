@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { supabase } from "../lib/supabase";
 import { processSessionResults, getSuggestedDecksForToday } from "../lib/spaced-repetition";
@@ -7,6 +7,7 @@ import { DeckCover, resolveColor } from "../lib/deck-cover";
 import MobileMenuButton, { useIsMobile } from "../components/MobileMenuButton";
 import PageHeader from "../components/PageHeader";
 import { C, MONO } from "../components/tokens";
+import { estimateDeckSeconds, formatDeckDuration } from "../lib/time-limits";
 
 // ─── Theme ─────────────────────────────────────────────────────────────────
 const SUBJECTS = ["Math", "Science", "History", "Language", "Geography", "Art", "Music", "Other"];
@@ -34,6 +35,12 @@ const i18n = {
     classHelp: "Pick a class to track student progress and retention",
     classBoundHelp: "This deck is linked to a class. Only that class or guest-only is available.",
     timeLimit: "Time per question", timeLimitNone: "No limit", seconds: "s",
+    timerLabel: "Timer",
+    timerModePerQuestion: "Per question",
+    timerModeTotal: "Total time",
+    timerPerQuestionHelp: "Each question has its own time, picked by AI based on its complexity.",
+    timerTotalHelp: "When the timer runs out, the session closes automatically.",
+    minutesShort: "min",
     competitiveMode: "Show leaderboard during quiz",
     showAnswers: "Show correct answer after each question",
     allowGuests: "Allow students to join without account",
@@ -71,6 +78,12 @@ const i18n = {
     classHelp: "Elige una clase para rastrear progreso y retención",
     classBoundHelp: "Este deck está ligado a una clase. Solo esa clase o solo-invitados están disponibles.",
     timeLimit: "Tiempo por pregunta", timeLimitNone: "Sin límite", seconds: "s",
+    timerLabel: "Tiempo",
+    timerModePerQuestion: "Por pregunta",
+    timerModeTotal: "Tiempo total",
+    timerPerQuestionHelp: "Cada pregunta tiene su propio tiempo, elegido por la AI según su complejidad.",
+    timerTotalHelp: "Cuando se acaba el tiempo, la sesión se cierra automáticamente.",
+    minutesShort: "min",
     competitiveMode: "Mostrar clasificación durante el quiz",
     showAnswers: "Mostrar respuesta correcta después de cada pregunta",
     allowGuests: "Permitir entrar sin cuenta",
@@ -108,6 +121,12 @@ const i18n = {
     classHelp: "학생 진행도와 보존을 추적하려면 수업을 선택하세요",
     classBoundHelp: "이 덱은 수업에 연결되어 있습니다. 해당 수업 또는 게스트 전용만 사용 가능합니다.",
     timeLimit: "문제당 시간", timeLimitNone: "제한 없음", seconds: "초",
+    timerLabel: "타이머",
+    timerModePerQuestion: "문제별",
+    timerModeTotal: "총 시간",
+    timerPerQuestionHelp: "각 문제는 AI가 복잡도에 따라 정한 자체 시간을 가집니다.",
+    timerTotalHelp: "시간이 다 되면 세션이 자동으로 종료됩니다.",
+    minutesShort: "분",
     competitiveMode: "퀴즈 중 순위표 표시",
     showAnswers: "각 문제 후 정답 표시",
     allowGuests: "계정 없이 참여 허용",
@@ -306,13 +325,27 @@ function DeckPicker({ userId, t, onPick, navigateToDecks, initialClassFilter = "
 }
 
 // ─── Step 2: Session Options ───────────────────────────────────────────────
-function SessionOptions({ deck, classes, t, onLaunch, onBack }) {
+function SessionOptions({ deck, classes, t, lang = "en", onLaunch, onBack }) {
   // Favorited decks reference a class_id that belongs to the *original* author,
   // not to the current teacher. Don't try to pre-select that — the picker
   // should default to "no class" for favorites.
   const isFav = !!deck._isFav;
   const [classId, setClassId] = useState(isFav ? "" : (deck.class_id || ""));
-  const [timeLimit, setTimeLimit] = useState(0);
+  // Modo del timer:
+  //   - "per_question" (default): cada pregunta tiene su propio time_limit,
+  //     sugerido por la AI o caído al default por tipo. El estudiante ve
+  //     countdown que se resetea en cada pregunta.
+  //   - "total": un solo timer corre durante toda la sesión, en minutos.
+  //     Cuando se acaba, sesión cierra automáticamente.
+  const [timeMode, setTimeMode] = useState("per_question");
+  // Default sugerido del total: el estimate del deck redondeado al minuto
+  // siguiente, cap a 30. Si el deck no tiene preguntas o estimate=0, default 5.
+  const suggestedTotalMin = useMemo(() => {
+    const seconds = estimateDeckSeconds(deck.questions || []);
+    if (seconds <= 0) return 5;
+    return Math.min(30, Math.max(1, Math.ceil(seconds / 60)));
+  }, [deck]);
+  const [totalMinutes, setTotalMinutes] = useState(suggestedTotalMin);
   const [showLeaderboard, setShowLeaderboard] = useState(true);
   const [showAnswers, setShowAnswers] = useState(true);
   const [allowGuests, setAllowGuests] = useState(true);
@@ -323,9 +356,15 @@ function SessionOptions({ deck, classes, t, onLaunch, onBack }) {
 
   const handleLaunch = () => {
     setLaunching(true);
+    // El campo `timeLimit` legacy queda como segundos para compatibilidad
+    // con SessionFlow's onLaunch handler que ya espera ese shape. En modo
+    // per_question lo dejamos en 0 (StudentJoin lee q.time_limit). En modo
+    // total le pasamos el total en segundos para que el runtime lo lea.
+    const timeLimit = timeMode === "total" ? totalMinutes * 60 : 0;
     onLaunch({
       deck, classId: classId || null,
-      timeLimit, showLeaderboard, showAnswers, allowGuests,
+      timeLimit, timeMode,
+      showLeaderboard, showAnswers, allowGuests,
     });
   };
 
@@ -372,22 +411,65 @@ function SessionOptions({ deck, classes, t, onLaunch, onBack }) {
         </div>
 
         <div>
-          <label style={{ display: "block", fontSize: 12, fontWeight: 500, color: C.textSecondary, marginBottom: 6 }}>{t.timeLimit}</label>
-          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-            {[0, 10, 20, 30, 60].map(s => (
-              <button
-                key={s}
-                onClick={() => setTimeLimit(s)}
-                style={{
-                  padding: "8px 14px", borderRadius: 8, fontSize: 13, fontWeight: 500,
-                  background: timeLimit === s ? C.accentSoft : C.bg,
-                  color: timeLimit === s ? C.accent : C.textSecondary,
-                  border: `1px solid ${timeLimit === s ? C.accent + "33" : C.border}`,
-                  cursor: "pointer", fontFamily: "'Outfit',sans-serif",
-                }}
-              >{s === 0 ? t.timeLimitNone : `${s}${t.seconds}`}</button>
-            ))}
+          <label style={{ display: "block", fontSize: 12, fontWeight: 500, color: C.textSecondary, marginBottom: 6 }}>{t.timerLabel}</label>
+          {/* Toggle de modo */}
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }}>
+            <button
+              onClick={() => setTimeMode("per_question")}
+              style={{
+                padding: "8px 14px", borderRadius: 8, fontSize: 13, fontWeight: 500,
+                background: timeMode === "per_question" ? C.accentSoft : C.bg,
+                color: timeMode === "per_question" ? C.accent : C.textSecondary,
+                border: `1px solid ${timeMode === "per_question" ? C.accent + "33" : C.border}`,
+                cursor: "pointer", fontFamily: "'Outfit',sans-serif",
+              }}
+            >{t.timerModePerQuestion}</button>
+            <button
+              onClick={() => setTimeMode("total")}
+              style={{
+                padding: "8px 14px", borderRadius: 8, fontSize: 13, fontWeight: 500,
+                background: timeMode === "total" ? C.accentSoft : C.bg,
+                color: timeMode === "total" ? C.accent : C.textSecondary,
+                border: `1px solid ${timeMode === "total" ? C.accent + "33" : C.border}`,
+                cursor: "pointer", fontFamily: "'Outfit',sans-serif",
+              }}
+            >{t.timerModeTotal}</button>
           </div>
+          {/* Help text del modo activo */}
+          {timeMode === "per_question" ? (
+            <p style={{ fontSize: 11, color: C.textMuted, lineHeight: 1.4, margin: 0 }}>
+              {t.timerPerQuestionHelp}
+              {qs.length > 0 && (() => {
+                const seconds = estimateDeckSeconds(qs);
+                if (seconds <= 0) return null;
+                return <> · <span style={{ color: C.textSecondary }}>≈ {formatDeckDuration(seconds, lang)}</span></>;
+              })()}
+            </p>
+          ) : (
+            <div>
+              {/* Slider de minutos para modo Total */}
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <input
+                  type="range"
+                  min={1}
+                  max={30}
+                  step={1}
+                  value={totalMinutes}
+                  onChange={(e) => setTotalMinutes(Number(e.target.value))}
+                  style={{ flex: 1, accentColor: C.accent }}
+                />
+                <span style={{
+                  fontSize: 14, fontWeight: 600, color: C.text,
+                  minWidth: 56, textAlign: "right",
+                }}>
+                  {totalMinutes} {t.minutesShort}
+                </span>
+              </div>
+              <p style={{ fontSize: 11, color: C.textMuted, lineHeight: 1.4, margin: "6px 0 0" }}>
+                {t.timerTotalHelp}
+              </p>
+            </div>
+          )}
         </div>
 
         <Toggle label={t.competitiveMode} value={showLeaderboard} onChange={setShowLeaderboard} />
@@ -1021,7 +1103,7 @@ export default function SessionFlow({ lang = "en", setLang, onNavigateToDecks, s
   }, [toast]);
 
   const handleLaunch = async (config) => {
-    const { deck, classId, timeLimit, showLeaderboard, showAnswers, allowGuests } = config;
+    const { deck, classId, timeLimit, timeMode, showLeaderboard, showAnswers, allowGuests } = config;
     const pin = String(Math.floor(100000 + Math.random() * 900000));
 
     const { data, error } = await supabase.from("sessions").insert({
@@ -1034,6 +1116,12 @@ export default function SessionFlow({ lang = "en", setLang, onNavigateToDecks, s
       questions: deck.questions || [],
       allow_guests: allowGuests,
       session_settings: {
+        // Bloque timer: time_mode dice si correr per-question (cada pregunta
+        // tiene su propio time_limit) o total (un solo countdown sobre toda
+        // la sesión). time_limit en modo total es el total en segundos. En
+        // modo per_question time_limit queda 0 — StudentJoin lee q.time_limit.
+        // Decks viejos sin time_mode se leen como "per_question" por compatibilidad.
+        time_mode: timeMode || "per_question",
         time_limit: timeLimit,
         show_leaderboard: showLeaderboard,
         show_answers: showAnswers,
@@ -1138,6 +1226,7 @@ export default function SessionFlow({ lang = "en", setLang, onNavigateToDecks, s
             deck={selectedDeck}
             classes={classes}
             t={t}
+            lang={lang}
             onLaunch={handleLaunch}
             onBack={() => { setSelectedDeck(null); setStep("pickDeck"); }}
           />
