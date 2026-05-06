@@ -2,14 +2,7 @@ import { useState } from "react";
 import { supabase } from "../lib/supabase";
 import { LogoMark, CIcon } from "../components/Icons";
 import { Avatar as CatalogAvatar, AVATARS } from "../components/Avatars";
-
-const C = {
-  bg: "#FFFFFF", bgSoft: "#F7F7F5",
-  accent: "#2383E2", accentSoft: "#E8F0FE",
-  green: "#0F7B6C", purple: "#6940A5",
-  text: "#191919", textSecondary: "#6B6B6B", textMuted: "#9B9B9B",
-  border: "#E8E8E4",
-};
+import { C } from "../components/tokens";
 
 const i18n = {
   en: {

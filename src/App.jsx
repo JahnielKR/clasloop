@@ -5,7 +5,6 @@ import { Avatar as ProfileAvatar } from './components/Avatars';
 import SessionFlow from './pages/SessionFlow';
 import StudentJoin from './pages/StudentJoin';
 import PublicHome from './pages/PublicHome';
-import Onboarding from './pages/Onboarding'; // legacy — kept for now, may be removed
 import AvatarOnboarding from './pages/AvatarOnboarding';
 import Community from './pages/Community';
 import Achievements from './pages/Achievements';
@@ -24,7 +23,7 @@ const C = {
   red: "#E03E3E", redSoft: "#FDECEC", purple: "#6940A5", purpleSoft: "#F3EEFB",
   text: "#191919", textSecondary: "#6B6B6B", textMuted: "#9B9B9B", border: "#E8E8E4",
 };
-const COMPONENTS = { sessions: SessionFlow, studentJoin: StudentJoin, onboarding: Onboarding, community: Community, achievements: Achievements, settings: Settings, director: Director, notifications: Notifications, decks: Decks, myClasses: MyClasses, teacherProfile: TeacherProfile };
+const COMPONENTS = { sessions: SessionFlow, studentJoin: StudentJoin, community: Community, achievements: Achievements, settings: Settings, director: Director, notifications: Notifications, decks: Decks, myClasses: MyClasses, teacherProfile: TeacherProfile };
 
 function AuthScreen({ initialMode = "select", initialRole = "teacher", onBack }) {
   const [mode, setMode] = useState(initialMode);
