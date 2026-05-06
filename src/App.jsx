@@ -14,11 +14,12 @@ import Notifications from './pages/Notifications';
 import Decks from './pages/Decks';
 import MyClasses from './pages/MyClasses';
 import TeacherProfile from './pages/TeacherProfile';
+import AdminAIStats from './pages/AdminAIStats';
 import { useIsMobile } from './components/MobileMenuButton';
 import { countVisibleNotifications } from './lib/notifications';
 import { C } from './components/tokens';
 
-const COMPONENTS = { sessions: SessionFlow, studentJoin: StudentJoin, community: Community, achievements: Achievements, settings: Settings, director: Director, notifications: Notifications, decks: Decks, myClasses: MyClasses, teacherProfile: TeacherProfile };
+const COMPONENTS = { sessions: SessionFlow, studentJoin: StudentJoin, community: Community, achievements: Achievements, settings: Settings, director: Director, notifications: Notifications, decks: Decks, myClasses: MyClasses, teacherProfile: TeacherProfile, adminAIStats: AdminAIStats };
 
 function AuthScreen({ initialMode = "select", initialRole = "teacher", onBack }) {
   const [mode, setMode] = useState(initialMode);
@@ -111,9 +112,16 @@ function Sidebar({ page, setPage, profile, lang, setLang, open, setOpen, onSignO
   // Default to teacher unless we know for sure they're a student
   // This prevents the sidebar from flipping during token refresh
   const isT = profile ? profile.role === "teacher" : (page === "sessions" || page === "decks" || page === "director");
-  const nav = isT
+  const isAdmin = profile?.is_admin === true;
+  // Sidebar nav items. Admin tools van al final, después de Settings, y solo
+  // se renderizan si profile.is_admin === true. La protección real está en
+  // la página + RLS de Supabase; ocultar en sidebar es solo UX.
+  const baseNav = isT
     ? [{ id:"sessions",icon:(a)=><SessionsIcon size={28} active={a}/>,l:"Sessions" },{ id:"decks",icon:(a)=><DecksIcon size={28} active={a}/>,l:"Decks" },{ id:"director",icon:(a)=><SchoolIcon size={28} active={a}/>,l:"School" },{ id:"community",icon:(a)=><CommunityIcon size={28} active={a}/>,l:"Community" },{ id:"notifications",icon:(a)=><NotificationsIcon size={28} active={a} badge={notifsCount}/>,l:"Notifications" },{ id:"settings",icon:(a)=><SettingsIcon size={28} active={a}/>,l:"Settings" }]
     : [{ id:"myClasses",icon:(a)=><SchoolIcon size={28} active={a}/>,l:"My Classes" },{ id:"studentJoin",icon:(a)=><JoinSessionIcon size={28} active={a}/>,l:"Join Session" },{ id:"achievements",icon:(a)=><AchievementsIcon size={28} active={a}/>,l:"Achievements" },{ id:"community",icon:(a)=><CommunityIcon size={28} active={a}/>,l:"Community" },{ id:"notifications",icon:(a)=><NotificationsIcon size={28} active={a} badge={notifsCount}/>,l:"Notifications" },{ id:"settings",icon:(a)=><SettingsIcon size={28} active={a}/>,l:"Settings" }];
+  const nav = isAdmin
+    ? [...baseNav, { id:"adminAIStats", icon:(a)=><AIGenIcon size={28} active={a}/>, l:"AI Stats" }]
+    : baseNav;
 
   // In mobile, the sidebar acts as a drawer: full-width-ish, slides in from
   // the left, always shows labels (no collapsed state). In desktop it keeps
