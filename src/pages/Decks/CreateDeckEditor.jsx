@@ -179,6 +179,16 @@ function AIGeneratePanel({
   // LangBadge, los filtros de Community, etc., quedan coherentes con lo que
   // realmente se generó.
   const [aiLanguage, setAiLanguage] = useState(deckLanguage || l || "en");
+  // Si el profe tocó el selector explícitamente, respetamos su elección. Si no,
+  // sincronizamos con deckLanguage por si cambió (p.ej. profe abrió General y
+  // cambió el idioma del deck antes de venir a generar).
+  const [userTouchedLang, setUserTouchedLang] = useState(false);
+  useEffect(() => {
+    if (userTouchedLang) return; // ya eligió manualmente, respetamos
+    const target = deckLanguage || l || "en";
+    if (target !== aiLanguage) setAiLanguage(target);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deckLanguage, l]);
   const [topic, setTopic] = useState("");
   const [keyPoints, setKeyPoints] = useState("");
   const [file, setFile] = useState(null);
@@ -450,7 +460,7 @@ function AIGeneratePanel({
           <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: C.textSecondary, marginBottom: 4 }}>{t.aiLanguageLabel}</label>
           <select
             value={aiLanguage}
-            onChange={(e) => setAiLanguage(e.target.value)}
+            onChange={(e) => { setAiLanguage(e.target.value); setUserTouchedLang(true); }}
             disabled={generating}
             style={{ ...sel, padding: "7px 28px 7px 10px", fontSize: 12, width: "100%" }}
           >

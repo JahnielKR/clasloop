@@ -432,18 +432,25 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
   // entrar al quiz. Vive en `totalTimeLeft` y NO se resetea entre preguntas.
   // Al llegar a 0 se forza el final del quiz: lo que el estudiante haya
   // contestado cuenta, lo que no, queda como sin responder.
+  //
+  // IMPORTANTE: el reset depende del session.id, no de "totalTimeLeft === null".
+  // Si el estudiante lanza una sesión y luego otra sin refrescar la página, el
+  // valor viejo persistía y el countdown global quedaba activo aunque la nueva
+  // sesión fuera per_question. Re-inicializamos en cada cambio de sesión Y
+  // forzamos a null cuando el modo no es total.
   useEffect(() => {
     if (step !== "quiz") return;
     const mode = session?.session_settings?.time_mode;
     const totalSec = session?.session_settings?.time_limit;
-    if (mode !== "total" || !totalSec || totalSec <= 0) return;
-    // Solo inicializamos una vez (cuando entramos al quiz, no en cada
-    // re-render). Si ya tenemos totalTimeLeft no lo tocamos.
-    if (totalTimeLeft === null) {
+    if (mode === "total" && totalSec > 0) {
       setTotalTimeLeft(totalSec);
+    } else {
+      // Modo per_question, o practice, o sin valor: aseguramos que NO haya
+      // countdown global colgado de una sesión anterior.
+      setTotalTimeLeft(null);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [step, session?.session_settings?.time_mode, session?.session_settings?.time_limit]);
+  }, [step, session?.id, session?.session_settings?.time_mode, session?.session_settings?.time_limit]);
 
   // Decremento del timer global cada segundo mientras dure el quiz.
   useEffect(() => {
