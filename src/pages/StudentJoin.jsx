@@ -377,7 +377,19 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
     const ch = supabase.channel(`student-session:${session.id}`)
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "sessions", filter: `id=eq.${session.id}` },
         (payload) => {
-          setSession(payload.new);
+          // CRÍTICO: NO reemplazar session entero con payload.new. Supabase
+          // realtime con TOAST storage puede mandar el row con la columna
+          // jsonb grande (questions) vacía o truncada — un deck de 38 preguntas
+          // con time_limit pesa ~80KB y cae en ese caso. El estudiante vería
+          // "No questions available" porque payload.new.questions sería [].
+          // Solo mergeamos los campos chicos que pueden cambiar (status,
+          // session_settings). El array questions se mantiene del initial
+          // fetch que hicimos al joinear.
+          setSession(prev => prev ? {
+            ...prev,
+            status: payload.new.status,
+            session_settings: payload.new.session_settings || prev.session_settings,
+          } : payload.new);
           // Teacher started the quiz → move from waiting to quiz
           if (payload.new.status === "active" && step === "waiting") setStep("quiz");
           // Teacher ended or cancelled the session → bail out of quiz/lobby
@@ -463,16 +475,19 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
   // estaba mostrando el resultado de la última, no hacemos nada (ya estaba a
   // punto de ver results); si estaba en una pregunta sin responder, hacemos
   // submit null y saltamos directo a results.
+  //
+  // GUARD CRÍTICO: si el modo de la sesión actual NO es total, este efecto NO
+  // debe correr aunque totalTimeLeft sea 0. Eso puede pasar transitoriamente
+  // cuando el estudiante viene de una sesión total previa y entra a una
+  // per_question — el reset de totalTimeLeft a null corre, pero React puede
+  // ejecutar este efecto antes con el valor viejo en cache, causando un
+  // setCurrent erróneo que tira "No questions available".
   useEffect(() => {
     if (totalTimeLeft !== 0) return;
     if (step !== "quiz") return;
-    // Submit lo que tenga (puede ser null) para registrar la respuesta vacía
-    // y avanzar; el flow normal va a llevar al estudiante a results al final
-    // del array. Para forzar el final, marcamos current = última y dejamos
-    // que el flow normal cierre.
+    const mode = session?.session_settings?.time_mode;
+    if (mode !== "total") return;
     if (!showResult) submitAnswer(null);
-    // Si quedan preguntas, las saltamos: ponemos current al final.
-    // (submitAnswer ya avanza al next; al llegar al último, va a results.)
     setCurrent(questions.length - 1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [totalTimeLeft, step]);

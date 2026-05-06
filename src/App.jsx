@@ -240,7 +240,21 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState("sessions");
   const [pageKey, setPageKey] = useState(0);
-  const [lang, setLang] = useState("en");
+  // El idioma de la UI persiste en localStorage. Si Jota cambia a español
+  // y recarga la página, debe seguir en español — antes se reseteaba a "en"
+  // en cada load porque useState arranca con "en" hardcoded.
+  const [lang, setLangRaw] = useState(() => {
+    if (typeof window === "undefined") return "en";
+    const saved = window.localStorage?.getItem("clasloop_lang");
+    if (saved === "en" || saved === "es" || saved === "ko") return saved;
+    return "en";
+  });
+  const setLang = (newLang) => {
+    setLangRaw(newLang);
+    if (typeof window !== "undefined") {
+      window.localStorage?.setItem("clasloop_lang", newLang);
+    }
+  };
   const [open, setOpen] = useState(true);
   const isMobile = useIsMobile();
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
