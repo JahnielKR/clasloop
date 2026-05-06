@@ -6,6 +6,7 @@ import { uploadProfileAvatar, deleteProfileAvatar } from "../lib/avatar-storage"
 import { useIsMobile } from "../components/MobileMenuButton";
 import PageHeader from "../components/PageHeader";
 import { C } from "../components/tokens";
+import useTheme from "../hooks/useTheme";
 
 const i18n = {
   en: {
@@ -15,7 +16,7 @@ const i18n = {
     saveChanges: "Save changes", saving: "Saving...", saved: "Saved!", teacher: "Teacher", student: "Student",
     language: "Language", languageDesc: "Choose your preferred language",
     theme: "Theme", themeDesc: "Choose your preferred appearance",
-    light: "Light", dark: "Dark (soon)", system: "System",
+    light: "Light", dark: "Dark", system: "System",
     changePassword: "Change password", currentPassword: "Current password",
     newPassword: "New password", confirmPassword: "Confirm password", updatePassword: "Update password",
     updatingPassword: "Updating...", passwordUpdated: "Password updated!", passwordError: "Error updating password",
@@ -46,7 +47,7 @@ const i18n = {
     saveChanges: "Guardar", saving: "Guardando...", saved: "¡Guardado!", teacher: "Profesor", student: "Estudiante",
     language: "Idioma", languageDesc: "Elige tu idioma preferido",
     theme: "Tema", themeDesc: "Elige tu apariencia preferida",
-    light: "Claro", dark: "Oscuro (pronto)", system: "Sistema",
+    light: "Claro", dark: "Oscuro", system: "Sistema",
     changePassword: "Cambiar contraseña", currentPassword: "Contraseña actual",
     newPassword: "Nueva contraseña", confirmPassword: "Confirmar contraseña", updatePassword: "Actualizar",
     updatingPassword: "Actualizando...", passwordUpdated: "¡Contraseña actualizada!", passwordError: "Error al actualizar",
@@ -76,7 +77,7 @@ const i18n = {
     saveChanges: "저장", saving: "저장 중...", saved: "저장됨!", teacher: "교사", student: "학생",
     language: "언어", languageDesc: "선호 언어를 선택하세요",
     theme: "테마", themeDesc: "선호 외관을 선택하세요",
-    light: "라이트", dark: "다크 (준비 중)", system: "시스템",
+    light: "라이트", dark: "다크", system: "시스템",
     changePassword: "비밀번호 변경", currentPassword: "현재 비밀번호",
     newPassword: "새 비밀번호", confirmPassword: "비밀번호 확인", updatePassword: "업데이트",
     updatingPassword: "업데이트 중...", passwordUpdated: "비밀번호 업데이트됨!", passwordError: "업데이트 오류",
@@ -156,6 +157,7 @@ export default function Settings({ lang: pageLang = "en", setLang: pageSetLang, 
   const setLang = pageSetLang || setLangLocal;
   const l = pageLang || lang;
   const [tab, setTab] = useState("profile");
+  const [theme, setTheme] = useTheme();
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -545,15 +547,18 @@ export default function Settings({ lang: pageLang = "en", setLang: pageSetLang, 
               } />
               <SettingRow label={t.theme} desc={t.themeDesc} right={
                 <div style={{ display: "flex", gap: 4 }}>
-                  {[[t.light, true], [t.dark, false]].map(([lb, active], i) => (
-                    <button key={i} className="st-pill" style={{
-                      padding: "6px 12px", borderRadius: 6, fontSize: 12, fontWeight: 600,
-                      background: active ? C.accentSoft : C.bgSoft,
-                      color: active ? C.accent : C.textMuted,
-                      border: `1px solid ${active ? C.accent + "33" : C.border}`,
-                      opacity: i === 0 ? 1 : 0.5, cursor: i === 0 ? "pointer" : "default",
-                    }}>{lb}</button>
-                  ))}
+                  {[[t.light, "light"], [t.dark, "dark"]].map(([lb, val]) => {
+                    const active = theme === val;
+                    return (
+                      <button key={val} className="st-pill" onClick={() => setTheme(val)} style={{
+                        padding: "6px 12px", borderRadius: 6, fontSize: 12, fontWeight: 600,
+                        background: active ? C.accentSoft : C.bgSoft,
+                        color: active ? C.accent : C.textMuted,
+                        border: `1px solid ${active ? C.accent + "33" : C.border}`,
+                        cursor: "pointer",
+                      }}>{lb}</button>
+                    );
+                  })}
                 </div>
               } />
             </Section>

@@ -1,39 +1,177 @@
 // ─── Clasloop Design Tokens ──────────────────────────────────────────────
-// Shared color palette used across all pages. Pages that need additional
-// domain-specific colors (e.g. yellow for community decks, pink for rare
-// avatars) extend this with `{ ...C, yellow: "..." }` in their own module.
+// Theme-aware palette using CSS variables. Pages use `C.bg`, `C.text` etc.
+// the same way as before — but these now resolve to CSS variables that
+// switch between light and dark theme automatically.
 //
-// Every key here is currently used by at least one page. Adding new keys
-// is fine; removing them requires sweeping the codebase first.
+// HOW IT WORKS:
+//   - The CSS injected via THEME_CSS declares :root (light) and
+//     [data-theme="dark"] (dark) variable sets.
+//   - The C object below contains var() references — when the theme
+//     attribute on <html> changes, every component using C.bg etc.
+//     re-renders with the new color.
+//   - This is the ONLY place to add/modify theme colors.
+//
+// HOW TO ADD A NEW COLOR:
+//   1. Add to LIGHT_VARS and DARK_VARS in THEME_CSS below
+//   2. Add to the C object as `var(--color-xxx)`
+//
+// USED BY: 12+ pages directly, and indirectly by every page through the
+// design system. Adding new keys is fine; renaming requires sweeping.
 
+// ─── Theme CSS — injected once at app boot ──────────────────────────────
+export const THEME_CSS = `
+:root {
+  /* Surfaces */
+  --c-bg: #FFFFFF;
+  --c-bg-soft: #F7F7F5;
+
+  /* Brand */
+  --c-accent: #2383E2;
+  --c-accent-soft: #E8F0FE;
+
+  /* Status */
+  --c-green: #0F7B6C;
+  --c-green-soft: #EEFBF5;
+  --c-orange: #D9730D;
+  --c-orange-soft: #FFF3E0;
+  --c-red: #E03E3E;
+  --c-red-soft: #FDECEC;
+  --c-purple: #6940A5;
+  --c-purple-soft: #F3EEFB;
+
+  /* Text */
+  --c-text: #191919;
+  --c-text-secondary: #6B6B6B;
+  --c-text-muted: #9B9B9B;
+
+  /* Misc */
+  --c-border: #E8E8E4;
+  --c-shadow: 0 1px 3px rgba(0,0,0,0.04);
+
+  /* Body baseline (used by index.css) */
+  --c-body-bg: #F7F7F5;
+}
+
+[data-theme="dark"] {
+  /* Surfaces — dark inverts white→near-black, soft→slightly lifted surface */
+  --c-bg: #1E1F22;
+  --c-bg-soft: #16171A;
+
+  /* Brand — keep accent recognizable, soft becomes dark-tinted */
+  --c-accent: #4A9FE8;
+  --c-accent-soft: #1F3A57;
+
+  /* Status — slightly lifted hues, soft variants get dark tints */
+  --c-green: #5DB89C;
+  --c-green-soft: #1A2E29;
+  --c-orange: #E89952;
+  --c-orange-soft: #3A2A1A;
+  --c-red: #E86767;
+  --c-red-soft: #3A1F1F;
+  --c-purple: #A687D6;
+  --c-purple-soft: #2A1F3A;
+
+  /* Text — high-contrast on dark surfaces */
+  --c-text: #ECECEC;
+  --c-text-secondary: #A8A8A8;
+  --c-text-muted: #707070;
+
+  /* Misc */
+  --c-border: #2C2D31;
+  --c-shadow: 0 1px 3px rgba(0,0,0,0.4);
+
+  /* Body baseline */
+  --c-body-bg: #16171A;
+}
+
+/* Smooth transition on theme switch — applied to all elements */
+html.theme-ready, html.theme-ready * {
+  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+`;
+
+// ─── C object — drop-in replacement, now theme-aware ────────────────────
+// Every key resolves to a CSS variable. Components don't need to change.
 export const C = {
   // Surfaces
-  bg: "#FFFFFF",
-  bgSoft: "#F7F7F5",
+  bg: "var(--c-bg)",
+  bgSoft: "var(--c-bg-soft)",
 
   // Brand
-  accent: "#2383E2",
-  accentSoft: "#E8F0FE",
+  accent: "var(--c-accent)",
+  accentSoft: "var(--c-accent-soft)",
 
-  // Status colors (paired soft variants for backgrounds)
-  green: "#0F7B6C",
-  greenSoft: "#EEFBF5",
-  orange: "#D9730D",
-  orangeSoft: "#FFF3E0",
-  red: "#E03E3E",
-  redSoft: "#FDECEC",
-  purple: "#6940A5",
-  purpleSoft: "#F3EEFB",
+  // Status
+  green: "var(--c-green)",
+  greenSoft: "var(--c-green-soft)",
+  orange: "var(--c-orange)",
+  orangeSoft: "var(--c-orange-soft)",
+  red: "var(--c-red)",
+  redSoft: "var(--c-red-soft)",
+  purple: "var(--c-purple)",
+  purpleSoft: "var(--c-purple-soft)",
 
-  // Text scale
-  text: "#191919",
-  textSecondary: "#6B6B6B",
-  textMuted: "#9B9B9B",
+  // Text
+  text: "var(--c-text)",
+  textSecondary: "var(--c-text-secondary)",
+  textMuted: "var(--c-text-muted)",
 
   // Misc
-  border: "#E8E8E4",
-  shadow: "0 1px 3px rgba(0,0,0,0.04)",
+  border: "var(--c-border)",
+  shadow: "var(--c-shadow)",
 };
 
 // Mono font stack — used for deck PINs, codes, code-like values.
 export const MONO = "'JetBrains Mono', monospace";
+
+// ─── Theme runtime helpers ──────────────────────────────────────────────
+// These intentionally avoid React hooks so they can be called from anywhere
+// (including BEFORE React mounts, to prevent flash of wrong theme).
+
+const THEME_KEY = "clasloop_theme";
+
+/**
+ * Read the persisted theme from localStorage. Returns "light" | "dark".
+ * Defaults to "light" if nothing stored or storage unavailable.
+ */
+export function getStoredTheme() {
+  try {
+    const v = localStorage.getItem(THEME_KEY);
+    return v === "dark" ? "dark" : "light";
+  } catch (_) {
+    return "light";
+  }
+}
+
+/**
+ * Apply theme to <html> data-theme attribute. Call this on init AND whenever
+ * the user toggles. Does NOT persist — call setStoredTheme() for that.
+ */
+export function applyTheme(theme) {
+  if (typeof document === "undefined") return;
+  const t = theme === "dark" ? "dark" : "light";
+  document.documentElement.setAttribute("data-theme", t);
+}
+
+/**
+ * Persist theme to localStorage AND apply to <html>. The all-in-one toggle
+ * helper for UI components.
+ */
+export function setStoredTheme(theme) {
+  const t = theme === "dark" ? "dark" : "light";
+  try { localStorage.setItem(THEME_KEY, t); } catch (_) {}
+  applyTheme(t);
+}
+
+/**
+ * Inject the theme CSS into the document <head> if not already present.
+ * Idempotent — safe to call multiple times. Call once at app boot.
+ */
+export function ensureThemeCss() {
+  if (typeof document === "undefined") return;
+  if (document.getElementById("clasloop-theme-css")) return;
+  const style = document.createElement("style");
+  style.id = "clasloop-theme-css";
+  style.textContent = THEME_CSS;
+  document.head.appendChild(style);
+}

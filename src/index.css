@@ -7,22 +7,22 @@ html {
 
 body {
   font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
-  background: #F7F7F5;
-  color: #191919;
+  background: var(--c-body-bg);
+  color: var(--c-text);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
 ::selection {
-  background: #E8F0FE;
-  color: #2383E2;
+  background: var(--c-accent-soft);
+  color: var(--c-accent);
 }
 
 input, select, textarea {
   font-family: 'DM Sans', sans-serif;
-  background: #FFFFFF;
-  border: 1px solid #E8E8E4;
-  color: #191919;
+  background: var(--c-bg);
+  border: 1px solid var(--c-border);
+  color: var(--c-text);
   padding: 10px 14px;
   border-radius: 8px;
   font-size: 14px;
@@ -32,12 +32,12 @@ input, select, textarea {
 }
 
 input:focus, select:focus, textarea:focus {
-  border-color: #2383E2;
-  box-shadow: 0 0 0 3px #E8F0FE;
+  border-color: var(--c-accent);
+  box-shadow: 0 0 0 3px var(--c-accent-soft);
 }
 
 input::placeholder, textarea::placeholder {
-  color: #9B9B9B;
+  color: var(--c-text-muted);
 }
 
 textarea {
