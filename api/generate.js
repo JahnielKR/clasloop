@@ -237,26 +237,33 @@ export default async function handler(req, res) {
       };
     }
 
-    // ── 7. Loggear la generación (no bloqueante) ──────────
-    supabaseAdmin
-      .from('ai_generations')
-      .insert({
-        teacher_id: userId,
-        activity_type,
-        num_questions,
-        model_used: modelString,
-        input_type,
-        input_size_chars,
-        output_raw: outputRaw,
-        // Bloque 4: si validamos y filtramos, guardamos el output filtrado
-        // y el count. Bloque 7 los usa para métricas. Si la columna no
-        // existe en la tabla, el insert falla pero no rompe (ver catch).
-        output_filtered: outputFiltered,
-        validation_dropped_count: validationDroppedCount,
-      })
-      .then(({ error }) => {
-        if (error) console.error('ai_generations insert failed:', error);
-      });
+    // ── 7. Loggear la generación ──────────
+    // IMPORTANTE: en Vercel serverless, las funciones serverless terminan
+    // tan pronto el handler retorna. Si el insert es fire-and-forget (sin
+    // await), Vercel mata la lambda antes de que la promesa se resuelva
+    // y el INSERT se pierde. Por eso awaiteamos. El catch evita que un
+    // fallo en la DB bloquee la respuesta al profe (ya tiene sus preguntas).
+    try {
+      const { error: insertErr } = await supabaseAdmin
+        .from('ai_generations')
+        .insert({
+          teacher_id: userId,
+          activity_type,
+          num_questions,
+          model_used: modelString,
+          input_type,
+          input_size_chars,
+          output_raw: outputRaw,
+          // Bloque 4: si validamos y filtramos, guardamos el output filtrado
+          // y el count. Bloque 7 los usa para métricas. Si la columna no
+          // existe en la tabla, el insert falla pero no rompe (ver catch).
+          output_filtered: outputFiltered,
+          validation_dropped_count: validationDroppedCount,
+        });
+      if (insertErr) console.error('ai_generations insert failed:', insertErr);
+    } catch (logErr) {
+      console.error('ai_generations insert threw:', logErr);
+    }
 
     return res.status(200).json(responseData);
   } catch (err) {
