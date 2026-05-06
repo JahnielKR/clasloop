@@ -1,12 +1,6 @@
 import { useState, useEffect } from "react";
 import { LogoMark, CIcon, TeacherInline, StudentInline } from "../components/Icons";
-
-const C = {
-  bg: "#FFFFFF", bgSoft: "#F7F7F5", accent: "#2383E2", accentSoft: "#E8F0FE",
-  green: "#0F7B6C", red: "#E03E3E", redSoft: "#FDECEC", purple: "#6940A5",
-  text: "#191919", textSecondary: "#6B6B6B", textMuted: "#9B9B9B", border: "#E8E8E4",
-};
-const MONO = "'JetBrains Mono', monospace";
+import { C, MONO } from "../components/tokens";
 
 const i18n = {
   en: {
@@ -59,7 +53,7 @@ const css = `
   body{margin:0;background:${C.bgSoft};font-family:'Outfit',sans-serif}
   @keyframes ph-fade { from { opacity:0; transform:translateY(8px) } to { opacity:1; transform:translateY(0) } }
   .ph-fade { animation: ph-fade .35s ease both }
-  .ph-input:focus { border-color: ${C.accent}; box-shadow: 0 0 0 3px ${C.accent}22 }
+  .ph-input:focus { border-color: ${C.accent}; box-shadow: 0 0 0 3px ${C.accentSoft} }
   .ph-btn-primary:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(35,131,226,0.25) }
   .ph-btn-primary:active:not(:disabled) { transform: translateY(0) }
   .ph-btn-secondary:hover { background: ${C.bgSoft} !important; border-color: ${C.textMuted} !important }
