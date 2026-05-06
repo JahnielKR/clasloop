@@ -3,13 +3,7 @@ import { supabase } from "../lib/supabase";
 import { LogoMark, CIcon } from "../components/Icons";
 import { validateGuestName, loadGuestSession, clearGuestSession } from "../lib/guest-session";
 import StudentJoin from "./StudentJoin";
-
-const C = {
-  bg: "#FFFFFF", bgSoft: "#F7F7F5", accent: "#2383E2", accentSoft: "#E8F0FE",
-  green: "#0F7B6C", red: "#E03E3E", redSoft: "#FDECEC", purple: "#6940A5",
-  text: "#191919", textSecondary: "#6B6B6B", textMuted: "#9B9B9B", border: "#E8E8E4",
-};
-const MONO = "'JetBrains Mono', monospace";
+import { C, MONO } from "../components/tokens";
 
 const i18n = {
   en: {
@@ -81,7 +75,7 @@ const css = `
   body{margin:0;background:${C.bgSoft};font-family:'Outfit',sans-serif}
   @keyframes gj-fade { from { opacity:0; transform:translateY(6px) } to { opacity:1; transform:translateY(0) } }
   .gj-fade { animation: gj-fade .3s ease both }
-  .gj-input:focus { border-color: ${C.accent}; box-shadow: 0 0 0 3px ${C.accent}22 }
+  .gj-input:focus { border-color: ${C.accent}; box-shadow: 0 0 0 3px ${C.accentSoft} }
 `;
 
 export default function GuestJoin({ initialCode = "" }) {
