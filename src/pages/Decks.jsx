@@ -119,6 +119,8 @@ const i18n = {
     aiSessionExpired: "Your session expired. Please refresh the page and sign in again.",
     aiTeachersOnly: "Only teachers can generate questions with AI.",
     aiError: "Something went wrong. Try again.",
+    aiDroppedSomeMsg: "{kept} questions added · {dropped} skipped (incomplete)",
+    aiAllDroppedMsg: "All {dropped} questions came back incomplete. Try generating again, change the source, or pick a single type.",
   },
   es: {
     pageTitle: "Decks", subtitle: "Crea y gestiona tus colecciones de preguntas",
@@ -220,6 +222,8 @@ const i18n = {
     aiSessionExpired: "Tu sesión expiró. Recarga la página e inicia sesión de nuevo.",
     aiTeachersOnly: "Solo los profes pueden generar preguntas con AI.",
     aiError: "Algo salió mal. Intenta de nuevo.",
+    aiDroppedSomeMsg: "{kept} preguntas agregadas · {dropped} descartadas (incompletas)",
+    aiAllDroppedMsg: "Las {dropped} preguntas vinieron incompletas. Intenta generar de nuevo, cambia el material, o elige un solo tipo.",
   },
   ko: {
     pageTitle: "덱", subtitle: "문제 모음을 만들고 관리하세요",
@@ -321,6 +325,8 @@ const i18n = {
     aiSessionExpired: "세션이 만료되었습니다. 페이지를 새로고침하고 다시 로그인하세요.",
     aiTeachersOnly: "교사만 AI로 문제를 생성할 수 있습니다.",
     aiError: "문제가 발생했습니다. 다시 시도하세요.",
+    aiDroppedSomeMsg: "{kept}개 추가됨 · {dropped}개 건너뜀 (불완전함)",
+    aiAllDroppedMsg: "{dropped}개 문제가 모두 불완전했습니다. 다시 생성하거나, 자료를 변경하거나, 단일 유형을 선택하세요.",
   },
 };
 

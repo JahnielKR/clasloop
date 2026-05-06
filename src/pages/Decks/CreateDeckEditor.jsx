@@ -161,10 +161,12 @@ function AIGeneratePanel({
   deckLanguage,
   onGenerated,
   onCancel,
+  dropReport,        // {kept, dropped} cuando handleAIGenerated descartó preguntas
 }) {
-  const [aiActivityType, setAiActivityType] = useState(
-    AI_SUPPORTED_TYPES.includes(defaultActivityType) ? defaultActivityType : "mix"
-  );
+  // El panel AI siempre arranca en "mix" porque es el flujo recomendado para
+  // warmups y exit tickets reales (mezcla pedagógica > monotipo). Ignoramos el
+  // tipo activo del editor — ese se usa para "Add question" manual, no para AI.
+  const [aiActivityType, setAiActivityType] = useState("mix");
   const [numQuestions, setNumQuestions] = useState(5);
   const [lessonContext, setLessonContext] = useState("warmup"); // warmup | exitTicket | general
   const [topic, setTopic] = useState("");
@@ -421,6 +423,20 @@ function AIGeneratePanel({
         </div>
       )}
 
+      {/* Caso: la AI generó pero TODAS las preguntas eran inválidas
+          estructuralmente (match sin pairs, mcq sin options, etc.). Le
+          decimos al profe que reintente. */}
+      {!error && dropReport && dropReport.kept === 0 && dropReport.dropped > 0 && (
+        <div style={{
+          padding: "10px 12px", marginBottom: 12, borderRadius: 8,
+          background: "#fff8e6", border: "1px solid #f0d090",
+          color: "#7a5500", fontSize: 12, lineHeight: 1.5,
+        }}>
+          {(t.aiAllDroppedMsg || "All {dropped} questions came back incomplete. Try generating again, change the source, or pick a single type.")
+            .replace("{dropped}", String(dropReport.dropped))}
+        </div>
+      )}
+
       <button
         type="button"
         onClick={handleGenerate}
@@ -513,6 +529,10 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
   const [flashIndex, setFlashIndex] = useState(null); // briefly highlights newly added question
   const [showTypeSelector, setShowTypeSelector] = useState(false);
   const [showAIPanel, setShowAIPanel] = useState(false);
+  // Cuando la validación estructural descarta preguntas malas (p.ej. match sin
+  // pairs, mcq con respuesta correcta fuera de rango), mostramos un aviso al
+  // profe para que sepa qué pasó. null = sin aviso; { kept, dropped } = aviso.
+  const [aiDropReport, setAiDropReport] = useState(null);
   const questionRefs = useRef({});
   const typeSelectorRef = useRef(null);
   const aiPanelRef = useRef(null);
@@ -521,6 +541,7 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
   const openAIPanel = () => {
     setShowTypeSelector(false);
     setShowAIPanel(true);
+    setAiDropReport(null);
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         aiPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -528,12 +549,86 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
     });
   };
 
+  // Validación estructural: una pregunta es válida solo si su shape garantiza
+  // que el alumno puede responderla y el editor puede renderizarla.
+  // Devuelve { valid: bool, reason: string } — reason solo se loggea en consola
+  // para debugging, no se muestra al profe.
+  const validateQuestion = (q) => {
+    if (!q || typeof q !== "object") return { valid: false, reason: "not an object" };
+    if (typeof q.q !== "string" || q.q.trim().length < 3) return { valid: false, reason: "missing or too-short q text" };
+
+    if (q.type === "mcq") {
+      if (!Array.isArray(q.options) || q.options.length < 2) return { valid: false, reason: "mcq needs ≥2 options" };
+      const validOpts = q.options.filter(o => typeof o === "string" && o.trim().length > 0);
+      if (validOpts.length < 2) return { valid: false, reason: "mcq needs ≥2 non-empty options" };
+      // Detectar duplicados (case-insensitive, trim) — opciones repetidas rompen la pregunta
+      const lowercased = validOpts.map(o => o.trim().toLowerCase());
+      if (new Set(lowercased).size !== lowercased.length) return { valid: false, reason: "mcq has duplicate options" };
+      if (typeof q.correct !== "number" || q.correct < 0 || q.correct >= q.options.length) return { valid: false, reason: "mcq correct index out of range" };
+      return { valid: true };
+    }
+
+    if (q.type === "tf") {
+      if (typeof q.correct !== "boolean") return { valid: false, reason: "tf needs boolean correct" };
+      return { valid: true };
+    }
+
+    if (q.type === "fill") {
+      if (typeof q.answer !== "string" || q.answer.trim().length === 0) return { valid: false, reason: "fill needs non-empty answer" };
+      if (!q.q.includes("_____")) return { valid: false, reason: "fill q must contain blank marker _____" };
+      return { valid: true };
+    }
+
+    if (q.type === "order") {
+      if (!Array.isArray(q.items) || q.items.length < 3) return { valid: false, reason: "order needs ≥3 items" };
+      const validItems = q.items.filter(i => typeof i === "string" && i.trim().length > 0);
+      if (validItems.length < 3) return { valid: false, reason: "order needs ≥3 non-empty items" };
+      return { valid: true };
+    }
+
+    if (q.type === "match") {
+      // Este es el bug que vio Jota — match con pairs vacío o muy pocas.
+      if (!Array.isArray(q.pairs) || q.pairs.length < 2) return { valid: false, reason: "match needs ≥2 pairs" };
+      const validPairs = q.pairs.filter(p =>
+        p && typeof p === "object" &&
+        typeof p.left === "string" && p.left.trim().length > 0 &&
+        typeof p.right === "string" && p.right.trim().length > 0
+      );
+      if (validPairs.length < 2) return { valid: false, reason: "match needs ≥2 complete pairs" };
+      // Detectar lefts duplicados (rompen el matching) y rights duplicados (ambiguos)
+      const lefts = validPairs.map(p => p.left.trim().toLowerCase());
+      const rights = validPairs.map(p => p.right.trim().toLowerCase());
+      if (new Set(lefts).size !== lefts.length) return { valid: false, reason: "match has duplicate left items" };
+      if (new Set(rights).size !== rights.length) return { valid: false, reason: "match has duplicate right items" };
+      return { valid: true };
+    }
+
+    if (q.type === "free") {
+      // free solo necesita q text — ya validado arriba.
+      return { valid: true };
+    }
+
+    if (q.type === "sentence") {
+      if (typeof q.required_word !== "string" || q.required_word.trim().length === 0) return { valid: false, reason: "sentence needs required_word" };
+      if (typeof q.min_words !== "number" || q.min_words < 2) return { valid: false, reason: "sentence needs sensible min_words" };
+      return { valid: true };
+    }
+
+    if (q.type === "slider") {
+      if (typeof q.min !== "number" || typeof q.max !== "number" || typeof q.correct !== "number") return { valid: false, reason: "slider needs numeric min/max/correct" };
+      if (q.min >= q.max) return { valid: false, reason: "slider min must be < max" };
+      if (q.correct < q.min || q.correct > q.max) return { valid: false, reason: "slider correct must be within min..max" };
+      if (typeof q.tolerance !== "number" || q.tolerance <= 0) return { valid: false, reason: "slider needs positive tolerance" };
+      return { valid: true };
+    }
+
+    return { valid: false, reason: `unknown type: ${q.type}` };
+  };
+
   // Cuando la AI termina, anexamos las preguntas al final del array existente,
   // expandimos la primera nueva, y hacemos flash. Luego cerramos el panel.
   const handleAIGenerated = (newQuestions) => {
-    // Normalización defensiva: la AI devuelve la forma "core" del tipo, pero el
-    // editor agrega campos adicionales (multi, alternatives) que esperan estar
-    // presentes. Rellenamos con defaults si faltan.
+    // 1. Normalización: rellenar campos opcionales que el editor espera.
     const normalized = newQuestions.map(q => {
       const base = { ...q };
       if (base.type === "mcq") {
@@ -564,14 +659,41 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
         if (typeof base.tolerance !== "number") base.tolerance = 5;
         if (typeof base.unit !== "string") base.unit = "";
       }
-      // free no necesita campos extra: solo type + q.
       return base;
     });
 
+    // 2. Validación estructural: descartamos las rotas. Loggeamos en consola
+    // para debugging y mostramos al profe un aviso si dropeamos algunas.
+    const validated = [];
+    let dropped = 0;
+    for (const q of normalized) {
+      const result = validateQuestion(q);
+      if (result.valid) {
+        validated.push(q);
+      } else {
+        dropped++;
+        // Log detallado para debugging — el profe no ve esto.
+        console.warn("[AI] Dropped invalid question:", result.reason, q);
+      }
+    }
+
+    // Si dropearon TODAS, mostramos error en vez de cerrar el panel — el profe
+    // necesita reintentar.
+    if (validated.length === 0) {
+      setAiDropReport({ kept: 0, dropped });
+      return; // No cerramos el panel; el profe puede dar Generate de nuevo.
+    }
+
+    // 3. Si dropearon algunas pero no todas, dejamos las buenas y avisamos.
+    if (dropped > 0) {
+      setAiDropReport({ kept: validated.length, dropped });
+    } else {
+      setAiDropReport(null);
+    }
+
     setQuestions(prev => {
       const startIdx = prev.length;
-      const merged = [...prev, ...normalized];
-      // Expandir la primera nueva pregunta para que el profe la vea de inmediato.
+      const merged = [...prev, ...validated];
       setExpandedQ(startIdx);
       setFlashIndex(startIdx);
       requestAnimationFrame(() => {
@@ -2090,8 +2212,31 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
             deckGrade={grade}
             deckLanguage={deckLang}
             onGenerated={handleAIGenerated}
-            onCancel={() => setShowAIPanel(false)}
+            onCancel={() => { setShowAIPanel(false); setAiDropReport(null); }}
+            dropReport={aiDropReport}
           />
+        )}
+
+        {/* Aviso cuando se anexaron parcialmente preguntas válidas (panel ya cerrado) */}
+        {!showAIPanel && aiDropReport && aiDropReport.kept > 0 && aiDropReport.dropped > 0 && (
+          <div style={{
+            marginTop: 10, padding: "10px 14px", borderRadius: 8,
+            background: C.accentSoft, border: `1px solid ${C.accent}44`,
+            display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12,
+            fontSize: 12, color: C.text,
+          }}>
+            <span>{(t.aiDroppedSomeMsg || "{kept} questions added · {dropped} skipped (incomplete)")
+              .replace("{kept}", String(aiDropReport.kept))
+              .replace("{dropped}", String(aiDropReport.dropped))}</span>
+            <button
+              onClick={() => setAiDropReport(null)}
+              style={{
+                background: "transparent", border: "none", color: C.textMuted,
+                fontSize: 16, cursor: "pointer", padding: "0 4px", lineHeight: 1,
+              }}
+              aria-label={t.cancel}
+            >×</button>
+          </div>
         )}
 
         {/* Type Selector — appears below the list when triggered */}

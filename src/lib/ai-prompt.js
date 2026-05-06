@@ -229,6 +229,7 @@ Esquema de salida para cada FILL:
 - Each item must be SHORT (max 10 words). Long items are unreadable in a 5-minute warmup.
 - Items must be at the same conceptual level — don't mix "the French Revolution" with "Bastille was stormed" in the same set.
 - The "items" array you return must already be in the CORRECT order. The frontend will shuffle for the student.
+- ⚠️ CRITICAL: every order question MUST have at least 3 non-empty items. If you cannot identify 3+ orderable items in the source, OMIT the order question — do NOT return order with fewer items or empty strings.
 
 Output schema for each ORDER:
 { "type": "order", "q": "Put these in chronological order:", "items": ["First step", "Second step", "Third step", "Fourth step"] }`,
@@ -239,6 +240,7 @@ Output schema for each ORDER:
 - Cada ítem debe ser CORTO (máx 10 palabras). Los ítems largos son ilegibles en un warmup de 5 minutos.
 - Los ítems deben estar al mismo nivel conceptual — no mezcles "la Revolución Francesa" con "Toma de la Bastilla" en el mismo set.
 - El array "items" que devuelvas debe estar YA en el orden CORRECTO. El frontend lo barajea para el estudiante.
+- ⚠️ CRÍTICO: toda pregunta de order DEBE tener al menos 3 ítems no vacíos. Si no puedes identificar 3+ ítems ordenables en la fuente, OMITE la pregunta de order — NO devuelvas order con menos ítems ni con strings vacíos.
 
 Esquema de salida para cada ORDER:
 { "type": "order", "q": "Ordena cronológicamente:", "items": ["Primer paso", "Segundo paso", "Tercer paso", "Cuarto paso"] }`,
@@ -249,6 +251,7 @@ Esquema de salida para cada ORDER:
 - 각 항목은 짧아야 합니다(최대 10단어). 긴 항목은 5분 워밍업에서 읽기 어렵습니다.
 - 항목들은 같은 개념 수준이어야 합니다 — "프랑스 혁명"과 "바스티유 함락"을 같은 세트에 섞지 마세요.
 - 반환하는 "items" 배열은 이미 올바른 순서여야 합니다. 학생에게는 프론트엔드가 섞어서 보여줍니다.
+- ⚠️ 중요: 모든 order 문제는 최소 3개의 비어 있지 않은 항목을 가져야 합니다. 자료에서 3개 이상의 순서를 매길 수 있는 항목을 찾을 수 없다면, order 문제를 생략하세요 — 항목이 부족하거나 빈 문자열이 있는 order를 반환하지 마세요.
 
 각 ORDER의 출력 스키마:
 { "type": "order", "q": "시간순으로 배열하세요:", "items": ["첫 번째", "두 번째", "세 번째", "네 번째"] }`,
@@ -262,9 +265,10 @@ Esquema de salida para cada ORDER:
 - Keep both sides SHORT (max 8 words each side).
 - Do NOT make all the right items the same length or grammatical category — that gives away pairings.
 - The pairs array must be in the CORRECT pairing order. The frontend shuffles the right column for the student.
+- ⚠️ CRITICAL: every match question MUST have at least 2 fully-populated pairs. Each pair MUST have non-empty "left" AND "right" strings. If you cannot find enough material to build proper pairs, OMIT the match question entirely — do NOT return a match with empty or partial pairs. An incomplete match question is worse than no match question.
 
 Output schema for each MATCH:
-{ "type": "match", "q": "Match each term with its definition:", "pairs": [{"left": "Term1", "right": "Def1"}, {"left": "Term2", "right": "Def2"}] }`,
+{ "type": "match", "q": "Match each term with its definition:", "pairs": [{"left": "Term1", "right": "Def1"}, {"left": "Term2", "right": "Def2"}, {"left": "Term3", "right": "Def3"}, {"left": "Term4", "right": "Def4"}] }`,
 
       es: `REGLAS PARA EMPAREJAR (MATCH)
 - 4 a 5 pares por pregunta.
@@ -273,9 +277,10 @@ Output schema for each MATCH:
 - Mantén ambos lados CORTOS (máx 8 palabras por lado).
 - NO hagas todos los ítems de la derecha del mismo largo o categoría gramatical — eso delata los emparejamientos.
 - El array de pares debe estar en el orden de emparejamiento CORRECTO. El frontend barajea la columna derecha para el estudiante.
+- ⚠️ CRÍTICO: toda pregunta de match DEBE tener al menos 2 pares completos. Cada par DEBE tener strings "left" Y "right" no vacíos. Si no encuentras suficiente material para construir pares correctos, OMITE la pregunta de match completamente — NO devuelvas un match con pares vacíos o parciales. Una pregunta de match incompleta es peor que no tener pregunta de match.
 
 Esquema de salida para cada MATCH:
-{ "type": "match", "q": "Empareja cada término con su definición:", "pairs": [{"left": "Término1", "right": "Def1"}, {"left": "Término2", "right": "Def2"}] }`,
+{ "type": "match", "q": "Empareja cada término con su definición:", "pairs": [{"left": "Término1", "right": "Def1"}, {"left": "Término2", "right": "Def2"}, {"left": "Término3", "right": "Def3"}, {"left": "Término4", "right": "Def4"}] }`,
 
       ko: `짝 맞추기(MATCH) 규칙
 - 문제당 4~5쌍.
@@ -284,9 +289,10 @@ Esquema de salida para cada MATCH:
 - 양쪽 모두 짧게 유지하세요 (각 측 최대 8단어).
 - 오른쪽 항목들을 모두 같은 길이나 같은 문법 범주로 만들지 마세요 — 짝을 누설합니다.
 - pairs 배열은 올바른 짝 순서로 반환해야 합니다. 프론트엔드가 학생에게 보여줄 때 오른쪽 열을 섞습니다.
+- ⚠️ 중요: 모든 match 문제는 최소 2개의 완전한 쌍을 가져야 합니다. 각 쌍은 비어 있지 않은 "left" 와 "right" 문자열을 가져야 합니다. 적절한 쌍을 구성할 자료가 부족하다면, match 문제를 완전히 생략하세요 — 빈 쌍이나 부분적인 쌍이 있는 match를 반환하지 마세요. 불완전한 match 문제는 match 문제가 없는 것보다 나쁩니다.
 
 각 MATCH의 출력 스키마:
-{ "type": "match", "q": "각 용어를 정의와 짝지으세요:", "pairs": [{"left": "용어1", "right": "정의1"}, {"left": "용어2", "right": "정의2"}] }`,
+{ "type": "match", "q": "각 용어를 정의와 짝지으세요:", "pairs": [{"left": "용어1", "right": "정의1"}, {"left": "용어2", "right": "정의2"}, {"left": "용어3", "right": "정의3"}, {"left": "용어4", "right": "정의4"}] }`,
     },
 
     poll: {
@@ -436,6 +442,8 @@ Each item in the output array must include its own "type" field so the editor kn
 
 Order matters: open with a quick TF or MCQ to lower the activation energy. End with something slightly harder. Don't start with FREE.
 
+⚠️ CRITICAL: the count requested by the teacher is the TOTAL number of questions to return. Always return exactly that count. If the source material doesn't support the proportion suggested above (e.g. nothing orderable in the material), substitute that type for MCQ or TF — do NOT return fewer questions than requested, and do NOT return broken/incomplete questions of any type. A correctly-built MCQ is always better than an empty MATCH.
+
 Output schema: a JSON array where each element follows the schema of its respective type. Example:
 [
   { "type": "tf", "q": "...", "correct": true },
@@ -459,6 +467,8 @@ Cada item del array de salida DEBE incluir su propio campo "type" para que el ed
 
 El orden importa: abre con un TF o MCQ rápido para bajar la energía de activación. Termina con algo levemente más exigente. No empieces con FREE.
 
+⚠️ CRÍTICO: la cantidad pedida por el profe es el número TOTAL de preguntas a devolver. Siempre devuelve exactamente esa cantidad. Si el material no soporta la proporción sugerida arriba (p.ej. nada ordenable en el material), sustituye ese tipo por MCQ o TF — NO devuelvas menos preguntas de las pedidas, y NO devuelvas preguntas rotas/incompletas de ningún tipo. Un MCQ bien construido siempre es mejor que un MATCH vacío.
+
 Esquema de salida: un array JSON donde cada elemento sigue el esquema de su tipo respectivo. Ejemplo:
 [
   { "type": "tf", "q": "...", "correct": true },
@@ -481,6 +491,8 @@ Esquema de salida: un array JSON donde cada elemento sigue el esquema de su tipo
 출력 배열의 각 항목은 편집기가 형식을 알 수 있도록 자체 "type" 필드를 포함해야 합니다. 각 유형의 규칙을 엄격히 따르세요 (단일 유형을 생성할 때와 동일한 규칙).
 
 순서가 중요합니다: 활성화 에너지를 낮추기 위해 빠른 TF나 MCQ로 시작하세요. 약간 더 어려운 것으로 끝내세요. FREE로 시작하지 마세요.
+
+⚠️ 중요: 교사가 요청한 개수는 반환할 문제의 총 개수입니다. 항상 정확히 그 개수를 반환하세요. 자료가 위에 제안된 비율을 지원하지 않는다면 (예: 자료에 순서 매길 것이 없는 경우), 해당 유형을 MCQ나 TF로 대체하세요 — 요청된 것보다 적은 문제를 반환하거나 불완전한 문제를 반환하지 마세요. 잘 만든 MCQ가 빈 MATCH보다 항상 낫습니다.
 
 출력 스키마: 각 요소가 해당 유형의 스키마를 따르는 JSON 배열. 예:
 [
