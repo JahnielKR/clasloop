@@ -1,102 +1,95 @@
 // ─── Cleo — Clasloop's official mascot ─────────────────────────────────────
-// A spider character that hangs from her own gold silk thread. She has two
-// big eyes and five small golden dot-eyes scattered above (the "secondary"
-// eyes that catch what the main eyes miss — like our spaced-repetition
-// catches what your brain misses).
+// A small spider character peeking out from the LEFT side of a card. She is
+// drawn in profile, looking RIGHT (toward the card content). Her right half
+// is intentionally clipped by the host (the card's left edge) — only her
+// left half + her three legs reaching out are visible.
 //
-// This component is intentionally separate from the Avatars system. Cleo
-// is brand identity, not an avatar option. A 1:1 simplified version for
-// the avatar catalog will live elsewhere when we make a "legendary spinoff".
+// Visible elements (left side of her body):
+//   - Half of head with one big eye looking right
+//   - One cheek blush
+//   - Three little legs reaching out to the left
+//   - A small golden teardrop on top, slightly tilted
+//   - A few golden dot-eyes scattered on the visible forehead
+//   - A tiny "w" smile (only the left half visible)
+//
+// The component is drawn so that x=0 in the viewBox coincides with the
+// card's left edge. Everything to the LEFT of x=0 is what the user sees;
+// the right half of her body lives at x>0 and gets occluded naturally
+// when this component is positioned with its right edge AT the card's
+// left edge.
 //
 // Usage:
-//   <Cleo />              // default 280px
-//   <Cleo size={180} />   // any size, scales proportionally
+//   <Cleo />              // default 100px wide (only the visible half)
+//   <Cleo size={120} />   // any size — height scales proportionally
 //
-// Visual viewBox is 220×320 (her natural canvas including hanging thread
-// + extended legs). The SVG scales uniformly to whatever `size` prop you
-// pass — `size` controls the WIDTH; height scales proportionally.
+// ViewBox is 100×140 (100px wide of visible Cleo, 140px tall for the head
+// + crown + legs spread). Width-driven: `size` controls width, height
+// scales by 140/100 = 1.4x.
 
-export default function Cleo({ size = 280, className = "", style = {} }) {
-  // viewBox is 220 wide × 320 tall (preserves the iconic vertical pose:
-  // thread + body + legs hanging down).
-  const height = (size * 320) / 220;
+export default function Cleo({ size = 100, className = "", style = {} }) {
+  const height = (size * 140) / 100;
   return (
     <svg
       width={size}
       height={height}
-      viewBox="0 0 220 320"
+      viewBox="0 0 100 140"
       xmlns="http://www.w3.org/2000/svg"
       className={className}
-      style={{ display: "block", ...style }}
+      style={{ display: "block", overflow: "visible", ...style }}
       aria-label="Cleo"
     >
-      {/* Origin shifted so x=0 means the center, y=0 means top of thread */}
-      <g transform="translate(110, 0)">
-        {/* Silk thread coming from top */}
-        <line x1="0" y1="0" x2="0" y2="80" stroke="#FFC832" strokeWidth="2" strokeLinecap="round" />
-        <circle cx="0" cy="2" r="3" fill="none" stroke="#FFC832" strokeWidth="2" />
+      {/* Origin at right edge, vertically centered. The visible half of
+          Cleo lives in x: 0..100. Her body center is conceptually at x=100
+          (the card edge), so we translate everything to (100, 70). */}
+      <g transform="translate(100, 70)">
 
-        {/* Tiny gold tuft / silk anchor */}
-        <g transform="translate(0, 80)">
+        {/* ─── Three legs reaching out to the left ─── */}
+        {/* Leg 1 — top */}
+        <path d="M -10 -28 Q -38 -36 -50 -22" fill="none" stroke="#B8D8EE" strokeWidth="5" strokeLinecap="round" />
+        <path d="M -10 -28 Q -38 -36 -50 -22" fill="none" stroke="#2A3A5E" strokeWidth="2.5" strokeLinecap="round" />
+        <circle cx="-50" cy="-22" r="4" fill="#5BA8D9" stroke="#2A3A5E" strokeWidth="2" />
+
+        {/* Leg 2 — middle */}
+        <path d="M -14 -8 Q -42 -10 -54 4" fill="none" stroke="#B8D8EE" strokeWidth="5" strokeLinecap="round" />
+        <path d="M -14 -8 Q -42 -10 -54 4" fill="none" stroke="#2A3A5E" strokeWidth="2.5" strokeLinecap="round" />
+        <circle cx="-54" cy="4" r="4" fill="#5BA8D9" stroke="#2A3A5E" strokeWidth="2" />
+
+        {/* Leg 3 — bottom */}
+        <path d="M -14 14 Q -42 18 -50 32" fill="none" stroke="#B8D8EE" strokeWidth="5" strokeLinecap="round" />
+        <path d="M -14 14 Q -42 18 -50 32" fill="none" stroke="#2A3A5E" strokeWidth="2.5" strokeLinecap="round" />
+        <circle cx="-50" cy="32" r="4" fill="#5BA8D9" stroke="#2A3A5E" strokeWidth="2" />
+
+        {/* ─── Body — full ellipse, but right half (x>0) lies outside
+            the visible viewBox (the card edge is the host clip) ─── */}
+        <ellipse cx="0" cy="0" rx="40" ry="38" fill="#C8E4F5" stroke="#2A3A5E" strokeWidth="2.8" />
+
+        {/* Soft highlight on the visible (left) cheek */}
+        <ellipse cx="-22" cy="-18" rx="10" ry="6" fill="#E5F1F9" opacity="0.6" />
+
+        {/* ─── Golden crown — small tilted teardrop on top of head ─── */}
+        <line x1="-8" y1="-42" x2="-6" y2="-36" stroke="#FFC832" strokeWidth="2" strokeLinecap="round" />
+        <g transform="translate(-6, -42) rotate(-15)">
           <path d="M 0 0 Q -8 -8 -4 -16 Q 4 -20 8 -12 Q 8 -2 0 0 Z" fill="#FFC832" stroke="#2A3A5E" strokeWidth="2" strokeLinejoin="round" />
           <circle cx="2" cy="-12" r="2" fill="#2A3A5E" opacity="0.3" />
         </g>
 
-        {/* LEFT legs — soft blue glow stroke + navy outline + dark blue tip */}
-        <path d="M -28 110 Q -55 100 -68 122 Q -72 132 -64 138" fill="none" stroke="#B8D8EE" strokeWidth="5" strokeLinecap="round" />
-        <path d="M -28 110 Q -55 100 -68 122 Q -72 132 -64 138" fill="none" stroke="#2A3A5E" strokeWidth="2.5" strokeLinecap="round" />
-        <circle cx="-64" cy="138" r="5" fill="#5BA8D9" stroke="#2A3A5E" strokeWidth="2" />
+        {/* Cheek blush — only the left one visible */}
+        <ellipse cx="-26" cy="14" rx="7" ry="4" fill="#FFB8C8" opacity="0.85" />
 
-        <path d="M -32 122 Q -65 132 -78 158 Q -80 168 -72 172" fill="none" stroke="#B8D8EE" strokeWidth="5" strokeLinecap="round" />
-        <path d="M -32 122 Q -65 132 -78 158 Q -80 168 -72 172" fill="none" stroke="#2A3A5E" strokeWidth="2.5" strokeLinecap="round" />
-        <circle cx="-72" cy="172" r="5" fill="#5BA8D9" stroke="#2A3A5E" strokeWidth="2" />
+        {/* Secondary golden dot-eyes scattered on visible forehead */}
+        <circle cx="-20" cy="-22" r="1.6" fill="#FFC832" />
+        <circle cx="-30" cy="-12" r="1.6" fill="#FFC832" />
+        <circle cx="-12" cy="-26" r="1.6" fill="#FFC832" />
 
-        <path d="M -28 138 Q -55 168 -52 196 Q -50 206 -42 206" fill="none" stroke="#B8D8EE" strokeWidth="5" strokeLinecap="round" />
-        <path d="M -28 138 Q -55 168 -52 196 Q -50 206 -42 206" fill="none" stroke="#2A3A5E" strokeWidth="2.5" strokeLinecap="round" />
-        <circle cx="-42" cy="206" r="5" fill="#5BA8D9" stroke="#2A3A5E" strokeWidth="2" />
+        {/* ─── Big eye — one visible, looking RIGHT (toward the card) ─── */}
+        <ellipse cx="-12" cy="6" rx="9" ry="12" fill="#1F2A4A" />
+        {/* Pupil/highlight pulled to the right edge of the eye to suggest
+            she's peeking toward the card content */}
+        <ellipse cx="-8" cy="2" rx="3" ry="3.5" fill="#fff" />
+        <circle cx="-14" cy="11" r="1" fill="#fff" />
 
-        {/* RIGHT legs — mirror */}
-        <path d="M 28 110 Q 55 100 68 122 Q 72 132 64 138" fill="none" stroke="#B8D8EE" strokeWidth="5" strokeLinecap="round" />
-        <path d="M 28 110 Q 55 100 68 122 Q 72 132 64 138" fill="none" stroke="#2A3A5E" strokeWidth="2.5" strokeLinecap="round" />
-        <circle cx="64" cy="138" r="5" fill="#5BA8D9" stroke="#2A3A5E" strokeWidth="2" />
-
-        <path d="M 32 122 Q 65 132 78 158 Q 80 168 72 172" fill="none" stroke="#B8D8EE" strokeWidth="5" strokeLinecap="round" />
-        <path d="M 32 122 Q 65 132 78 158 Q 80 168 72 172" fill="none" stroke="#2A3A5E" strokeWidth="2.5" strokeLinecap="round" />
-        <circle cx="72" cy="172" r="5" fill="#5BA8D9" stroke="#2A3A5E" strokeWidth="2" />
-
-        <path d="M 28 138 Q 55 168 52 196 Q 50 206 42 206" fill="none" stroke="#B8D8EE" strokeWidth="5" strokeLinecap="round" />
-        <path d="M 28 138 Q 55 168 52 196 Q 50 206 42 206" fill="none" stroke="#2A3A5E" strokeWidth="2.5" strokeLinecap="round" />
-        <circle cx="42" cy="206" r="5" fill="#5BA8D9" stroke="#2A3A5E" strokeWidth="2" />
-
-        {/* Body — single round blob */}
-        <ellipse cx="0" cy="140" rx="58" ry="54" fill="#C8E4F5" stroke="#2A3A5E" strokeWidth="2.8" />
-
-        {/* Soft belly highlight */}
-        <ellipse cx="-18" cy="118" rx="20" ry="14" fill="#E5F1F9" opacity="0.6" />
-
-        {/* Cheek blush — flat coral */}
-        <ellipse cx="-32" cy="152" rx="10" ry="6" fill="#FFB8C8" opacity="0.85" />
-        <ellipse cx="32" cy="152" rx="10" ry="6" fill="#FFB8C8" opacity="0.85" />
-
-        {/* Secondary "eyes" — golden dot eyes scattered above big eyes */}
-        <circle cx="-14" cy="115" r="2.2" fill="#FFC832" />
-        <circle cx="0" cy="111" r="2.2" fill="#FFC832" />
-        <circle cx="14" cy="115" r="2.2" fill="#FFC832" />
-        <circle cx="-44" cy="138" r="2" fill="#FFC832" />
-        <circle cx="44" cy="138" r="2" fill="#FFC832" />
-
-        {/* Big eyes — oval, lower face, navy with white highlight */}
-        <ellipse cx="-18" cy="148" rx="10" ry="13" fill="#1F2A4A" />
-        <ellipse cx="18" cy="148" rx="10" ry="13" fill="#1F2A4A" />
-        {/* Upper-left highlight */}
-        <ellipse cx="-21" cy="142" rx="3.5" ry="4.5" fill="#fff" />
-        <ellipse cx="15" cy="142" rx="3.5" ry="4.5" fill="#fff" />
-        {/* Tiny lower-right shine */}
-        <circle cx="-15" cy="154" r="1.2" fill="#fff" />
-        <circle cx="21" cy="154" r="1.2" fill="#fff" />
-
-        {/* Tiny "w" mouth */}
-        <path d="M -4 168 Q -2 171 0 169 Q 2 171 4 168" fill="none" stroke="#2A3A5E" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+        {/* ─── Mouth — left half of "w", visible just below the eye ─── */}
+        <path d="M -16 26 Q -14 29 -12 27" fill="none" stroke="#2A3A5E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
       </g>
     </svg>
   );

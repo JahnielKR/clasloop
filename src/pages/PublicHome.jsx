@@ -71,8 +71,8 @@ const css = `
     .ph-tagline { font-size: 22px !important; line-height: 1.3 !important }
     .ph-sub { font-size: 14px !important }
     .ph-code-input { font-size: 24px !important; padding: 12px !important }
-    .ph-cleo { top: -68px !important; right: -16px !important; width: 84px !important }
-    .ph-cleo svg { width: 84px !important; height: auto !important }
+    .ph-cleo { width: 70px !important }
+    .ph-cleo svg { width: 70px !important; height: auto !important }
   }
 `;
 
@@ -150,16 +150,17 @@ export default function PublicHome({ onSignIn, onSignUp }) {
           width: "100%",
           maxWidth: 440,
         }}>
-          {/* Cleo, hanging from her own thread off the card's top-right corner */}
+          {/* Cleo, peeking from the left side of the card (vertically centered) */}
           <div className="ph-cleo" aria-hidden="true" style={{
             position: "absolute",
-            top: -110,
-            right: -90,
-            width: 120,
+            top: "50%",
+            left: 0,
+            transform: "translate(-100%, -50%)",
+            width: 100,
             pointerEvents: "none",
             zIndex: 2,
           }}>
-            <Cleo size={120} />
+            <Cleo size={100} />
           </div>
 
           {mode === "home" ? (
