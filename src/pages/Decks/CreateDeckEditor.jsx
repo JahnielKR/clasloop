@@ -200,7 +200,7 @@ function AIGeneratePanel({
     setError("");
     setGenerating(true);
     try {
-      const generated = await generateQuestions({
+      const result = await generateQuestions({
         topic: topic.trim() || (file ? file.name : ""),
         keyPoints: keyPoints.trim(),
         grade: deckGrade,
@@ -211,11 +211,17 @@ function AIGeneratePanel({
         file,
         lessonContext,
       });
+      // generateQuestions ahora devuelve { questions, warnings }.
+      // Tolerante a la versión vieja que devolvía solo el array (ej. de un
+      // build cacheado durante el deploy): si es array, lo envolvemos.
+      const generated = Array.isArray(result) ? result : (result?.questions || []);
+      const generationWarnings = Array.isArray(result?.warnings) ? result.warnings : [];
+
       // Saneo defensivo: el modelo a veces devuelve objetos sin "type". En modo
       // single-type, podemos inferirlo del tipo solicitado. En modo "mix", no
       // podemos adivinar — descartamos las que vengan sin type.
       const VALID_TYPES = new Set(["mcq", "tf", "fill", "order", "match", "free", "sentence", "slider"]);
-      const cleaned = (Array.isArray(generated) ? generated : [])
+      const cleaned = generated
         .filter(q => q && typeof q === "object")
         .map(q => {
           if (aiActivityType === "mix") {
@@ -231,7 +237,10 @@ function AIGeneratePanel({
         setGenerating(false);
         return;
       }
-      onGenerated(cleaned);
+      // Si hubo warnings (ej. truncado), los pasamos al padre para que los
+      // muestre arriba de las preguntas. Si no hay warnings, segundo arg
+      // queda vacío.
+      onGenerated(cleaned, generationWarnings);
       // El padre cierra el panel y muestra las preguntas.
     } catch (err) {
       // AIError viene con código; otros errores son network/parse genéricos.
@@ -243,6 +252,9 @@ function AIGeneratePanel({
         else if (err.code === "extraction_empty") setError(err.message || t.aiExtractionEmpty);
         else if (err.code === "extraction_failed") setError(err.message || t.aiExtractionFailed);
         else if (err.code === "unsupported_file") setError(t.aiUnsupportedFile);
+        else if (err.code === "file_too_big") setError(err.message || t.aiFileTooBigGeneric);
+        else if (err.code === "prompt_too_long") setError(err.message || t.aiPromptTooLong);
+        else if (err.code === "doc_legacy") setError(err.message || t.aiDocLegacy);
         else setError(err.message || t.aiError);
       } else {
         setError(err?.message || t.aiError);
@@ -536,6 +548,9 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
   // pairs, mcq con respuesta correcta fuera de rango), mostramos un aviso al
   // profe para que sepa qué pasó. null = sin aviso; { kept, dropped } = aviso.
   const [aiDropReport, setAiDropReport] = useState(null);
+  // Warnings no-bloqueantes de generateQuestions (ej. el archivo se truncó por
+  // largo). Array de { code, ...metadata }. Mostrados como banner amarillo.
+  const [aiGenerationWarnings, setAiGenerationWarnings] = useState([]);
   const questionRefs = useRef({});
   const typeSelectorRef = useRef(null);
   const aiPanelRef = useRef(null);
@@ -545,6 +560,7 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
     setShowTypeSelector(false);
     setShowAIPanel(true);
     setAiDropReport(null);
+    setAiGenerationWarnings([]);
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         aiPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -630,7 +646,11 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
 
   // Cuando la AI termina, anexamos las preguntas al final del array existente,
   // expandimos la primera nueva, y hacemos flash. Luego cerramos el panel.
-  const handleAIGenerated = (newQuestions) => {
+  // El segundo argumento `warnings` viene de generateQuestions con avisos
+  // no bloqueantes (ej. truncado por largo). Los guardamos en state para
+  // mostrarlos arriba de la lista.
+  const handleAIGenerated = (newQuestions, warnings = []) => {
+    setAiGenerationWarnings(Array.isArray(warnings) ? warnings : []);
     // 1. Normalización: rellenar campos opcionales que el editor espera.
     const normalized = newQuestions.map(q => {
       const base = { ...q };
@@ -2236,6 +2256,41 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
               style={{
                 background: "transparent", border: "none", color: C.textMuted,
                 fontSize: 16, cursor: "pointer", padding: "0 4px", lineHeight: 1,
+              }}
+              aria-label={t.cancel}
+            >×</button>
+          </div>
+        )}
+
+        {/* Warnings no-bloqueantes de la generación (ej. el archivo se truncó
+            por largo). Banner amarillo, dismissable. */}
+        {!showAIPanel && aiGenerationWarnings.length > 0 && (
+          <div style={{
+            marginTop: 10, padding: "10px 14px", borderRadius: 8,
+            background: "#fff8e6", border: "1px solid #f0d090",
+            display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12,
+            fontSize: 12, color: "#7a5500", lineHeight: 1.5,
+          }}>
+            <div style={{ flex: 1 }}>
+              {aiGenerationWarnings.map((w, i) => {
+                if (w.code === "truncated") {
+                  return (
+                    <div key={i}>
+                      {(t.aiTruncatedMsg || "Source was very long ({total} chars). The AI used the first {used} chars only — review the questions to make sure key topics are covered.")
+                        .replace("{total}", String(w.originalLength))
+                        .replace("{used}", String(w.usedLength))}
+                    </div>
+                  );
+                }
+                return null;
+              })}
+            </div>
+            <button
+              onClick={() => setAiGenerationWarnings([])}
+              style={{
+                background: "transparent", border: "none", color: "#7a5500",
+                fontSize: 16, cursor: "pointer", padding: "0 4px", lineHeight: 1,
+                flexShrink: 0,
               }}
               aria-label={t.cancel}
             >×</button>

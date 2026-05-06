@@ -30,10 +30,12 @@ import JSZip from "jszip";
 // es principalmente imágenes/no-texto y devolvemos error claro al profe.
 const MIN_USEFUL_CHARS = 50;
 
-// Tope arriba del cual truncamos. ~50k chars ≈ 12k tokens. Más allá la atención
-// del modelo se diluye y la calidad de las preguntas baja, además de que
-// gastamos tokens innecesarios.
-const MAX_CHARS = 50000;
+// Tope arriba del cual truncamos. ~40k chars ≈ 10k tokens. El modelo Sonnet
+// 4.5 acepta 200k tokens de contexto, pero la calidad de las preguntas baja
+// cuando el material es muy largo (atención diluida). Además dejamos espacio
+// para el system prompt + few-shots + output. Si el archivo se trunca, el
+// frontend avisa al profe ("se cortó por largo, revisa que cubra todo").
+const MAX_CHARS = 40000;
 
 // ─── DOCX ──────────────────────────────────────────────────
 // mammoth.extractRawText() trae solo el texto plano, sin estilos. Es lo que
