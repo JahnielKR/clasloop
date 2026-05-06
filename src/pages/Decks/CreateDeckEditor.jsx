@@ -161,6 +161,9 @@ function AIGeneratePanel({
   deckLanguage,
   onGenerated,
   onCancel,
+  onLanguageChange,  // se dispara al generar si el profe escogió un idioma
+                     // distinto al del deck — el editor actualiza deckLang
+                     // silenciosamente para mantener General coherente.
   dropReport,        // {kept, dropped} cuando handleAIGenerated descartó preguntas
 }) {
   // El panel AI siempre arranca en "mix" porque es el flujo recomendado para
@@ -169,6 +172,12 @@ function AIGeneratePanel({
   const [aiActivityType, setAiActivityType] = useState("mix");
   const [numQuestions, setNumQuestions] = useState(5);
   const [lessonContext, setLessonContext] = useState("warmup"); // warmup | exitTicket | general
+  // Idioma de las preguntas generadas. Default = idioma del deck (o el de la
+  // UI si el deck no tiene idioma seteado todavía). Cuando el profe le da
+  // Generate, este idioma se propaga al deck via onLanguageChange — así el
+  // LangBadge, los filtros de Community, etc., quedan coherentes con lo que
+  // realmente se generó.
+  const [aiLanguage, setAiLanguage] = useState(deckLanguage || l || "en");
   const [topic, setTopic] = useState("");
   const [keyPoints, setKeyPoints] = useState("");
   const [file, setFile] = useState(null);
@@ -207,7 +216,7 @@ function AIGeneratePanel({
         subject: deckSubject,
         activityType: aiActivityType,
         numQuestions,
-        language: deckLanguage || l,
+        language: aiLanguage,
         file,
         lessonContext,
       });
@@ -236,6 +245,12 @@ function AIGeneratePanel({
         setError(t.aiNoQuestions);
         setGenerating(false);
         return;
+      }
+      // Si el profe escogió un idioma distinto al del deck, propagamos al
+      // editor para que actualice deckLang silenciosamente. Mantiene
+      // LangBadge / Community / filtros coherentes con lo que se generó.
+      if (aiLanguage !== deckLanguage && typeof onLanguageChange === "function") {
+        onLanguageChange(aiLanguage);
       }
       // Si hubo warnings (ej. truncado), los pasamos al padre para que los
       // muestre arriba de las preguntas. Si no hay warnings, segundo arg
@@ -424,6 +439,19 @@ function AIGeneratePanel({
             <option value="warmup">{t.aiContextWarmup}</option>
             <option value="exitTicket">{t.aiContextExit}</option>
             <option value="general">{t.aiContextGeneral}</option>
+          </select>
+        </div>
+        <div>
+          <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: C.textSecondary, marginBottom: 4 }}>{t.aiLanguageLabel}</label>
+          <select
+            value={aiLanguage}
+            onChange={(e) => setAiLanguage(e.target.value)}
+            disabled={generating}
+            style={{ ...sel, padding: "7px 28px 7px 10px", fontSize: 12 }}
+          >
+            <option value="en">English</option>
+            <option value="es">Español</option>
+            <option value="ko">한국어</option>
           </select>
         </div>
       </div>
@@ -650,7 +678,6 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
   // no bloqueantes (ej. truncado por largo). Los guardamos en state para
   // mostrarlos arriba de la lista.
   const handleAIGenerated = (newQuestions, warnings = []) => {
-    setAiGenerationWarnings(Array.isArray(warnings) ? warnings : []);
     // 1. Normalización: rellenar campos opcionales que el editor espera.
     const normalized = newQuestions.map(q => {
       const base = { ...q };
@@ -685,34 +712,56 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
       return base;
     });
 
-    // 2. Validación estructural: descartamos las rotas. Loggeamos en consola
-    // para debugging y mostramos al profe un aviso si dropeamos algunas.
+    // 2. Validación estructural en cliente: descartamos las que vienen rotas.
+    // Loggeamos en consola para debugging interno.
     const validated = [];
-    let dropped = 0;
+    let structuralDropped = 0;
     for (const q of normalized) {
       const result = validateQuestion(q);
       if (result.valid) {
         validated.push(q);
       } else {
-        dropped++;
-        // Log detallado para debugging — el profe no ve esto.
+        structuralDropped++;
         console.warn("[AI] Dropped invalid question:", result.reason, q);
       }
     }
 
-    // Si dropearon TODAS, mostramos error en vez de cerrar el panel — el profe
-    // necesita reintentar.
+    // 3. Sumar drops semánticos (Haiku) si vinieron en warnings, con los
+    // estructurales (de validateQuestion). Para el profe son lo mismo:
+    // "preguntas descartadas por calidad". El detalle técnico se guarda
+    // solo en consola.
+    const incomingWarnings = Array.isArray(warnings) ? warnings : [];
+    const validationWarning = incomingWarnings.find(w => w.code === "validation_dropped");
+    const semanticDropped = validationWarning?.dropped || 0;
+    const totalDropped = structuralDropped + semanticDropped;
+
+    // 4. Caso: TODAS fueron descartadas. No hay nada que insertar; dejamos
+    // el panel abierto para que el profe reintente. El AIGeneratePanel
+    // tiene su propio dropReport para este caso (lo mantenemos por ahora
+    // para que el panel sepa mostrar error grande).
     if (validated.length === 0) {
-      setAiDropReport({ kept: 0, dropped });
-      return; // No cerramos el panel; el profe puede dar Generate de nuevo.
+      setAiDropReport({ kept: 0, dropped: totalDropped });
+      setAiGenerationWarnings([]);
+      return;
     }
 
-    // 3. Si dropearon algunas pero no todas, dejamos las buenas y avisamos.
-    if (dropped > 0) {
-      setAiDropReport({ kept: validated.length, dropped });
-    } else {
-      setAiDropReport(null);
+    // 5. Caso: algunas válidas. Construimos la lista de warnings unificada.
+    // Quitamos los originales de "validation_dropped" porque los unificamos
+    // en "quality_filtered" abajo. Mantenemos otros (truncated, etc.).
+    const otherWarnings = incomingWarnings.filter(w => w.code !== "validation_dropped");
+    const unifiedWarnings = [...otherWarnings];
+    if (totalDropped > 0) {
+      unifiedWarnings.push({
+        code: "quality_filtered",
+        delivered: validated.length,
+        dropped: totalDropped,
+        // requested = lo que el profe pidió originalmente. Si no lo sabemos
+        // (porque estamos en cliente), aproximamos con delivered + dropped.
+        requested: validated.length + totalDropped,
+      });
     }
+    setAiGenerationWarnings(unifiedWarnings);
+    setAiDropReport(null);
 
     setQuestions(prev => {
       const startIdx = prev.length;
@@ -2235,35 +2284,15 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
             deckGrade={grade}
             deckLanguage={deckLang}
             onGenerated={handleAIGenerated}
+            onLanguageChange={(newLang) => setDeckLang(newLang)}
             onCancel={() => { setShowAIPanel(false); setAiDropReport(null); }}
             dropReport={aiDropReport}
           />
         )}
 
-        {/* Aviso cuando se anexaron parcialmente preguntas válidas (panel ya cerrado) */}
-        {!showAIPanel && aiDropReport && aiDropReport.kept > 0 && aiDropReport.dropped > 0 && (
-          <div style={{
-            marginTop: 10, padding: "10px 14px", borderRadius: 8,
-            background: C.accentSoft, border: `1px solid ${C.accent}44`,
-            display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12,
-            fontSize: 12, color: C.text,
-          }}>
-            <span>{(t.aiDroppedSomeMsg || "{kept} questions added · {dropped} skipped (incomplete)")
-              .replace("{kept}", String(aiDropReport.kept))
-              .replace("{dropped}", String(aiDropReport.dropped))}</span>
-            <button
-              onClick={() => setAiDropReport(null)}
-              style={{
-                background: "transparent", border: "none", color: C.textMuted,
-                fontSize: 16, cursor: "pointer", padding: "0 4px", lineHeight: 1,
-              }}
-              aria-label={t.cancel}
-            >×</button>
-          </div>
-        )}
-
-        {/* Warnings no-bloqueantes de la generación (ej. el archivo se truncó
-            por largo). Banner amarillo, dismissable. */}
+        {/* Warnings no-bloqueantes de la generación (truncado, calidad
+            filtrada). Banner amarillo, dismissable. Unifica todos los avisos
+            post-generación para que el profe vea UN solo mensaje. */}
         {!showAIPanel && aiGenerationWarnings.length > 0 && (
           <div style={{
             marginTop: 10, padding: "10px 14px", borderRadius: 8,
@@ -2282,11 +2311,22 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
                     </div>
                   );
                 }
-                if (w.code === "validation_dropped") {
+                if (w.code === "quality_filtered") {
+                  // Dos variantes según qué % pasó el filtro:
+                  //  - Suave (≥70% pasaron): "X de Y listas para usar"
+                  //  - Fuerte (<70% pasaron): "Solo X de Y. Considera material
+                  //    más extenso o cambiar de tipo"
+                  const requested = w.requested || (w.delivered + w.dropped);
+                  const passRate = requested > 0 ? w.delivered / requested : 1;
+                  const isSoft = passRate >= 0.7;
+                  const template = isSoft
+                    ? (t.aiQualityFilteredSoft || "{delivered} of {requested} ready to use ({dropped} filtered for quality).")
+                    : (t.aiQualityFilteredHard || "Only {delivered} of {requested} passed the quality check. Try a richer source or a single question type.");
                   return (
                     <div key={i}>
-                      {(t.aiValidationDropped || "Quality check filtered out {dropped} weaker question(s). {kept} delivered.")
-                        .replace("{kept}", String(w.kept))
+                      {template
+                        .replace("{delivered}", String(w.delivered))
+                        .replace("{requested}", String(requested))
                         .replace("{dropped}", String(w.dropped))}
                     </div>
                   );
