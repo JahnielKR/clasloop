@@ -104,25 +104,25 @@ const i18n = {
 
 const css = `
   .st-tab { transition: all .15s ease; cursor: pointer; border: none; font-family: 'Outfit',sans-serif; }
-  .st-tab:hover { background: #E8F0FE !important; border-color: #2383E244 !important; color: #2383E2 !important; }
+  .st-tab:hover { background: ${C.accentSoft} !important; border-color: ${C.accent} !important; color: ${C.accent} !important; }
   .st-section { transition: all .2s ease; }
-  .st-section:hover { border-color: #2383E233 !important; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+  .st-section:hover { border-color: ${C.accent} !important; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
   .st-row { transition: all .15s ease; }
-  .st-row:hover { background: #FAFBFF !important; }
+  .st-row:hover { background: ${C.bgSoft} !important; }
   .st-btn { transition: all .15s ease; cursor: pointer; border: none; font-family: 'Outfit',sans-serif; }
   .st-btn:hover { transform: translateY(-1px); filter: brightness(1.05); }
   .st-btn:active { transform: translateY(0) scale(.97); }
-  .st-btn-secondary:hover { background: #E8F0FE !important; border-color: #2383E244 !important; color: #2383E2 !important; }
-  .st-btn-danger:hover { background: #E03E3E !important; color: #fff !important; }
+  .st-btn-secondary:hover { background: ${C.accentSoft} !important; border-color: ${C.accent} !important; color: ${C.accent} !important; }
+  .st-btn-danger:hover { background: ${C.red} !important; color: #fff !important; }
   .st-pill { transition: all .15s ease; cursor: pointer; }
-  .st-pill:hover { background: #E8F0FE !important; border-color: #2383E244 !important; color: #2383E2 !important; }
+  .st-pill:hover { background: ${C.accentSoft} !important; border-color: ${C.accent} !important; color: ${C.accent} !important; }
   .st-toggle { transition: background .2s ease; cursor: pointer; }
   .st-toggle:hover { filter: brightness(.95); }
   .st-input { transition: border-color .15s, box-shadow .15s; }
-  .st-input:hover { border-color: #2383E266 !important; }
-  .st-input:focus { border-color: #2383E2 !important; box-shadow: 0 0 0 3px #E8F0FE !important; }
+  .st-input:hover { border-color: ${C.accent} !important; }
+  .st-input:focus { border-color: ${C.accent} !important; box-shadow: 0 0 0 3px ${C.accentSoft} !important; }
   .st-lang { transition: all .12s ease; cursor: pointer; }
-  .st-lang:hover { background: #E8F0FE !important; color: #2383E2 !important; }
+  .st-lang:hover { background: ${C.accentSoft} !important; color: ${C.accent} !important; }
   @keyframes fadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
   .fade-up { animation: fadeUp .3s ease-out both; }
 `;

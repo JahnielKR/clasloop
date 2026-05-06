@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { CIcon } from "../components/Icons";
-import { DeckCover, SUBJ_ICON, SUBJ_COLOR, resolveColor, colorTint } from "../lib/deck-cover";
+import { DeckCover, SUBJ_ICON, SUBJ_COLOR, resolveColor, colorTint, DECK_COLORS } from "../lib/deck-cover";
 import { analyzeDerivation } from "../lib/deck-derivation";
 import { useIsMobile } from "../components/MobileMenuButton";
 import PageHeader from "../components/PageHeader";
@@ -553,9 +553,9 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
               onClick={isFav ? undefined : () => { setEditing(dk); setView("edit"); }}
             >
               <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-                <span style={{ fontSize: 15, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{dk.title}</span>
+                <span style={{ fontSize: 15, fontWeight: 600, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{dk.title}</span>
                 {isCopy && (
-                  <span style={{ display: "inline-flex", alignItems: "center", gap: 3, padding: "2px 7px", borderRadius: 5, fontSize: 10, fontWeight: 600, background: C.purpleSoft, color: C.purple, border: `1px solid ${C.purple}33` }}>
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 3, padding: "2px 7px", borderRadius: 5, fontSize: 10, fontWeight: 600, background: C.purpleSoft, color: C.purple, border: `1px solid ${C.purple}` }}>
                     ⧉ {t.badgeCopy}
                   </span>
                 )}
@@ -732,8 +732,13 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
               // and the group corresponds to a real class — even if empty), or
               // by the first deck's color, or fall back to the accent.
               const firstDeck = group.decks[0];
-              const subjAccent = group.classObj ? (SUBJ_COLOR?.[group.classObj.subject] || C.accent) : null;
-              const groupAccent = subjAccent || (firstDeck ? resolveColor(firstDeck) : C.accent);
+              // SUBJ_COLOR returns a color id like "blue" — resolve to hex via DECK_COLORS.
+              // We need a hex (not CSS var) because the styles below use hex+alpha
+              // suffixes (groupAccent + "10" etc.) for soft tints, which don't work with var(--c-xxx).
+              const ACCENT_HEX = "#2383E2";
+              const subjId = group.classObj ? SUBJ_COLOR?.[group.classObj.subject] : null;
+              const subjAccent = subjId ? (DECK_COLORS.find(c => c.id === subjId)?.value || ACCENT_HEX) : null;
+              const groupAccent = subjAccent || (firstDeck ? resolveColor(firstDeck) : ACCENT_HEX);
               return (
                 <div key={group.key} data-group-id={group.key}>
                   {group.label && (

@@ -282,7 +282,7 @@ function DeckPicker({ userId, t, onPick, navigateToDecks, initialClassFilter = "
                 <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 8 }}>
                   <DeckCover deck={dk} size={48} radius={10} />
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 15, fontWeight: 600, lineHeight: 1.3, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{dk.title}</div>
+                    <div style={{ fontSize: 15, fontWeight: 600, lineHeight: 1.3, color: C.text, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{dk.title}</div>
                     <div style={{ fontSize: 11, color: C.textMuted, marginTop: 2 }}>{dk.subject} · {dk.grade}</div>
                   </div>
                 </div>
@@ -338,7 +338,7 @@ function SessionOptions({ deck, classes, t, onLaunch, onBack }) {
       }}>
         <DeckCover deck={deck} size={56} radius={11} />
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 2 }}>{deck.title}</div>
+          <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 2, color: C.text }}>{deck.title}</div>
           <div style={{ fontSize: 12, color: C.textMuted }}>{deck.subject} · {deck.grade} · {qs.length} {t.questions}</div>
         </div>
         <button
@@ -828,7 +828,7 @@ function SuggestedCard({ item, t, onPick }) {
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
         <DeckCover deck={deck} size={40} radius={9} />
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 13, fontWeight: 600, lineHeight: 1.3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{deck.title}</div>
+          <div style={{ fontSize: 13, fontWeight: 600, lineHeight: 1.3, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{deck.title}</div>
           <div style={{ fontSize: 10, color: accent, fontWeight: 600 }}>{cls.name}</div>
         </div>
       </div>
