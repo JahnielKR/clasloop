@@ -2,6 +2,18 @@
 // Supports: text input, file uploads (PDF, DOCX, PPTX, images)
 // Uses Claude API with multimodal support for images/PDFs
 
+import { supabase } from "./supabase";
+
+// Custom error class so el frontend puede distinguir rate limit de otros errores.
+export class AIError extends Error {
+  constructor(message, { status, code } = {}) {
+    super(message);
+    this.name = "AIError";
+    this.status = status;
+    this.code = code; // e.g. "rate_limited", "unauthorized"
+  }
+}
+
 const ACTIVITY_PROMPTS = {
   mcq: `Generate multiple choice questions with exactly 4 options each. Mark the correct answer index (0-3).
 Return format: { "q": "question text", "options": ["A", "B", "C", "D"], "correct": 0 }`,
@@ -151,18 +163,75 @@ export async function generateQuestions({
     messageContent = [{ type: "text", text: prompt }];
   }
 
+  // ── Calcular metadata para logging server-side ──────
+  const inputType = file
+    ? (file.name.toLowerCase().endsWith(".pdf") || file.type === "application/pdf"
+        ? "pdf"
+        : file.type?.startsWith("image/")
+        ? "image"
+        : file.name.toLowerCase().endsWith(".docx")
+        ? "docx"
+        : file.name.toLowerCase().endsWith(".pptx")
+        ? "pptx"
+        : "text")
+    : "text";
+  // Aproximación rápida del tamaño del input para métricas.
+  const inputSizeChars = (() => {
+    if (fileContent && typeof fileContent === "string") return fileContent.length;
+    if (!file) return (topic?.length || 0) + (keyPoints?.length || 0);
+    if (file.size) return file.size; // bytes para binarios; sirve como proxy
+    return 0;
+  })();
+
+  // ── Obtener JWT de la sesión actual ─────────────────
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session?.access_token) {
+    throw new AIError("You need to be signed in as a teacher to generate questions.", {
+      status: 401,
+      code: "unauthorized",
+    });
+  }
+
   try {
     const response = await fetch("/api/generate", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${session.access_token}`,
+      },
       body: JSON.stringify({
         messages: [{ role: "user", content: messageContent }],
         max_tokens: 2000,
+        activity_type: activityType,
+        num_questions: numQuestions,
+        input_type: inputType,
+        input_size_chars: inputSizeChars,
       }),
     });
 
     if (!response.ok) {
-      throw new Error(`API error: ${response.status}`);
+      // Intentamos extraer el mensaje del backend para mostrarlo al profe.
+      let payload = null;
+      try { payload = await response.json(); } catch { /* puede no ser JSON */ }
+      if (response.status === 429) {
+        throw new AIError(
+          payload?.message || "You've reached your daily generation limit. Try again tomorrow.",
+          { status: 429, code: "rate_limited" }
+        );
+      }
+      if (response.status === 401) {
+        throw new AIError("Your session expired. Please sign in again.", {
+          status: 401, code: "unauthorized",
+        });
+      }
+      if (response.status === 403) {
+        throw new AIError("Only teachers can generate questions.", {
+          status: 403, code: "forbidden",
+        });
+      }
+      throw new AIError(payload?.error || `API error: ${response.status}`, {
+        status: response.status,
+      });
     }
 
     const data = await response.json();
