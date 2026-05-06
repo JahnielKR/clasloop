@@ -305,15 +305,20 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
   const q = questions[current];
   const qType = getQType(q, session);
 
-  // Per-type time limits — typed/order/match need more thinking time.
+  // Time limit per question. The teacher can set a global override in
+  // session_settings.time_limit (10, 20, 30, 60 seconds). When set to 0 or
+  // missing (e.g. practice mode, or "No limit" not chosen), fall back to
+  // per-type defaults — typed/order/match need more thinking time.
   const timeLimit = useMemo(() => {
+    const teacherOverride = session?.session_settings?.time_limit;
+    if (teacherOverride && teacherOverride > 0) return teacherOverride;
     if (qType === "fill") return 30;
     if (qType === "free") return 90;
     if (qType === "sentence") return 60;
     if (qType === "slider") return 30;
     if (qType === "order" || qType === "match") return 40;
     return 20;
-  }, [qType]);
+  }, [qType, session?.session_settings?.time_limit]);
 
   // Stable shuffles per question. Re-shuffle when `current` changes.
   const shuffledItems = useMemo(() => {
@@ -342,9 +347,14 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
           // Teacher ended or cancelled the session → bail out of quiz/lobby
           // and show the results screen (or a "session ended" message if the
           // student hadn't even started answering).
+          // BUT: if the student already finished on their own (step === "results"),
+          // they reached the end naturally — don't show "Teacher ended" because
+          // nobody ended anything from the student's perspective.
           if (payload.new.status === "completed" || payload.new.status === "cancelled") {
-            setEndedByTeacher(true);
-            setStep("results");
+            if (step !== "results") {
+              setEndedByTeacher(true);
+              setStep("results");
+            }
           }
         }
       ).subscribe();
