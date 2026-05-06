@@ -240,6 +240,9 @@ function AIGeneratePanel({
         else if (err.code === "unauthorized") setError(t.aiSessionExpired);
         else if (err.code === "forbidden") setError(t.aiTeachersOnly);
         else if (err.code === "bad_output") setError(t.aiBadOutput);
+        else if (err.code === "extraction_empty") setError(err.message || t.aiExtractionEmpty);
+        else if (err.code === "extraction_failed") setError(err.message || t.aiExtractionFailed);
+        else if (err.code === "unsupported_file") setError(t.aiUnsupportedFile);
         else setError(err.message || t.aiError);
       } else {
         setError(err?.message || t.aiError);

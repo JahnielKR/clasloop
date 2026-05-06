@@ -4,6 +4,7 @@
 
 import { supabase } from "./supabase";
 import { buildPromptParts } from "./ai-prompt";
+import { extractDocx, extractPptx } from "./file-extract";
 
 // Custom error class so el frontend puede distinguir rate limit de otros errores.
 export class AIError extends Error {
@@ -28,29 +29,51 @@ async function extractTextFromFile(file) {
     return await file.text();
   }
 
-  // For PDF, DOCX, PPTX — we read as base64 and let Claude analyze it
-  // Claude can read PDFs and images directly via multimodal
+  // PDF — Claude can read it natively via multimodal. We don't extract.
   if (type === "application/pdf" || name.endsWith(".pdf")) {
     return { type: "pdf", base64: await fileToBase64(file) };
   }
 
-  // Images — Claude can read directly
+  // Images — Claude reads them directly via multimodal.
   if (type.startsWith("image/")) {
     return { type: "image", base64: await fileToBase64(file), mediaType: type };
   }
 
-  // DOCX/PPTX — read as text extraction (basic)
-  // For a more robust solution, we'd use a library, but for MVP
-  // we'll send as document to Claude
-  if (name.endsWith(".docx") || name.endsWith(".pptx")) {
-    return { type: "document", base64: await fileToBase64(file), mediaType: "application/octet-stream" };
+  // DOCX — extract text in the browser with mammoth. If extraction fails
+  // or yields too little useful text (e.g. file is mostly images), throw
+  // a clear AIError so the panel tells the teacher what to do.
+  if (name.endsWith(".docx")) {
+    const result = await extractDocx(file);
+    if (!result.ok) {
+      throw new AIError(
+        result.reason === "not_enough_text"
+          ? "We couldn't read enough text from this DOCX. If it's mostly images, save it as PDF and try again."
+          : `Couldn't read DOCX: ${result.reason}`,
+        { code: result.reason === "not_enough_text" ? "extraction_empty" : "extraction_failed" }
+      );
+    }
+    return result.text; // string → goes through the text branch in generateQuestions
   }
 
-  // Fallback — try to read as text
+  // PPTX — same approach: extract slide text via JSZip + XML parsing.
+  if (name.endsWith(".pptx")) {
+    const result = await extractPptx(file);
+    if (!result.ok) {
+      throw new AIError(
+        result.reason === "not_enough_text"
+          ? "We couldn't read enough text from this PPTX. If slides are mostly images, save as PDF and try again."
+          : `Couldn't read PPTX: ${result.reason}`,
+        { code: result.reason === "not_enough_text" ? "extraction_empty" : "extraction_failed" }
+      );
+    }
+    return result.text;
+  }
+
+  // Fallback — try to read as text. Useful for .csv, .json, etc.
   try {
     return await file.text();
   } catch {
-    throw new Error("Unsupported file type. Please use PDF, images, or text files.");
+    throw new AIError("Unsupported file type. Use PDF, image, DOCX, PPTX, or text.", { code: "unsupported_file" });
   }
 }
 
@@ -136,9 +159,11 @@ export async function generateQuestions({
         { type: "text", text: promptParts.userText },
       ];
     } else {
-      // DOCX/PPTX: hoy llegan acá como octet-stream. Bloque 5 los reemplaza con
-      // extracción real (mammoth, pptx parser). Por ahora, fallback a topic.
-      fileContent = `[Archivo: ${file.name}] El contenido no pudo extraerse completamente. Genera preguntas a partir del tema.`;
+      // Fallback de seguridad: tipo de archivo no esperado. DOCX/PPTX nunca
+      // caen acá ahora — extractTextFromFile los procesa o tira AIError. Si
+      // llegamos acá es porque algún formato nuevo apareció; mejor degradar
+      // al topic que romper.
+      fileContent = `[File: ${file.name}] Could not extract content. Falling back to topic.`;
       promptParts = buildPromptParts({
         topic: topic || file.name,
         keyPoints, grade, subject, activityType, numQuestions, language,
