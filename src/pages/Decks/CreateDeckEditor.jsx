@@ -2282,6 +2282,15 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
                     </div>
                   );
                 }
+                if (w.code === "validation_dropped") {
+                  return (
+                    <div key={i}>
+                      {(t.aiValidationDropped || "Quality check filtered out {dropped} weaker question(s). {kept} delivered.")
+                        .replace("{kept}", String(w.kept))
+                        .replace("{dropped}", String(w.dropped))}
+                    </div>
+                  );
+                }
                 return null;
               })}
             </div>

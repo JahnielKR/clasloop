@@ -300,6 +300,14 @@ export async function generateQuestions({
         system: promptParts.system,             // Identidad + reglas + negativos
         messages: [{ role: "user", content: messageContent }],
         max_tokens: dynamicMaxTokens,
+        // Bloque 4: pedimos validación semántica con Haiku tras la generación.
+        // El endpoint corre el segundo pase y devuelve solo las aprobadas.
+        // Si Haiku falla, el endpoint devuelve sin filtrar (no bloqueante).
+        validate: true,
+        // Contexto que el judge usa para evaluar.
+        grade,
+        subject,
+        lesson_context: lessonContext,
         activity_type: activityType,
         num_questions: numQuestions,
         input_type: inputType,
@@ -363,9 +371,22 @@ export async function generateQuestions({
     if (!Array.isArray(parsed)) {
       throw new AIError("The model didn't return a valid question array. Try again.", { code: "bad_output" });
     }
+
+    // Bloque 4: el endpoint puede haber filtrado preguntas con Haiku. Si
+    // descartó algunas, agregamos un warning para que el panel se lo
+    // muestre al profe. Si la validación falló, no decimos nada (no
+    // queremos confundir al profe con detalles internos).
+    if (data.validation && typeof data.validation.dropped === "number" && data.validation.dropped > 0) {
+      warnings.push({
+        code: "validation_dropped",
+        kept: data.validation.kept,
+        dropped: data.validation.dropped,
+      });
+    }
+
     // Devolvemos questions y los warnings que se acumularon durante la
-    // preparación del input (truncado por tamaño, etc.). El panel UI
-    // los lee — si nadie los lee, no rompe nada.
+    // preparación del input (truncado por tamaño, validación, etc.). El
+    // panel UI los lee — si nadie los lee, no rompe nada.
     return { questions: parsed, warnings };
   } catch (err) {
     console.error("AI generation failed:", err);
