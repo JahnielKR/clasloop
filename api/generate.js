@@ -13,7 +13,15 @@
 import { createClient } from '@supabase/supabase-js';
 
 const RATE_LIMIT_PER_DAY = 50;
-const DEFAULT_MODEL = 'claude-haiku-4-5-20251001'; // Bloque 2 cambia a Sonnet 4.5
+
+// Mapping de "rol" lógico a modelo concreto. El frontend manda `model: "primary"`
+// o `model: "validator"` y aquí lo traducimos. Esto deja preparado Bloque 4
+// (validación con Haiku) sin tener que tocar el endpoint.
+const MODELS = {
+  primary: 'claude-sonnet-4-5-20250929',   // generación de preguntas (calidad)
+  validator: 'claude-haiku-4-5-20251001',  // validación semántica / tareas mecánicas
+};
+const DEFAULT_MODEL_KEY = 'primary';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -87,6 +95,8 @@ export default async function handler(req, res) {
   try {
     const {
       messages,
+      system,                                 // System prompt aparte (Bloque 2)
+      model = DEFAULT_MODEL_KEY,              // 'primary' | 'validator'
       max_tokens = 2000,
       // Metadata opcional que el frontend puede mandar para que loggeemos mejor.
       activity_type = 'unknown',
@@ -99,6 +109,17 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'messages array is required' });
     }
 
+    const modelString = MODELS[model] || MODELS[DEFAULT_MODEL_KEY];
+
+    const anthropicBody = {
+      model: modelString,
+      max_tokens,
+      messages,
+    };
+    if (typeof system === 'string' && system.trim()) {
+      anthropicBody.system = system;
+    }
+
     const anthropicResp = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -106,11 +127,7 @@ export default async function handler(req, res) {
         'x-api-key': ANTHROPIC_API_KEY,
         'anthropic-version': '2023-06-01',
       },
-      body: JSON.stringify({
-        model: DEFAULT_MODEL,
-        max_tokens,
-        messages,
-      }),
+      body: JSON.stringify(anthropicBody),
     });
 
     if (!anthropicResp.ok) {
@@ -141,7 +158,7 @@ export default async function handler(req, res) {
         teacher_id: userId,
         activity_type,
         num_questions,
-        model_used: DEFAULT_MODEL,
+        model_used: modelString,
         input_type,
         input_size_chars,
         output_raw: outputRaw,

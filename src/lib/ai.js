@@ -3,6 +3,7 @@
 // Uses Claude API with multimodal support for images/PDFs
 
 import { supabase } from "./supabase";
+import { buildPromptParts } from "./ai-prompt";
 
 // Custom error class so el frontend puede distinguir rate limit de otros errores.
 export class AIError extends Error {
@@ -14,51 +15,8 @@ export class AIError extends Error {
   }
 }
 
-const ACTIVITY_PROMPTS = {
-  mcq: `Generate multiple choice questions with exactly 4 options each. Mark the correct answer index (0-3).
-Return format: { "q": "question text", "options": ["A", "B", "C", "D"], "correct": 0 }`,
-
-  tf: `Generate true/false statements. Mix true and false roughly equally.
-Return format: { "q": "statement text", "correct": true }`,
-
-  fill: `Generate fill-in-the-blank questions. Use _____ to mark the blank.
-Return format: { "q": "The _____ is the powerhouse of the cell.", "answer": "mitochondria" }`,
-
-  order: `Generate ordering/sequence questions with 4-6 items in correct order.
-Return format: { "q": "Put these in order:", "items": ["First", "Second", "Third", "Fourth"] }`,
-
-  match: `Generate matching pairs (4-5 pairs).
-Return format: { "q": "Match the items:", "pairs": [{"left": "Term", "right": "Definition"}, ...] }`,
-
-  poll: `Generate opinion/discussion questions with 3-4 options. No correct answer.
-Return format: { "q": "question text", "options": ["Option A", "Option B", "Option C"] }`,
-};
-
-const LANG_MAP = { en: "English", es: "Spanish", ko: "Korean" };
-
-function buildPrompt({ topic, keyPoints, grade, subject, activityType, numQuestions, language, fileContent }) {
-  const sourceInfo = fileContent
-    ? `The teacher uploaded their class material. Here is the extracted content:\n\n---\n${fileContent}\n---\n\nGenerate questions based on THIS specific content.`
-    : `Topic: ${topic}\n${keyPoints ? `Key points:\n${keyPoints}` : ""}`;
-
-  return `You are Clasloop, an AI assistant that generates review questions for spaced repetition in classrooms.
-
-Generate ${numQuestions} questions for a ${grade} grade ${subject} class.
-
-${sourceInfo}
-
-${ACTIVITY_PROMPTS[activityType]}
-
-RULES:
-- Write ALL questions in ${LANG_MAP[language || "en"]}
-- Appropriate for ${grade} grade level
-- Test recall and understanding, not just recognition
-- Vary difficulty: include easy, medium, and challenging questions
-- Be specific to the content provided
-- Questions should help students remember key concepts long-term
-
-Respond with ONLY a valid JSON array. No markdown, no backticks, no explanation.`;
-}
+// NOTA: el prompt engineering vive ahora en `./ai-prompt.js`.
+// Aquí solo orquestamos: extracción de archivo, construcción del message, fetch.
 
 // ─── Extract text from file ─────────────────────────
 async function extractTextFromFile(file) {
@@ -108,6 +66,25 @@ function fileToBase64(file) {
   });
 }
 
+// ─── JSON parser robusto ──────────────────────────────
+// El modelo está instruído a devolver SOLO el array. Pero si por algún motivo
+// se desvía (mete code fence, comentario, etc.), intentamos rescatar el primer
+// array bien formado.
+function parseQuestionsArray(text) {
+  if (!text || typeof text !== "string") return null;
+  // 1) Intento directo limpiando code fences.
+  const stripped = text.replace(/```json|```/g, "").trim();
+  try { return JSON.parse(stripped); } catch { /* sigue */ }
+  // 2) Buscamos el primer "[" y el último "]" balanceados.
+  const start = stripped.indexOf("[");
+  const end = stripped.lastIndexOf("]");
+  if (start === -1 || end === -1 || end < start) return null;
+  const slice = stripped.slice(start, end + 1);
+  try { return JSON.parse(slice); } catch { /* sigue */ }
+  // 3) Último recurso: nada parseó.
+  return null;
+}
+
 // ─── Generate questions ─────────────────────────────
 export async function generateQuestions({
   topic,
@@ -118,49 +95,64 @@ export async function generateQuestions({
   numQuestions = 5,
   language = "en",
   file = null,
+  lessonContext = "general", // "warmup" | "exitTicket" | "general" — Bloque 3 lo conectará desde la UI
 }) {
   let fileContent = null;
   let messageContent = [];
+  let promptParts = null;
 
-  // Process file if provided
+  // ── Procesar archivo (si hay) y armar messageContent ───
   if (file) {
     const extracted = await extractTextFromFile(file);
 
     if (typeof extracted === "string") {
-      // Plain text content
+      // Texto plano: el contenido va dentro del system/user text, no como block aparte.
       fileContent = extracted;
-      const prompt = buildPrompt({ topic: topic || file.name, keyPoints, grade, subject, activityType, numQuestions, language, fileContent });
-      messageContent = [{ type: "text", text: prompt }];
+      promptParts = buildPromptParts({
+        topic: topic || file.name,
+        keyPoints, grade, subject, activityType, numQuestions, language,
+        fileContent, hasMultimodal: false, fileName: file.name, lessonContext,
+      });
+      messageContent = [{ type: "text", text: promptParts.userText }];
     } else if (extracted.type === "pdf") {
-      // PDF — send as document to Claude
-      const prompt = buildPrompt({ topic: topic || file.name, keyPoints, grade, subject, activityType, numQuestions, language, fileContent: null });
+      // PDF nativo: va como document block ANTES del texto, multimodal real.
+      promptParts = buildPromptParts({
+        topic: topic || file.name,
+        keyPoints, grade, subject, activityType, numQuestions, language,
+        fileContent: null, hasMultimodal: true, fileName: file.name, lessonContext,
+      });
       messageContent = [
-        {
-          type: "document",
-          source: { type: "base64", media_type: "application/pdf", data: extracted.base64 },
-        },
-        { type: "text", text: prompt + "\n\nAnalyze the PDF document above and generate questions based on its content." },
+        { type: "document", source: { type: "base64", media_type: "application/pdf", data: extracted.base64 } },
+        { type: "text", text: promptParts.userText },
       ];
     } else if (extracted.type === "image") {
-      // Image — send as image to Claude
-      const prompt = buildPrompt({ topic: topic || file.name, keyPoints, grade, subject, activityType, numQuestions, language, fileContent: null });
+      promptParts = buildPromptParts({
+        topic: topic || file.name,
+        keyPoints, grade, subject, activityType, numQuestions, language,
+        fileContent: null, hasMultimodal: true, fileName: file.name, lessonContext,
+      });
       messageContent = [
-        {
-          type: "image",
-          source: { type: "base64", media_type: extracted.mediaType, data: extracted.base64 },
-        },
-        { type: "text", text: prompt + "\n\nAnalyze the image above (it may be a slide, worksheet, or class material) and generate questions based on its content." },
+        { type: "image", source: { type: "base64", media_type: extracted.mediaType, data: extracted.base64 } },
+        { type: "text", text: promptParts.userText },
       ];
     } else {
-      // Other document types — try as text
-      fileContent = `[File: ${file.name}] Content could not be fully extracted. Please generate questions based on the topic.`;
-      const prompt = buildPrompt({ topic: topic || file.name, keyPoints, grade, subject, activityType, numQuestions, language, fileContent });
-      messageContent = [{ type: "text", text: prompt }];
+      // DOCX/PPTX: hoy llegan acá como octet-stream. Bloque 5 los reemplaza con
+      // extracción real (mammoth, pptx parser). Por ahora, fallback a topic.
+      fileContent = `[Archivo: ${file.name}] El contenido no pudo extraerse completamente. Genera preguntas a partir del tema.`;
+      promptParts = buildPromptParts({
+        topic: topic || file.name,
+        keyPoints, grade, subject, activityType, numQuestions, language,
+        fileContent, hasMultimodal: false, fileName: file.name, lessonContext,
+      });
+      messageContent = [{ type: "text", text: promptParts.userText }];
     }
   } else {
-    // No file — text only
-    const prompt = buildPrompt({ topic, keyPoints, grade, subject, activityType, numQuestions, language, fileContent: null });
-    messageContent = [{ type: "text", text: prompt }];
+    // Sin archivo, solo topic + keyPoints.
+    promptParts = buildPromptParts({
+      topic, keyPoints, grade, subject, activityType, numQuestions, language,
+      fileContent: null, hasMultimodal: false, fileName: null, lessonContext,
+    });
+    messageContent = [{ type: "text", text: promptParts.userText }];
   }
 
   // ── Calcular metadata para logging server-side ──────
@@ -200,8 +192,10 @@ export async function generateQuestions({
         Authorization: `Bearer ${session.access_token}`,
       },
       body: JSON.stringify({
+        model: "primary",                       // Sonnet 4.5 — calidad pedagógica
+        system: promptParts.system,             // Identidad + reglas + negativos
         messages: [{ role: "user", content: messageContent }],
-        max_tokens: 2000,
+        max_tokens: 4000,                       // Sonnet puede dar respuestas más ricas; subimos margen
         activity_type: activityType,
         num_questions: numQuestions,
         input_type: inputType,
@@ -240,8 +234,13 @@ export async function generateQuestions({
       .map((item) => item.text)
       .join("");
 
-    const clean = text.replace(/```json|```/g, "").trim();
-    return JSON.parse(clean);
+    // Parser robusto: aunque el modelo se desvía y mete texto/code-fence
+    // alrededor del JSON, intentamos extraer el primer array bien formado.
+    const parsed = parseQuestionsArray(text);
+    if (!Array.isArray(parsed)) {
+      throw new AIError("The model didn't return a valid question array. Try again.", { code: "bad_output" });
+    }
+    return parsed;
   } catch (err) {
     console.error("AI generation failed:", err);
     throw err;
