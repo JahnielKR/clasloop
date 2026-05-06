@@ -4,14 +4,10 @@ import { LogoMark, CIcon } from "../components/Icons";
 import { Avatar } from "../components/Avatars";
 import { checkAndGrantUnlocks } from "../lib/unlock-checker";
 import { generateGuestToken, saveGuestSession, validateGuestName, clearGuestSession } from "../lib/guest-session";
+import { C, MONO } from "../components/tokens";
 
-const C = {
-  bg: "#FFFFFF", bgSoft: "#F7F7F5", accent: "#2383E2", accentSoft: "#E8F0FE",
-  green: "#0F7B6C", greenSoft: "#EEFBF5", orange: "#D9730D", orangeSoft: "#FFF3E0",
-  red: "#E03E3E", redSoft: "#FDECEC", purple: "#6940A5", purpleSoft: "#F3EEFB",
-  text: "#191919", textSecondary: "#6B6B6B", textMuted: "#9B9B9B", border: "#E8E8E4",
-};
-const MONO = "'JetBrains Mono', monospace";
+// Quiz option colors — kahoot-style fixed palette. NOT theme-aware on purpose:
+// students need to see the same colors the teacher launches the session with.
 const OPT_C = ["#2383E2", "#0F7B6C", "#D9730D", "#6940A5"];
 const retCol = (v) => v >= 70 ? C.green : v >= 40 ? C.orange : C.red;
 
@@ -118,13 +114,13 @@ const css = `
   .sj-btn { transition: all .15s ease; cursor: pointer; border: none; font-family: 'Outfit',sans-serif; }
   .sj-btn:hover { transform: translateY(-1px); filter: brightness(1.05); }
   .sj-btn:active { transform: translateY(0) scale(.97); }
-  .sj-btn-secondary:hover { background: #E8F0FE !important; border-color: #2383E244 !important; color: #2383E2 !important; }
+  .sj-btn-secondary:hover { background: ${C.accentSoft} !important; border-color: ${C.accent} !important; color: ${C.accent} !important; }
   .sj-option { transition: all .15s ease; cursor: pointer; border: none; font-family: 'Outfit',sans-serif; }
   .sj-option:hover { transform: scale(1.02); filter: brightness(1.1); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
   .sj-option:active { transform: scale(.96); }
   .sj-input { transition: border-color .15s, box-shadow .15s; }
-  .sj-input:hover { border-color: #2383E266 !important; }
-  .sj-input:focus { border-color: #2383E2 !important; box-shadow: 0 0 0 3px #E8F0FE !important; }
+  .sj-input:hover { border-color: ${C.accent} !important; }
+  .sj-input:focus { border-color: ${C.accent} !important; box-shadow: 0 0 0 3px ${C.accentSoft} !important; }
   .sj-chip { transition: all .15s ease; cursor: pointer; border: none; font-family: 'Outfit',sans-serif; }
   .sj-chip:hover:not(:disabled) { transform: translateY(-1px); filter: brightness(1.03); }
   .sj-chip:active:not(:disabled) { transform: translateY(0) scale(.98); }
@@ -146,20 +142,20 @@ const css = `
   .sj-slider {
     -webkit-appearance: none; appearance: none;
     width: 100%; height: 8px; border-radius: 999px;
-    background: linear-gradient(90deg, #2383E2, #6940A5);
+    background: linear-gradient(90deg, ${C.accent}, ${C.purple});
     outline: none; cursor: pointer; padding: 0;
   }
   .sj-slider::-webkit-slider-thumb {
     -webkit-appearance: none; appearance: none;
     width: 28px; height: 28px; border-radius: 50%;
-    background: #fff; border: 3px solid #2383E2;
+    background: #fff; border: 3px solid ${C.accent};
     box-shadow: 0 2px 8px rgba(35,131,226,0.35);
     cursor: grab; transition: transform .15s ease;
   }
   .sj-slider::-webkit-slider-thumb:active { transform: scale(1.15); cursor: grabbing; }
   .sj-slider::-moz-range-thumb {
     width: 28px; height: 28px; border-radius: 50%;
-    background: #fff; border: 3px solid #2383E2;
+    background: #fff; border: 3px solid ${C.accent};
     box-shadow: 0 2px 8px rgba(35,131,226,0.35);
     cursor: grab;
   }
