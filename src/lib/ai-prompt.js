@@ -317,6 +317,179 @@ Esquema de salida para cada POLL:
 각 POLL의 출력 스키마:
 { "type": "poll", "q": "문제 텍스트", "options": ["선택지 A", "선택지 B", "선택지 C"] }`,
     },
+
+    free: {
+      en: `RULES FOR FREE-TEXT (FREE)
+- An open-ended question that invites a written student response. There is NO automatic grading — the teacher reads answers afterward.
+- Use this format for explanation, application, or reflection — NOT for things that have a single correct word/phrase (use FILL for those).
+- Question must be answerable in 2-4 sentences by an average student at the given grade level. Don't write essay prompts.
+- Be SPECIFIC: "Explain why X happened" is better than "What can you say about X?".
+- Anchor every question to the source material — the student should be able to answer using what was just taught.
+
+Output schema for each FREE:
+{ "type": "free", "q": "question text" }`,
+
+      es: `REGLAS PARA RESPUESTA LIBRE (FREE)
+- Una pregunta abierta que invita a una respuesta escrita del estudiante. NO hay calificación automática — el profe lee las respuestas después.
+- Usa este formato para explicación, aplicación o reflexión — NO para cosas que tienen una sola palabra/frase correcta (para eso usa FILL).
+- La pregunta debe poder responderse en 2-4 oraciones por un estudiante promedio del grado indicado. No escribas prompts de ensayo.
+- Sé ESPECÍFICO: "Explica por qué pasó X" es mejor que "¿Qué puedes decir sobre X?".
+- Ancla cada pregunta al material — el estudiante debe poder responder con lo que acaba de ver.
+
+Esquema de salida para cada FREE:
+{ "type": "free", "q": "texto de la pregunta" }`,
+
+      ko: `자유 응답(FREE) 규칙
+- 학생이 글로 답하는 개방형 질문. 자동 채점은 없습니다 — 교사가 나중에 답안을 읽습니다.
+- 설명, 적용, 성찰을 묻는 데 사용하세요 — 단일한 정답 단어/구가 있는 경우는 FILL을 사용하세요.
+- 해당 학년의 평균 학생이 2~4문장으로 답할 수 있어야 합니다. 에세이 주제를 쓰지 마세요.
+- 구체적으로: "X가 왜 일어났는지 설명하세요"가 "X에 대해 무엇을 말할 수 있나요?"보다 좋습니다.
+- 모든 질문을 자료에 고정하세요 — 학생이 방금 배운 내용으로 답할 수 있어야 합니다.
+
+각 FREE의 출력 스키마:
+{ "type": "free", "q": "문제 텍스트" }`,
+    },
+
+    sentence: {
+      en: `RULES FOR SENTENCE BUILDER (SENTENCE)
+- The student must construct an original sentence that uses a REQUIRED WORD (or short phrase) and meets a minimum length.
+- Best for language classes, vocabulary review, grammar practice, or content where production matters more than recognition.
+- The required_word must be a SINGLE word or short phrase (max 3 words) drawn from the source material.
+- min_words: 5-10 typical. Lower for elementary grades, higher for advanced.
+- The question prompt should give context — what the student should write ABOUT — not just "use this word".
+
+Output schema for each SENTENCE:
+{ "type": "sentence", "q": "Write a sentence describing what causes acid rain.", "required_word": "sulfur", "min_words": 8 }`,
+
+      es: `REGLAS PARA CREAR ORACIÓN (SENTENCE)
+- El estudiante debe construir una oración original que use una PALABRA REQUERIDA (o frase corta) y cumpla un largo mínimo.
+- Ideal para clases de idiomas, repaso de vocabulario, práctica gramatical, o contenido donde producir importa más que reconocer.
+- required_word debe ser UNA palabra o una frase corta (máx 3 palabras) tomada del material.
+- min_words: típicamente 5-10. Menos para grados de primaria, más para avanzados.
+- El enunciado debe dar contexto — sobre QUÉ debe escribir el estudiante — no solo "usa esta palabra".
+
+Esquema de salida para cada SENTENCE:
+{ "type": "sentence", "q": "Escribe una oración explicando qué causa la lluvia ácida.", "required_word": "azufre", "min_words": 8 }`,
+
+      ko: `문장 만들기(SENTENCE) 규칙
+- 학생이 필수 단어(또는 짧은 구)를 사용하고 최소 길이를 충족하는 독창적인 문장을 작성해야 합니다.
+- 어학 수업, 어휘 복습, 문법 연습, 또는 인식보다 생산이 더 중요한 내용에 적합합니다.
+- required_word는 자료에서 가져온 한 단어 또는 짧은 구(최대 3단어)여야 합니다.
+- min_words: 일반적으로 5~10. 초등학교는 낮게, 고급은 높게.
+- 문제 프롬프트는 학생이 무엇에 대해 쓸지 맥락을 줘야 합니다 — 단순히 "이 단어를 사용하세요"가 아닙니다.
+
+각 SENTENCE의 출력 스키마:
+{ "type": "sentence", "q": "산성비의 원인을 설명하는 문장을 쓰세요.", "required_word": "황", "min_words": 8 }`,
+    },
+
+    slider: {
+      en: `RULES FOR SLIDER ESTIMATE (SLIDER)
+- The student drags a slider to estimate a numerical value. They get it correct if their answer is within ±tolerance of the correct value.
+- ⚠️ STRICT RULE: ONLY generate slider questions when the SOURCE MATERIAL contains a specific numerical fact (year, percentage, distance, count, measurement, age, etc.). NEVER invent a number that is not in the source.
+- If the source material has no clear numerical facts, do NOT generate slider questions — refuse this type and return zero questions of this type rather than inventing.
+- The "correct" value must be the exact number from the source.
+- "min" and "max" must bracket the correct answer with reasonable range — typically the correct ±50% to ±100%, never wider than necessary (otherwise the question becomes a coin flip).
+- "tolerance" should reflect how precise the student is expected to be: 5-10% of the correct value for hard recall, 15-25% for estimation.
+- "unit" is the unit shown after the number ("years", "%", "km", "people"). Empty string if unitless.
+
+Output schema for each SLIDER:
+{ "type": "slider", "q": "About what year did the French Revolution begin?", "min": 1750, "max": 1850, "correct": 1789, "tolerance": 5, "unit": "" }`,
+
+      es: `REGLAS PARA ESTIMAR (SLIDER)
+- El estudiante arrastra un slider para estimar un valor numérico. Acierta si su respuesta está dentro de ±tolerance del valor correcto.
+- ⚠️ REGLA ESTRICTA: SOLO genera preguntas slider cuando el MATERIAL FUENTE contiene un dato numérico específico (año, porcentaje, distancia, cantidad, medida, edad, etc.). NUNCA inventes un número que no esté en la fuente.
+- Si el material no tiene datos numéricos claros, NO generes preguntas slider — rechaza este tipo y devuelve cero preguntas de este tipo en vez de inventar.
+- El valor "correct" debe ser el número exacto de la fuente.
+- "min" y "max" deben encuadrar la respuesta correcta con rango razonable — típicamente el correcto ±50% a ±100%, nunca más ancho de lo necesario (si no, la pregunta se vuelve volar una moneda).
+- "tolerance" debe reflejar la precisión esperada: 5-10% del valor correcto para recall duro, 15-25% para estimación.
+- "unit" es la unidad que se muestra después del número ("años", "%", "km", "personas"). Vacío si no tiene unidad.
+
+Esquema de salida para cada SLIDER:
+{ "type": "slider", "q": "¿Aproximadamente en qué año empezó la Revolución Francesa?", "min": 1750, "max": 1850, "correct": 1789, "tolerance": 5, "unit": "" }`,
+
+      ko: `슬라이더 추정(SLIDER) 규칙
+- 학생이 슬라이더를 드래그해 수치를 추정합니다. 답이 정답의 ±tolerance 범위 내면 정답입니다.
+- ⚠️ 엄격한 규칙: 자료에 구체적인 수치 사실(연도, 백분율, 거리, 개수, 측정값, 나이 등)이 있을 때만 슬라이더 문제를 생성하세요. 자료에 없는 숫자를 절대 만들어내지 마세요.
+- 자료에 명확한 수치 사실이 없으면 이 유형의 문제를 생성하지 마세요 — 만들어내는 대신 이 유형으로 0개를 반환하세요.
+- "correct" 값은 자료에 있는 정확한 숫자여야 합니다.
+- "min"과 "max"는 정답을 합리적인 범위로 감싸야 합니다 — 보통 정답의 ±50%~±100%, 필요 이상으로 넓지 않게.
+- "tolerance"는 예상 정확도를 반영해야 합니다: 정확한 회상은 정답의 5~10%, 추정은 15~25%.
+- "unit"은 숫자 뒤에 표시되는 단위입니다 ("년", "%", "km", "명"). 단위가 없으면 빈 문자열.
+
+각 SLIDER의 출력 스키마:
+{ "type": "slider", "q": "프랑스 혁명은 대략 몇 년에 시작되었나요?", "min": 1750, "max": 1850, "correct": 1789, "tolerance": 5, "unit": "" }`,
+    },
+
+    mix: {
+      en: `RULES FOR MIXED-TYPE WARMUP/EXIT TICKET (MIX)
+This is the BEST mode for natural classroom flow — a real warmup mixes formats so students don't fatigue.
+
+Generate a balanced mix of question types using this approximate distribution:
+- ~35% MCQ (multiple choice) — main carriers of comprehension checks
+- ~25% TF (true/false) — quick momentum builders
+- ~15% FILL (fill in the blank) — vocabulary anchors
+- ~10% ORDER (ordering) — sequence understanding
+- ~10% MATCH (matching pairs) — relational understanding
+- ~5% FREE (free text) — only if there's a meaningful "why" or "how" worth eliciting
+
+Each item in the output array must include its own "type" field so the editor knows what shape it has. Follow the rules of each type strictly (see the type-specific rule sections you would have followed if generating only one type — same rules apply here).
+
+Order matters: open with a quick TF or MCQ to lower the activation energy. End with something slightly harder. Don't start with FREE.
+
+Output schema: a JSON array where each element follows the schema of its respective type. Example:
+[
+  { "type": "tf", "q": "...", "correct": true },
+  { "type": "mcq", "q": "...", "options": [...], "correct": 1 },
+  { "type": "fill", "q": "...", "answer": "..." },
+  ...
+]`,
+
+      es: `REGLAS PARA WARMUP/EXIT TICKET MIXTO (MIX)
+Este es el MEJOR modo para flow natural de aula — un warmup real mezcla formatos para que los estudiantes no se fatiguen.
+
+Genera una mezcla balanceada de tipos siguiendo esta distribución aproximada:
+- ~35% MCQ (opción múltiple) — el carrier principal de verificaciones de comprensión
+- ~25% TF (verdadero/falso) — generadores rápidos de momentum
+- ~15% FILL (rellenar) — anclas de vocabulario
+- ~10% ORDER (ordenar) — comprensión de secuencias
+- ~10% MATCH (emparejar) — comprensión relacional
+- ~5% FREE (respuesta libre) — solo si hay un "por qué" o "cómo" que valga la pena elicitar
+
+Cada item del array de salida DEBE incluir su propio campo "type" para que el editor sepa qué forma tiene. Sigue las reglas de cada tipo estrictamente (las mismas reglas que aplicarías si generaras solo un tipo — aplican igual aquí).
+
+El orden importa: abre con un TF o MCQ rápido para bajar la energía de activación. Termina con algo levemente más exigente. No empieces con FREE.
+
+Esquema de salida: un array JSON donde cada elemento sigue el esquema de su tipo respectivo. Ejemplo:
+[
+  { "type": "tf", "q": "...", "correct": true },
+  { "type": "mcq", "q": "...", "options": [...], "correct": 1 },
+  { "type": "fill", "q": "...", "answer": "..." },
+  ...
+]`,
+
+      ko: `혼합형 워밍업/종료 티켓(MIX) 규칙
+이것은 자연스러운 교실 흐름을 위한 최고의 모드입니다 — 실제 워밍업은 학생이 피로해지지 않도록 형식을 섞습니다.
+
+다음 분포에 따라 균형 잡힌 문제 유형 혼합을 생성하세요:
+- ~35% MCQ (객관식) — 이해도 확인의 주요 도구
+- ~25% TF (참/거짓) — 빠른 동력 생성
+- ~15% FILL (빈칸 채우기) — 어휘 고정
+- ~10% ORDER (순서 정하기) — 순서 이해
+- ~10% MATCH (짝 맞추기) — 관계 이해
+- ~5% FREE (자유 응답) — 의미 있는 "왜" 또는 "어떻게"가 있을 때만
+
+출력 배열의 각 항목은 편집기가 형식을 알 수 있도록 자체 "type" 필드를 포함해야 합니다. 각 유형의 규칙을 엄격히 따르세요 (단일 유형을 생성할 때와 동일한 규칙).
+
+순서가 중요합니다: 활성화 에너지를 낮추기 위해 빠른 TF나 MCQ로 시작하세요. 약간 더 어려운 것으로 끝내세요. FREE로 시작하지 마세요.
+
+출력 스키마: 각 요소가 해당 유형의 스키마를 따르는 JSON 배열. 예:
+[
+  { "type": "tf", "q": "...", "correct": true },
+  { "type": "mcq", "q": "...", "options": [...], "correct": 1 },
+  { "type": "fill", "q": "...", "answer": "..." },
+  ...
+]`,
+    },
   };
 
   return rules[activityType]?.[lang] || rules.mcq[lang] || rules.mcq.en;
@@ -358,6 +531,10 @@ function labelType(lang, type) {
     order: { en: "ordering", es: "ordenar", ko: "순서 정하기" },
     match: { en: "matching pairs", es: "emparejar", ko: "짝 맞추기" },
     poll: { en: "opinion poll", es: "encuesta de opinión", ko: "의견 설문" },
+    free: { en: "free-text", es: "respuesta libre", ko: "자유 응답" },
+    sentence: { en: "sentence builder", es: "crear oración", ko: "문장 만들기" },
+    slider: { en: "slider estimate", es: "estimación con slider", ko: "슬라이더 추정" },
+    mix: { en: "mixed-type", es: "tipo mixto", ko: "혼합형" },
   };
   return labels[type]?.[lang] || labels.mcq[lang] || labels.mcq.en;
 }

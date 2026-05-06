@@ -184,6 +184,19 @@ export async function generateQuestions({
     });
   }
 
+  // max_tokens dinámico: una pregunta MCQ promedio cabe en ~150-300 tokens, una
+  // ORDER/MATCH puede llegar a 500+. Subimos margen con N para que generaciones
+  // largas (15-20 preguntas) no se trunquen.
+  //   - hasta 5 preguntas: 4000 (default cómodo)
+  //   - 6-10:              6000
+  //   - 11-15:             8000
+  //   - 16+:               10000
+  const dynamicMaxTokens =
+    numQuestions <= 5 ? 4000 :
+    numQuestions <= 10 ? 6000 :
+    numQuestions <= 15 ? 8000 :
+    10000;
+
   try {
     const response = await fetch("/api/generate", {
       method: "POST",
@@ -195,7 +208,7 @@ export async function generateQuestions({
         model: "primary",                       // Sonnet 4.5 — calidad pedagógica
         system: promptParts.system,             // Identidad + reglas + negativos
         messages: [{ role: "user", content: messageContent }],
-        max_tokens: 4000,                       // Sonnet puede dar respuestas más ricas; subimos margen
+        max_tokens: dynamicMaxTokens,
         activity_type: activityType,
         num_questions: numQuestions,
         input_type: inputType,

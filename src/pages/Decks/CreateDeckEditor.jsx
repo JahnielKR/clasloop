@@ -145,11 +145,12 @@ function AutoResizeTextarea({ value, onChange, placeholder, minHeight = 44, maxH
 // Output: las preguntas generadas se pasan al callback `onGenerated(questions)`
 // que el editor usa para anexarlas al array `questions`.
 //
-// Solo expone los tipos que tanto la AI sabe generar como el editor sabe
-// renderizar/editar. Poll NO está en el editor todavía, lo agregamos cuando
-// haya UI para encuestas. Free/sentence/slider los soporta el editor pero no
-// la AI (no son review de comprensión, son tareas abiertas).
-const AI_SUPPORTED_TYPES = ["mcq", "tf", "fill", "order", "match"];
+// Tipos que el dropdown del panel AI ofrece. Orden importa — pongo primero los
+// más usados pedagógicamente y "Mixto" arriba como recomendado.
+//   - "mix" es un meta-tipo: la AI devuelve preguntas de tipos variados, cada
+//     item con su propio q.type. El editor renderiza cada uno como corresponde.
+//   - "poll" sigue afuera porque el editor no lo renderiza todavía.
+const AI_SUPPORTED_TYPES = ["mix", "mcq", "tf", "fill", "order", "match", "free", "sentence", "slider"];
 
 function AIGeneratePanel({
   t, l,
@@ -162,7 +163,7 @@ function AIGeneratePanel({
   onCancel,
 }) {
   const [aiActivityType, setAiActivityType] = useState(
-    AI_SUPPORTED_TYPES.includes(defaultActivityType) ? defaultActivityType : "mcq"
+    AI_SUPPORTED_TYPES.includes(defaultActivityType) ? defaultActivityType : "mix"
   );
   const [numQuestions, setNumQuestions] = useState(5);
   const [lessonContext, setLessonContext] = useState("warmup"); // warmup | exitTicket | general
@@ -208,11 +209,21 @@ function AIGeneratePanel({
         file,
         lessonContext,
       });
-      // Saneo defensivo: el modelo a veces devuelve objetos sin "type" — lo seteamos
-      // para que el editor sepa qué forma tienen.
+      // Saneo defensivo: el modelo a veces devuelve objetos sin "type". En modo
+      // single-type, podemos inferirlo del tipo solicitado. En modo "mix", no
+      // podemos adivinar — descartamos las que vengan sin type.
+      const VALID_TYPES = new Set(["mcq", "tf", "fill", "order", "match", "free", "sentence", "slider"]);
       const cleaned = (Array.isArray(generated) ? generated : [])
         .filter(q => q && typeof q === "object")
-        .map(q => ({ ...q, type: q.type || aiActivityType }));
+        .map(q => {
+          if (aiActivityType === "mix") {
+            // Modo mixto: el type debe venir en cada pregunta. No imponemos.
+            return q;
+          }
+          // Single type: si falta type, lo seteamos al tipo solicitado.
+          return { ...q, type: q.type || aiActivityType };
+        })
+        .filter(q => VALID_TYPES.has(q.type));
       if (cleaned.length === 0) {
         setError(t.aiNoQuestions);
         setGenerating(false);
@@ -287,7 +298,10 @@ function AIGeneratePanel({
                 display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
               }}
             >
-              <span aria-hidden="true">📎</span> {t.aiUploadCta}
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M12 4v12M6 10l6-6 6 6M5 20h14" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              {t.aiUploadCta}
             </button>
             <p style={{ fontSize: 11, color: C.textMuted, margin: "6px 0 0", lineHeight: 1.4 }}>
               {t.aiUploadHint}
@@ -299,8 +313,12 @@ function AIGeneratePanel({
             background: C.accentSoft, border: `1px solid ${C.accent}44`,
             display: "flex", alignItems: "center", gap: 10,
           }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true" style={{ flexShrink: 0, color: C.accent }}>
+              <path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" fill="none"/>
+              <path d="M14 3v6h6" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" fill="none"/>
+            </svg>
             <span style={{ flex: 1, fontSize: 13, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-              📄 {file.name}
+              {file.name}
             </span>
             <button
               type="button"
@@ -358,6 +376,9 @@ function AIGeneratePanel({
             style={{ ...sel, padding: "7px 28px 7px 10px", fontSize: 12 }}
           >
             {AI_SUPPORTED_TYPES.map(typeId => {
+              // "mix" es virtual, no está en ACTIVITY_TYPES; usamos el label
+              // i18n del panel directamente.
+              if (typeId === "mix") return <option key="mix" value="mix">{t.aiTypeMixed}</option>;
               const at = ACTIVITY_TYPES.find(a => a.id === typeId);
               if (!at) return null;
               return <option key={typeId} value={typeId}>{at.label[l]}</option>;
@@ -372,7 +393,7 @@ function AIGeneratePanel({
             disabled={generating}
             style={{ ...sel, padding: "7px 28px 7px 10px", fontSize: 12 }}
           >
-            {[3, 5, 7, 10].map(n => <option key={n} value={n}>{n}</option>)}
+            {[3, 5, 10, 15, 20].map(n => <option key={n} value={n}>{n}</option>)}
           </select>
         </div>
         <div>
@@ -532,6 +553,18 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
       if (base.type === "match") {
         if (!Array.isArray(base.pairs)) base.pairs = [];
       }
+      if (base.type === "sentence") {
+        if (typeof base.required_word !== "string") base.required_word = "";
+        if (typeof base.min_words !== "number") base.min_words = 5;
+      }
+      if (base.type === "slider") {
+        if (typeof base.min !== "number") base.min = 0;
+        if (typeof base.max !== "number") base.max = 100;
+        if (typeof base.correct !== "number") base.correct = 50;
+        if (typeof base.tolerance !== "number") base.tolerance = 5;
+        if (typeof base.unit !== "string") base.unit = "";
+      }
+      // free no necesita campos extra: solo type + q.
       return base;
     });
 
