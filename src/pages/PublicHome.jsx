@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { LogoMark, CIcon, TeacherInline, StudentInline } from "../components/Icons";
-import Cleo from "../components/Cleo";
 
 const C = {
   bg: "#FFFFFF", bgSoft: "#F7F7F5", accent: "#2383E2", accentSoft: "#E8F0FE",
@@ -71,8 +70,6 @@ const css = `
     .ph-tagline { font-size: 22px !important; line-height: 1.3 !important }
     .ph-sub { font-size: 14px !important }
     .ph-code-input { font-size: 24px !important; padding: 12px !important }
-    .ph-cleo { width: 110px !important }
-    .ph-cleo svg { width: 110px !important; height: auto !important }
   }
 `;
 
@@ -144,36 +141,13 @@ export default function PublicHome({ onSignIn, onSignUp }) {
           }}>{t.sub}</p>
         </div>
 
-        {/* ── Main card (with Cleo hanging from top-right corner) ── */}
-        <div className="ph-card-wrap" style={{
-          position: "relative",
-          width: "100%",
-          maxWidth: 440,
-        }}>
-          {/* Cleo behind the card on the left side, gripping the edge.
-              z-index: 1 puts her BEHIND the card (z: auto / default) so
-              the card's white background naturally covers her right half.
-              translate -50% positions her body center exactly at the card's
-              left edge. */}
-          <div className="ph-cleo" aria-hidden="true" style={{
-            position: "absolute",
-            top: "50%",
-            left: 0,
-            transform: "translate(-50%, -50%)",
-            width: 160,
-            pointerEvents: "none",
-            zIndex: 1,
-          }}>
-            <Cleo size={160} />
-          </div>
-
-          {mode === "home" ? (
+        {/* ── Main card: code input or auth select ── */}
+        {mode === "home" ? (
           <div className="ph-card ph-fade" style={{
             background: C.bg, borderRadius: 20,
             border: `1px solid ${C.border}`,
             padding: 32, width: "100%", maxWidth: 440,
             boxShadow: "0 8px 32px rgba(0,0,0,0.06)",
-            position: "relative", zIndex: 2,
           }}>
             {/* Code section */}
             <div style={{ marginBottom: 18 }}>
@@ -274,7 +248,6 @@ export default function PublicHome({ onSignIn, onSignUp }) {
             border: `1px solid ${C.border}`,
             padding: 32, width: "100%", maxWidth: 440,
             boxShadow: "0 8px 32px rgba(0,0,0,0.06)",
-            position: "relative", zIndex: 2,
           }}>
             <button
               onClick={() => setMode("home")}
@@ -345,7 +318,6 @@ export default function PublicHome({ onSignIn, onSignUp }) {
             </p>
           </div>
         )}
-        </div>
 
         {/* ── Lang switcher (bottom) ── */}
         <div style={{ display: "flex", gap: 4, marginTop: 24 }}>
