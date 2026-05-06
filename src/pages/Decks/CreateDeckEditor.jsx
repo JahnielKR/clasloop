@@ -9,6 +9,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "../../lib/supabase";
+import { generateQuestions, AIError, SUPPORTED_FILES } from "../../lib/ai";
 import { CIcon } from "../../components/Icons";
 import {
   DeckCover,
@@ -130,6 +131,308 @@ function AutoResizeTextarea({ value, onChange, placeholder, minHeight = 44, maxH
   );
 }
 
+// ─── AI Generate Panel ─────────────────────────────────────────────────────
+// Inline panel que aparece dentro del editor cuando el profe pide "Generar con AI".
+// Visualmente imita el TypeSelector existente (panel con border accent, mismo padding).
+//
+// Inputs:
+//   - file (PDF/imagen/texto/docx/pptx) — opcional pero recomendado
+//   - topic + keyPoints — alternativa o complemento
+//   - activityType — qué tipo de pregunta generar (solo los soportados por la AI)
+//   - numQuestions — cuántas preguntas (3-10)
+//   - lessonContext — warmup / exitTicket / general
+//
+// Output: las preguntas generadas se pasan al callback `onGenerated(questions)`
+// que el editor usa para anexarlas al array `questions`.
+//
+// Solo expone los tipos que tanto la AI sabe generar como el editor sabe
+// renderizar/editar. Poll NO está en el editor todavía, lo agregamos cuando
+// haya UI para encuestas. Free/sentence/slider los soporta el editor pero no
+// la AI (no son review de comprensión, son tareas abiertas).
+const AI_SUPPORTED_TYPES = ["mcq", "tf", "fill", "order", "match"];
+
+function AIGeneratePanel({
+  t, l,
+  panelRef,
+  defaultActivityType,
+  deckSubject,
+  deckGrade,
+  deckLanguage,
+  onGenerated,
+  onCancel,
+}) {
+  const [aiActivityType, setAiActivityType] = useState(
+    AI_SUPPORTED_TYPES.includes(defaultActivityType) ? defaultActivityType : "mcq"
+  );
+  const [numQuestions, setNumQuestions] = useState(5);
+  const [lessonContext, setLessonContext] = useState("warmup"); // warmup | exitTicket | general
+  const [topic, setTopic] = useState("");
+  const [keyPoints, setKeyPoints] = useState("");
+  const [file, setFile] = useState(null);
+  const [fileError, setFileError] = useState("");
+  const [generating, setGenerating] = useState(false);
+  const [error, setError] = useState("");
+  const aiFileInputRef = useRef(null);
+
+  const handleFileChange = (e) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    setFileError("");
+    if (f.size > SUPPORTED_FILES.maxSizeMB * 1024 * 1024) {
+      setFileError(t.aiFileTooBig.replace("{mb}", SUPPORTED_FILES.maxSizeMB));
+      return;
+    }
+    setFile(f);
+  };
+
+  const clearFile = () => {
+    setFile(null);
+    setFileError("");
+    if (aiFileInputRef.current) aiFileInputRef.current.value = "";
+  };
+
+  const canGenerate = !generating && (file || topic.trim().length >= 3);
+
+  const handleGenerate = async () => {
+    setError("");
+    setGenerating(true);
+    try {
+      const generated = await generateQuestions({
+        topic: topic.trim() || (file ? file.name : ""),
+        keyPoints: keyPoints.trim(),
+        grade: deckGrade,
+        subject: deckSubject,
+        activityType: aiActivityType,
+        numQuestions,
+        language: deckLanguage || l,
+        file,
+        lessonContext,
+      });
+      // Saneo defensivo: el modelo a veces devuelve objetos sin "type" — lo seteamos
+      // para que el editor sepa qué forma tienen.
+      const cleaned = (Array.isArray(generated) ? generated : [])
+        .filter(q => q && typeof q === "object")
+        .map(q => ({ ...q, type: q.type || aiActivityType }));
+      if (cleaned.length === 0) {
+        setError(t.aiNoQuestions);
+        setGenerating(false);
+        return;
+      }
+      onGenerated(cleaned);
+      // El padre cierra el panel y muestra las preguntas.
+    } catch (err) {
+      // AIError viene con código; otros errores son network/parse genéricos.
+      if (err instanceof AIError) {
+        if (err.code === "rate_limited") setError(err.message || t.aiRateLimited);
+        else if (err.code === "unauthorized") setError(t.aiSessionExpired);
+        else if (err.code === "forbidden") setError(t.aiTeachersOnly);
+        else if (err.code === "bad_output") setError(t.aiBadOutput);
+        else setError(err.message || t.aiError);
+      } else {
+        setError(err?.message || t.aiError);
+      }
+      setGenerating(false);
+    }
+  };
+
+  return (
+    <div ref={panelRef} className="fade-up dk-type-picker" style={{
+      marginTop: 12,
+      padding: 18,
+      borderRadius: 12,
+      background: C.bg,
+      border: `2px solid ${C.accent}`,
+      boxShadow: `0 6px 20px ${C.accent}22`,
+    }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+        <h4 style={{ fontSize: 14, fontWeight: 700, margin: 0, color: C.text, display: "flex", alignItems: "center", gap: 6 }}>
+          <span aria-hidden="true">✨</span> {t.aiPanelTitle}
+        </h4>
+        <button
+          onClick={onCancel}
+          disabled={generating}
+          style={{
+            padding: "5px 10px", borderRadius: 6, fontSize: 12, fontWeight: 500,
+            background: "transparent", color: C.textMuted, border: "none",
+            cursor: generating ? "not-allowed" : "pointer", fontFamily: "'Outfit',sans-serif",
+            opacity: generating ? 0.5 : 1,
+          }}
+        >{t.cancel}</button>
+      </div>
+
+      {/* File uploader */}
+      <div style={{ marginBottom: 14 }}>
+        <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: C.textSecondary, marginBottom: 6 }}>
+          {t.aiSourceLabel}
+        </label>
+        {!file ? (
+          <>
+            <input
+              ref={aiFileInputRef}
+              type="file"
+              accept={SUPPORTED_FILES.accept}
+              onChange={handleFileChange}
+              style={{ display: "none" }}
+            />
+            <button
+              type="button"
+              onClick={() => aiFileInputRef.current?.click()}
+              disabled={generating}
+              style={{
+                width: "100%", padding: "14px 12px", borderRadius: 8,
+                border: `1.5px dashed ${C.border}`, background: C.bgSoft,
+                color: C.textSecondary, fontSize: 13,
+                cursor: generating ? "not-allowed" : "pointer",
+                fontFamily: "'Outfit',sans-serif",
+                display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+              }}
+            >
+              <span aria-hidden="true">📎</span> {t.aiUploadCta}
+            </button>
+            <p style={{ fontSize: 11, color: C.textMuted, margin: "6px 0 0", lineHeight: 1.4 }}>
+              {t.aiUploadHint}
+            </p>
+          </>
+        ) : (
+          <div style={{
+            padding: "10px 12px", borderRadius: 8,
+            background: C.accentSoft, border: `1px solid ${C.accent}44`,
+            display: "flex", alignItems: "center", gap: 10,
+          }}>
+            <span style={{ flex: 1, fontSize: 13, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              📄 {file.name}
+            </span>
+            <button
+              type="button"
+              onClick={clearFile}
+              disabled={generating}
+              style={{
+                background: "transparent", border: "none", color: C.textMuted,
+                fontSize: 18, lineHeight: 1, cursor: generating ? "not-allowed" : "pointer",
+                padding: 0,
+              }}
+              aria-label={t.aiRemoveFile}
+            >×</button>
+          </div>
+        )}
+        {fileError && <p style={{ fontSize: 11, color: "#d23", margin: "6px 0 0" }}>{fileError}</p>}
+      </div>
+
+      {/* Topic + key points */}
+      <div style={{ marginBottom: 14 }}>
+        <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: C.textSecondary, marginBottom: 6 }}>
+          {file ? t.aiTopicOptional : t.aiTopicRequired}
+        </label>
+        <input
+          type="text"
+          value={topic}
+          onChange={(e) => setTopic(e.target.value)}
+          placeholder={t.aiTopicPlaceholder}
+          disabled={generating}
+          style={{ ...inp, padding: "8px 12px", fontSize: 13 }}
+        />
+      </div>
+
+      <div style={{ marginBottom: 14 }}>
+        <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: C.textSecondary, marginBottom: 6 }}>
+          {t.aiKeyPointsLabel}
+        </label>
+        <textarea
+          value={keyPoints}
+          onChange={(e) => setKeyPoints(e.target.value)}
+          placeholder={t.aiKeyPointsPlaceholder}
+          disabled={generating}
+          rows={3}
+          style={{ ...inp, padding: "8px 12px", fontSize: 13, resize: "vertical", minHeight: 60, lineHeight: 1.5 }}
+        />
+      </div>
+
+      {/* Settings row: type + count + context */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 10, marginBottom: 14 }}>
+        <div>
+          <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: C.textSecondary, marginBottom: 4 }}>{t.aiTypeLabel}</label>
+          <select
+            value={aiActivityType}
+            onChange={(e) => setAiActivityType(e.target.value)}
+            disabled={generating}
+            style={{ ...sel, padding: "7px 28px 7px 10px", fontSize: 12 }}
+          >
+            {AI_SUPPORTED_TYPES.map(typeId => {
+              const at = ACTIVITY_TYPES.find(a => a.id === typeId);
+              if (!at) return null;
+              return <option key={typeId} value={typeId}>{at.label[l]}</option>;
+            })}
+          </select>
+        </div>
+        <div>
+          <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: C.textSecondary, marginBottom: 4 }}>{t.aiCountLabel}</label>
+          <select
+            value={numQuestions}
+            onChange={(e) => setNumQuestions(Number(e.target.value))}
+            disabled={generating}
+            style={{ ...sel, padding: "7px 28px 7px 10px", fontSize: 12 }}
+          >
+            {[3, 5, 7, 10].map(n => <option key={n} value={n}>{n}</option>)}
+          </select>
+        </div>
+        <div>
+          <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: C.textSecondary, marginBottom: 4 }}>{t.aiContextLabel}</label>
+          <select
+            value={lessonContext}
+            onChange={(e) => setLessonContext(e.target.value)}
+            disabled={generating}
+            style={{ ...sel, padding: "7px 28px 7px 10px", fontSize: 12 }}
+          >
+            <option value="warmup">{t.aiContextWarmup}</option>
+            <option value="exitTicket">{t.aiContextExit}</option>
+            <option value="general">{t.aiContextGeneral}</option>
+          </select>
+        </div>
+      </div>
+
+      {error && (
+        <div style={{
+          padding: "10px 12px", marginBottom: 12, borderRadius: 8,
+          background: "#fdebea", border: "1px solid #f5c6c4",
+          color: "#922", fontSize: 12, lineHeight: 1.5,
+        }}>
+          {error}
+        </div>
+      )}
+
+      <button
+        type="button"
+        onClick={handleGenerate}
+        disabled={!canGenerate}
+        style={{
+          width: "100%", padding: "11px 16px", borderRadius: 8,
+          fontSize: 14, fontWeight: 600,
+          background: canGenerate ? C.accent : C.bgSoft,
+          color: canGenerate ? "#fff" : C.textMuted,
+          border: "none", cursor: canGenerate ? "pointer" : "not-allowed",
+          fontFamily: "'Outfit',sans-serif",
+          display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+        }}
+      >
+        {generating ? (
+          <>
+            <span style={{
+              width: 14, height: 14, borderRadius: "50%",
+              border: "2px solid rgba(255,255,255,0.3)",
+              borderTopColor: "#fff",
+              animation: "dk-spin 0.7s linear infinite",
+              display: "inline-block",
+            }} />
+            {t.aiGenerating}
+          </>
+        ) : (
+          <>✨ {t.aiGenerateCta}</>
+        )}
+      </button>
+    </div>
+  );
+}
+
 function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existingDeck, prefilledClassId = null }) {
   const isMobile = useIsMobile();
   const [title, setTitle] = useState(existingDeck?.title || "");
@@ -188,8 +491,65 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
   const [dragOverIndex, setDragOverIndex] = useState(null);
   const [flashIndex, setFlashIndex] = useState(null); // briefly highlights newly added question
   const [showTypeSelector, setShowTypeSelector] = useState(false);
+  const [showAIPanel, setShowAIPanel] = useState(false);
   const questionRefs = useRef({});
   const typeSelectorRef = useRef(null);
+  const aiPanelRef = useRef(null);
+
+  // Abrir el panel de AI: cierra el type selector si estaba abierto, scroll suave.
+  const openAIPanel = () => {
+    setShowTypeSelector(false);
+    setShowAIPanel(true);
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        aiPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      });
+    });
+  };
+
+  // Cuando la AI termina, anexamos las preguntas al final del array existente,
+  // expandimos la primera nueva, y hacemos flash. Luego cerramos el panel.
+  const handleAIGenerated = (newQuestions) => {
+    // Normalización defensiva: la AI devuelve la forma "core" del tipo, pero el
+    // editor agrega campos adicionales (multi, alternatives) que esperan estar
+    // presentes. Rellenamos con defaults si faltan.
+    const normalized = newQuestions.map(q => {
+      const base = { ...q };
+      if (base.type === "mcq") {
+        if (typeof base.multi !== "boolean") base.multi = false;
+        if (!Array.isArray(base.options)) base.options = ["", "", "", ""];
+        if (typeof base.correct !== "number") base.correct = 0;
+      }
+      if (base.type === "fill") {
+        if (!Array.isArray(base.alternatives)) base.alternatives = [];
+      }
+      if (base.type === "tf") {
+        if (typeof base.correct !== "boolean") base.correct = true;
+      }
+      if (base.type === "order") {
+        if (!Array.isArray(base.items)) base.items = [];
+      }
+      if (base.type === "match") {
+        if (!Array.isArray(base.pairs)) base.pairs = [];
+      }
+      return base;
+    });
+
+    setQuestions(prev => {
+      const startIdx = prev.length;
+      const merged = [...prev, ...normalized];
+      // Expandir la primera nueva pregunta para que el profe la vea de inmediato.
+      setExpandedQ(startIdx);
+      setFlashIndex(startIdx);
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          questionRefs.current[startIdx]?.scrollIntoView({ behavior: "smooth", block: "center" });
+        });
+      });
+      return merged;
+    });
+    setShowAIPanel(false);
+  };
 
   // Build a blank question of the given type (defaults to mcq).
   const blankQuestion = (type) => {
@@ -1107,9 +1467,26 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
       {/* Questions list (only on Questions tab) */}
       {editorTab === "questions" && (
       <div className="fade-up" style={{ animationDelay: ".1s" }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12, gap: 8, flexWrap: "wrap" }}>
           <h3 style={{ fontSize: 15, fontWeight: 600 }}>{t.questions} ({questions.length})</h3>
-          <button className="dk-btn" onClick={openTypeSelector} disabled={showTypeSelector} style={{ padding: "8px 16px", borderRadius: 8, fontSize: 13, fontWeight: 600, background: showTypeSelector ? C.bgSoft : C.accentSoft, color: showTypeSelector ? C.textMuted : C.accent, opacity: showTypeSelector ? 0.6 : 1 }}>{t.addQuestion}</button>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <button
+              className="dk-btn"
+              onClick={openAIPanel}
+              disabled={showAIPanel || showTypeSelector}
+              style={{
+                padding: "8px 14px", borderRadius: 8, fontSize: 13, fontWeight: 600,
+                background: (showAIPanel || showTypeSelector) ? C.bgSoft : C.accent,
+                color: (showAIPanel || showTypeSelector) ? C.textMuted : "#fff",
+                border: "none",
+                opacity: (showAIPanel || showTypeSelector) ? 0.6 : 1,
+                display: "inline-flex", alignItems: "center", gap: 6,
+              }}
+            >
+              <span aria-hidden="true">✨</span> {t.aiGenerateButton}
+            </button>
+            <button className="dk-btn" onClick={openTypeSelector} disabled={showTypeSelector || showAIPanel} style={{ padding: "8px 16px", borderRadius: 8, fontSize: 13, fontWeight: 600, background: (showTypeSelector || showAIPanel) ? C.bgSoft : C.accentSoft, color: (showTypeSelector || showAIPanel) ? C.textMuted : C.accent, opacity: (showTypeSelector || showAIPanel) ? 0.6 : 1 }}>{t.addQuestion}</button>
+          </div>
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -1668,6 +2045,21 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
             );
           })}
         </div>
+
+        {/* AI Generate Panel — appears below the list when triggered */}
+        {showAIPanel && (
+          <AIGeneratePanel
+            t={t}
+            l={l}
+            panelRef={aiPanelRef}
+            defaultActivityType={activityType}
+            deckSubject={subject}
+            deckGrade={grade}
+            deckLanguage={deckLang}
+            onGenerated={handleAIGenerated}
+            onCancel={() => setShowAIPanel(false)}
+          />
+        )}
 
         {/* Type Selector — appears below the list when triggered */}
         {showTypeSelector && (

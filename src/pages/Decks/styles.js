@@ -96,6 +96,7 @@ export const css = `
   .dk-lang:hover { background: ${C.accentSoft} !important; color: ${C.accent} !important; }
   @keyframes fadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
   .fade-up { animation: fadeUp .3s ease-out both; }
+  @keyframes dk-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
   .dk-scroll-x { overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; -ms-overflow-style: none; }
   .dk-scroll-x::-webkit-scrollbar { display: none; }
 `;
