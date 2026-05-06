@@ -57,9 +57,23 @@ async function extractTextFromFile(file) {
   }
 
   // Images — Claude las lee directo via multimodal.
+  // IMPORTANTE: el navegador a veces miente sobre file.type. Es común que un
+  // archivo guardado como .png en realidad sea JPEG por dentro (cámaras,
+  // apps de mensajería que recomprimen, screenshots de iOS, etc.). Anthropic
+  // valida el contenido real y rechaza si no coincide con el media_type
+  // declarado, devolviendo un error críptico al profe. Por eso detectamos el
+  // formato real leyendo los primeros bytes (magic bytes) en vez de confiar
+  // en file.type.
   if (type.startsWith("image/")) {
     checkSize(file, MAX_PDF_IMAGE_BYTES, "image");
-    return { type: "image", base64: await fileToBase64(file), mediaType: type };
+    const realType = await detectImageType(file);
+    if (!realType) {
+      throw new AIError(
+        "We couldn't recognize this image format. Use PNG, JPEG, GIF, or WEBP.",
+        { code: "unsupported_file" }
+      );
+    }
+    return { type: "image", base64: await fileToBase64(file), mediaType: realType };
   }
 
   // .doc legacy (Word 97-2003) — NO es ZIP, mammoth no puede abrirlo.
@@ -134,6 +148,45 @@ function fileToBase64(file) {
     reader.onerror = () => reject(new Error("Failed to read file"));
     reader.readAsDataURL(file);
   });
+}
+
+// ─── Detección de formato de imagen por magic bytes ──────
+// El navegador a veces miente sobre file.type (ej. archivo guardado como .png
+// pero contenido JPEG). Anthropic detecta el formato real y rechaza si no
+// coincide con el media_type que mandamos. Para evitar esto, leemos los
+// primeros 12 bytes y matcheamos contra las firmas conocidas.
+//
+// Devuelve "image/png" | "image/jpeg" | "image/gif" | "image/webp" | null.
+// null = no es ningún formato soportado por Claude.
+async function detectImageType(file) {
+  // Leemos solo los primeros 12 bytes — más que suficiente para todas las
+  // firmas que nos importan.
+  const head = new Uint8Array(await file.slice(0, 12).arrayBuffer());
+  if (head.length < 4) return null;
+
+  // PNG: 89 50 4E 47 0D 0A 1A 0A
+  if (head[0] === 0x89 && head[1] === 0x50 && head[2] === 0x4e && head[3] === 0x47) {
+    return "image/png";
+  }
+  // JPEG: FF D8 FF
+  if (head[0] === 0xff && head[1] === 0xd8 && head[2] === 0xff) {
+    return "image/jpeg";
+  }
+  // GIF: 47 49 46 38 ("GIF8")
+  if (head[0] === 0x47 && head[1] === 0x49 && head[2] === 0x46 && head[3] === 0x38) {
+    return "image/gif";
+  }
+  // WEBP: bytes 0-3 "RIFF" (52 49 46 46), bytes 8-11 "WEBP" (57 45 42 50)
+  if (
+    head.length >= 12 &&
+    head[0] === 0x52 && head[1] === 0x49 && head[2] === 0x46 && head[3] === 0x46 &&
+    head[8] === 0x57 && head[9] === 0x45 && head[10] === 0x42 && head[11] === 0x50
+  ) {
+    return "image/webp";
+  }
+  // Otras firmas posibles que Claude NO soporta (BMP, TIFF, HEIC) — devolvemos
+  // null para que el caller le diga al profe "formato no soportado".
+  return null;
 }
 
 // ─── JSON parser robusto ──────────────────────────────
