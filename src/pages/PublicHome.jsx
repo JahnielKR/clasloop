@@ -71,8 +71,8 @@ const css = `
     .ph-tagline { font-size: 22px !important; line-height: 1.3 !important }
     .ph-sub { font-size: 14px !important }
     .ph-code-input { font-size: 24px !important; padding: 12px !important }
-    .ph-cleo { width: 70px !important }
-    .ph-cleo svg { width: 70px !important; height: auto !important }
+    .ph-cleo { width: 110px !important }
+    .ph-cleo svg { width: 110px !important; height: auto !important }
   }
 `;
 
@@ -150,17 +150,21 @@ export default function PublicHome({ onSignIn, onSignUp }) {
           width: "100%",
           maxWidth: 440,
         }}>
-          {/* Cleo, peeking from the left side of the card (vertically centered) */}
+          {/* Cleo behind the card on the left side, gripping the edge.
+              z-index: 1 puts her BEHIND the card (z: auto / default) so
+              the card's white background naturally covers her right half.
+              translate -50% positions her body center exactly at the card's
+              left edge. */}
           <div className="ph-cleo" aria-hidden="true" style={{
             position: "absolute",
             top: "50%",
             left: 0,
-            transform: "translate(-100%, -50%)",
-            width: 100,
+            transform: "translate(-50%, -50%)",
+            width: 160,
             pointerEvents: "none",
-            zIndex: 2,
+            zIndex: 1,
           }}>
-            <Cleo size={100} />
+            <Cleo size={160} />
           </div>
 
           {mode === "home" ? (
@@ -169,6 +173,7 @@ export default function PublicHome({ onSignIn, onSignUp }) {
             border: `1px solid ${C.border}`,
             padding: 32, width: "100%", maxWidth: 440,
             boxShadow: "0 8px 32px rgba(0,0,0,0.06)",
+            position: "relative", zIndex: 2,
           }}>
             {/* Code section */}
             <div style={{ marginBottom: 18 }}>
@@ -269,6 +274,7 @@ export default function PublicHome({ onSignIn, onSignUp }) {
             border: `1px solid ${C.border}`,
             padding: 32, width: "100%", maxWidth: 440,
             boxShadow: "0 8px 32px rgba(0,0,0,0.06)",
+            position: "relative", zIndex: 2,
           }}>
             <button
               onClick={() => setMode("home")}
