@@ -35,6 +35,18 @@ export function isValidSection(id) {
   return SECTION_IDS.includes(id);
 }
 
+// Convert a section id (DB form: snake_case) to the lessonContext value
+// the AI generator expects (camelCase). They mean the same thing — section
+// is the storage representation, lessonContext is the prompt-engineering
+// hint passed into generateQuestions(). Keeping them in sync via this
+// helper means the deck's tab placement and the AI's prompt flavor can
+// never drift.
+export function sectionToLessonContext(section) {
+  if (section === "warmup") return "warmup";
+  if (section === "exit_ticket") return "exitTicket";
+  return "general"; // general_review or anything unknown
+}
+
 // i18n labels per section. The hosting page passes its lang and we return
 // the right strings — co-locating means new sections only need a label
 // here, not in every page.

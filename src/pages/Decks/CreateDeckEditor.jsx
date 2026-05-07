@@ -25,7 +25,7 @@ import { analyzeDerivation } from "../../lib/deck-derivation";
 import { useIsMobile } from "../../components/MobileMenuButton";
 import { MONO } from "../../components/tokens";
 import { C, css } from "./styles";
-import { SECTIONS, DEFAULT_SECTION, isValidSection, sectionLabels, resolveClassAccent } from "../../lib/class-hierarchy";
+import { SECTIONS, DEFAULT_SECTION, isValidSection, sectionLabels, resolveClassAccent, sectionToLessonContext } from "../../lib/class-hierarchy";
 
 const SUBJECTS = ["Math", "Science", "History", "Language", "Geography", "Art", "Music", "Other"];
 
@@ -167,6 +167,12 @@ function AIGeneratePanel({
                        // generaban bugs sutiles donde el panel y General se
                        // desincronizaban silenciosamente. Una sola fuente de
                        // verdad = imposible que diverjan.
+  section,             // El section del deck (warmup | exit_ticket | general_review).
+                       // Single source of truth: derivamos lessonContext de acá
+                       // en vez de tener su propio dropdown duplicado. Si el profe
+                       // crea un "+ New warmup" desde ClassPage, el AI genera con
+                       // prompt de warmup automáticamente — sin que tenga que
+                       // recordar elegirlo otra vez en este panel.
   onGenerated,
   onCancel,
   dropReport,          // {kept, dropped} cuando handleAIGenerated descartó preguntas
@@ -176,7 +182,12 @@ function AIGeneratePanel({
   // tipo activo del editor — ese se usa para "Add question" manual, no para AI.
   const [aiActivityType, setAiActivityType] = useState("mix");
   const [numQuestions, setNumQuestions] = useState(5);
-  const [lessonContext, setLessonContext] = useState("warmup"); // warmup | exitTicket | general
+  // lessonContext se deriva de section. Una sola fuente de verdad — antes
+  // teníamos un dropdown propio acá que arrancaba siempre en "warmup",
+  // ignorando si el deck era exit ticket o general review. Ahora la AI
+  // siempre genera con el flavor correcto sin que el profe tenga que
+  // recordar setearlo dos veces.
+  const lessonContext = sectionToLessonContext(section);
   const [topic, setTopic] = useState("");
   const [keyPoints, setKeyPoints] = useState("");
   const [file, setFile] = useState(null);
@@ -430,16 +441,36 @@ function AIGeneratePanel({
         </div>
         <div style={{ flex: "1.5 1 140px", minWidth: 0 }}>
           <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: C.textSecondary, marginBottom: 4 }}>{t.aiContextLabel}</label>
-          <select
-            value={lessonContext}
-            onChange={(e) => setLessonContext(e.target.value)}
-            disabled={generating}
-            style={{ ...sel, padding: "7px 28px 7px 10px", fontSize: 12, width: "100%" }}
-          >
-            <option value="warmup">{t.aiContextWarmup}</option>
-            <option value="exitTicket">{t.aiContextExit}</option>
-            <option value="general">{t.aiContextGeneral}</option>
-          </select>
+          {/* Read-only display — the AI's lessonContext is derived from the
+              deck's section (set in the General tab). Shows the same value
+              the AI prompt will use, so the teacher can verify, but no
+              independent dropdown that could drift out of sync. To change
+              it, switch the section on the General tab. */}
+          {(() => {
+            const labels = sectionLabels(l);
+            const sectionName = labels[section]?.name || section;
+            return (
+              <div
+                title={t.aiContextHelp || ""}
+                style={{
+                  ...sel,
+                  padding: "7px 10px",
+                  fontSize: 12,
+                  width: "100%",
+                  background: C.bgSoft,
+                  cursor: "default",
+                  display: "flex",
+                  alignItems: "center",
+                  color: C.textSecondary,
+                  // Override `sel`'s dropdown caret arrow background image.
+                  backgroundImage: "none",
+                  fontFamily: "'Outfit',sans-serif",
+                }}
+              >
+                {sectionName}
+              </div>
+            );
+          })()}
         </div>
         <div style={{ flex: "0 0 130px" }}>
           <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: C.textSecondary, marginBottom: 4 }}>{t.aiLanguageLabel}</label>
@@ -2417,6 +2448,7 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
             deckGrade={grade}
             deckLanguage={deckLang}
             setDeckLanguage={setDeckLang}
+            section={section}
             onGenerated={handleAIGenerated}
             onCancel={() => { setShowAIPanel(false); setAiDropReport(null); }}
             dropReport={aiDropReport}
