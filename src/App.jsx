@@ -1,22 +1,35 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { useLocation, useNavigate, useMatch } from 'react-router-dom';
 import { ROUTES, PAGE_TO_ROUTE, pathToPage, defaultRouteForRole, buildRoute, buildPathWithOpts, isPageAllowedForRole } from './routes';
 import { supabase } from './lib/supabase';
 import Icon, { LogoMark, SessionsIcon, AIGenIcon, SchoolIcon, CommunityIcon, DecksIcon, NotificationsIcon, SettingsIcon, JoinSessionIcon, ProgressIcon, AchievementsIcon, ActivitiesIcon, TeacherInline, StudentInline, TeacherAvatar, StudentAvatar, BackArrow } from './components/Icons';
 import { Avatar as ProfileAvatar } from './components/Avatars';
-import SessionFlow from './pages/SessionFlow';
-import StudentJoin from './pages/StudentJoin';
+// PublicHome and AvatarOnboarding are eagerly imported because they paint
+// before the authed shell — making them lazy would just add a Suspense
+// fallback to the very first screen the user sees.
 import PublicHome from './pages/PublicHome';
 import AvatarOnboarding from './pages/AvatarOnboarding';
-import Community from './pages/Community';
-import Achievements from './pages/Achievements';
-import Settings from './pages/Settings';
-import Director from './pages/Director';
-import Notifications from './pages/Notifications';
-import Decks from './pages/Decks';
-import MyClasses from './pages/MyClasses';
-import TeacherProfile from './pages/TeacherProfile';
-import AdminAIStats from './pages/AdminAIStats';
+// All other pages are code-split via React.lazy. Each becomes its own chunk
+// that's fetched on demand the first time the user navigates there. The
+// initial JS bundle drops from ~1.5MB to a much smaller core.
+//
+// Note about StudentJoin: it's listed as lazy() here so App.jsx doesn't pull
+// it into the main chunk on its own behalf, but it's also statically imported
+// by GuestJoin (which renders on the /join public route). That static import
+// wins, so StudentJoin ends up bundled into the main chunk anyway. Vite warns
+// about this but it's intentional — guests entering by PIN should see the
+// quiz instantly without a Suspense flash, even if it costs some KB up front.
+const SessionFlow      = lazy(() => import('./pages/SessionFlow'));
+const StudentJoin      = lazy(() => import('./pages/StudentJoin'));
+const Community        = lazy(() => import('./pages/Community'));
+const Achievements     = lazy(() => import('./pages/Achievements'));
+const Settings         = lazy(() => import('./pages/Settings'));
+const Director         = lazy(() => import('./pages/Director'));
+const Notifications    = lazy(() => import('./pages/Notifications'));
+const Decks            = lazy(() => import('./pages/Decks'));
+const MyClasses        = lazy(() => import('./pages/MyClasses'));
+const TeacherProfile   = lazy(() => import('./pages/TeacherProfile'));
+const AdminAIStats     = lazy(() => import('./pages/AdminAIStats'));
 import { useIsMobile } from './components/MobileMenuButton';
 import { countVisibleNotifications } from './lib/notifications';
 import { C } from './components/tokens';
@@ -263,6 +276,24 @@ function NotFoundScreen({ onGoHome, lang = "en" }) {
             border: "none", cursor: "pointer", fontFamily: "'Outfit',sans-serif",
           }}
         >{txt.cta}</button>
+      </div>
+    </div>
+  );
+}
+
+// ── Suspense fallback for lazy-loaded pages ──
+// Shown briefly the first time a user navigates to a page whose chunk hasn't
+// been fetched yet. Compact and centered in the content area (sidebar stays
+// rendered around us). After the first visit the chunk is cached and this
+// fallback never shows again for that page.
+function PageSuspenseFallback() {
+  return (
+    <div style={{ minHeight: "60vh", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
+      <div style={{ textAlign: "center" }}>
+        <div style={{ margin: "0 auto 10px", display: "inline-flex", opacity: .85 }}>
+          <LogoMark size={36} />
+        </div>
+        <p style={{ color: C.textMuted, fontSize: 13, fontFamily: "'Outfit',sans-serif" }}>Loading…</p>
       </div>
     </div>
   );
@@ -679,63 +710,65 @@ export default function App() {
         notifsCount={notifsCount}
       />
       <div style={{ marginLeft: isMobile ? 0 : (open ? 210 : 56), flex: 1, transition: "margin-left .2s", minHeight: "100vh", background: C.bgSoft }}>
-        {inPractice ? (
-          <StudentJoin
-            key={`practice-${practiceDeck.id}`}
-            lang={lang}
-            setLang={setLang}
-            profile={profile}
-            practiceDeck={practiceDeck}
-            onPracticeExit={() => {
-              // Clearing the state isn't strictly needed (the URL effect will
-              // drop it when /practice exits), but doing it eagerly avoids a
-              // brief render of stale data while navigation completes.
-              setPracticeDeck(null);
-              navigate(ROUTES.CLASSES);
-            }}
-          />
-        ) : isNotFound ? (
-          <NotFoundScreen
-            onGoHome={() => navigate(profile ? defaultRouteForRole(profile.role) : ROUTES.HOME)}
-            lang={lang}
-          />
-        ) : (
-          P && <P
-            key={page === "teacherProfile" ? `teacher-${viewingTeacherId}` : pageKey}
-            lang={lang}
-            setLang={setLang}
-            profile={profile}
-            // Refrescar el profile del state global (App). Lo llaman pantallas
-            // que muten profile en DB (ej. Settings cambiando avatar/foto/full_name)
-            // para que el sidebar y el resto del app vean el cambio sin refresh.
-            // No refresca página, solo el state.
-            refreshProfile={() => { if (user?.id) fetchProfile(user.id, false); }}
-            onOpenMobileMenu={isMobile ? () => setMobileDrawerOpen(true) : undefined}
-            onLaunchPractice={(deck) => {
-              // Set the deck object up front so the next render has it ready;
-              // navigate puts /practice/:deckId in the URL so the back button
-              // pops us out cleanly. The hydration effect above won't re-fetch
-              // because the id will match what we just set.
-              setPracticeDeck(deck);
-              navigate(buildRoute.practice(deck.id));
-            }}
-            // Navigation callbacks: opts are now serialized into URL search
-            // params. The destination page reads them via useSearchParams,
-            // runs its effect, and clears them with setSearchParams({}, {replace:true}).
-            onNavigateToDecks={(opts) => navigate(buildPathWithOpts(ROUTES.DECKS, opts, "decks"))}
-            onNavigateToSessions={(opts) => navigate(buildPathWithOpts(ROUTES.SESSIONS, opts, "sessions"))}
-            teacherId={page === "teacherProfile" ? viewingTeacherId : null}
-            onNavigateToTeacher={(id) => navigate(buildRoute.teacher(id))}
-            onNavigateToCommunity={() => goToPage("community")}
-            onNavigate={(targetPage, opts) => {
-              // Generic navigator used by Notifications. The opts dict is
-              // mapped to the destination page's URL + search params.
-              const path = PAGE_TO_ROUTE[targetPage];
-              if (!path) return;
-              navigate(buildPathWithOpts(path, opts, targetPage));
-            }}
-          />
-        )}
+        <Suspense fallback={<PageSuspenseFallback />}>
+          {inPractice ? (
+            <StudentJoin
+              key={`practice-${practiceDeck.id}`}
+              lang={lang}
+              setLang={setLang}
+              profile={profile}
+              practiceDeck={practiceDeck}
+              onPracticeExit={() => {
+                // Clearing the state isn't strictly needed (the URL effect will
+                // drop it when /practice exits), but doing it eagerly avoids a
+                // brief render of stale data while navigation completes.
+                setPracticeDeck(null);
+                navigate(ROUTES.CLASSES);
+              }}
+            />
+          ) : isNotFound ? (
+            <NotFoundScreen
+              onGoHome={() => navigate(profile ? defaultRouteForRole(profile.role) : ROUTES.HOME)}
+              lang={lang}
+            />
+          ) : (
+            P && <P
+              key={page === "teacherProfile" ? `teacher-${viewingTeacherId}` : pageKey}
+              lang={lang}
+              setLang={setLang}
+              profile={profile}
+              // Refrescar el profile del state global (App). Lo llaman pantallas
+              // que muten profile en DB (ej. Settings cambiando avatar/foto/full_name)
+              // para que el sidebar y el resto del app vean el cambio sin refresh.
+              // No refresca página, solo el state.
+              refreshProfile={() => { if (user?.id) fetchProfile(user.id, false); }}
+              onOpenMobileMenu={isMobile ? () => setMobileDrawerOpen(true) : undefined}
+              onLaunchPractice={(deck) => {
+                // Set the deck object up front so the next render has it ready;
+                // navigate puts /practice/:deckId in the URL so the back button
+                // pops us out cleanly. The hydration effect above won't re-fetch
+                // because the id will match what we just set.
+                setPracticeDeck(deck);
+                navigate(buildRoute.practice(deck.id));
+              }}
+              // Navigation callbacks: opts are now serialized into URL search
+              // params. The destination page reads them via useSearchParams,
+              // runs its effect, and clears them with setSearchParams({}, {replace:true}).
+              onNavigateToDecks={(opts) => navigate(buildPathWithOpts(ROUTES.DECKS, opts, "decks"))}
+              onNavigateToSessions={(opts) => navigate(buildPathWithOpts(ROUTES.SESSIONS, opts, "sessions"))}
+              teacherId={page === "teacherProfile" ? viewingTeacherId : null}
+              onNavigateToTeacher={(id) => navigate(buildRoute.teacher(id))}
+              onNavigateToCommunity={() => goToPage("community")}
+              onNavigate={(targetPage, opts) => {
+                // Generic navigator used by Notifications. The opts dict is
+                // mapped to the destination page's URL + search params.
+                const path = PAGE_TO_ROUTE[targetPage];
+                if (!path) return;
+                navigate(buildPathWithOpts(path, opts, targetPage));
+              }}
+            />
+          )}
+        </Suspense>
       </div>
     </div>
   );
