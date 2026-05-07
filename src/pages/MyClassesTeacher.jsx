@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { CIcon, SchoolIcon } from "../components/Icons";
 import { useIsMobile } from "../components/MobileMenuButton";
+import CreateClassModal from "../components/CreateClassModal";
 import { C, MONO } from "../components/tokens";
 import { ROUTES, QUERY, buildPathWithOpts } from "../routes";
 
@@ -27,6 +28,17 @@ const i18n = {
     loading: "Loading...",
     grade: "Grade",
     subject: "Subject",
+    // Modal keys (used by CreateClassModal)
+    createClass: "Create class",
+    className: "Class name",
+    classNamePlaceholder: "e.g. Math 6th Grade",
+    classSubject: "Subject",
+    classGrade: "Grade",
+    classGradePlaceholder: "e.g. 6th, 7th–9th, Mixed",
+    cancel: "Cancel",
+    classCreate: "Create class",
+    creating: "Creating...",
+    classCreated: "Class created!",
   },
   es: {
     pageTitle: "Mis clases",
@@ -47,6 +59,16 @@ const i18n = {
     loading: "Cargando...",
     grade: "Grado",
     subject: "Materia",
+    createClass: "Crear clase",
+    className: "Nombre de la clase",
+    classNamePlaceholder: "ej. Matemáticas 6to",
+    classSubject: "Materia",
+    classGrade: "Grado",
+    classGradePlaceholder: "ej. 6to, 7mo–9no, Mixto",
+    cancel: "Cancelar",
+    classCreate: "Crear clase",
+    creating: "Creando...",
+    classCreated: "¡Clase creada!",
   },
   ko: {
     pageTitle: "내 수업",
@@ -67,6 +89,16 @@ const i18n = {
     loading: "로딩 중...",
     grade: "학년",
     subject: "과목",
+    createClass: "수업 만들기",
+    className: "수업 이름",
+    classNamePlaceholder: "예: 수학 6학년",
+    classSubject: "과목",
+    classGrade: "학년",
+    classGradePlaceholder: "예: 6학년, 7~9학년, 혼합",
+    cancel: "취소",
+    classCreate: "수업 만들기",
+    creating: "만드는 중...",
+    classCreated: "수업이 생성되었습니다!",
   },
 };
 
@@ -88,7 +120,7 @@ const ACCENT_FOR = (subj) => {
 };
 
 // ─── Class Card ─────────────────────────────────────────────────────────
-function ClassCard({ cls, t, lang, onOpen, deckCount = 0, studentCount = 0 }) {
+function ClassCard({ cls, t, lang, onOpen, deckCount = 0, studentCount = 0, highlight = false }) {
   const [copied, setCopied] = useState(false);
   const accent = ACCENT_FOR(cls.subject);
 
@@ -113,7 +145,7 @@ function ClassCard({ cls, t, lang, onOpen, deckCount = 0, studentCount = 0 }) {
   return (
     <div
       onClick={onOpen}
-      className="cl-class-card"
+      className={`cl-class-card${highlight ? " cl-class-card-new cl-class-card-glow" : ""}`}
       style={{
         background: C.bg,
         border: `1px solid ${C.border}`,
@@ -251,6 +283,21 @@ export default function MyClassesTeacher({ lang = "en", profile, onNavigateToSes
   const [deckCounts, setDeckCounts] = useState({}); // { classId: count }
   const [studentCounts, setStudentCounts] = useState({}); // { classId: count }
   const [loading, setLoading] = useState(true);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  // Highlight + toast for the freshly-created class so the teacher's eye lands
+  // on it immediately (the new card animates in at the top of the grid, but
+  // a quick visual cue makes "I just made this" obvious).
+  const [justCreatedId, setJustCreatedId] = useState(null);
+  const [toast, setToast] = useState(null); // { message, code? } | null
+
+  // Auto-dismiss toast (5s when it carries a class code, 3s otherwise so the
+  // teacher has time to read the code before it disappears).
+  useEffect(() => {
+    if (!toast) return;
+    const ms = toast.code ? 5000 : 3000;
+    const timer = setTimeout(() => setToast(null), ms);
+    return () => clearTimeout(timer);
+  }, [toast]);
 
   // Read user
   const userId = profile?.id;
@@ -292,24 +339,32 @@ export default function MyClassesTeacher({ lang = "en", profile, onNavigateToSes
     return () => { cancelled = true; };
   }, [userId]);
 
-  // Handle ?createClass=1 — open the create modal in SessionFlow.
-  // Until the create-class modal lives here directly, we redirect to
-  // /sessions?createClass=1 (which already hosts the modal).
+  // ?createClass=1 — open the modal directly. Comes from the legacy
+  // /sessions?createClass=1 redirect (and any old links/bookmarks that still
+  // point there). Consumed once and cleared from the URL.
   useEffect(() => {
     if (searchParams.get(QUERY.CREATE_CLASS) === "1") {
+      setShowCreateModal(true);
       const next = new URLSearchParams(searchParams);
       next.delete(QUERY.CREATE_CLASS);
       setSearchParams(next, { replace: true });
-      navigate(buildPathWithOpts(ROUTES.SESSIONS, { openCreateClass: true }, "sessions"));
     }
-  }, [searchParams, setSearchParams, navigate]);
+  }, [searchParams, setSearchParams]);
 
   const handleNewClass = () => {
-    if (onNavigateToSessions) {
-      onNavigateToSessions({ openCreateClass: true });
-    } else {
-      navigate(buildPathWithOpts(ROUTES.SESSIONS, { openCreateClass: true }, "sessions"));
-    }
+    setShowCreateModal(true);
+  };
+
+  const handleClassCreated = (newClass) => {
+    setClasses(prev => [newClass, ...prev]);
+    setShowCreateModal(false);
+    setJustCreatedId(newClass.id);
+    setToast({
+      message: `${t.classCreated} ${newClass.class_code}`,
+      code: newClass.class_code,
+    });
+    // Drop the highlight after a few seconds so it doesn't linger.
+    setTimeout(() => setJustCreatedId(null), 4500);
   };
 
   const handleOpenClass = (cls) => {
@@ -499,8 +554,40 @@ export default function MyClassesTeacher({ lang = "en", profile, onNavigateToSes
               deckCount={deckCounts[cls.id] || 0}
               studentCount={studentCounts[cls.id] || 0}
               onOpen={() => handleOpenClass(cls)}
+              highlight={cls.id === justCreatedId}
             />
           ))}
+        </div>
+      )}
+
+      {/* Create class modal — lives here so the create flow stays in the
+          teacher's home (no detour to Sessions). */}
+      {showCreateModal && (
+        <CreateClassModal
+          userId={userId}
+          t={t}
+          onClose={() => setShowCreateModal(false)}
+          onCreated={handleClassCreated}
+        />
+      )}
+
+      {/* Toast — bottom-right. Carries the new class code for ~5s after
+          creation so the teacher can dictate it before the visual settles. */}
+      {toast && (
+        <div
+          className="ns-fade"
+          style={{
+            position: "fixed", bottom: 24, right: 24, zIndex: 200,
+            background: C.green, color: "#fff",
+            padding: "10px 16px", borderRadius: 10,
+            fontSize: 13, fontWeight: 600, fontFamily: "'Outfit',sans-serif",
+            boxShadow: "0 6px 20px rgba(0,0,0,0.15)",
+            display: "flex", alignItems: "center", gap: 8,
+            maxWidth: "calc(100vw - 48px)",
+          }}
+        >
+          <CIcon name="check" size={14} inline />
+          <span>{toast.message}</span>
         </div>
       )}
 
@@ -509,6 +596,19 @@ export default function MyClassesTeacher({ lang = "en", profile, onNavigateToSes
           transform: translateY(-2px);
           box-shadow: 0 6px 20px rgba(0,0,0,.06);
         }
+        @keyframes cl-class-pop {
+          0%   { transform: scale(.96); opacity: 0; }
+          60%  { transform: scale(1.02); opacity: 1; }
+          100% { transform: scale(1); }
+        }
+        .cl-class-card-new { animation: cl-class-pop .35s cubic-bezier(.4,1.6,.5,1) both; }
+        @keyframes cl-class-glow {
+          0%, 100% { box-shadow: 0 0 0 0 rgba(35,131,226,0); }
+          50%      { box-shadow: 0 0 0 4px rgba(35,131,226,.18); }
+        }
+        .cl-class-card-glow { animation: cl-class-glow 1.6s ease-in-out 2; }
+        @keyframes ns-fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+        .ns-fade { animation: ns-fadeIn .25s ease; }
       `}</style>
     </div>
   );

@@ -943,122 +943,6 @@ function SuggestedCard({ item, t, onPick }) {
   );
 }
 
-// ─── Create Class Modal ────────────────────────────────────────────────────
-function CreateClassModal({ userId, t, onClose, onCreated }) {
-  const [name, setName] = useState("");
-  const [subject, setSubject] = useState("Math");
-  const [grade, setGrade] = useState("");
-  const [creating, setCreating] = useState(false);
-  const [error, setError] = useState("");
-
-  const handleCreate = async () => {
-    if (!name.trim() || !grade.trim()) { setError(t.classNamePlaceholder); return; }
-    setError("");
-    setCreating(true);
-    // Generate code via Supabase RPC. The SQL function returns the canonical
-    // friendly format (e.g. "MATH-8B") and guarantees uniqueness against the
-    // classes table — the previous JS-only random generator produced ugly
-    // strings like "K7M3PQ" which is what teachers were dictating until now.
-    const { data: rpcCode, error: rpcErr } = await supabase.rpc("generate_class_code", {
-      p_subject: subject,
-      p_grade: grade.trim(),
-    });
-    if (rpcErr || !rpcCode) {
-      setCreating(false);
-      setError(rpcErr?.message || "Could not generate class code");
-      return;
-    }
-    const { data, error: err } = await supabase.from("classes").insert({
-      teacher_id: userId,
-      name: name.trim(),
-      subject,
-      grade: grade.trim(),
-      class_code: rpcCode,
-    }).select().single();
-    setCreating(false);
-    if (err) { setError(err.message); return; }
-    onCreated(data);
-  };
-
-  return (
-    <div
-      onClick={onClose}
-      style={{
-        position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)",
-        display: "flex", alignItems: "center", justifyContent: "center",
-        zIndex: 100, padding: 20,
-      }}
-    >
-      <div
-        onClick={e => e.stopPropagation()}
-        className="ns-fade"
-        style={{ background: C.bg, borderRadius: 14, padding: 24, maxWidth: 460, width: "100%", boxShadow: "0 12px 40px rgba(0,0,0,0.15)" }}
-      >
-        <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 16, fontFamily: "'Outfit',sans-serif", display: "flex", alignItems: "center", gap: 8 }}>
-          <CIcon name="school" size={20} inline /> {t.createClass}
-        </h3>
-
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          <div>
-            <label style={{ display: "block", fontSize: 12, fontWeight: 500, color: C.textSecondary, marginBottom: 6 }}>{t.className}</label>
-            <input
-              value={name}
-              onChange={e => setName(e.target.value)}
-              placeholder={t.classNamePlaceholder}
-              autoFocus
-              style={inp}
-            />
-          </div>
-
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 10 }}>
-            <div>
-              <label style={{ display: "block", fontSize: 12, fontWeight: 500, color: C.textSecondary, marginBottom: 6 }}>{t.classSubject}</label>
-              <select value={subject} onChange={e => setSubject(e.target.value)} style={sel}>
-                {SUBJECTS.map(s => <option key={s} value={s}>{s}</option>)}
-              </select>
-            </div>
-            <div>
-              <label style={{ display: "block", fontSize: 12, fontWeight: 500, color: C.textSecondary, marginBottom: 6 }}>{t.classGrade}</label>
-              <input
-                value={grade}
-                onChange={e => setGrade(e.target.value)}
-                placeholder={t.classGradePlaceholder}
-                style={inp}
-              />
-            </div>
-          </div>
-
-          {error && <p style={{ fontSize: 12, color: C.red, margin: 0 }}>{error}</p>}
-        </div>
-
-        <div style={{ display: "flex", gap: 8, marginTop: 20 }}>
-          <button
-            onClick={onClose}
-            style={{
-              padding: "10px 18px", borderRadius: 8, fontSize: 13, fontWeight: 500,
-              background: "transparent", color: C.textMuted,
-              border: `1px solid ${C.border}`, cursor: "pointer",
-              fontFamily: "'Outfit',sans-serif",
-            }}
-          >{t.cancel}</button>
-          <button
-            onClick={handleCreate}
-            disabled={creating}
-            style={{
-              flex: 1,
-              padding: "10px 18px", borderRadius: 8, fontSize: 13, fontWeight: 600,
-              background: creating ? C.bgSoft : `linear-gradient(135deg, ${C.accent}, ${C.purple})`,
-              color: creating ? C.textMuted : "#fff",
-              border: "none", cursor: creating ? "default" : "pointer",
-              fontFamily: "'Outfit',sans-serif",
-            }}
-          >{creating ? t.creating : t.classCreate}</button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 // ─── Main Export ───────────────────────────────────────────────────────────
 export default function SessionFlow({ lang = "en", setLang, onNavigateToDecks, onOpenMobileMenu }) {
   const t = i18n[lang] || i18n.en;
@@ -1086,14 +970,11 @@ export default function SessionFlow({ lang = "en", setLang, onNavigateToDecks, o
   });
   const [selectedDeck, setSelectedDeck] = useState(null);
   const [session, setSession] = useState(null);
-  const [showCreateClass, setShowCreateClass] = useState(false);
-  const [toast, setToast] = useState(null); // { message } | null
+  const [toast, setToast] = useState(null); // { message, code? } | null
 
-  // URL-driven intents (Phase 2):
-  //   ?createClass=1 → open the "new class" modal on mount
+  // URL-driven intents:
   //   ?class=<id>    → focus the deck picker on this class
-  // Both are consumed once and then cleared from the URL with replace=true so
-  // they don't re-trigger on tab focus / token refresh.
+  // The legacy ?createClass=1 is forwarded to /classes (see effect below).
   const [searchParams, setSearchParams] = useSearchParams();
   const focusClassId = searchParams.get(QUERY.CLASS) || "";
 
@@ -1158,15 +1039,16 @@ export default function SessionFlow({ lang = "en", setLang, onNavigateToDecks, o
   // If we arrived with ?createClass=1 (e.g. from "+ New class" elsewhere),
   // open the modal and remove the param so the modal doesn't reopen on
   // back/forward or token refresh.
+  // Legacy handler: older flows used /sessions?createClass=1 to open the
+  // create-class modal. Class creation now lives in MyClasses (the teacher's
+  // home), so we forward the intent there. Once any deployed link or
+  // bookmark with this URL is unlikely to still be in use, this whole effect
+  // can be dropped.
   useEffect(() => {
     if (searchParams.get(QUERY.CREATE_CLASS) === "1") {
-      setShowCreateClass(true);
-      // Strip just createClass=1 from the URL but keep ?class= if present.
-      const next = new URLSearchParams(searchParams);
-      next.delete(QUERY.CREATE_CLASS);
-      setSearchParams(next, { replace: true });
+      navigate(`${ROUTES.CLASSES}?${QUERY.CREATE_CLASS}=1`, { replace: true });
     }
-  }, [searchParams, setSearchParams]);
+  }, [searchParams, navigate]);
 
   // ?class=<id> is consumed by DeckPicker via initialClassFilter (the param
   // is read directly from the URL on render). We clear it on the next tick
@@ -1237,16 +1119,6 @@ export default function SessionFlow({ lang = "en", setLang, onNavigateToDecks, o
     setStep("options");
   };
 
-  const handleClassCreated = (newClass) => {
-    setClasses(prev => [newClass, ...prev]);
-    setShowCreateClass(false);
-    // After creation, take the teacher to "My Classes" where the new class
-    // appears with its code prominently visible. Show the code in the toast
-    // immediately so they can dictate it without scanning the page.
-    setToast({ message: `${t.classCreated} ${newClass.class_code}`, code: newClass.class_code });
-    navigate(ROUTES.CLASSES);
-  };
-
   const handleCancel = async () => {
     if (session) {
       await supabase.from("sessions").update({ status: "cancelled" }).eq("id", session.id);
@@ -1288,19 +1160,10 @@ export default function SessionFlow({ lang = "en", setLang, onNavigateToDecks, o
             {/* Suggested for Today (only shows if there are urgent decks) */}
             <SuggestedToday teacherId={user.id} t={t} onPickSuggestion={handlePickSuggestion} />
 
-            {/* "Pick a deck" header + "+ New class" button */}
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-              <h3 style={{ fontSize: 14, fontWeight: 600, color: C.textSecondary, margin: 0 }}>{t.pickDeck}</h3>
-              <button
-                onClick={() => setShowCreateClass(true)}
-                style={{
-                  padding: "6px 12px", borderRadius: 7, fontSize: 12, fontWeight: 600,
-                  background: C.bg, color: C.accent,
-                  border: `1px dashed ${C.accent}66`,
-                  cursor: "pointer", fontFamily: "'Outfit',sans-serif",
-                }}
-              >{t.newClass}</button>
-            </div>
+            {/* "Pick a deck" header. Class creation no longer lives here —
+                it moved to My Classes (the teacher's home). Sessions is
+                strictly about launching an existing deck live. */}
+            <h3 style={{ fontSize: 14, fontWeight: 600, color: C.textSecondary, margin: "0 0 14px" }}>{t.pickDeck}</h3>
 
             <DeckPicker
               userId={user.id}
@@ -1341,16 +1204,6 @@ export default function SessionFlow({ lang = "en", setLang, onNavigateToDecks, o
           />
         )}
       </div>
-
-      {/* Create class modal */}
-      {showCreateClass && (
-        <CreateClassModal
-          userId={user.id}
-          t={t}
-          onClose={() => setShowCreateClass(false)}
-          onCreated={handleClassCreated}
-        />
-      )}
 
       {/* Toast */}
       {toast && (

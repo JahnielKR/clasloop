@@ -1,10 +1,12 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { getClassRetentionOverview, getStudentProgress } from "../lib/spaced-repetition";
 import { CIcon } from "../components/Icons";
 import { useIsMobile } from "../components/MobileMenuButton";
 import PageHeader from "../components/PageHeader";
 import { C as BASE_C, MONO } from "../components/tokens";
+import { ROUTES } from "../routes";
 
 // Director adds a single yellow accent (used for warning-tier indicators
 // in the dashboard). No paired yellowSoft because Director uses bgSoft for
@@ -16,12 +18,13 @@ const retCol = (v) => v >= 70 ? C.green : v >= 40 ? C.orange : C.red;
 const i18n = {
   en: {
     pageTitle: "School Dashboard", subtitle: "Overview of your classes and student performance",
+    backToMyClasses: "Back to My Classes",
     overview: "Overview", byClass: "By Class", students: "Students", alerts: "Alerts",
     avgRetention: "Avg retention", totalStudents: "Total students", totalSessions: "Total sessions", classesActive: "Classes active",
     className: "Class", grade: "Grade", subject: "Subject", retention: "Retention", sessions: "Sessions", studentCount: "Students",
     topPerformers: "Top performers", atRisk: "At-risk students", atRiskDesc: "Retention below 40% in 2+ topics",
     lowTopics: "Low retention topics", lowTopicsDesc: "Topics below 50% that need review",
-    noClasses: "No classes yet. Create a class in Sessions to start tracking.",
+    noClasses: "No classes yet. Create a class in My Classes to start tracking.",
     noStudents: "No student data yet. Run a session first.",
     noAlerts: "No alerts — everything looks good!",
     strong: "Strong", needsReview: "Needs review", weak: "Weak",
@@ -30,12 +33,13 @@ const i18n = {
   },
   es: {
     pageTitle: "Panel Escolar", subtitle: "Vista general de tus clases y rendimiento estudiantil",
+    backToMyClasses: "Volver a Mis clases",
     overview: "Resumen", byClass: "Por Clase", students: "Estudiantes", alerts: "Alertas",
     avgRetention: "Retención prom.", totalStudents: "Total estudiantes", totalSessions: "Total sesiones", classesActive: "Clases activas",
     className: "Clase", grade: "Grado", subject: "Materia", retention: "Retención", sessions: "Sesiones", studentCount: "Estudiantes",
     topPerformers: "Mejores estudiantes", atRisk: "Estudiantes en riesgo", atRiskDesc: "Retención menor a 40% en 2+ temas",
     lowTopics: "Temas con baja retención", lowTopicsDesc: "Temas debajo del 50% que necesitan repaso",
-    noClasses: "Sin clases aún. Crea una clase en Sesiones para empezar.",
+    noClasses: "Sin clases aún. Crea una clase en Mis clases para empezar.",
     noStudents: "Sin datos de estudiantes aún. Crea una sesión primero.",
     noAlerts: "Sin alertas — ¡todo se ve bien!",
     strong: "Fuerte", needsReview: "Necesita repaso", weak: "Débil",
@@ -44,12 +48,13 @@ const i18n = {
   },
   ko: {
     pageTitle: "학교 대시보드", subtitle: "수업과 학생 성과 현황",
+    backToMyClasses: "내 수업으로 돌아가기",
     overview: "개요", byClass: "수업별", students: "학생", alerts: "알림",
     avgRetention: "평균 기억률", totalStudents: "총 학생", totalSessions: "총 세션", classesActive: "활동 수업",
     className: "수업", grade: "학년", subject: "과목", retention: "기억률", sessions: "세션", studentCount: "학생",
     topPerformers: "우수 학생", atRisk: "위험 학생", atRiskDesc: "2개 이상 주제에서 40% 미만",
     lowTopics: "낮은 기억률 주제", lowTopicsDesc: "50% 미만으로 복습 필요",
-    noClasses: "아직 수업이 없습니다. 세션에서 수업을 만드세요.",
+    noClasses: "아직 수업이 없습니다. 내 수업에서 수업을 만드세요.",
     noStudents: "아직 학생 데이터가 없습니다. 세션을 먼저 실행하세요.",
     noAlerts: "알림 없음 — 모두 순조롭습니다!",
     strong: "강함", needsReview: "복습 필요", weak: "약함",
@@ -84,6 +89,7 @@ const Bar = ({ value, max = 100, color = C.accent, h = 6 }) => (
 );
 
 export default function Director({ lang: pageLang = "en", setLang: pageSetLang, onOpenMobileMenu }) {
+  const navigate = useNavigate();
   const isMobile = useIsMobile();
   const [lang, setLangLocal] = useState(pageLang);
   const setLang = pageSetLang || setLangLocal;
@@ -140,9 +146,44 @@ export default function Director({ lang: pageLang = "en", setLang: pageSetLang, 
     setLoading(false);
   };
 
+  // Back-to-MyClasses bar — Director is now reached only as a sub-page from
+  // MyClasses (no longer in the sidebar), so users need a way out beyond
+  // browser back. Rendered above PageHeader in both loading and main states.
+  const backBar = (
+    <div style={{ maxWidth: 860, margin: "0 auto 12px" }}>
+      <button
+        onClick={() => navigate(ROUTES.CLASSES)}
+        style={{
+          background: "transparent",
+          border: "none",
+          cursor: "pointer",
+          padding: "6px 8px",
+          marginLeft: -8,
+          borderRadius: 6,
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 6,
+          fontFamily: "'Outfit',sans-serif",
+          fontSize: 13,
+          fontWeight: 500,
+          color: C.textSecondary,
+          transition: "color .15s ease, background .15s ease",
+        }}
+        onMouseEnter={(e) => { e.currentTarget.style.color = C.accent; e.currentTarget.style.background = C.accentSoft; }}
+        onMouseLeave={(e) => { e.currentTarget.style.color = C.textSecondary; e.currentTarget.style.background = "transparent"; }}
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+          <path d="M19 12H5M12 5l-7 7 7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+        {t.backToMyClasses}
+      </button>
+    </div>
+  );
+
   if (loading) return (
     <div style={{ padding: "28px 20px" }}>
       <style>{css}</style>
+      {backBar}
       <PageHeader title={t.pageTitle} icon="school" lang={l} setLang={setLang} maxWidth={860} onOpenMobileMenu={onOpenMobileMenu} />
       <p style={{ textAlign: "center", color: C.textMuted, padding: 40 }}>{t.loading}</p>
     </div>
@@ -177,6 +218,7 @@ export default function Director({ lang: pageLang = "en", setLang: pageSetLang, 
   return (
     <div style={{ padding: "28px 20px" }}>
       <style>{css}</style>
+      {backBar}
       <PageHeader title={t.pageTitle} icon="school" lang={l} setLang={setLang} maxWidth={860} onOpenMobileMenu={onOpenMobileMenu} />
 
       <div style={{ maxWidth: 860, margin: "0 auto" }}>
