@@ -325,19 +325,19 @@ const css = `
   }
 
   /* Tablet chica/portrait (~800-900px viewport, ej. Galaxy Tab S9 FE en
-     portrait). Baja otro 10% del breakpoint anterior. */
+     portrait). Bajado 2 veces ya — esta es la calibración final. */
   @media (max-width: 900px) {
-    .ph-tagline { font-size: 34px !important; }
-    .ph-sub { font-size: 15px !important; }
-    .ph-cta-primary { font-size: 15px !important; padding: 12px 26px !important; }
-    .ph-section { padding: 52px 22px !important; }
-    .ph-section-h2 { font-size: 30px !important; }
-    .ph-section-sub { font-size: 15px !important; }
-    .ph-step-title, .ph-why-title { font-size: 19px !important; }
-    .ph-step-body, .ph-why-body { font-size: 14px !important; }
-    .ph-final-h2 { font-size: 36px !important; }
-    .ph-final-sub { font-size: 17px !important; }
-    .ph-pill { font-size: 12px !important; padding: 6px 16px !important; }
+    .ph-tagline { font-size: 30px !important; }
+    .ph-sub { font-size: 14px !important; }
+    .ph-cta-primary { font-size: 14px !important; padding: 11px 24px !important; }
+    .ph-section { padding: 46px 20px !important; }
+    .ph-section-h2 { font-size: 27px !important; }
+    .ph-section-sub { font-size: 14px !important; }
+    .ph-step-title, .ph-why-title { font-size: 17px !important; }
+    .ph-step-body, .ph-why-body { font-size: 13px !important; }
+    .ph-final-h2 { font-size: 32px !important; }
+    .ph-final-sub { font-size: 16px !important; }
+    .ph-pill { font-size: 11px !important; padding: 6px 14px !important; }
   }
 
   /* Mobile (≤640px) — header simplificado: solo logo + Sign up free + langs.
