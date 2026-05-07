@@ -159,13 +159,16 @@ function AIGeneratePanel({
   defaultActivityType,
   deckSubject,
   deckGrade,
-  deckLanguage,
+  deckLanguage,        // idioma del deck — single source of truth.
+  setDeckLanguage,     // setter del editor padre. El selector AI escribe acá
+                       // directamente. NO mantenemos un state local separado:
+                       // intentos previos con `aiLanguage` + `useEffect` de sync
+                       // generaban bugs sutiles donde el panel y General se
+                       // desincronizaban silenciosamente. Una sola fuente de
+                       // verdad = imposible que diverjan.
   onGenerated,
   onCancel,
-  onLanguageChange,  // se dispara al generar si el profe escogió un idioma
-                     // distinto al del deck — el editor actualiza deckLang
-                     // silenciosamente para mantener General coherente.
-  dropReport,        // {kept, dropped} cuando handleAIGenerated descartó preguntas
+  dropReport,          // {kept, dropped} cuando handleAIGenerated descartó preguntas
 }) {
   // El panel AI siempre arranca en "mix" porque es el flujo recomendado para
   // warmups y exit tickets reales (mezcla pedagógica > monotipo). Ignoramos el
@@ -173,22 +176,6 @@ function AIGeneratePanel({
   const [aiActivityType, setAiActivityType] = useState("mix");
   const [numQuestions, setNumQuestions] = useState(5);
   const [lessonContext, setLessonContext] = useState("warmup"); // warmup | exitTicket | general
-  // Idioma de las preguntas generadas. Default = idioma del deck (o el de la
-  // UI si el deck no tiene idioma seteado todavía). Cuando el profe le da
-  // Generate, este idioma se propaga al deck via onLanguageChange — así el
-  // LangBadge, los filtros de Community, etc., quedan coherentes con lo que
-  // realmente se generó.
-  const [aiLanguage, setAiLanguage] = useState(deckLanguage || l || "en");
-  // Si el profe tocó el selector explícitamente, respetamos su elección. Si no,
-  // sincronizamos con deckLanguage por si cambió (p.ej. profe abrió General y
-  // cambió el idioma del deck antes de venir a generar).
-  const [userTouchedLang, setUserTouchedLang] = useState(false);
-  useEffect(() => {
-    if (userTouchedLang) return; // ya eligió manualmente, respetamos
-    const target = deckLanguage || l || "en";
-    if (target !== aiLanguage) setAiLanguage(target);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [deckLanguage, l]);
   const [topic, setTopic] = useState("");
   const [keyPoints, setKeyPoints] = useState("");
   const [file, setFile] = useState(null);
@@ -214,7 +201,10 @@ function AIGeneratePanel({
     if (aiFileInputRef.current) aiFileInputRef.current.value = "";
   };
 
-  const canGenerate = !generating && (file || topic.trim().length >= 3);
+  // Generate solo se habilita cuando hay material (file o topic) Y el idioma
+  // está seteado. Forzamos elección consciente del idioma para evitar bugs
+  // sutiles donde un default no coincide con lo que el profe espera.
+  const canGenerate = !generating && (file || topic.trim().length >= 3) && Boolean(deckLanguage);
 
   const handleGenerate = async () => {
     setError("");
@@ -227,7 +217,7 @@ function AIGeneratePanel({
         subject: deckSubject,
         activityType: aiActivityType,
         numQuestions,
-        language: aiLanguage,
+        language: deckLanguage,
         file,
         lessonContext,
       });
@@ -257,15 +247,9 @@ function AIGeneratePanel({
         setGenerating(false);
         return;
       }
-      // Si el profe escogió un idioma distinto al del deck, propagamos al
-      // editor para que actualice deckLang silenciosamente. Mantiene
-      // LangBadge / Community / filtros coherentes con lo que se generó.
-      if (aiLanguage !== deckLanguage && typeof onLanguageChange === "function") {
-        onLanguageChange(aiLanguage);
-      }
-      // Si hubo warnings (ej. truncado), los pasamos al padre para que los
-      // muestre arriba de las preguntas. Si no hay warnings, segundo arg
-      // queda vacío.
+      // Single source of truth: deckLanguage es el idioma del deck. El selector
+      // del panel AI escribe directamente con setDeckLanguage, así que no hay
+      // que propagar nada — el editor padre ya está actualizado.
       onGenerated(cleaned, generationWarnings);
       // El padre cierra el panel y muestra las preguntas.
     } catch (err) {
@@ -457,13 +441,20 @@ function AIGeneratePanel({
           </select>
         </div>
         <div style={{ flex: "0 0 130px" }}>
-          <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: C.textSecondary, marginBottom: 4 }}>{t.aiLanguageLabel}</label>
+          <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: C.textSecondary, marginBottom: 4 }}>
+            {t.aiLanguageLabel} <span style={{ color: "#c00" }}>*</span>
+          </label>
           <select
-            value={aiLanguage}
-            onChange={(e) => { setAiLanguage(e.target.value); setUserTouchedLang(true); }}
+            value={deckLanguage || ""}
+            onChange={(e) => setDeckLanguage(e.target.value)}
             disabled={generating}
-            style={{ ...sel, padding: "7px 28px 7px 10px", fontSize: 12, width: "100%" }}
+            style={{
+              ...sel, padding: "7px 28px 7px 10px", fontSize: 12, width: "100%",
+              // Borde rojo suave si está vacío — pista visual de que falta elegir.
+              border: !deckLanguage ? `1px solid ${C.red}66` : sel.border,
+            }}
           >
+            <option value="" disabled>—</option>
             <option value="en">English</option>
             <option value="es">Español</option>
             <option value="ko">한국어</option>
@@ -538,7 +529,10 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
   const prefilledClass = prefilledClassId ? userClasses.find(c => c.id === prefilledClassId) : null;
   const [subject, setSubject] = useState(existingDeck?.subject || prefilledClass?.subject || "");
   const [grade, setGrade] = useState(existingDeck?.grade || prefilledClass?.grade || "");
-  const [deckLang, setDeckLang] = useState(existingDeck?.language || l);
+  // En deck nuevo arrancamos con idioma vacío para forzar elección consciente
+  // antes de generar con AI. Si el deck es existente respetamos su idioma
+  // guardado. La UI muestra el placeholder "—" en el selector si está vacío.
+  const [deckLang, setDeckLang] = useState(existingDeck?.language || "");
   const [tags, setTags] = useState((existingDeck?.tags || []).join(", "));
   const [classId, setClassId] = useState(existingDeck?.class_id || prefilledClassId || "");
   const [makePublic, setMakePublic] = useState(existingDeck?.is_public || false);
@@ -1440,7 +1434,8 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
             </div>
             <div>
               <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: C.textSecondary, marginBottom: 5 }}>{t.language}</label>
-              <select className="dk-input" value={deckLang} onChange={e => setDeckLang(e.target.value)} style={sel}>
+              <select className="dk-input" value={deckLang || ""} onChange={e => setDeckLang(e.target.value)} style={sel}>
+                <option value="" disabled>—</option>
                 <option value="en">English</option><option value="es">Español</option><option value="ko">한국어</option>
               </select>
             </div>
@@ -2331,8 +2326,8 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
             deckSubject={subject}
             deckGrade={grade}
             deckLanguage={deckLang}
+            setDeckLanguage={setDeckLang}
             onGenerated={handleAIGenerated}
-            onLanguageChange={(newLang) => setDeckLang(newLang)}
             onCancel={() => { setShowAIPanel(false); setAiDropReport(null); }}
             dropReport={aiDropReport}
           />
