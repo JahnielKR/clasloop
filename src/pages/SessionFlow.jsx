@@ -955,14 +955,25 @@ function CreateClassModal({ userId, t, onClose, onCreated }) {
     if (!name.trim() || !grade.trim()) { setError(t.classNamePlaceholder); return; }
     setError("");
     setCreating(true);
-    // Generate a 6-character class code (uppercase letters + digits, easy to read)
-    const code = generateClassCode();
+    // Generate code via Supabase RPC. The SQL function returns the canonical
+    // friendly format (e.g. "MATH-8B") and guarantees uniqueness against the
+    // classes table — the previous JS-only random generator produced ugly
+    // strings like "K7M3PQ" which is what teachers were dictating until now.
+    const { data: rpcCode, error: rpcErr } = await supabase.rpc("generate_class_code", {
+      p_subject: subject,
+      p_grade: grade.trim(),
+    });
+    if (rpcErr || !rpcCode) {
+      setCreating(false);
+      setError(rpcErr?.message || "Could not generate class code");
+      return;
+    }
     const { data, error: err } = await supabase.from("classes").insert({
       teacher_id: userId,
       name: name.trim(),
       subject,
       grade: grade.trim(),
-      class_code: code, // table column is `class_code`, not `code`
+      class_code: rpcCode,
     }).select().single();
     setCreating(false);
     if (err) { setError(err.message); return; }
@@ -1046,14 +1057,6 @@ function CreateClassModal({ userId, t, onClose, onCreated }) {
       </div>
     </div>
   );
-}
-
-function generateClassCode() {
-  // Avoid I/O/0/1 to reduce confusion. 6 chars.
-  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  let out = "";
-  for (let i = 0; i < 6; i++) out += chars[Math.floor(Math.random() * chars.length)];
-  return out;
 }
 
 // ─── Main Export ───────────────────────────────────────────────────────────
@@ -1180,10 +1183,12 @@ export default function SessionFlow({ lang = "en", setLang, onNavigateToDecks, o
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focusClassId]);
 
-  // Auto-dismiss toast after 3s
+  // Auto-dismiss toast after 3s (5s when showing a class code so the teacher
+  // has time to read it before it disappears).
   useEffect(() => {
     if (!toast) return;
-    const timer = setTimeout(() => setToast(null), 3000);
+    const ms = toast.code ? 5000 : 3000;
+    const timer = setTimeout(() => setToast(null), ms);
     return () => clearTimeout(timer);
   }, [toast]);
 
@@ -1235,13 +1240,11 @@ export default function SessionFlow({ lang = "en", setLang, onNavigateToDecks, o
   const handleClassCreated = (newClass) => {
     setClasses(prev => [newClass, ...prev]);
     setShowCreateClass(false);
-    // Navigate to Decks with the new class focused so the teacher SEES where
-    // their class lives (and can immediately add a deck to it).
-    if (onNavigateToDecks) {
-      onNavigateToDecks({ focusClassId: newClass.id });
-    } else {
-      setToast({ message: t.classCreated });
-    }
+    // After creation, take the teacher to "My Classes" where the new class
+    // appears with its code prominently visible. Show the code in the toast
+    // immediately so they can dictate it without scanning the page.
+    setToast({ message: `${t.classCreated} ${newClass.class_code}`, code: newClass.class_code });
+    navigate(ROUTES.CLASSES);
   };
 
   const handleCancel = async () => {

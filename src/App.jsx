@@ -34,6 +34,7 @@ const importDirector       = () => import('./pages/Director');
 const importNotifications  = () => import('./pages/Notifications');
 const importDecks          = () => import('./pages/Decks');
 const importMyClasses      = () => import('./pages/MyClasses');
+const importMyClassesTeacher = () => import('./pages/MyClassesTeacher');
 const importTeacherProfile = () => import('./pages/TeacherProfile');
 const importAdminAIStats   = () => import('./pages/AdminAIStats');
 
@@ -46,13 +47,25 @@ const Director         = lazy(importDirector);
 const Notifications    = lazy(importNotifications);
 const Decks            = lazy(importDecks);
 const MyClasses        = lazy(importMyClasses);
+const MyClassesTeacher = lazy(importMyClassesTeacher);
 const TeacherProfile   = lazy(importTeacherProfile);
 const AdminAIStats     = lazy(importAdminAIStats);
 import { useIsMobile } from './components/MobileMenuButton';
 import { countVisibleNotifications } from './lib/notifications';
 import { C } from './components/tokens';
 
-const COMPONENTS = { sessions: SessionFlow, studentJoin: StudentJoin, community: Community, achievements: Achievements, settings: Settings, director: Director, notifications: Notifications, decks: Decks, myClasses: MyClasses, teacherProfile: TeacherProfile, adminAIStats: AdminAIStats };
+// MyClasses wrapper — both roles use /classes but see different content.
+// Teachers: their own classes with codes (MyClassesTeacher).
+// Students: classes they've joined (MyClasses, the original component).
+// Both lazy chunks are tiny and prefetch logic below loads only the relevant
+// one per role, so no waste.
+function MyClassesByRole(props) {
+  const role = props.profile?.role;
+  if (role === "teacher") return <MyClassesTeacher {...props} />;
+  return <MyClasses {...props} />;
+}
+
+const COMPONENTS = { sessions: SessionFlow, studentJoin: StudentJoin, community: Community, achievements: Achievements, settings: Settings, director: Director, notifications: Notifications, decks: Decks, myClasses: MyClassesByRole, teacherProfile: TeacherProfile, adminAIStats: AdminAIStats };
 
 function AuthScreen({ initialMode = "select", initialRole = "teacher", onBack }) {
   const [mode, setMode] = useState(initialMode);
@@ -150,7 +163,7 @@ function Sidebar({ page, setPage, profile, lang, setLang, open, setOpen, onSignO
   // se renderizan si profile.is_admin === true. La protección real está en
   // la página + RLS de Supabase; ocultar en sidebar es solo UX.
   const baseNav = isT
-    ? [{ id:"sessions",icon:(a)=><SessionsIcon size={28} active={a}/>,l:"Sessions" },{ id:"decks",icon:(a)=><DecksIcon size={28} active={a}/>,l:"Decks" },{ id:"director",icon:(a)=><SchoolIcon size={28} active={a}/>,l:"School" },{ id:"community",icon:(a)=><CommunityIcon size={28} active={a}/>,l:"Community" },{ id:"notifications",icon:(a)=><NotificationsIcon size={28} active={a} badge={notifsCount}/>,l:"Notifications" },{ id:"settings",icon:(a)=><SettingsIcon size={28} active={a}/>,l:"Settings" }]
+    ? [{ id:"sessions",icon:(a)=><SessionsIcon size={28} active={a}/>,l:"Sessions" },{ id:"decks",icon:(a)=><DecksIcon size={28} active={a}/>,l:"Decks" },{ id:"myClasses",icon:(a)=><SchoolIcon size={28} active={a}/>,l:"My Classes" },{ id:"community",icon:(a)=><CommunityIcon size={28} active={a}/>,l:"Community" },{ id:"notifications",icon:(a)=><NotificationsIcon size={28} active={a} badge={notifsCount}/>,l:"Notifications" },{ id:"settings",icon:(a)=><SettingsIcon size={28} active={a}/>,l:"Settings" }]
     : [{ id:"myClasses",icon:(a)=><SchoolIcon size={28} active={a}/>,l:"My Classes" },{ id:"studentJoin",icon:(a)=><JoinSessionIcon size={28} active={a}/>,l:"Join Session" },{ id:"achievements",icon:(a)=><AchievementsIcon size={28} active={a}/>,l:"Achievements" },{ id:"community",icon:(a)=><CommunityIcon size={28} active={a}/>,l:"Community" },{ id:"notifications",icon:(a)=><NotificationsIcon size={28} active={a} badge={notifsCount}/>,l:"Notifications" },{ id:"settings",icon:(a)=><SettingsIcon size={28} active={a}/>,l:"Settings" }];
   const nav = isAdmin
     ? [...baseNav, { id:"adminAIStats", icon:(a)=><AIGenIcon size={28} active={a}/>, l:"AI Stats" }]
@@ -484,7 +497,7 @@ export default function App() {
     // Pages the user is most likely to click next from their default view.
     // Loaded first (~50-100ms after profile is ready).
     const primary = isTeacher
-      ? [importDecks, importSessionFlow, importSettings]
+      ? [importDecks, importSessionFlow, importMyClassesTeacher, importSettings]
       : [importMyClasses, importStudentJoin, importSettings];
 
     // Less-frequent but still in-role pages. Loaded after the primary batch

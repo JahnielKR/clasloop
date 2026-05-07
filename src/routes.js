@@ -209,8 +209,11 @@ export function pathToPage(pathname) {
 // App.jsx la pueda usar para redirigir "/" según el rol.
 
 export function defaultRouteForRole(role) {
+  // Both roles default to /classes. For students it's their joined classes;
+  // for teachers it's the classes they own (with codes to share with students).
+  // The /classes route renders MyClassesByRole which picks the right component.
   if (role === "student") return ROUTES.CLASSES;
-  return ROUTES.SESSIONS; // teacher (y fallback)
+  return ROUTES.CLASSES; // teacher
 }
 
 // ── Role guards ────────────────────────────────────────────────────────────
@@ -229,12 +232,15 @@ export function defaultRouteForRole(role) {
 const TEACHER_ONLY_PAGES = new Set([
   "sessions",
   "decks",
-  "director",       // /school
+  "director",       // /school — analytics dashboard, accessible from MyClasses header
   "adminAIStats",   // additionally requires is_admin, checked at the page level
 ]);
 
+// Note: "myClasses" is intentionally NOT in either set. The /classes route is
+// shared — students see classes they joined (MyClasses.jsx), teachers see
+// classes they own (MyClassesTeacher.jsx). The MyClassesByRole wrapper in
+// App.jsx picks the right component based on profile.role.
 const STUDENT_ONLY_PAGES = new Set([
-  "myClasses",
   "achievements",
   "studentJoin",    // teachers don't join sessions; they create them
 ]);

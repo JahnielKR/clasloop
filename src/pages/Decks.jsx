@@ -650,14 +650,18 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
       // (empty placeholder doesn't make sense for borrowed decks).
       const showEmptyClasses = tab === "myDecks";
       userClasses.forEach(c => {
+        // Sublabel includes the class code so the teacher can dictate it to
+        // students directly from this page (My Classes is the canonical home,
+        // but Decks is where the teacher spends most of their time).
+        const subl = `${c.subject} · ${c.grade}${c.class_code ? ` · ${c.class_code}` : ""}`;
         if (byClass.has(c.id)) {
-          result.push({ key: c.id, label: c.name, sublabel: `${c.subject} · ${c.grade}`, icon: SUBJ_ICON[c.subject] || "book", decks: byClass.get(c.id), classObj: c });
+          result.push({ key: c.id, label: c.name, sublabel: subl, icon: SUBJ_ICON[c.subject] || "book", decks: byClass.get(c.id), classObj: c });
         } else if (showEmptyClasses) {
           // Skip empty classes if a search/filter narrowed results — would be misleading
           // to show "0 decks" when really the empty state is from filtering.
           const isFiltered = !!search || !!filterSubject || (!!filterClass && filterClass !== c.id);
           if (!isFiltered) {
-            result.push({ key: c.id, label: c.name, sublabel: `${c.subject} · ${c.grade}`, icon: SUBJ_ICON[c.subject] || "book", decks: [], classObj: c, isEmpty: true });
+            result.push({ key: c.id, label: c.name, sublabel: subl, icon: SUBJ_ICON[c.subject] || "book", decks: [], classObj: c, isEmpty: true });
           }
         }
       });
