@@ -448,6 +448,14 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
   useEffect(() => {
     const id = searchParams.get(QUERY.CLASS);
     if (!id) return;
+    // CRITICAL: this effect is for the LIST view of /decks (focus a class
+    // group on arrival from Sessions). It must NOT run when we're on
+    // /decks/new — there, ?class= is the prefill the editor reads, and
+    // stripping it would silently break "+ New warmup" coming from
+    // ClassPage. Same for /decks/:id/edit which doesn't use ?class= at
+    // all but we guard anyway. Detection mirrors the `view` derivation
+    // below: newMatch / editMatch from useMatch.
+    if (newMatch || editMatch) return;
     setTab("myDecks");
     setGroupBy("class");
     setExpandedGroups(prev => ({ ...prev, [id]: true }));
@@ -461,7 +469,7 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
       if (el && el.scrollIntoView) el.scrollIntoView({ behavior: "smooth", block: "start" });
     }, 200);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams.get(QUERY.CLASS)]);
+  }, [searchParams.get(QUERY.CLASS), newMatch, editMatch]);
 
   const loadData = async () => {
     const { data: { user } } = await supabase.auth.getUser();
