@@ -13,12 +13,12 @@ const i18n = {
     navFeatures: "Features",
     navSchools: "For schools",
     navPricing: "Pricing",
-    haveCode: "Have a code?",
+    haveCode: "Got a code?",
     signIn: "Sign in",
     signUpFree: "Sign up free",
 
     pill: "Your daily warmups & exit tickets",
-    taglinePart1: "From your PDF to a class warmup in",
+    taglinePart1: "From any file to a class warmup or exit ticket in",
     taglineHighlight: "60 seconds.",
     sub: "Any file or topic in. Verified, ready-to-use questions out. You review, launch, done.",
     ctaPrimary: "Start free trial",
@@ -30,6 +30,9 @@ const i18n = {
     typeOrder: "Order steps",
     typeMatch: "Match pairs",
     typeOpen: "Open response",
+    typeSentence: "Sentence",
+    typeSlider: "Slider",
+    typePoll: "Poll",
 
     howTitle: "Three steps. Five minutes. Done.",
     howSub: "The same routine, every day. That's where the learning sticks.",
@@ -49,8 +52,8 @@ const i18n = {
     why3Title: "Works in any subject",
     why3Body: "Math, biology, English, history. If you can teach it, the AI can write the warmup for it.",
 
-    finalTitle: "Ready to skip the prep?",
-    finalSub: "Your next warmup is 60 seconds away.",
+    finalTitle: "Every class deserves a warmup.",
+    finalSub: "Every lesson, an exit.",
 
     footerTagline: "Your daily warmups & exit tickets.",
     footerPrivacy: "Privacy",
@@ -79,7 +82,7 @@ const i18n = {
     signUpFree: "Registrarse gratis",
 
     pill: "Tus warmups y exit tickets diarios",
-    taglinePart1: "De tu PDF a un warmup de clase en",
+    taglinePart1: "De cualquier archivo a un warmup o exit ticket en",
     taglineHighlight: "60 segundos.",
     sub: "Cualquier archivo o tema entra. Preguntas verificadas y listas para usar salen. Tú revisas, lanzas, listo.",
     ctaPrimary: "Empezar prueba gratis",
@@ -91,6 +94,9 @@ const i18n = {
     typeOrder: "Ordenar pasos",
     typeMatch: "Emparejar",
     typeOpen: "Respuesta libre",
+    typeSentence: "Oración",
+    typeSlider: "Slider",
+    typePoll: "Encuesta",
 
     howTitle: "Tres pasos. Cinco minutos. Listo.",
     howSub: "La misma rutina, cada día. Ahí es donde el aprendizaje se queda.",
@@ -110,8 +116,8 @@ const i18n = {
     why3Title: "Funciona en cualquier materia",
     why3Body: "Matemáticas, biología, inglés, historia. Si lo enseñas, la AI te puede escribir el warmup.",
 
-    finalTitle: "¿Listo para saltarte el prep?",
-    finalSub: "Tu próximo warmup está a 60 segundos.",
+    finalTitle: "Cada clase merece un warmup.",
+    finalSub: "Cada lección, un exit ticket.",
 
     footerTagline: "Tus warmups y exit tickets diarios.",
     footerPrivacy: "Privacidad",
@@ -140,7 +146,7 @@ const i18n = {
     signUpFree: "무료 가입",
 
     pill: "매일의 워밍업과 종료 티켓",
-    taglinePart1: "PDF에서 수업 워밍업까지",
+    taglinePart1: "어떤 파일이든 워밍업이나 종료 티켓으로",
     taglineHighlight: "60초.",
     sub: "어떤 파일이나 주제든 입력하세요. 검증된 사용 가능한 문제가 나옵니다. 검토하고, 시작하고, 완료.",
     ctaPrimary: "무료 체험 시작",
@@ -152,6 +158,9 @@ const i18n = {
     typeOrder: "순서 정렬",
     typeMatch: "짝 맞추기",
     typeOpen: "주관식",
+    typeSentence: "문장",
+    typeSlider: "슬라이더",
+    typePoll: "투표",
 
     howTitle: "세 단계. 5분. 완료.",
     howSub: "매일 같은 루틴. 그곳에서 학습이 자리 잡습니다.",
@@ -171,8 +180,8 @@ const i18n = {
     why3Title: "어떤 과목에서도 작동합니다",
     why3Body: "수학, 생물, 영어, 역사. 가르칠 수 있다면 AI가 그 과목의 워밍업을 작성할 수 있습니다.",
 
-    finalTitle: "준비를 건너뛸 준비가 되셨나요?",
-    finalSub: "다음 워밍업은 60초 거리에 있습니다.",
+    finalTitle: "모든 수업은 워밍업이 필요합니다.",
+    finalSub: "모든 강의는 종료 티켓이 필요합니다.",
 
     footerTagline: "매일의 워밍업과 종료 티켓.",
     footerPrivacy: "개인정보",
@@ -208,7 +217,7 @@ const FLOATING_CARDS = [
     questionTag: { en: "WARMUP · MCQ", es: "WARMUP · MCQ", ko: "워밍업 · 객관식" },
     questionText: { en: "What is photosynthesis?", es: "¿Qué es la fotosíntesis?", ko: "광합성이란 무엇인가요?" },
     bg: "#DDEBFB", border: "#2383E2", labelColor: "#185FA5", textColor: "#042C53",
-    pos: { top: 50, left: 30 }, size: { w: 130, h: 88 },
+    pos: { top: 60, left: 90 }, size: { w: 130, h: 88 },
     floatDelay: 0,
   },
   {
@@ -219,7 +228,7 @@ const FLOATING_CARDS = [
     questionTag: { en: "EXIT TICKET · TF", es: "EXIT TICKET · VF", ko: "종료 티켓 · 참거짓" },
     questionText: { en: "Mitosis happens in 4 phases.", es: "La mitosis tiene 4 fases.", ko: "유사분열은 4단계입니다." },
     bg: "#FAEEDA", border: "#BA7517", labelColor: "#854F0B", textColor: "#412402",
-    pos: { top: 30, right: 40 }, size: { w: 120, h: 82 },
+    pos: { top: 40, right: 100 }, size: { w: 120, h: 82 },
     floatDelay: -1,
   },
   {
@@ -230,7 +239,7 @@ const FLOATING_CARDS = [
     questionTag: { en: "WARMUP · FILL", es: "WARMUP · ESPACIO", ko: "워밍업 · 빈칸" },
     questionText: { en: "The mitochondria is the ___.", es: "La mitocondria es el ___.", ko: "미토콘드리아는 ___입니다." },
     bg: "#E1F5EE", border: "#1D9E75", labelColor: "#0F6E56", textColor: "#04342C",
-    pos: { bottom: 40, left: 70 }, size: { w: 120, h: 82 },
+    pos: { bottom: 50, left: 130 }, size: { w: 120, h: 82 },
     floatDelay: -2,
   },
   {
@@ -241,7 +250,7 @@ const FLOATING_CARDS = [
     questionTag: { en: "EXIT TICKET · MATCH", es: "EXIT TICKET · EMPAREJAR", ko: "종료 티켓 · 짝짓기" },
     questionText: { en: "Match cell parts to functions", es: "Empareja partes de la célula", ko: "세포 부분과 기능 짝짓기" },
     bg: "#FBEAF0", border: "#D4537E", labelColor: "#993556", textColor: "#4B1528",
-    pos: { bottom: 60, right: 30 }, size: { w: 115, h: 78 },
+    pos: { bottom: 70, right: 90 }, size: { w: 115, h: 78 },
     floatDelay: -1.5,
   },
 ];
@@ -251,6 +260,15 @@ const css = `
   @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap');
   *{box-sizing:border-box}
   body{margin:0;background:#fff;font-family:'Outfit',sans-serif}
+
+  /* Forzar light mode en la landing — esta página es marketing y debe verse
+     consistente para todos los visitors sin importar su preferencia de OS.
+     Notion, Linear, Stripe hacen lo mismo: la landing es siempre light. */
+  .ph-root { color-scheme: light; background: #fff !important; }
+  .ph-root, .ph-root * { color-scheme: light !important; }
+  @media (prefers-color-scheme: dark) {
+    .ph-root { background: #fff !important; }
+  }
 
   /* Float keyframes — cada card tiene su propia rotación base, animamos solo translateY */
   @keyframes ph-float-a { 0%,100% { transform: translateY(0) rotate(-3deg); } 50% { transform: translateY(-10px) rotate(-3deg); } }
@@ -363,7 +381,7 @@ export default function PublicHome({ onSignIn, onSignUp }) {
   return (
     <>
       <style>{css}</style>
-      <div style={{ background: "#fff", minHeight: "100vh" }}>
+      <div className="ph-root" data-theme="light" style={{ background: "#fff", minHeight: "100vh" }}>
 
         {/* HEADER — sticky con logo, nav, acciones */}
         <header style={{
@@ -439,10 +457,10 @@ export default function PublicHome({ onSignIn, onSignUp }) {
 
         {/* HERO */}
         <section className="ph-section ph-fade" style={{
-          padding: "72px 32px 56px",
+          padding: "48px 32px 40px",
           position: "relative",
           textAlign: "center",
-          minHeight: 480,
+          minHeight: 420,
           background: `radial-gradient(ellipse at top center, ${C.accentSoft} 0%, transparent 50%)`,
         }}>
           {FLOATING_CARDS.map(card => (
@@ -547,6 +565,9 @@ export default function PublicHome({ onSignIn, onSignUp }) {
             { color: "#BA7517", label: t.typeOrder },
             { color: "#534AB7", label: t.typeMatch },
             { color: "#D4537E", label: t.typeOpen },
+            { color: "#0F7B6C", label: t.typeSentence },
+            { color: "#993C1D", label: t.typeSlider },
+            { color: "#7F77DD", label: t.typePoll },
           ].map(p => (
             <div key={p.label} style={{
               padding: "7px 14px", background: C.bg,
