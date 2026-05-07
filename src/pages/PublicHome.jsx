@@ -303,41 +303,26 @@ const css = `
   .ph-input:focus { border-color: ${C.accent}; box-shadow: 0 0 0 3px ${C.accentSoft}; outline: none; }
   .ph-lang-btn { transition: all .15s ease; cursor: pointer; }
 
-  /* Tablet (≤1100px) — bajar todos los tamaños base ~35% del desktop para
-     que se sienta nítido en 100% en una Galaxy Tab S9 FE (era 90% nítido,
-     ahora apuntamos a 100% nítido). Cards flotantes escondidas porque se
-     amontonan. Nav links escondidos porque no caben con el header reducido. */
-  @media (max-width: 1100px) {
+  /* Tablet (≤1366px) — todos los tamaños bien reducidos. El breakpoint
+     está en 1366 (no 1100) porque tablets modernas como Galaxy Tab S9 FE
+     reportan viewport ~1316px en landscape. Una laptop pequeña (13") suele
+     ser 1366px o más, así que aún cae en desktop. Cards flotantes
+     escondidas porque se amontonan en este rango. */
+  @media (max-width: 1366px) {
     .ph-floating-card { display: none !important; }
-    .ph-tagline { font-size: 38px !important; line-height: 1.15 !important; }
-    .ph-sub { font-size: 16px !important; }
-    .ph-cta-primary { font-size: 16px !important; padding: 13px 28px !important; }
+    .ph-tagline { font-size: 36px !important; line-height: 1.18 !important; }
+    .ph-sub { font-size: 15px !important; }
+    .ph-cta-primary { font-size: 15px !important; padding: 12px 26px !important; }
     .ph-nav-links { display: none !important; }
-    .ph-section { padding: 60px 26px !important; }
+    .ph-section { padding: 56px 24px !important; }
     .ph-how-grid, .ph-why-grid { grid-template-columns: 1fr !important; }
-    .ph-section-h2 { font-size: 34px !important; }
-    .ph-section-sub { font-size: 16px !important; }
-    .ph-step-title, .ph-why-title { font-size: 20px !important; }
-    .ph-step-body, .ph-why-body { font-size: 15px !important; }
-    .ph-final-h2 { font-size: 40px !important; }
-    .ph-final-sub { font-size: 19px !important; }
-    .ph-pill { font-size: 13px !important; padding: 7px 18px !important; }
-  }
-
-  /* Tablet chica/portrait (~800-900px viewport, ej. Galaxy Tab S9 FE en
-     portrait). Bajado 2 veces ya — esta es la calibración final. */
-  @media (max-width: 900px) {
-    .ph-tagline { font-size: 30px !important; }
-    .ph-sub { font-size: 14px !important; }
-    .ph-cta-primary { font-size: 14px !important; padding: 11px 24px !important; }
-    .ph-section { padding: 46px 20px !important; }
-    .ph-section-h2 { font-size: 27px !important; }
-    .ph-section-sub { font-size: 14px !important; }
-    .ph-step-title, .ph-why-title { font-size: 17px !important; }
-    .ph-step-body, .ph-why-body { font-size: 13px !important; }
-    .ph-final-h2 { font-size: 32px !important; }
-    .ph-final-sub { font-size: 16px !important; }
-    .ph-pill { font-size: 11px !important; padding: 6px 14px !important; }
+    .ph-section-h2 { font-size: 30px !important; }
+    .ph-section-sub { font-size: 15px !important; }
+    .ph-step-title, .ph-why-title { font-size: 18px !important; }
+    .ph-step-body, .ph-why-body { font-size: 14px !important; }
+    .ph-final-h2 { font-size: 34px !important; }
+    .ph-final-sub { font-size: 17px !important; }
+    .ph-pill { font-size: 12px !important; padding: 6px 15px !important; }
   }
 
   /* Mobile (≤640px) — header simplificado: solo logo + Sign up free + langs.
