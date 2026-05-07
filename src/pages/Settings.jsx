@@ -152,7 +152,7 @@ const SettingRow = ({ label, desc, right }) => (
   </div>
 );
 
-export default function Settings({ lang: pageLang = "en", setLang: pageSetLang, onOpenMobileMenu }) {
+export default function Settings({ lang: pageLang = "en", setLang: pageSetLang, onOpenMobileMenu, refreshProfile = null }) {
   const [lang, setLangLocal] = useState(pageLang);
   const setLang = pageSetLang || setLangLocal;
   const l = pageLang || lang;
@@ -236,6 +236,10 @@ export default function Settings({ lang: pageLang = "en", setLang: pageSetLang, 
       setAvatarId(null);
       setAvatarStatus("saved");
       setTimeout(() => setAvatarStatus(null), 2200);
+      // Avisar a App para que el sidebar y resto del app se actualicen sin
+      // refresh de página. Sin esto el avatar viejo persiste en otras vistas
+      // hasta el siguiente reload (bug visible al estudiante).
+      if (refreshProfile) refreshProfile();
       // Best-effort cleanup of previous photo
       if (oldUrl && oldUrl !== result.url) deleteProfileAvatar(oldUrl).catch(() => {});
     }
@@ -251,6 +255,7 @@ export default function Settings({ lang: pageLang = "en", setLang: pageSetLang, 
     if (!error) {
       setAvatarUrl(null);
       setAvatarTab("avatar");
+      if (refreshProfile) refreshProfile();
       if (oldUrl) deleteProfileAvatar(oldUrl).catch(() => {});
     }
   };
@@ -266,6 +271,7 @@ export default function Settings({ lang: pageLang = "en", setLang: pageSetLang, 
       setAvatarUrl(null);
       setAvatarStatus("saved");
       setTimeout(() => setAvatarStatus(null), 2200);
+      if (refreshProfile) refreshProfile();
       if (oldUrl) deleteProfileAvatar(oldUrl).catch(() => {});
     }
   };
@@ -277,14 +283,18 @@ export default function Settings({ lang: pageLang = "en", setLang: pageSetLang, 
       full_name: name.trim(), school: school.trim(), language: l,
     }).eq("id", profile.id);
     setProfileStatus(error ? null : "saved");
-    if (!error) setTimeout(() => setProfileStatus(null), 2000);
+    if (!error) {
+      if (refreshProfile) refreshProfile();
+      setTimeout(() => setProfileStatus(null), 2000);
+    }
   };
 
   const changeLanguage = (newLang) => {
     setLang(newLang);
     // Persist language preference
     if (profile) {
-      supabase.from("profiles").update({ language: newLang }).eq("id", profile.id);
+      supabase.from("profiles").update({ language: newLang }).eq("id", profile.id)
+        .then(() => { if (refreshProfile) refreshProfile(); });
     }
   };
 

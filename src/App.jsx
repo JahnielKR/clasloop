@@ -545,6 +545,11 @@ export default function App() {
             lang={lang}
             setLang={setLang}
             profile={profile}
+            // Refrescar el profile del state global (App). Lo llaman pantallas
+            // que muten profile en DB (ej. Settings cambiando avatar/foto/full_name)
+            // para que el sidebar y el resto del app vean el cambio sin refresh.
+            // No refresca página, solo el state.
+            refreshProfile={() => { if (user?.id) fetchProfile(user.id, false); }}
             onOpenMobileMenu={isMobile ? () => setMobileDrawerOpen(true) : undefined}
             onLaunchPractice={(deck) => setPracticeDeck(deck)}
             onNavigateToDecks={(opts) => { setDecksOpts(opts || null); setPage("decks"); }}
