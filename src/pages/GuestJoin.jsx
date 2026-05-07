@@ -114,9 +114,11 @@ export default function GuestJoin({ initialCode = "" }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Force light theme while mounted — same rationale as PublicHome. Guest
-  // join is a marketing-adjacent entry point, students arrive here without
-  // an account and we want consistent visuals regardless of their OS theme.
+  // Force light theme while mounted. GuestJoin is on its own route (/join)
+  // and doesn't share mount cycles with PublicHome or AuthScreen, so the
+  // per-component approach is safe here (no flash risk). Same rationale as
+  // the App.jsx-level handler for PublicHome+AuthScreen: pre-app surfaces
+  // have a single visual identity regardless of OS or app theme.
   useEffect(() => {
     const html = document.documentElement;
     const previous = html.getAttribute("data-theme") || "light";

@@ -420,6 +420,26 @@ export default function App() {
   // refresh on tab return, etc.) shouldn't reset the page state.
   const profileLoadedRef = useRef(false);
 
+  // ── Pre-app theme override ────────────────────────────────────────────
+  // PublicHome and AuthScreen are pre-app surfaces — marketing-adjacent
+  // pages where we want a single visual identity regardless of the user's
+  // saved theme preference. Manage the override centrally here (instead of
+  // per-component) so navigating PublicHome → AuthScreen doesn't briefly
+  // flash dark between unmount and mount.
+  //
+  // The condition is exactly the same as the gating below (`!user` decides
+  // PublicHome vs AuthScreen). When the user logs in, this effect runs,
+  // restores their saved theme, and the app renders with their preference.
+  // GuestJoin lives on its own route (/join) and handles its own override.
+  const isPreAppSurface = !user;
+  useEffect(() => {
+    if (!isPreAppSurface) return;
+    const html = document.documentElement;
+    const previous = html.getAttribute("data-theme") || "light";
+    html.setAttribute("data-theme", "light");
+    return () => { html.setAttribute("data-theme", previous); };
+  }, [isPreAppSurface]);
+
   useEffect(() => {
     // Initial session check
     supabase.auth.getSession().then(({ data: { session } }) => {

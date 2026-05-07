@@ -431,27 +431,12 @@ export default function PublicHome({ onSignIn, onSignUp }) {
     return () => window.removeEventListener("keydown", onKey);
   }, [codeDialogOpen]);
 
-  // Force light theme while the public landing is mounted. CSS variables
-  // are declared on :root via the [data-theme="dark"] selector on <html>,
-  // so a `data-theme="light"` on a child div is ignored — the inheritance
-  // doesn't override. We swap the HTML attribute on mount and restore the
-  // user's preference on unmount so navigating away (sign in → app) goes
-  // back to whatever they had selected.
-  //
-  // This intentionally bypasses the theme system. The landing should look
-  // the same to every visitor regardless of their OS or app preference,
-  // because it's marketing surface — design consistency wins over user
-  // theming here.
-  useEffect(() => {
-    const html = document.documentElement;
-    const previous = html.getAttribute("data-theme") || "light";
-    html.setAttribute("data-theme", "light");
-    return () => {
-      // Restore. If the user had no theme set, this leaves "light" which
-      // is the default anyway.
-      html.setAttribute("data-theme", previous);
-    };
-  }, []);
+  // Note: theme handling for pre-app surfaces (this page, GuestJoin,
+  // AuthScreen) is managed at the App.jsx level — see the useEffect there
+  // that watches user/authIntent and forces light theme on the <html>
+  // element. Doing it per-component caused brief dark flashes when
+  // navigating between PublicHome → AuthScreen because their mount/unmount
+  // cycles overlap.
 
   // ─── Handlers ────────────────────────────────────────────
   const handleJoin = () => {

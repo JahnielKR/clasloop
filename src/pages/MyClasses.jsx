@@ -141,12 +141,18 @@ const css = `
   .mc-flash { animation: flashGlow 1.6s ease-out; border-radius: 12px; }
   /* Hover: previously hardcoded #F5F9FF (very light blue) which read fine
      in light mode but flashed near-white over the dark surface in dark
-     mode. Use accent-soft so it stays subtle in both themes. */
+     mode. Switched to bg-soft instead of accent-soft because accent-soft
+     is too tinted: in light mode it makes avatar circles (which use light
+     palettes) appear washed out, and in dark mode the navy bg contrasts
+     too strongly with the light-palette SVG avatars. bg-soft is the
+     default page background and gives a subtle "sunken" effect without
+     overpowering the contents. The lift + shadow are what carry the hover
+     signal. */
   .mc-class-card { transition: all .15s ease; cursor: pointer; }
-  .mc-class-card:hover { background: var(--c-accent-soft) !important; transform: translateY(-2px); box-shadow: 0 4px 14px rgba(35,131,226,0.10); }
+  .mc-class-card:hover { background: var(--c-bg-soft) !important; transform: translateY(-2px); box-shadow: 0 4px 14px rgba(35,131,226,0.10); }
   .mc-class-card:active { transform: translateY(0) scale(.99); }
   .mc-deck-card { transition: all .15s ease; cursor: pointer; }
-  .mc-deck-card:hover { background: var(--c-accent-soft) !important; transform: translateY(-2px); box-shadow: 0 4px 14px rgba(35,131,226,0.10); }
+  .mc-deck-card:hover { background: var(--c-bg-soft) !important; transform: translateY(-2px); box-shadow: 0 4px 14px rgba(35,131,226,0.10); }
   .mc-deck-card:active { transform: translateY(0) scale(.99); }
   .mc-tab:hover { color: #2383E2 !important; }
   .mc-join-btn:not(:disabled):hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(35,131,226,0.25); }
