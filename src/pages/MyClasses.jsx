@@ -6,6 +6,7 @@ import { DeckCover, colorTint } from "../lib/deck-cover";
 import { useIsMobile } from "../components/MobileMenuButton";
 import PageHeader from "../components/PageHeader";
 import { C, MONO } from "../components/tokens";
+import { getPracticeTimerPref, setPracticeTimerPref } from "../lib/practice-timer-pref";
 
 const i18n = {
   en: {
@@ -42,6 +43,8 @@ const i18n = {
     strong: "Strong", medium: "Building", weak: "Weak",
     favorites: "Favorites", noFavorites: "Star a deck to mark it as favorite.",
     favoriteAdd: "Add to favorites", favoriteRemove: "Remove from favorites",
+    practiceTimerOnTip: "Practice with timer (tap to study without time pressure)",
+    practiceTimerOffTip: "Practice untimed (tap to use the recommended timing)",
     bySubject: "By subject", allDecks: "All",
   },
   es: {
@@ -78,6 +81,8 @@ const i18n = {
     strong: "Sólido", medium: "Avanzando", weak: "Débil",
     favorites: "Favoritos", noFavorites: "Marca un deck con la estrella para favoritarlo.",
     favoriteAdd: "Añadir a favoritos", favoriteRemove: "Quitar de favoritos",
+    practiceTimerOnTip: "Practicar con timer (toca para estudiar sin presión)",
+    practiceTimerOffTip: "Practicar sin timer (toca para usar el tiempo recomendado)",
     bySubject: "Por materia", allDecks: "Todos",
   },
   ko: {
@@ -114,6 +119,8 @@ const i18n = {
     strong: "탄탄함", medium: "성장 중", weak: "약함",
     favorites: "즐겨찾기", noFavorites: "별표를 눌러 즐겨찾기로 지정하세요.",
     favoriteAdd: "즐겨찾기 추가", favoriteRemove: "즐겨찾기 제거",
+    practiceTimerOnTip: "타이머와 함께 학습 (탭하여 시간 압박 없이 학습)",
+    practiceTimerOffTip: "타이머 없이 학습 (탭하여 권장 시간 사용)",
     bySubject: "과목별", allDecks: "전체",
   },
 };
@@ -573,6 +580,16 @@ function SavedDeckCard({ deck, t, onPractice, onToggleFavorite, onUnsave }) {
   const isFav = deck._isFavorite;
   const qs = deck.questions || [];
   const tint = colorTint(deck, "0F");
+  // Per-deck practice timer preference. El estudiante elige aquí si este deck
+  // se practica con tiempo o sin presión, ANTES de entrar — más intuitivo que
+  // descubrir el botón pequeño dentro del quiz.
+  const [timerOn, setTimerOn] = useState(() => getPracticeTimerPref(deck.id));
+  const handleToggleTimer = (e) => {
+    e.stopPropagation();
+    const next = !timerOn;
+    setTimerOn(next);
+    setPracticeTimerPref(deck.id, next);
+  };
   return (
     <div
       className="mc-deck-card"
@@ -587,12 +604,13 @@ function SavedDeckCard({ deck, t, onPractice, onToggleFavorite, onUnsave }) {
     >
       <div style={{ position: "relative" }}>
         <DeckCover deck={deck} variant="banner" height={88} radius={14} />
-        {/* Star toggle - over the banner */}
+        {/* Star — top-left over the banner. Moved here from the right to
+            make room for the timer toggle on the right. */}
         <button
           onClick={(e) => { e.stopPropagation(); onToggleFavorite(); }}
           title={isFav ? t.favoriteRemove : t.favoriteAdd}
           style={{
-            position: "absolute", top: 8, right: 8,
+            position: "absolute", top: 8, left: 8,
             width: 30, height: 30, padding: 0,
             background: "rgba(255,255,255,0.85)", border: "none", cursor: "pointer",
             display: "flex", alignItems: "center", justifyContent: "center",
@@ -603,6 +621,28 @@ function SavedDeckCard({ deck, t, onPractice, onToggleFavorite, onUnsave }) {
           }}
         >
           <svg width="15" height="15" viewBox="0 0 24 24" fill={isFav ? "#EF9F27" : "none"} stroke={isFav ? "#EF9F27" : "#5A5A5A"} strokeWidth="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+        </button>
+        {/* Practice timer toggle — top-right. Decision happens BEFORE entering
+            the deck (more intuitive than discovering the small button inside
+            the quiz). Per-deck preference: each deck remembers its own. */}
+        <button
+          onClick={handleToggleTimer}
+          title={timerOn ? t.practiceTimerOnTip : t.practiceTimerOffTip}
+          aria-label={timerOn ? t.practiceTimerOnTip : t.practiceTimerOffTip}
+          style={{
+            position: "absolute", top: 8, right: 8,
+            width: 30, height: 30, padding: 0,
+            background: "rgba(255,255,255,0.85)", border: "none", cursor: "pointer",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            borderRadius: "50%",
+            backdropFilter: "blur(4px)",
+            boxShadow: "0 1px 4px rgba(0,0,0,0.15)",
+            zIndex: 1,
+            fontSize: 14,
+            color: timerOn ? C.accent : "#5A5A5A",
+          }}
+        >
+          {timerOn ? "⏱" : "∞"}
         </button>
       </div>
       <div style={{ padding: 14, background: tint, borderTop: `1px solid ${C.border}`, flex: 1, display: "flex", flexDirection: "column" }}>

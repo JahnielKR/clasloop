@@ -6,6 +6,7 @@ import { checkAndGrantUnlocks } from "../lib/unlock-checker";
 import { generateGuestToken, saveGuestSession, validateGuestName, clearGuestSession } from "../lib/guest-session";
 import { C, MONO } from "../components/tokens";
 import { resolveTimeLimit } from "../lib/time-limits";
+import { getPracticeTimerPref, setPracticeTimerPref } from "../lib/practice-timer-pref";
 
 // Quiz option colors — kahoot-style fixed palette. NOT theme-aware on purpose:
 // students need to see the same colors the teacher launches the session with.
@@ -281,21 +282,23 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
   // True when the teacher ends the live session (status → completed/cancelled)
   // while the student is still in lobby/quiz. Used to show a banner on results.
   const [endedByTeacher, setEndedByTeacher] = useState(false);
-  // En practice mode el estudiante puede apagar/prender el timer. Default ON.
-  // La preferencia persiste en localStorage por estudiante (no por deck) —
-  // si lo apaga, queda apagado para sus prácticas siguientes hasta que lo
-  // prenda de nuevo. Solo aplica si isPractice; en sesión en vivo el profe
-  // controla.
-  const [practiceTimerOn, setPracticeTimerOn] = useState(() => {
-    if (typeof window === "undefined") return true;
-    const saved = window.localStorage?.getItem("clasloop_practice_timer");
-    if (saved === "off") return false;
-    return true;
-  });
+  // Practice timer preference por deck. Cada deck tiene su propia preferencia
+  // (clasloop_practice_timer:<deckId>) — el estudiante elige por deck si quiere
+  // estudiar con tiempo o sin presión. Default ON.
+  // En sesión en vivo no aplica (el profe controla).
+  // El deckId que usamos como key es el del practiceDeck o del session.deck_id
+  // si lo tenemos. Si no podemos identificar el deck, fallback a "default".
+  const practiceDeckId = practiceDeck?.id || session?.deck_id || "default";
+  const [practiceTimerOn, setPracticeTimerOn] = useState(() => getPracticeTimerPref(practiceDeckId));
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    window.localStorage?.setItem("clasloop_practice_timer", practiceTimerOn ? "on" : "off");
-  }, [practiceTimerOn]);
+    setPracticeTimerPref(practiceDeckId, practiceTimerOn);
+  }, [practiceTimerOn, practiceDeckId]);
+  // Si el deckId cambia (caso raro: estudiante navega entre prácticas sin
+  // unmount), re-sincronizamos el state con la preferencia guardada del nuevo
+  // deck para no aplicar el flag de uno a otro.
+  useEffect(() => {
+    setPracticeTimerOn(getPracticeTimerPref(practiceDeckId));
+  }, [practiceDeckId]);
 
   // ── Unlock celebration (Phase 3) ──
   const [newUnlocks, setNewUnlocks] = useState([]);  // queue of just-unlocked avatars
