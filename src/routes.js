@@ -213,6 +213,42 @@ export function defaultRouteForRole(role) {
   return ROUTES.SESSIONS; // teacher (y fallback)
 }
 
+// ── Role guards ────────────────────────────────────────────────────────────
+//
+// Which page IDs each role is allowed to see. Pages not listed here are
+// considered shared (everyone with an account can see them).
+//
+// We deny on a "page id" granularity rather than per-pathname because the
+// shadow `page` state in App.jsx already does the path → id mapping for us.
+// Bouncing happens by navigating to defaultRouteForRole(role).
+//
+// teacherProfile is shared (anyone can view another teacher's public profile).
+// notifications/settings/community are shared too (no entry below — falls
+// through the "not in either list" branch which means allowed).
+
+const TEACHER_ONLY_PAGES = new Set([
+  "sessions",
+  "decks",
+  "director",       // /school
+  "adminAIStats",   // additionally requires is_admin, checked at the page level
+]);
+
+const STUDENT_ONLY_PAGES = new Set([
+  "myClasses",
+  "achievements",
+  "studentJoin",    // teachers don't join sessions; they create them
+]);
+
+// Returns true if the role is allowed to see the given page id.
+// Unknown role → allow (we don't know enough to deny).
+// Unknown page id → allow (don't accidentally deny shared pages).
+export function isPageAllowedForRole(pageId, role) {
+  if (!role) return true;
+  if (TEACHER_ONLY_PAGES.has(pageId)) return role === "teacher";
+  if (STUDENT_ONLY_PAGES.has(pageId)) return role === "student";
+  return true;
+}
+
 // ── Legacy opts → URL ──────────────────────────────────────────────────────
 //
 // Phase 2 migration helper. The old App.jsx held three pieces of transient

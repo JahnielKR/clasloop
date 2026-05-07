@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate, useMatch } from 'react-router-dom';
-import { ROUTES, PAGE_TO_ROUTE, pathToPage, defaultRouteForRole, buildRoute, buildPathWithOpts } from './routes';
+import { ROUTES, PAGE_TO_ROUTE, pathToPage, defaultRouteForRole, buildRoute, buildPathWithOpts, isPageAllowedForRole } from './routes';
 import { supabase } from './lib/supabase';
 import Icon, { LogoMark, SessionsIcon, AIGenIcon, SchoolIcon, CommunityIcon, DecksIcon, NotificationsIcon, SettingsIcon, JoinSessionIcon, ProgressIcon, AchievementsIcon, ActivitiesIcon, TeacherInline, StudentInline, TeacherAvatar, StudentAvatar, BackArrow } from './components/Icons';
 import { Avatar as ProfileAvatar } from './components/Avatars';
@@ -236,6 +236,38 @@ function Sidebar({ page, setPage, profile, lang, setLang, open, setOpen, onSignO
   );
 }
 
+// ── 404 screen ──
+// Shown inside the authed shell when the URL doesn't map to any known page.
+// We reuse the sidebar layout (rendered by App around us) so the user can
+// still navigate via the sidebar — this screen only fills the content area.
+function NotFoundScreen({ onGoHome, lang = "en" }) {
+  // Tiny i18n inline — not worth wiring through the full i18n system for one
+  // screen. en/es/ko cover the rest of the app.
+  const txt = {
+    en: { title: "Page not found", body: "The link you followed may be broken, or the page may have been moved.", cta: "Go to home" },
+    es: { title: "Página no encontrada", body: "El enlace que seguiste puede estar roto o la página fue movida.", cta: "Volver al inicio" },
+    ko: { title: "페이지를 찾을 수 없습니다", body: "따라간 링크가 깨졌거나 페이지가 이동되었을 수 있습니다.", cta: "홈으로 이동" },
+  }[lang] || { title: "Page not found", body: "The link you followed may be broken, or the page may have been moved.", cta: "Go to home" };
+
+  return (
+    <div style={{ minHeight: "calc(100vh - 0px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
+      <div style={{ maxWidth: 420, textAlign: "center" }}>
+        <div style={{ fontSize: 64, fontWeight: 800, color: C.textMuted, fontFamily: "'Outfit',sans-serif", letterSpacing: "-.04em", lineHeight: 1, marginBottom: 12 }}>404</div>
+        <h2 style={{ fontFamily: "'Outfit',sans-serif", fontSize: 22, fontWeight: 700, marginBottom: 8, color: C.text }}>{txt.title}</h2>
+        <p style={{ fontSize: 14, color: C.textSecondary, fontFamily: "'Outfit',sans-serif", marginBottom: 20, lineHeight: 1.5 }}>{txt.body}</p>
+        <button
+          onClick={onGoHome}
+          style={{
+            padding: "10px 18px", borderRadius: 8, fontSize: 14, fontWeight: 600,
+            background: `linear-gradient(135deg,${C.accent},${C.purple})`, color: "#fff",
+            border: "none", cursor: "pointer", fontFamily: "'Outfit',sans-serif",
+          }}
+        >{txt.cta}</button>
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   // ── Router hooks ──
   // location/navigate are the single source of truth for "what page is showing".
@@ -364,6 +396,21 @@ export default function App() {
       setPage(next);
     }
   }, [location.pathname, page]);
+
+  // ── Role guard ──
+  // If the resolved page is not allowed for the current role (e.g. a student
+  // pegging /decks or a teacher landing on /classes), bounce to that role's
+  // default route. We wait until the profile loads — before then we can't
+  // decide. Admin-only pages have their own check at the page level (this
+  // guard handles role boundaries, not admin/non-admin).
+  useEffect(() => {
+    if (!profile) return;
+    const currentPage = pathToPage(location.pathname);
+    if (!currentPage) return; // unknown path — let the catch-all 404 handle it
+    if (!isPageAllowedForRole(currentPage, profile.role)) {
+      navigate(defaultRouteForRole(profile.role), { replace: true });
+    }
+  }, [location.pathname, profile, navigate]);
 
   // ── Practice deck hydration ──
   // The practice deck object is held in `practiceDeck` state for rendering.
@@ -589,6 +636,11 @@ export default function App() {
   // When the student launches a practice from MyClasses, we render StudentJoin in
   // "practice mode" — bypassing the PIN/lobby flow and going straight to the deck.
   const inPractice = practiceDeck !== null;
+  // 404 detection. We're inside the authed shell here — if the URL maps to no
+  // known page id AND we're not at "/" (which fetchProfile redirects from),
+  // show a Not Found screen. /teacher/:id is a special case: pathToPage maps
+  // it to "teacherProfile" so it counts as known.
+  const isNotFound = !inPractice && pathToPage(location.pathname) === null && location.pathname !== "/";
 
   return (
     <div style={{ display: "flex", minHeight: "100vh" }}>
@@ -641,6 +693,11 @@ export default function App() {
               setPracticeDeck(null);
               navigate(ROUTES.CLASSES);
             }}
+          />
+        ) : isNotFound ? (
+          <NotFoundScreen
+            onGoHome={() => navigate(profile ? defaultRouteForRole(profile.role) : ROUTES.HOME)}
+            lang={lang}
           />
         ) : (
           P && <P
