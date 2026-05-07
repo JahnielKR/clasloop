@@ -903,7 +903,10 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
             </span>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               {/* Toggle de timer en practice mode. Solo visible en practice;
-                  en live el profe controla y el estudiante no decide. */}
+                  en live el profe controla y el estudiante no decide.
+                  Visual: mismo lenguaje que el botón de la card en MyClasses
+                  — SVG de reloj que se ilumina (accent) cuando ON, gris cuando
+                  OFF. Sin emojis ambiguos. */}
               {isPractice && (
                 <button
                   onClick={() => setPracticeTimerOn(v => !v)}
@@ -915,11 +918,13 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
                     border: `1px solid ${practiceTimerOn ? C.accent + "44" : C.border}`,
                     cursor: "pointer", padding: 0,
                     display: "flex", alignItems: "center", justifyContent: "center",
-                    fontSize: 14, color: practiceTimerOn ? C.accent : C.textMuted,
                     transition: "all .15s ease",
                   }}
                 >
-                  {practiceTimerOn ? "⏱" : "∞"}
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={practiceTimerOn ? C.accent : C.textMuted} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="9" />
+                    <polyline points="12,7 12,12 16,14" />
+                  </svg>
                 </button>
               )}
               {/* Círculo countdown — solo si hay timer per-question activo. En

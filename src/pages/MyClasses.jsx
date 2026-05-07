@@ -624,7 +624,10 @@ function SavedDeckCard({ deck, t, onPractice, onToggleFavorite, onUnsave }) {
         </button>
         {/* Practice timer toggle — top-right. Decision happens BEFORE entering
             the deck (more intuitive than discovering the small button inside
-            the quiz). Per-deck preference: each deck remembers its own. */}
+            the quiz). Per-deck preference: each deck remembers its own.
+            Visual language matches the star: SVG with fill+stroke when ON
+            (accent color), outline-only stroke when OFF (muted gray). No
+            ambiguous symbols — same icon both states, just illuminated or not. */}
         <button
           onClick={handleToggleTimer}
           title={timerOn ? t.practiceTimerOnTip : t.practiceTimerOffTip}
@@ -638,11 +641,16 @@ function SavedDeckCard({ deck, t, onPractice, onToggleFavorite, onUnsave }) {
             backdropFilter: "blur(4px)",
             boxShadow: "0 1px 4px rgba(0,0,0,0.15)",
             zIndex: 1,
-            fontSize: 14,
-            color: timerOn ? C.accent : "#5A5A5A",
           }}
         >
-          {timerOn ? "⏱" : "∞"}
+          {/* Clock icon: circle + hour/minute hands. fill="none" siempre
+              (el círculo del reloj no se rellena, solo cambia el color del
+              stroke). Cuando ON usa C.accent, cuando OFF usa el mismo gris
+              que la estrella apagada (#5A5A5A). */}
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={timerOn ? C.accent : "#5A5A5A"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="9" />
+            <polyline points="12,7 12,12 16,14" />
+          </svg>
         </button>
       </div>
       <div style={{ padding: 14, background: tint, borderTop: `1px solid ${C.border}`, flex: 1, display: "flex", flexDirection: "column" }}>
