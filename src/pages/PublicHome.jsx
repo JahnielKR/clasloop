@@ -217,7 +217,7 @@ const FLOATING_CARDS = [
     questionTag: { en: "WARMUP · MCQ", es: "WARMUP · MCQ", ko: "워밍업 · 객관식" },
     questionText: { en: "What is photosynthesis?", es: "¿Qué es la fotosíntesis?", ko: "광합성이란 무엇인가요?" },
     bg: "#DDEBFB", border: "#2383E2", labelColor: "#185FA5", textColor: "#042C53",
-    pos: { top: 70, left: 50 }, size: { w: 180, h: 120 },
+    pos: { top: 90, left: 60 }, size: { w: 225, h: 150 },
     floatDelay: 0,
   },
   {
@@ -228,7 +228,7 @@ const FLOATING_CARDS = [
     questionTag: { en: "EXIT TICKET · TF", es: "EXIT TICKET · VF", ko: "종료 티켓 · 참거짓" },
     questionText: { en: "Mitosis happens in 4 phases.", es: "La mitosis tiene 4 fases.", ko: "유사분열은 4단계입니다." },
     bg: "#FAEEDA", border: "#BA7517", labelColor: "#854F0B", textColor: "#412402",
-    pos: { top: 50, right: 60 }, size: { w: 170, h: 115 },
+    pos: { top: 65, right: 75 }, size: { w: 215, h: 145 },
     floatDelay: -1,
   },
   {
@@ -239,7 +239,7 @@ const FLOATING_CARDS = [
     questionTag: { en: "WARMUP · FILL", es: "WARMUP · ESPACIO", ko: "워밍업 · 빈칸" },
     questionText: { en: "The mitochondria is the ___.", es: "La mitocondria es el ___.", ko: "미토콘드리아는 ___입니다." },
     bg: "#E1F5EE", border: "#1D9E75", labelColor: "#0F6E56", textColor: "#04342C",
-    pos: { bottom: 60, left: 90 }, size: { w: 170, h: 115 },
+    pos: { bottom: 75, left: 110 }, size: { w: 215, h: 145 },
     floatDelay: -2,
   },
   {
@@ -250,7 +250,7 @@ const FLOATING_CARDS = [
     questionTag: { en: "EXIT TICKET · MATCH", es: "EXIT TICKET · EMPAREJAR", ko: "종료 티켓 · 짝짓기" },
     questionText: { en: "Match cell parts to functions", es: "Empareja partes de la célula", ko: "세포 부분과 기능 짝짓기" },
     bg: "#FBEAF0", border: "#D4537E", labelColor: "#993556", textColor: "#4B1528",
-    pos: { bottom: 80, right: 50 }, size: { w: 165, h: 110 },
+    pos: { bottom: 100, right: 60 }, size: { w: 210, h: 140 },
     floatDelay: -1.5,
   },
 ];
@@ -304,19 +304,19 @@ const css = `
   .ph-lang-btn { transition: all .15s ease; cursor: pointer; }
 
   /* Mobile responsive — esconder cards flotantes en pantallas chicas porque
-     se amontonan, y reducir el tagline ahora que es 64px base */
-  @media (max-width: 900px) {
+     se amontonan, y reducir el tagline ahora que es 80px base */
+  @media (max-width: 1100px) {
     .ph-floating-card { display: none !important; }
-    .ph-tagline { font-size: 44px !important; }
+    .ph-tagline { font-size: 56px !important; }
     .ph-nav-links { display: none !important; }
     .ph-have-code-btn { display: none !important; }
-    .ph-section { padding: 56px 24px !important; }
+    .ph-section { padding: 70px 28px !important; }
     .ph-how-grid, .ph-why-grid { grid-template-columns: 1fr !important; }
   }
-  @media (max-width: 540px) {
-    .ph-tagline { font-size: 32px !important; }
-    .ph-sub { font-size: 16px !important; }
-    .ph-cta-primary { font-size: 15px !important; padding: 13px 26px !important; }
+  @media (max-width: 640px) {
+    .ph-tagline { font-size: 38px !important; }
+    .ph-sub { font-size: 18px !important; }
+    .ph-cta-primary { font-size: 17px !important; padding: 15px 32px !important; }
   }
 
   /* Dialog backdrop */
@@ -389,30 +389,30 @@ export default function PublicHome({ onSignIn, onSignUp }) {
           background: "rgba(255,255,255,0.92)",
           backdropFilter: "blur(8px)",
           borderBottom: `1px solid ${C.border}`,
-          padding: "12px 28px",
+          padding: "16px 36px",
           display: "flex", alignItems: "center", justifyContent: "space-between",
         }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 32 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <LogoMark size={30} />
-              <span style={{ fontSize: 17, fontWeight: 700, color: C.text, letterSpacing: "-0.01em" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 40 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <LogoMark size={36} />
+              <span style={{ fontSize: 21, fontWeight: 700, color: C.text, letterSpacing: "-0.01em" }}>
                 Clasloop
               </span>
             </div>
-            <nav className="ph-nav-links" style={{ display: "flex", gap: 22 }}>
-              <span className="ph-nav-link" style={{ fontSize: 13, color: C.textSecondary, fontWeight: 500 }}>{t.navFeatures}</span>
-              <span className="ph-nav-link" style={{ fontSize: 13, color: C.textSecondary, fontWeight: 500 }}>{t.navSchools}</span>
-              <span className="ph-nav-link" style={{ fontSize: 13, color: C.textSecondary, fontWeight: 500 }}>{t.navPricing}</span>
+            <nav className="ph-nav-links" style={{ display: "flex", gap: 28 }}>
+              <span className="ph-nav-link" style={{ fontSize: 16, color: C.textSecondary, fontWeight: 500 }}>{t.navFeatures}</span>
+              <span className="ph-nav-link" style={{ fontSize: 16, color: C.textSecondary, fontWeight: 500 }}>{t.navSchools}</span>
+              <span className="ph-nav-link" style={{ fontSize: 16, color: C.textSecondary, fontWeight: 500 }}>{t.navPricing}</span>
             </nav>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <button
               className="ph-have-code-btn ph-cta-secondary"
               onClick={() => setCodeDialogOpen(true)}
               style={{
-                fontSize: 12, padding: "7px 12px",
+                fontSize: 15, padding: "9px 16px",
                 border: `1px solid ${C.border}`, background: C.bg,
-                borderRadius: 7, color: C.textSecondary, fontWeight: 500,
+                borderRadius: 8, color: C.textSecondary, fontWeight: 500,
                 cursor: "pointer", fontFamily: "'Outfit',sans-serif",
               }}
             >{t.haveCode}</button>
@@ -420,7 +420,7 @@ export default function PublicHome({ onSignIn, onSignUp }) {
               className="ph-nav-link"
               onClick={handleLogin}
               style={{
-                fontSize: 13, padding: "7px 12px",
+                fontSize: 16, padding: "9px 14px",
                 border: "none", background: "transparent",
                 color: C.textSecondary, fontWeight: 500,
                 cursor: "pointer", fontFamily: "'Outfit',sans-serif",
@@ -430,21 +430,21 @@ export default function PublicHome({ onSignIn, onSignUp }) {
               className="ph-btn-primary"
               onClick={() => setMode("auth-select")}
               style={{
-                fontSize: 13, padding: "8px 14px",
+                fontSize: 16, padding: "10px 18px",
                 background: C.accent, color: "#fff",
-                border: "none", borderRadius: 7, fontWeight: 600,
+                border: "none", borderRadius: 8, fontWeight: 600,
                 cursor: "pointer", fontFamily: "'Outfit',sans-serif",
               }}
             >{t.signUpFree}</button>
-            <div style={{ display: "flex", gap: 2, marginLeft: 8 }}>
+            <div style={{ display: "flex", gap: 3, marginLeft: 10 }}>
               {[["en", "EN"], ["es", "ES"], ["ko", "한"]].map(([c, l]) => (
                 <button
                   key={c}
                   onClick={() => setLang(c)}
                   className="ph-lang-btn"
                   style={{
-                    padding: "5px 9px", borderRadius: 6,
-                    fontSize: 11, fontWeight: 600,
+                    padding: "6px 11px", borderRadius: 7,
+                    fontSize: 14, fontWeight: 600,
                     background: lang === c ? C.accentSoft : "transparent",
                     color: lang === c ? C.accent : C.textMuted,
                     border: "none", fontFamily: "'Outfit',sans-serif",
@@ -457,10 +457,10 @@ export default function PublicHome({ onSignIn, onSignUp }) {
 
         {/* HERO */}
         <section className="ph-section ph-fade" style={{
-          padding: "80px 32px 56px",
+          padding: "100px 32px 70px",
           position: "relative",
           textAlign: "center",
-          minHeight: 560,
+          minHeight: 700,
           background: `radial-gradient(ellipse at top center, ${C.accentSoft} 0%, transparent 50%)`,
         }}>
           {FLOATING_CARDS.map(card => (
@@ -479,59 +479,59 @@ export default function PublicHome({ onSignIn, onSignUp }) {
               <div className="ph-morph-from" style={{
                 width: "100%", height: "100%",
                 background: "white", border: `1px solid ${C.border}`,
-                borderRadius: 10, padding: 14,
-                boxShadow: "0 4px 12px rgba(0,0,0,0.06)",
+                borderRadius: 12, padding: 18,
+                boxShadow: "0 6px 16px rgba(0,0,0,0.07)",
               }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 8 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 10 }}>
                   <div style={{
-                    width: 30, height: 30, background: card.fileColor,
-                    borderRadius: 5, display: "flex", alignItems: "center", justifyContent: "center",
-                    color: "white", fontSize: 11, fontWeight: 700, fontFamily: MONO,
+                    width: 38, height: 38, background: card.fileColor,
+                    borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center",
+                    color: "white", fontSize: 13, fontWeight: 700, fontFamily: MONO,
                   }}>{card.fileType}</div>
-                  <span style={{ fontSize: 12, color: C.textMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  <span style={{ fontSize: 14, color: C.textMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     {card.fileName}
                   </span>
                 </div>
-                <div style={{ height: 3, background: C.border, borderRadius: 2, marginBottom: 5 }} />
-                <div style={{ height: 3, background: C.border, borderRadius: 2, marginBottom: 5, width: "80%" }} />
-                <div style={{ height: 3, background: C.border, borderRadius: 2, marginBottom: 5 }} />
-                <div style={{ height: 3, background: C.border, borderRadius: 2, width: "65%" }} />
+                <div style={{ height: 4, background: C.border, borderRadius: 2, marginBottom: 6 }} />
+                <div style={{ height: 4, background: C.border, borderRadius: 2, marginBottom: 6, width: "80%" }} />
+                <div style={{ height: 4, background: C.border, borderRadius: 2, marginBottom: 6 }} />
+                <div style={{ height: 4, background: C.border, borderRadius: 2, width: "65%" }} />
               </div>
               <div className="ph-morph-to" style={{
                 background: card.bg, border: `1px solid ${card.border}`,
-                borderRadius: 10, padding: 14, textAlign: "left",
+                borderRadius: 12, padding: 18, textAlign: "left",
               }}>
-                <div style={{ fontSize: 11, color: card.labelColor, fontWeight: 700, marginBottom: 7, letterSpacing: "0.5px" }}>
+                <div style={{ fontSize: 13, color: card.labelColor, fontWeight: 700, marginBottom: 9, letterSpacing: "0.5px" }}>
                   {card.questionTag[lang] || card.questionTag.en}
                 </div>
-                <div style={{ fontSize: 13, color: card.textColor, lineHeight: 1.4 }}>
+                <div style={{ fontSize: 16, color: card.textColor, lineHeight: 1.4 }}>
                   {card.questionText[lang] || card.questionText.en}
                 </div>
               </div>
             </div>
           ))}
 
-          <div style={{ position: "relative", zIndex: 2, maxWidth: 920, margin: "0 auto" }}>
+          <div style={{ position: "relative", zIndex: 2, maxWidth: 1100, margin: "0 auto" }}>
             <div style={{
               display: "inline-block",
-              padding: "7px 18px",
+              padding: "9px 22px",
               background: C.accentSoft, color: C.accent,
-              borderRadius: 100, fontSize: 14, fontWeight: 600,
-              marginBottom: 28, letterSpacing: "0.2px",
+              borderRadius: 100, fontSize: 17, fontWeight: 600,
+              marginBottom: 34, letterSpacing: "0.2px",
             }}>{t.pill}</div>
 
             <h1 className="ph-tagline" style={{
-              fontSize: 64, fontWeight: 700, color: C.text,
-              lineHeight: 1.1, margin: "0 0 22px",
+              fontSize: 80, fontWeight: 700, color: C.text,
+              lineHeight: 1.08, margin: "0 0 28px",
               letterSpacing: "-0.02em",
             }}>
               {t.taglinePart1} <span style={{ color: C.accent }}>{t.taglineHighlight}</span>
             </h1>
 
             <p className="ph-sub" style={{
-              fontSize: 20, color: C.textSecondary,
-              lineHeight: 1.55, margin: "0 0 38px",
-              maxWidth: 640, marginLeft: "auto", marginRight: "auto",
+              fontSize: 24, color: C.textSecondary,
+              lineHeight: 1.55, margin: "0 0 46px",
+              maxWidth: 800, marginLeft: "auto", marginRight: "auto",
             }}>{t.sub}</p>
 
             <button
@@ -539,24 +539,24 @@ export default function PublicHome({ onSignIn, onSignUp }) {
               onClick={() => setMode("auth-select")}
               style={{
                 background: C.accent, color: "#fff",
-                padding: "16px 36px", borderRadius: 10,
-                fontSize: 17, fontWeight: 600,
+                padding: "20px 44px", borderRadius: 12,
+                fontSize: 21, fontWeight: 600,
                 border: "none", cursor: "pointer",
                 fontFamily: "'Outfit',sans-serif",
               }}
             >{t.ctaPrimary}</button>
 
             <p style={{
-              fontSize: 14, color: C.textMuted,
-              margin: "14px 0 0", fontFamily: "'Outfit',sans-serif",
+              fontSize: 17, color: C.textMuted,
+              margin: "18px 0 0", fontFamily: "'Outfit',sans-serif",
             }}>{t.ctaSubtext}</p>
           </div>
         </section>
 
         {/* QUESTION TYPE PILLS */}
         <div style={{
-          padding: "0 32px 72px",
-          display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap",
+          padding: "0 32px 90px",
+          display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap",
         }}>
           {[
             { color: "#2383E2", label: t.typeMcq },
@@ -570,12 +570,12 @@ export default function PublicHome({ onSignIn, onSignUp }) {
             { color: "#7F77DD", label: t.typePoll },
           ].map(p => (
             <div key={p.label} style={{
-              padding: "9px 18px", background: C.bg,
+              padding: "11px 22px", background: C.bg,
               border: `1px solid ${C.border}`, borderRadius: 100,
-              fontSize: 14, color: C.textSecondary, fontWeight: 500,
-              display: "flex", alignItems: "center", gap: 7,
+              fontSize: 17, color: C.textSecondary, fontWeight: 500,
+              display: "flex", alignItems: "center", gap: 9,
             }}>
-              <span style={{ color: p.color, fontSize: 12 }}>●</span>
+              <span style={{ color: p.color, fontSize: 14 }}>●</span>
               {p.label}
             </div>
           ))}
@@ -583,24 +583,24 @@ export default function PublicHome({ onSignIn, onSignUp }) {
 
         {/* HOW IT WORKS */}
         <section className="ph-section" style={{
-          padding: "96px 32px",
+          padding: "120px 32px",
           background: C.bgSoft,
           borderTop: `1px solid ${C.border}`,
           borderBottom: `1px solid ${C.border}`,
         }}>
-          <div style={{ maxWidth: 1100, margin: "0 auto", textAlign: "center" }}>
+          <div style={{ maxWidth: 1300, margin: "0 auto", textAlign: "center" }}>
             <h2 style={{
-              fontSize: 42, fontWeight: 700, color: C.text,
-              margin: "0 0 16px", letterSpacing: "-0.02em",
+              fontSize: 52, fontWeight: 700, color: C.text,
+              margin: "0 0 20px", letterSpacing: "-0.02em",
             }}>{t.howTitle}</h2>
             <p style={{
-              fontSize: 18, color: C.textSecondary,
-              margin: "0 0 56px", maxWidth: 620,
+              fontSize: 22, color: C.textSecondary,
+              margin: "0 0 70px", maxWidth: 760,
               marginLeft: "auto", marginRight: "auto", lineHeight: 1.5,
             }}>{t.howSub}</p>
             <div className="ph-how-grid" style={{
               display: "grid", gridTemplateColumns: "repeat(3, 1fr)",
-              gap: 28, textAlign: "left",
+              gap: 34, textAlign: "left",
             }}>
               {[
                 { num: "1", title: t.step1Title, body: t.step1Body, color: C.accent },
@@ -609,21 +609,21 @@ export default function PublicHome({ onSignIn, onSignUp }) {
               ].map(s => (
                 <div key={s.num} style={{
                   background: C.bg, border: `1px solid ${C.border}`,
-                  borderRadius: 16, padding: 32,
+                  borderRadius: 18, padding: 40,
                 }}>
                   <div style={{
                     display: "inline-flex", alignItems: "center", justifyContent: "center",
-                    width: 44, height: 44, borderRadius: "50%",
+                    width: 54, height: 54, borderRadius: "50%",
                     background: `${s.color}1A`, color: s.color,
-                    fontSize: 18, fontWeight: 700, marginBottom: 18,
+                    fontSize: 22, fontWeight: 700, marginBottom: 22,
                     fontFamily: MONO,
                   }}>{s.num}</div>
                   <h3 style={{
-                    fontSize: 21, fontWeight: 600, color: C.text,
-                    margin: "0 0 10px",
+                    fontSize: 26, fontWeight: 600, color: C.text,
+                    margin: "0 0 12px",
                   }}>{s.title}</h3>
                   <p style={{
-                    fontSize: 16, color: C.textSecondary,
+                    fontSize: 18, color: C.textSecondary,
                     lineHeight: 1.55, margin: 0,
                   }}>{s.body}</p>
                 </div>
@@ -633,34 +633,34 @@ export default function PublicHome({ onSignIn, onSignUp }) {
         </section>
 
         {/* WHY DAILY */}
-        <section className="ph-section" style={{ padding: "96px 32px" }}>
-          <div style={{ maxWidth: 1100, margin: "0 auto", textAlign: "center" }}>
+        <section className="ph-section" style={{ padding: "120px 32px" }}>
+          <div style={{ maxWidth: 1300, margin: "0 auto", textAlign: "center" }}>
             <h2 style={{
-              fontSize: 42, fontWeight: 700, color: C.text,
-              margin: "0 0 16px", letterSpacing: "-0.02em",
+              fontSize: 52, fontWeight: 700, color: C.text,
+              margin: "0 0 20px", letterSpacing: "-0.02em",
             }}>{t.whyTitle}</h2>
             <p style={{
-              fontSize: 18, color: C.textSecondary,
-              margin: "0 0 56px", maxWidth: 660,
+              fontSize: 22, color: C.textSecondary,
+              margin: "0 0 70px", maxWidth: 820,
               marginLeft: "auto", marginRight: "auto", lineHeight: 1.5,
             }}>{t.whySub}</p>
             <div className="ph-why-grid" style={{
               display: "grid", gridTemplateColumns: "repeat(3, 1fr)",
-              gap: 28, textAlign: "left",
+              gap: 36, textAlign: "left",
             }}>
               {[
                 { title: t.why1Title, body: t.why1Body, icon: "🔁" },
                 { title: t.why2Title, body: t.why2Body, icon: "📚" },
                 { title: t.why3Title, body: t.why3Body, icon: "🎯" },
               ].map(w => (
-                <div key={w.title} style={{ padding: 6 }}>
-                  <div style={{ fontSize: 34, marginBottom: 16 }}>{w.icon}</div>
+                <div key={w.title} style={{ padding: 8 }}>
+                  <div style={{ fontSize: 44, marginBottom: 20 }}>{w.icon}</div>
                   <h3 style={{
-                    fontSize: 21, fontWeight: 600, color: C.text,
-                    margin: "0 0 10px",
+                    fontSize: 26, fontWeight: 600, color: C.text,
+                    margin: "0 0 12px",
                   }}>{w.title}</h3>
                   <p style={{
-                    fontSize: 16, color: C.textSecondary,
+                    fontSize: 18, color: C.textSecondary,
                     lineHeight: 1.55, margin: 0,
                   }}>{w.body}</p>
                 </div>
@@ -671,32 +671,32 @@ export default function PublicHome({ onSignIn, onSignUp }) {
 
         {/* FINAL CTA */}
         <section className="ph-section" style={{
-          padding: "96px 32px",
+          padding: "120px 32px",
           background: `linear-gradient(135deg, ${C.accentSoft} 0%, ${C.bgSoft} 100%)`,
           textAlign: "center",
         }}>
           <h2 style={{
-            fontSize: 48, fontWeight: 700, color: C.text,
-            margin: "0 0 14px", letterSpacing: "-0.02em",
+            fontSize: 60, fontWeight: 700, color: C.text,
+            margin: "0 0 18px", letterSpacing: "-0.02em",
           }}>{t.finalTitle}</h2>
           <p style={{
-            fontSize: 22, color: C.textSecondary,
-            margin: "0 0 36px",
+            fontSize: 28, color: C.textSecondary,
+            margin: "0 0 44px",
           }}>{t.finalSub}</p>
           <button
             className="ph-cta-primary ph-btn-primary"
             onClick={() => setMode("auth-select")}
             style={{
               background: C.accent, color: "#fff",
-              padding: "16px 38px", borderRadius: 10,
-              fontSize: 17, fontWeight: 600,
+              padding: "20px 48px", borderRadius: 12,
+              fontSize: 21, fontWeight: 600,
               border: "none", cursor: "pointer",
               fontFamily: "'Outfit',sans-serif",
             }}
           >{t.ctaPrimary}</button>
           <p style={{
-            fontSize: 14, color: C.textMuted,
-            margin: "14px 0 0",
+            fontSize: 17, color: C.textMuted,
+            margin: "18px 0 0",
           }}>{t.ctaSubtext}</p>
         </section>
 
