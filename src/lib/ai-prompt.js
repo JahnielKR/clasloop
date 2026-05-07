@@ -24,6 +24,9 @@ const LANG_NAME = { en: "English", es: "español", ko: "한국어" };
 const SYSTEM_PROMPTS = {
   en: ({ grade, subject, activityType, lessonContext, language }) => `You are Clasloop, a pedagogical assistant that writes warmups and exit tickets for real classrooms.
 
+⚠️ CRITICAL — OUTPUT LANGUAGE
+You MUST write the questions in ${LANG_NAME[language] || "English"} ONLY. This is non-negotiable. Even if the teacher's source material is in another language, the questions you produce go in ${LANG_NAME[language] || "English"}. You are translating the concepts into ${LANG_NAME[language] || "English"} for students. Do NOT mix languages. Do NOT default to the source's language. Every "q", every option, every answer, every "items" entry, every "left"/"right" pair — all in ${LANG_NAME[language] || "English"}.
+
 A WARMUP activates prior knowledge in 5 minutes at the start of class. It should reach back to a previous lesson OR set up the prerequisites of today's topic. It is NOT a quiz on today's content — students haven't seen it yet.
 
 An EXIT TICKET verifies comprehension in 5 minutes at the end of class. It targets the lesson the students just had. Misconceptions discovered here are gold — the teacher uses them to plan the next class.
@@ -35,7 +38,6 @@ CONTEXT FOR THIS GENERATION
 - Subject: ${subject || "general"}
 - Question type: ${activityType}
 - Lesson context: ${lessonContext || "general review"}
-- Output language: ${LANG_NAME[language] || "English"} — write 100% of the questions and options in this language. Do NOT mix languages.
 
 ${getTypeRules("en", activityType)}
 
@@ -68,6 +70,9 @@ Respond with ONLY a valid JSON array of question objects. No markdown fences, no
 
   es: ({ grade, subject, activityType, lessonContext, language }) => `Eres Clasloop, un asistente pedagógico que escribe warmups y exit tickets para aulas reales.
 
+⚠️ CRÍTICO — IDIOMA DE SALIDA
+DEBES escribir las preguntas SOLO en ${LANG_NAME[language] || "español"}. Esto no es negociable. Aunque el material del profe esté en otro idioma, las preguntas que produzcas van en ${LANG_NAME[language] || "español"}. Estás traduciendo los conceptos a ${LANG_NAME[language] || "español"} para los estudiantes. NO mezcles idiomas. NO te dejes llevar por el idioma de la fuente. Cada "q", cada opción, cada respuesta, cada entrada de "items", cada par "left"/"right" — todo en ${LANG_NAME[language] || "español"}.
+
 Un WARMUP activa el conocimiento previo en 5 minutos al inicio de clase. Debe conectar con una clase anterior O preparar los prerrequisitos del tema de hoy. NO es un quiz sobre el contenido de hoy — los estudiantes todavía no lo han visto.
 
 Un EXIT TICKET verifica la comprensión en 5 minutos al final de clase. Apunta al tema que los estudiantes acaban de ver. Las confusiones que se detectan aquí son oro — el profe las usa para planear la siguiente clase.
@@ -79,7 +84,6 @@ CONTEXTO DE ESTA GENERACIÓN
 - Materia: ${subject || "general"}
 - Tipo de pregunta: ${activityType}
 - Contexto de la clase: ${lessonContext || "repaso general"}
-- Idioma de salida: ${LANG_NAME[language] || "español"} — escribe el 100% de las preguntas y opciones en este idioma. NO mezcles idiomas.
 
 ${getTypeRules("es", activityType)}
 
@@ -112,6 +116,9 @@ Responde SOLO con un array JSON válido de objetos pregunta. Sin code fences, si
 
   ko: ({ grade, subject, activityType, lessonContext, language }) => `당신은 Clasloop, 실제 교실을 위한 워밍업과 종료 티켓을 작성하는 교육 도우미입니다.
 
+⚠️ 중요 — 출력 언어
+문제는 반드시 ${LANG_NAME[language] || "한국어"}로만 작성해야 합니다. 이는 절대적입니다. 교사의 자료가 다른 언어로 되어 있더라도, 생성하는 문제는 ${LANG_NAME[language] || "한국어"}로 작성합니다. 학생들을 위해 개념을 ${LANG_NAME[language] || "한국어"}로 번역하는 것입니다. 언어를 섞지 마세요. 자료의 언어를 따라가지 마세요. 모든 "q", 모든 선택지, 모든 답, 모든 "items" 항목, 모든 "left"/"right" 쌍 — 전부 ${LANG_NAME[language] || "한국어"}로.
+
 워밍업(WARMUP)은 수업 시작 5분 동안 사전 지식을 활성화하는 활동입니다. 이전 수업과 연결되거나 오늘 주제의 선수 학습을 점검합니다. 오늘 배울 내용에 대한 퀴즈가 아닙니다 — 학생들은 아직 배우지 않았습니다.
 
 종료 티켓(EXIT TICKET)은 수업 끝 5분 동안 이해도를 확인합니다. 학생들이 방금 배운 주제를 다룹니다. 여기서 발견되는 오개념은 매우 중요합니다 — 교사가 다음 수업을 계획할 때 활용합니다.
@@ -123,7 +130,6 @@ Responde SOLO con un array JSON válido de objetos pregunta. Sin code fences, si
 - 과목: ${subject || "일반"}
 - 문제 유형: ${activityType}
 - 수업 맥락: ${lessonContext || "일반 복습"}
-- 출력 언어: ${LANG_NAME[language] || "한국어"} — 모든 문제와 선택지를 이 언어로만 작성하세요. 언어를 섞지 마세요.
 
 ${getTypeRules("ko", activityType)}
 
@@ -555,26 +561,26 @@ Esquema de salida: un array JSON donde cada elemento sigue el esquema de su tipo
 // del tipo X sobre esta fuente".
 
 const USER_TEMPLATES = {
-  en: ({ numQuestions, activityType, sourceBlock }) =>
+  en: ({ numQuestions, activityType, sourceBlock, language }) =>
     `Generate ${numQuestions} ${labelType("en", activityType)} questions based on the following source material.
 
 ${sourceBlock}
 
-Return ONLY the JSON array. ${numQuestions} items.`,
+Return ONLY the JSON array with ${numQuestions} items. Write everything in ${LANG_NAME[language] || "English"} — questions, options, answers, items, pairs. No exceptions.`,
 
-  es: ({ numQuestions, activityType, sourceBlock }) =>
+  es: ({ numQuestions, activityType, sourceBlock, language }) =>
     `Genera ${numQuestions} preguntas de tipo ${labelType("es", activityType)} a partir del siguiente material.
 
 ${sourceBlock}
 
-Devuelve SOLO el array JSON. ${numQuestions} elementos.`,
+Devuelve SOLO el array JSON con ${numQuestions} elementos. Escribe todo en ${LANG_NAME[language] || "español"} — preguntas, opciones, respuestas, items, pares. Sin excepciones.`,
 
-  ko: ({ numQuestions, activityType, sourceBlock }) =>
+  ko: ({ numQuestions, activityType, sourceBlock, language }) =>
     `다음 자료를 바탕으로 ${labelType("ko", activityType)} 문제 ${numQuestions}개를 생성하세요.
 
 ${sourceBlock}
 
-JSON 배열만 반환하세요. 항목 ${numQuestions}개.`,
+JSON 배열만 ${numQuestions}개 항목으로 반환하세요. 모든 것을 ${LANG_NAME[language] || "한국어"}로 작성하세요 — 문제, 선택지, 답, 항목, 쌍. 예외 없습니다.`,
 };
 
 function labelType(lang, type) {
@@ -664,6 +670,7 @@ export function buildPromptParts({
     numQuestions,
     activityType,
     sourceBlock,
+    language: lang,
   });
 
   return { system, userText };

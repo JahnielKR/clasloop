@@ -441,18 +441,12 @@ function AIGeneratePanel({
           </select>
         </div>
         <div style={{ flex: "0 0 130px" }}>
-          <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: C.textSecondary, marginBottom: 4 }}>
-            {t.aiLanguageLabel} <span style={{ color: "#c00" }}>*</span>
-          </label>
+          <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: C.textSecondary, marginBottom: 4 }}>{t.aiLanguageLabel}</label>
           <select
             value={deckLanguage || ""}
             onChange={(e) => setDeckLanguage(e.target.value)}
             disabled={generating}
-            style={{
-              ...sel, padding: "7px 28px 7px 10px", fontSize: 12, width: "100%",
-              // Borde rojo suave si está vacío — pista visual de que falta elegir.
-              border: !deckLanguage ? `1px solid ${C.red}66` : sel.border,
-            }}
+            style={{ ...sel, padding: "7px 28px 7px 10px", fontSize: 12, width: "100%" }}
           >
             <option value="" disabled>—</option>
             <option value="en">English</option>
