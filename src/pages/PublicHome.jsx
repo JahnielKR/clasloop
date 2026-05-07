@@ -303,25 +303,25 @@ const css = `
   .ph-input:focus { border-color: ${C.accent}; box-shadow: 0 0 0 3px ${C.accentSoft}; outline: none; }
   .ph-lang-btn { transition: all .15s ease; cursor: pointer; }
 
-  /* Tablet (≤1100px) — bajar todos los tamaños base ~25% para que se sienta
-     como el zoom 75% que el user describió en su Galaxy Tab S9 FE. Cards
-     flotantes escondidas porque se amontonan. Nav links escondidos porque
-     no caben con el header reducido. */
+  /* Tablet (≤1100px) — bajar todos los tamaños base ~35% del desktop para
+     que se sienta nítido en 100% en una Galaxy Tab S9 FE (era 90% nítido,
+     ahora apuntamos a 100% nítido). Cards flotantes escondidas porque se
+     amontonan. Nav links escondidos porque no caben con el header reducido. */
   @media (max-width: 1100px) {
     .ph-floating-card { display: none !important; }
-    .ph-tagline { font-size: 42px !important; line-height: 1.15 !important; }
-    .ph-sub { font-size: 18px !important; }
-    .ph-cta-primary { font-size: 17px !important; padding: 14px 32px !important; }
+    .ph-tagline { font-size: 38px !important; line-height: 1.15 !important; }
+    .ph-sub { font-size: 16px !important; }
+    .ph-cta-primary { font-size: 16px !important; padding: 13px 28px !important; }
     .ph-nav-links { display: none !important; }
-    .ph-section { padding: 70px 28px !important; }
+    .ph-section { padding: 60px 26px !important; }
     .ph-how-grid, .ph-why-grid { grid-template-columns: 1fr !important; }
-    .ph-section-h2 { font-size: 38px !important; }
-    .ph-section-sub { font-size: 17px !important; }
-    .ph-step-title, .ph-why-title { font-size: 22px !important; }
-    .ph-step-body, .ph-why-body { font-size: 16px !important; }
-    .ph-final-h2 { font-size: 44px !important; }
-    .ph-final-sub { font-size: 21px !important; }
-    .ph-pill { font-size: 14px !important; }
+    .ph-section-h2 { font-size: 34px !important; }
+    .ph-section-sub { font-size: 16px !important; }
+    .ph-step-title, .ph-why-title { font-size: 20px !important; }
+    .ph-step-body, .ph-why-body { font-size: 15px !important; }
+    .ph-final-h2 { font-size: 40px !important; }
+    .ph-final-sub { font-size: 19px !important; }
+    .ph-pill { font-size: 13px !important; padding: 7px 18px !important; }
   }
 
   /* Mobile (≤640px) — header simplificado: solo logo + Sign up free + langs.
