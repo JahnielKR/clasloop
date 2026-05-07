@@ -303,18 +303,33 @@ const css = `
   .ph-input:focus { border-color: ${C.accent}; box-shadow: 0 0 0 3px ${C.accentSoft}; outline: none; }
   .ph-lang-btn { transition: all .15s ease; cursor: pointer; }
 
-  /* Tablet (≤1366px) — todos los tamaños bien reducidos. El breakpoint
-     está en 1366 (no 1100) porque tablets modernas como Galaxy Tab S9 FE
-     reportan viewport ~1316px en landscape. Una laptop pequeña (13") suele
-     ser 1366px o más, así que aún cae en desktop. Cards flotantes
-     escondidas porque se amontonan en este rango. */
+  /* Tablet grande / laptop chica (≤1366px) — Galaxy Tab S9 FE en
+     landscape (~1316px viewport), MacBook Air 13", iPads en landscape.
+     Bajamos los textos pero MANTENEMOS las cards flotantes — hay espacio. */
   @media (max-width: 1366px) {
+    .ph-tagline { font-size: 56px !important; line-height: 1.12 !important; }
+    .ph-sub { font-size: 19px !important; }
+    .ph-cta-primary { font-size: 17px !important; padding: 15px 34px !important; }
+    .ph-section { padding: 80px 28px !important; }
+    .ph-section-h2 { font-size: 40px !important; }
+    .ph-section-sub { font-size: 18px !important; }
+    .ph-step-title, .ph-why-title { font-size: 21px !important; }
+    .ph-step-body, .ph-why-body { font-size: 15px !important; }
+    .ph-final-h2 { font-size: 46px !important; }
+    .ph-final-sub { font-size: 22px !important; }
+    .ph-pill { font-size: 14px !important; padding: 7px 18px !important; }
+  }
+
+  /* Tablet chica / mobile grande (≤900px) — aquí SÍ escondemos cards
+     flotantes porque se amontonan, escondemos nav links del header,
+     y achicamos todo más agresivamente. */
+  @media (max-width: 900px) {
     .ph-floating-card { display: none !important; }
+    .ph-nav-links { display: none !important; }
     .ph-tagline { font-size: 36px !important; line-height: 1.18 !important; }
     .ph-sub { font-size: 15px !important; }
     .ph-cta-primary { font-size: 15px !important; padding: 12px 26px !important; }
-    .ph-nav-links { display: none !important; }
-    .ph-section { padding: 56px 24px !important; }
+    .ph-section { padding: 56px 22px !important; }
     .ph-how-grid, .ph-why-grid { grid-template-columns: 1fr !important; }
     .ph-section-h2 { font-size: 30px !important; }
     .ph-section-sub { font-size: 15px !important; }
