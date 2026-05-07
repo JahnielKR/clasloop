@@ -448,7 +448,7 @@ function AIGeneratePanel({
             disabled={generating}
             style={{ ...sel, padding: "7px 28px 7px 10px", fontSize: 12, width: "100%" }}
           >
-            <option value="" disabled>—</option>
+            <option value="" disabled hidden>{t.aiLanguagePlaceholder}</option>
             <option value="en">English</option>
             <option value="es">Español</option>
             <option value="ko">한국어</option>
@@ -1429,7 +1429,7 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
             <div>
               <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: C.textSecondary, marginBottom: 5 }}>{t.language}</label>
               <select className="dk-input" value={deckLang || ""} onChange={e => setDeckLang(e.target.value)} style={sel}>
-                <option value="" disabled>—</option>
+                <option value="" disabled hidden>{t.aiLanguagePlaceholder}</option>
                 <option value="en">English</option><option value="es">Español</option><option value="ko">한국어</option>
               </select>
             </div>
