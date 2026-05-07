@@ -305,7 +305,9 @@ const css = `
 
   /* Tablet grande / laptop chica (≤1366px) — Galaxy Tab S9 FE en
      landscape (~1316px viewport), MacBook Air 13", iPads en landscape.
-     Bajamos los textos pero MANTENEMOS las cards flotantes — hay espacio. */
+     Bajamos los textos pero MANTENEMOS las cards flotantes — hay espacio.
+     IMPORTANTE: subimos padding vertical del hero y achicamos las cards
+     porque a 1316px las cards estaban solapando el tagline. */
   @media (max-width: 1366px) {
     .ph-tagline { font-size: 56px !important; line-height: 1.12 !important; }
     .ph-sub { font-size: 19px !important; }
@@ -318,6 +320,20 @@ const css = `
     .ph-final-h2 { font-size: 46px !important; }
     .ph-final-sub { font-size: 22px !important; }
     .ph-pill { font-size: 14px !important; padding: 7px 18px !important; }
+    /* Hero específicamente: más padding arriba para separar del header,
+       más min-height para que las cards no toquen los pills de abajo. */
+    .ph-hero { padding: 130px 28px 90px !important; min-height: 780px !important; }
+    /* Cards flotantes: 30% más chicas (no usar transform: scale porque
+       choca con la animación de translateY). Usamos width/height directos. */
+    .ph-floating-card { width: 160px !important; height: 110px !important; }
+    .ph-floating-card[data-card="1"] { top: 110px !important; left: 20px !important; }
+    .ph-floating-card[data-card="2"] { top: 90px !important; right: 30px !important; }
+    .ph-floating-card[data-card="3"] { bottom: 110px !important; left: 50px !important; }
+    .ph-floating-card[data-card="4"] { bottom: 130px !important; right: 20px !important; }
+    /* Texto interno de las cards: más chico para que quepa bien en el
+       nuevo tamaño 160x110. */
+    .ph-floating-card .ph-morph-from,
+    .ph-floating-card .ph-morph-to { padding: 12px !important; }
   }
 
   /* Tablet chica / mobile grande (≤900px) — aquí SÍ escondemos cards
@@ -330,6 +346,7 @@ const css = `
     .ph-sub { font-size: 15px !important; }
     .ph-cta-primary { font-size: 15px !important; padding: 12px 26px !important; }
     .ph-section { padding: 56px 22px !important; }
+    .ph-hero { padding: 64px 22px 48px !important; min-height: auto !important; }
     .ph-how-grid, .ph-why-grid { grid-template-columns: 1fr !important; }
     .ph-section-h2 { font-size: 30px !important; }
     .ph-section-sub { font-size: 15px !important; }
@@ -504,7 +521,7 @@ export default function PublicHome({ onSignIn, onSignUp }) {
         </header>
 
         {/* HERO */}
-        <section className="ph-section ph-fade" style={{
+        <section className="ph-section ph-hero ph-fade" style={{
           padding: "100px 32px 70px",
           position: "relative",
           textAlign: "center",
@@ -514,6 +531,7 @@ export default function PublicHome({ onSignIn, onSignUp }) {
           {FLOATING_CARDS.map(card => (
             <div
               key={card.id}
+              data-card={card.id}
               className={`ph-floating-card ph-float ${floatClass(card.id)}`}
               style={{
                 position: "absolute",
