@@ -249,6 +249,9 @@ export default function App() {
   // old regex-on-pathname trick that lived in this file's state initializer.
   const teacherMatch = useMatch("/teacher/:teacherId");
   const viewingTeacherId = teacherMatch?.params?.teacherId || null;
+  // /practice/:deckId — derive the practice deck id from URL.
+  const practiceMatch = useMatch("/practice/:deckId");
+  const practiceDeckId = practiceMatch?.params?.deckId || null;
 
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
@@ -361,6 +364,46 @@ export default function App() {
       setPage(next);
     }
   }, [location.pathname, page]);
+
+  // ── Practice deck hydration ──
+  // The practice deck object is held in `practiceDeck` state for rendering.
+  // Two ways to populate it:
+  //   1. User clicks a deck in MyClasses → onLaunchPractice(deck) sets the
+  //      object directly AND navigates to /practice/:deckId.
+  //   2. User refreshes / deep-links to /practice/:deckId → we load the deck
+  //      by id from the DB.
+  // When the URL leaves /practice/:id (back button, sidebar nav, etc.), we
+  // clear the state so we don't leak a stale deck into the next render.
+  useEffect(() => {
+    if (!practiceDeckId) {
+      // Left the /practice URL — drop the in-memory deck.
+      if (practiceDeck) setPracticeDeck(null);
+      return;
+    }
+    // URL has a deckId. If we already have the matching object, nothing to
+    // do (this happens when onLaunchPractice set the state right before
+    // navigate fired). Otherwise hydrate from DB.
+    if (practiceDeck && practiceDeck.id === practiceDeckId) return;
+    let cancelled = false;
+    (async () => {
+      const { data, error } = await supabase
+        .from("decks")
+        .select("*")
+        .eq("id", practiceDeckId)
+        .maybeSingle();
+      if (cancelled) return;
+      if (error || !data) {
+        // Deck not found / no access — bounce out cleanly.
+        navigate(ROUTES.CLASSES, { replace: true });
+        return;
+      }
+      setPracticeDeck(data);
+    })();
+    return () => { cancelled = true; };
+    // practiceDeck is intentionally NOT in deps — listing it would re-run
+    // this effect every time we set it, which is exactly what we just did.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [practiceDeckId]);
 
   // Navigation helper that replaces every old `setPage(id)` call. It walks the
   // legacy id → URL map and pushes the URL; the effect above then updates
@@ -563,12 +606,11 @@ export default function App() {
       <Sidebar
         page={page}
         setPage={(p) => {
-          // Sidebar nav. practiceDeck is cleared so clicking a sidebar item
-          // exits practice mode (the practice render-branch is still driven
-          // by this state — its migration to /practice/:deckId is Phase 3).
-          // The transient opts that used to live here (sessionsOpts/etc.) are
-          // gone — they live in URL search params now, and a fresh sidebar
-          // click navigates to a clean URL with no params.
+          // Sidebar nav. We clear practiceDeck eagerly so the practice screen
+          // doesn't flash for one render before the URL effect drops it.
+          // goToPage navigates away from /practice if we were there, which
+          // also triggers the hydration effect to clear practiceDeck — this
+          // is the belt-and-suspenders version that just avoids the flash.
           setPracticeDeck(null);
           goToPage(p);
         }}
@@ -592,7 +634,13 @@ export default function App() {
             setLang={setLang}
             profile={profile}
             practiceDeck={practiceDeck}
-            onPracticeExit={() => setPracticeDeck(null)}
+            onPracticeExit={() => {
+              // Clearing the state isn't strictly needed (the URL effect will
+              // drop it when /practice exits), but doing it eagerly avoids a
+              // brief render of stale data while navigation completes.
+              setPracticeDeck(null);
+              navigate(ROUTES.CLASSES);
+            }}
           />
         ) : (
           P && <P
@@ -606,7 +654,14 @@ export default function App() {
             // No refresca página, solo el state.
             refreshProfile={() => { if (user?.id) fetchProfile(user.id, false); }}
             onOpenMobileMenu={isMobile ? () => setMobileDrawerOpen(true) : undefined}
-            onLaunchPractice={(deck) => setPracticeDeck(deck)}
+            onLaunchPractice={(deck) => {
+              // Set the deck object up front so the next render has it ready;
+              // navigate puts /practice/:deckId in the URL so the back button
+              // pops us out cleanly. The hydration effect above won't re-fetch
+              // because the id will match what we just set.
+              setPracticeDeck(deck);
+              navigate(buildRoute.practice(deck.id));
+            }}
             // Navigation callbacks: opts are now serialized into URL search
             // params. The destination page reads them via useSearchParams,
             // runs its effect, and clears them with setSearchParams({}, {replace:true}).

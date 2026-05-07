@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useNavigate, useMatch } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { CIcon, LogoMark } from "../components/Icons";
 import { Avatar } from "../components/Avatars";
@@ -7,6 +8,7 @@ import { useIsMobile } from "../components/MobileMenuButton";
 import PageHeader from "../components/PageHeader";
 import { C, MONO } from "../components/tokens";
 import { getPracticeTimerPref, setPracticeTimerPref } from "../lib/practice-timer-pref";
+import { ROUTES, buildRoute } from "../routes";
 
 const i18n = {
   en: {
@@ -162,8 +164,15 @@ export default function MyClasses({ lang: pageLang = "en", setLang: pageSetLang,
   const t = i18n[l] || i18n.en;
   const setLang = pageSetLang || (() => {});
 
-  const [view, setView] = useState("list");        // "list" | "class"
-  const [selectedClassId, setSelectedClassId] = useState(null);
+  // Subview is derived from the URL:
+  //   /classes              → view="list"
+  //   /classes/:classId     → view="class" (selectedClassId from URL)
+  // No more useState for view/selectedClassId — the router owns it. This
+  // makes the back button work naturally between list and class detail.
+  const navigate = useNavigate();
+  const classDetailMatch = useMatch("/classes/:classId");
+  const selectedClassId = classDetailMatch?.params?.classId || null;
+  const view = selectedClassId ? "class" : "list";
 
   // List view state
   const [classes, setClasses] = useState([]);      // [{ ...class, teacher, reviewsDue, deckCount }]
@@ -333,8 +342,10 @@ export default function MyClasses({ lang: pageLang = "en", setLang: pageSetLang,
   if (view === "class" && selectedClassId) {
     const cls = classes.find(c => c.id === selectedClassId);
     if (!cls) {
-      setView("list");
-      setSelectedClassId(null);
+      // Class not found (deleted, wrong id, or list still loading). Bounce
+      // back to /classes. The state (loading) above already handled the
+      // "still loading" case before us, so this path is "id was bad".
+      navigate(ROUTES.CLASSES, { replace: true });
       return null;
     }
     return (
@@ -346,7 +357,7 @@ export default function MyClasses({ lang: pageLang = "en", setLang: pageSetLang,
           profile={profile}
           t={t}
           lang={l}
-          onBack={() => { setView("list"); setSelectedClassId(null); loadAll(); }}
+          onBack={() => { navigate(ROUTES.CLASSES); loadAll(); }}
           onLaunchPractice={onLaunchPractice}
         />
       </div>
@@ -451,7 +462,7 @@ export default function MyClasses({ lang: pageLang = "en", setLang: pageSetLang,
                 <div key={cls.id} ref={el => { classRefs.current[cls.id] = el; }} className={isFlash ? "mc-flash" : ""}>
                   <Card
                     className="mc-class-card"
-                    onClick={() => { setSelectedClassId(cls.id); setView("class"); }}
+                    onClick={() => navigate(buildRoute.classDetail(cls.id))}
                     style={{ padding: 16, borderLeft: `3px solid ${cls.avgRetention ? retCol(cls.avgRetention) : C.accent}` }}
                   >
                     <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>

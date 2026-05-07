@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate, useMatch } from "react-router-dom";
 import { QRCodeSVG } from "qrcode.react";
 import { supabase } from "../lib/supabase";
 import { processSessionResults, getSuggestedDecksForToday } from "../lib/spaced-repetition";
@@ -9,7 +9,7 @@ import MobileMenuButton, { useIsMobile } from "../components/MobileMenuButton";
 import PageHeader from "../components/PageHeader";
 import { C, MONO } from "../components/tokens";
 import { estimateDeckSeconds, formatDeckDuration } from "../lib/time-limits";
-import { QUERY } from "../routes";
+import { ROUTES, QUERY, buildRoute } from "../routes";
 
 // ─── Theme ─────────────────────────────────────────────────────────────────
 const SUBJECTS = ["Math", "Science", "History", "Language", "Geography", "Art", "Music", "Other"];
@@ -1061,7 +1061,26 @@ export default function SessionFlow({ lang = "en", setLang, onNavigateToDecks, o
   const t = i18n[lang] || i18n.en;
   const [user, setUser] = useState(null);
   const [classes, setClasses] = useState([]);
-  const [step, setStep] = useState("pickDeck");
+  // URL-bound subviews (Phase 3):
+  //   /sessions                          → step="pickDeck" (default)
+  //   /sessions/lobby/:sessionId         → step="lobby"
+  //   /sessions/live/:sessionId          → step="live"
+  // The "options" step is intentionally NOT in the URL — it's a transient
+  // "configuring before launch" state that doesn't need to survive refresh,
+  // and giving it a URL would be misleading (the deck object only lives in
+  // memory at that moment). It stays as a local-only state value.
+  const navigate = useNavigate();
+  const lobbyMatch = useMatch("/sessions/lobby/:sessionId");
+  const liveMatch  = useMatch("/sessions/live/:sessionId");
+  const urlSessionId = lobbyMatch?.params?.sessionId || liveMatch?.params?.sessionId || null;
+  // Local step state. The URL drives lobby/live; "options" only exists in
+  // state. The effect below keeps state in sync when the URL changes (back
+  // button, deep link, refresh).
+  const [step, setStep] = useState(() => {
+    if (lobbyMatch) return "lobby";
+    if (liveMatch) return "live";
+    return "pickDeck";
+  });
   const [selectedDeck, setSelectedDeck] = useState(null);
   const [session, setSession] = useState(null);
   const [showCreateClass, setShowCreateClass] = useState(false);
@@ -1074,6 +1093,54 @@ export default function SessionFlow({ lang = "en", setLang, onNavigateToDecks, o
   // they don't re-trigger on tab focus / token refresh.
   const [searchParams, setSearchParams] = useSearchParams();
   const focusClassId = searchParams.get(QUERY.CLASS) || "";
+
+  // Sync URL → step. Fires on initial mount (deep link / refresh on
+  // /sessions/lobby/:id) and on browser back/forward.
+  useEffect(() => {
+    if (lobbyMatch) setStep(prev => prev === "live" ? prev : "lobby");
+    else if (liveMatch) setStep("live");
+    else if (step === "lobby" || step === "live") {
+      // We were in lobby/live but the URL no longer says so (user pressed
+      // back). Reset to pickDeck and clear the in-memory session.
+      setStep("pickDeck");
+      setSession(null);
+      setSelectedDeck(null);
+    }
+    // We don't include `step` in the deps — that's intentional. We only want
+    // this effect to react to URL changes, not to its own setState calls.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lobbyMatch, liveMatch]);
+
+  // Hydration: if we landed on /sessions/lobby/:id or /sessions/live/:id
+  // directly (refresh, deep link, OAuth bounce-back), session and
+  // selectedDeck are null in memory. Load them from the DB so the UI can
+  // render. If the session is gone (cancelled/ended) bounce to /sessions.
+  useEffect(() => {
+    if (!urlSessionId) return;
+    if (session && session.id === urlSessionId && selectedDeck) return; // already hydrated
+    let cancelled = false;
+    (async () => {
+      const { data: s, error: sErr } = await supabase
+        .from("sessions")
+        .select("*")
+        .eq("id", urlSessionId)
+        .maybeSingle();
+      if (cancelled) return;
+      if (sErr || !s || s.status === "cancelled" || s.status === "ended") {
+        navigate(ROUTES.SESSIONS, { replace: true });
+        return;
+      }
+      setSession(s);
+      // Load the deck so the lobby's title/cover/questions can render.
+      const { data: dk } = await supabase
+        .from("decks")
+        .select("*")
+        .eq("id", s.deck_id)
+        .maybeSingle();
+      if (!cancelled && dk) setSelectedDeck(dk);
+    })();
+    return () => { cancelled = true; };
+  }, [urlSessionId]);  // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     (async () => {
@@ -1154,6 +1221,7 @@ export default function SessionFlow({ lang = "en", setLang, onNavigateToDecks, o
 
     setSession(data);
     setStep("lobby");
+    navigate(buildRoute.sessionsLobby(data.id));
   };
 
   // Suggested-card handler: pre-fill selected deck + class, then go to options.
@@ -1183,12 +1251,14 @@ export default function SessionFlow({ lang = "en", setLang, onNavigateToDecks, o
     setSession(null);
     setSelectedDeck(null);
     setStep("pickDeck");
+    navigate(ROUTES.SESSIONS);
   };
 
   const handleEnd = () => {
     setSession(null);
     setSelectedDeck(null);
     setStep("pickDeck");
+    navigate(ROUTES.SESSIONS);
   };
 
   if (!user) return <div style={{ padding: 40, textAlign: "center", color: C.textMuted }}>Loading...</div>;
@@ -1255,7 +1325,7 @@ export default function SessionFlow({ lang = "en", setLang, onNavigateToDecks, o
             session={session}
             deck={selectedDeck}
             t={t}
-            onStart={() => setStep("live")}
+            onStart={() => { setStep("live"); navigate(buildRoute.sessionsLive(session.id)); }}
             onCancel={handleCancel}
           />
         )}

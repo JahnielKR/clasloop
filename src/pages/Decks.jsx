@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate, useMatch } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { CIcon } from "../components/Icons";
 import { DeckCover, SUBJ_ICON, SUBJ_COLOR, resolveColor, colorTint, DECK_COLORS } from "../lib/deck-cover";
@@ -9,7 +9,7 @@ import PageHeader from "../components/PageHeader";
 import { MONO } from "../components/tokens";
 import { C, css } from "./Decks/styles";
 import CreateDeckEditor from "./Decks/CreateDeckEditor";
-import { QUERY } from "../routes";
+import { ROUTES, QUERY, buildRoute } from "../routes";
 
 const SUBJECTS = ["Math", "Science", "History", "Language", "Geography", "Art", "Music", "Other"];
 const GRADES = ["6th-7th", "7th-8th", "8th-9th", "9th-10th", "10th-11th", "11th-12th"];
@@ -385,17 +385,29 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
   const [lang, setLangLocal] = useState(pageLang);
   const setLang = pageSetLang || setLangLocal;
   const l = pageLang || lang;
-  const [view, setView] = useState("list"); // list | create | edit
+  // Subview is derived from the URL:
+  //   /decks                  → view="list"
+  //   /decks/new              → view="create" (with optional ?class= for prefilled)
+  //   /decks/:deckId/edit     → view="edit"
+  // Browser back navigates between these naturally.
+  const navigate = useNavigate();
+  const editMatch = useMatch("/decks/:deckId/edit");
+  const newMatch = useMatch("/decks/new");
+  const editingId = editMatch?.params?.deckId || null;
+  const view = editingId ? "edit" : (newMatch ? "create" : "list");
   const [tab, setTab] = useState("myDecks"); // myDecks | favorites
   const [myDecks, setMyDecks] = useState([]);
   const [favoriteDecks, setFavoriteDecks] = useState([]);
   const [userId, setUserId] = useState(null);
   const [userClasses, setUserClasses] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [editing, setEditing] = useState(null);
+  // The editing deck object. Derived from editingId + the loaded myDecks list.
+  // This used to be standalone state; now it's a function of the URL + data.
+  const editing = editingId ? (myDecks.find(d => d.id === editingId) || null) : null;
   // When the teacher clicks "+ Create deck" inside an empty class group, we
-  // remember which class so the editor can pre-fill it.
-  const [createForClassId, setCreateForClassId] = useState(null);
+  // remember which class so the editor can pre-fill it. Read from ?class=
+  // in URL when entering /decks/new (the same param has a different meaning
+  // on /decks list — there it's the focus hint consumed by the effect below).
   // Favorite deck currently being customized (= copied to My Decks).
   // When set, we render a class-picker modal to choose the destination class.
   const [customizingFav, setCustomizingFav] = useState(null);
@@ -495,8 +507,9 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
     setCustomizingFav(null);
     setTab("myDecks"); // bounce them into My Decks where their copy lives now
     // Open the editor on the fresh copy so they can immediately personalize it.
-    setEditing(inserted);
-    setView("edit");
+    // The view derives from the URL, so navigating is enough — `editing` will
+    // be re-derived from myDecks by the find() above.
+    navigate(buildRoute.deckEdit(inserted.id));
   };
 
   const handleDelete = async (deckId) => {
@@ -552,17 +565,51 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
     setMyDecks(prev => prev.map(d => d.id === deck.id ? { ...d, is_public: true, is_adapted: isAdapted } : d));
   };
 
-  if (view === "create" || view === "edit") return (
-    <div style={{ padding: "28px 20px" }}>
-      <style>{css}</style>
-      <PageHeader title={t.pageTitle} icon="book" lang={l} setLang={setLang} maxWidth={600} onOpenMobileMenu={onOpenMobileMenu} />
-      <CreateDeckEditor t={t} l={l} onBack={() => { setView("list"); setEditing(null); setCreateForClassId(null); }} userId={userId} userClasses={userClasses} existingDeck={editing} prefilledClassId={createForClassId} onCreated={(d) => {
-        if (editing) setMyDecks(prev => prev.map(dk => dk.id === d.id ? d : dk));
-        else setMyDecks(prev => [d, ...prev]);
-        setView("list"); setEditing(null); setCreateForClassId(null);
-      }} />
-    </div>
-  );
+  if (view === "create" || view === "edit") {
+    // ?class= on /decks/new pre-fills the class in the editor (e.g. clicking
+    // "+ Create deck" inside an empty class group). On /decks/:id/edit the
+    // existing deck's class wins, so we ignore the param.
+    const prefilledClassId = view === "create" ? (searchParams.get(QUERY.CLASS) || null) : null;
+
+    // Edge case: deep-link refresh on /decks/:id/edit before myDecks finished
+    // loading. Show the page-level loader and let the next render resolve
+    // `editing` from the loaded list.
+    if (view === "edit" && loading) {
+      return (
+        <div style={{ padding: "28px 20px" }}>
+          <style>{css}</style>
+          <PageHeader title={t.pageTitle} icon="book" lang={l} setLang={setLang} maxWidth={600} onOpenMobileMenu={onOpenMobileMenu} />
+          <div style={{ maxWidth: 600, margin: "0 auto", padding: 40, textAlign: "center", color: C.textMuted, fontFamily: "'Outfit',sans-serif" }}>{t.loading || "Loading…"}</div>
+        </div>
+      );
+    }
+    // Edge case: edit URL points to a deck that doesn't belong to this user
+    // or has been deleted. Bounce back to the list.
+    if (view === "edit" && !loading && !editing) {
+      navigate(ROUTES.DECKS, { replace: true });
+      return null;
+    }
+
+    return (
+      <div style={{ padding: "28px 20px" }}>
+        <style>{css}</style>
+        <PageHeader title={t.pageTitle} icon="book" lang={l} setLang={setLang} maxWidth={600} onOpenMobileMenu={onOpenMobileMenu} />
+        <CreateDeckEditor
+          t={t} l={l}
+          onBack={() => navigate(ROUTES.DECKS)}
+          userId={userId}
+          userClasses={userClasses}
+          existingDeck={editing}
+          prefilledClassId={prefilledClassId}
+          onCreated={(d) => {
+            if (editing) setMyDecks(prev => prev.map(dk => dk.id === d.id ? d : dk));
+            else setMyDecks(prev => [d, ...prev]);
+            navigate(ROUTES.DECKS);
+          }}
+        />
+      </div>
+    );
+  }
 
   // ── Filtering and grouping logic ─────────────────────────────────────────
   const sourceDecks = tab === "myDecks" ? myDecks : favoriteDecks;
@@ -688,7 +735,7 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
             <DeckCover deck={dk} size={52} radius={10} />
             <div
               style={{ flex: 1, cursor: "pointer", minWidth: 0 }}
-              onClick={isFav ? undefined : () => { setEditing(dk); setView("edit"); }}
+              onClick={isFav ? undefined : () => navigate(buildRoute.deckEdit(dk.id))}
             >
               <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                 <span style={{ fontSize: 15, fontWeight: 600, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{dk.title}</span>
@@ -746,7 +793,7 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
             ) : (
               <>
                 <button className="dk-btn-secondary" onClick={() => handleTogglePublic(dk)} style={{ padding: "6px 12px", borderRadius: 6, fontSize: 12, fontWeight: 500, background: C.bgSoft, color: dk.is_public ? C.green : C.textMuted, border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: "'Outfit',sans-serif" }}>{dk.is_public ? t.public : t.private}</button>
-                <button className="dk-btn-secondary" onClick={() => { setEditing(dk); setView("edit"); }} style={{ padding: "6px 12px", borderRadius: 6, fontSize: 12, fontWeight: 500, background: C.bg, color: C.textSecondary, border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: "'Outfit',sans-serif" }}>{t.edit}</button>
+                <button className="dk-btn-secondary" onClick={() => navigate(buildRoute.deckEdit(dk.id))} style={{ padding: "6px 12px", borderRadius: 6, fontSize: 12, fontWeight: 500, background: C.bg, color: C.textSecondary, border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: "'Outfit',sans-serif" }}>{t.edit}</button>
                 <button className="dk-btn-danger" onClick={() => handleDelete(dk.id)} style={{ padding: "6px 12px", borderRadius: 6, fontSize: 12, fontWeight: 500, background: C.bg, color: C.red, border: `1px solid ${C.redSoft}`, cursor: "pointer", fontFamily: "'Outfit',sans-serif" }}>{t.delete}</button>
               </>
             )}
@@ -793,7 +840,7 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
             ))}
           </div>
           {tab === "myDecks" && (
-            <button className="dk-btn" onClick={() => setView("create")} style={{
+            <button className="dk-btn" onClick={() => navigate(ROUTES.DECKS_NEW)} style={{
               padding: "8px 16px", borderRadius: 8, fontSize: 13, fontWeight: 600,
               background: `linear-gradient(135deg, ${C.accent}, ${C.purple})`,
               color: "#fff", border: "none", cursor: "pointer",
@@ -922,7 +969,7 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
                       // Empty class — minimal "+" tile that rotates on hover
                       <div style={{ marginLeft: group.label ? 8 : 0 }}>
                         <button
-                          onClick={() => { setCreateForClassId(group.classObj.id); setView("create"); }}
+                          onClick={() => navigate(`${ROUTES.DECKS_NEW}?${QUERY.CLASS}=${encodeURIComponent(group.classObj.id)}`)}
                           className="dk-plus-tile"
                           aria-label={t.addDeckToClass}
                           title={t.addDeckToClass}
