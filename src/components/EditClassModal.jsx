@@ -439,7 +439,7 @@ export default function EditClassModal({
           paddingTop: 20,
           borderTop: `1px solid ${C.border}`,
         }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: C.red, marginBottom: 10 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: C.textSecondary, marginBottom: 10, letterSpacing: ".02em" }}>
             {L(t, "dangerTitle")}
           </div>
 
