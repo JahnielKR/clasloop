@@ -309,9 +309,9 @@ const css = `
      hero tiene que ser COMPACTO para que entren tagline + CTA + cards +
      pills sin scroll. */
   @media (max-width: 1366px) {
-    .ph-tagline { font-size: 48px !important; line-height: 1.12 !important; }
-    .ph-sub { font-size: 16px !important; }
-    .ph-cta-primary { font-size: 15px !important; padding: 12px 28px !important; }
+    .ph-tagline { font-size: 56px !important; line-height: 1.12 !important; }
+    .ph-sub { font-size: 18px !important; }
+    .ph-cta-primary { font-size: 16px !important; padding: 13px 30px !important; }
     .ph-section { padding: 60px 28px !important; }
     .ph-section-h2 { font-size: 34px !important; }
     .ph-section-sub { font-size: 16px !important; }
@@ -324,10 +324,10 @@ const css = `
        hero tiene que entrar en ~600px máximo dejando espacio para los
        pills de tipos abajo. */
     .ph-hero { padding: 36px 28px 28px !important; min-height: auto !important; }
-    /* Hero container: max-width más chico para forzar wrap a 2-3 líneas
-       en lugar de una sola línea estirada. Esto le da el "centrado y
-       compacto" que el user pidió. */
-    .ph-hero-content { max-width: 720px !important; }
+    /* Hero container: max-width controlado para que el tagline 56px
+       wrapee en 2 líneas centradas y los documentos queden cerca del
+       contenido. */
+    .ph-hero-content { max-width: 820px !important; }
     /* Cards más chicas y bien en las esquinas para no chocar con texto. */
     .ph-floating-card { width: 150px !important; height: 100px !important; }
     .ph-floating-card[data-card="1"] { top: 32px !important; left: 18px !important; }
