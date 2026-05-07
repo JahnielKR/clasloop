@@ -303,20 +303,52 @@ const css = `
   .ph-input:focus { border-color: ${C.accent}; box-shadow: 0 0 0 3px ${C.accentSoft}; outline: none; }
   .ph-lang-btn { transition: all .15s ease; cursor: pointer; }
 
-  /* Mobile responsive — esconder cards flotantes en pantallas chicas porque
-     se amontonan, y reducir el tagline ahora que es 80px base */
+  /* Tablet (≤1100px) — bajar todos los tamaños base ~25% para que se sienta
+     como el zoom 75% que el user describió en su Galaxy Tab S9 FE. Cards
+     flotantes escondidas porque se amontonan. Nav links escondidos porque
+     no caben con el header reducido. */
   @media (max-width: 1100px) {
     .ph-floating-card { display: none !important; }
-    .ph-tagline { font-size: 56px !important; }
+    .ph-tagline { font-size: 42px !important; line-height: 1.15 !important; }
+    .ph-sub { font-size: 18px !important; }
+    .ph-cta-primary { font-size: 17px !important; padding: 14px 32px !important; }
     .ph-nav-links { display: none !important; }
-    .ph-have-code-btn { display: none !important; }
     .ph-section { padding: 70px 28px !important; }
     .ph-how-grid, .ph-why-grid { grid-template-columns: 1fr !important; }
+    .ph-section-h2 { font-size: 38px !important; }
+    .ph-section-sub { font-size: 17px !important; }
+    .ph-step-title, .ph-why-title { font-size: 22px !important; }
+    .ph-step-body, .ph-why-body { font-size: 16px !important; }
+    .ph-final-h2 { font-size: 44px !important; }
+    .ph-final-sub { font-size: 21px !important; }
+    .ph-pill { font-size: 14px !important; }
   }
+
+  /* Mobile (≤640px) — header simplificado: solo logo + Sign up free + langs.
+     "Got a code?" se mueve al hero como botón secundario debajo del CTA.
+     "Sign in" se esconde — el dialog de signup ya tiene link "ya tengo cuenta".
+     Tagline más chico, padding reducido. */
   @media (max-width: 640px) {
-    .ph-tagline { font-size: 38px !important; }
-    .ph-sub { font-size: 18px !important; }
-    .ph-cta-primary { font-size: 17px !important; padding: 15px 32px !important; }
+    .ph-tagline { font-size: 32px !important; line-height: 1.15 !important; }
+    .ph-sub { font-size: 16px !important; }
+    .ph-cta-primary { font-size: 16px !important; padding: 13px 28px !important; }
+    .ph-have-code-btn { display: none !important; }
+    .ph-sign-in-btn { display: none !important; }
+    .ph-mobile-code-btn { display: inline-block !important; }
+    .ph-section { padding: 56px 20px !important; }
+    .ph-section-h2 { font-size: 30px !important; }
+    .ph-section-sub { font-size: 16px !important; }
+    .ph-step-title, .ph-why-title { font-size: 20px !important; }
+    .ph-step-body, .ph-why-body { font-size: 15px !important; }
+    .ph-final-h2 { font-size: 34px !important; }
+    .ph-final-sub { font-size: 18px !important; }
+    .ph-pill { font-size: 13px !important; padding: 6px 14px !important; }
+    .ph-header { padding: 12px 18px !important; }
+    .ph-header-logo-text { font-size: 18px !important; }
+    .ph-header-actions { gap: 6px !important; }
+    .ph-header-langs { margin-left: 4px !important; }
+    .ph-header-langs button { padding: 5px 8px !important; font-size: 12px !important; }
+    .ph-step-card { padding: 28px !important; }
   }
 
   /* Dialog backdrop */
@@ -384,7 +416,7 @@ export default function PublicHome({ onSignIn, onSignUp }) {
       <div className="ph-root" data-theme="light" style={{ background: "#fff", minHeight: "100vh" }}>
 
         {/* HEADER — sticky con logo, nav, acciones */}
-        <header style={{
+        <header className="ph-header" style={{
           position: "sticky", top: 0, zIndex: 50,
           background: "rgba(255,255,255,0.92)",
           backdropFilter: "blur(8px)",
@@ -395,7 +427,7 @@ export default function PublicHome({ onSignIn, onSignUp }) {
           <div style={{ display: "flex", alignItems: "center", gap: 40 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <LogoMark size={36} />
-              <span style={{ fontSize: 21, fontWeight: 700, color: C.text, letterSpacing: "-0.01em" }}>
+              <span className="ph-header-logo-text" style={{ fontSize: 21, fontWeight: 700, color: C.text, letterSpacing: "-0.01em" }}>
                 Clasloop
               </span>
             </div>
@@ -405,7 +437,7 @@ export default function PublicHome({ onSignIn, onSignUp }) {
               <span className="ph-nav-link" style={{ fontSize: 16, color: C.textSecondary, fontWeight: 500 }}>{t.navPricing}</span>
             </nav>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div className="ph-header-actions" style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <button
               className="ph-have-code-btn ph-cta-secondary"
               onClick={() => setCodeDialogOpen(true)}
@@ -417,7 +449,7 @@ export default function PublicHome({ onSignIn, onSignUp }) {
               }}
             >{t.haveCode}</button>
             <button
-              className="ph-nav-link"
+              className="ph-nav-link ph-sign-in-btn"
               onClick={handleLogin}
               style={{
                 fontSize: 16, padding: "9px 14px",
@@ -436,7 +468,7 @@ export default function PublicHome({ onSignIn, onSignUp }) {
                 cursor: "pointer", fontFamily: "'Outfit',sans-serif",
               }}
             >{t.signUpFree}</button>
-            <div style={{ display: "flex", gap: 3, marginLeft: 10 }}>
+            <div className="ph-header-langs" style={{ display: "flex", gap: 3, marginLeft: 10 }}>
               {[["en", "EN"], ["es", "ES"], ["ko", "한"]].map(([c, l]) => (
                 <button
                   key={c}
@@ -512,7 +544,7 @@ export default function PublicHome({ onSignIn, onSignUp }) {
           ))}
 
           <div style={{ position: "relative", zIndex: 2, maxWidth: 1100, margin: "0 auto" }}>
-            <div style={{
+            <div className="ph-pill" style={{
               display: "inline-block",
               padding: "9px 22px",
               background: C.accentSoft, color: C.accent,
@@ -550,6 +582,25 @@ export default function PublicHome({ onSignIn, onSignUp }) {
               fontSize: 17, color: C.textMuted,
               margin: "18px 0 0", fontFamily: "'Outfit',sans-serif",
             }}>{t.ctaSubtext}</p>
+
+            {/* Got a code? — solo en mobile (header lo esconde, lo movemos
+                acá para que el estudiante con código siga teniéndolo a mano). */}
+            <button
+              className="ph-mobile-code-btn"
+              onClick={() => setCodeDialogOpen(true)}
+              style={{
+                display: "none",
+                marginTop: 24,
+                background: "transparent",
+                color: C.accent,
+                border: `1.5px solid ${C.accent}`,
+                padding: "10px 22px",
+                borderRadius: 8,
+                fontSize: 14, fontWeight: 600,
+                cursor: "pointer",
+                fontFamily: "'Outfit',sans-serif",
+              }}
+            >{t.haveCode}</button>
           </div>
         </section>
 
@@ -589,11 +640,11 @@ export default function PublicHome({ onSignIn, onSignUp }) {
           borderBottom: `1px solid ${C.border}`,
         }}>
           <div style={{ maxWidth: 1300, margin: "0 auto", textAlign: "center" }}>
-            <h2 style={{
+            <h2 className="ph-section-h2" style={{
               fontSize: 52, fontWeight: 700, color: C.text,
               margin: "0 0 20px", letterSpacing: "-0.02em",
             }}>{t.howTitle}</h2>
-            <p style={{
+            <p className="ph-section-sub" style={{
               fontSize: 22, color: C.textSecondary,
               margin: "0 0 70px", maxWidth: 760,
               marginLeft: "auto", marginRight: "auto", lineHeight: 1.5,
@@ -607,7 +658,7 @@ export default function PublicHome({ onSignIn, onSignUp }) {
                 { num: "2", title: t.step2Title, body: t.step2Body, color: C.purple },
                 { num: "3", title: t.step3Title, body: t.step3Body, color: "#1D9E75" },
               ].map(s => (
-                <div key={s.num} style={{
+                <div key={s.num} className="ph-step-card" style={{
                   background: C.bg, border: `1px solid ${C.border}`,
                   borderRadius: 18, padding: 40,
                 }}>
@@ -618,11 +669,11 @@ export default function PublicHome({ onSignIn, onSignUp }) {
                     fontSize: 22, fontWeight: 700, marginBottom: 22,
                     fontFamily: MONO,
                   }}>{s.num}</div>
-                  <h3 style={{
+                  <h3 className="ph-step-title" style={{
                     fontSize: 26, fontWeight: 600, color: C.text,
                     margin: "0 0 12px",
                   }}>{s.title}</h3>
-                  <p style={{
+                  <p className="ph-step-body" style={{
                     fontSize: 18, color: C.textSecondary,
                     lineHeight: 1.55, margin: 0,
                   }}>{s.body}</p>
@@ -635,11 +686,11 @@ export default function PublicHome({ onSignIn, onSignUp }) {
         {/* WHY DAILY */}
         <section className="ph-section" style={{ padding: "120px 32px" }}>
           <div style={{ maxWidth: 1300, margin: "0 auto", textAlign: "center" }}>
-            <h2 style={{
+            <h2 className="ph-section-h2" style={{
               fontSize: 52, fontWeight: 700, color: C.text,
               margin: "0 0 20px", letterSpacing: "-0.02em",
             }}>{t.whyTitle}</h2>
-            <p style={{
+            <p className="ph-section-sub" style={{
               fontSize: 22, color: C.textSecondary,
               margin: "0 0 70px", maxWidth: 820,
               marginLeft: "auto", marginRight: "auto", lineHeight: 1.5,
@@ -655,11 +706,11 @@ export default function PublicHome({ onSignIn, onSignUp }) {
               ].map(w => (
                 <div key={w.title} style={{ padding: 8 }}>
                   <div style={{ fontSize: 44, marginBottom: 20 }}>{w.icon}</div>
-                  <h3 style={{
+                  <h3 className="ph-why-title" style={{
                     fontSize: 26, fontWeight: 600, color: C.text,
                     margin: "0 0 12px",
                   }}>{w.title}</h3>
-                  <p style={{
+                  <p className="ph-why-body" style={{
                     fontSize: 18, color: C.textSecondary,
                     lineHeight: 1.55, margin: 0,
                   }}>{w.body}</p>
@@ -675,11 +726,11 @@ export default function PublicHome({ onSignIn, onSignUp }) {
           background: `linear-gradient(135deg, ${C.accentSoft} 0%, ${C.bgSoft} 100%)`,
           textAlign: "center",
         }}>
-          <h2 style={{
+          <h2 className="ph-final-h2" style={{
             fontSize: 60, fontWeight: 700, color: C.text,
             margin: "0 0 18px", letterSpacing: "-0.02em",
           }}>{t.finalTitle}</h2>
-          <p style={{
+          <p className="ph-final-sub" style={{
             fontSize: 28, color: C.textSecondary,
             margin: "0 0 44px",
           }}>{t.finalSub}</p>
