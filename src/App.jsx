@@ -35,6 +35,7 @@ const importNotifications  = () => import('./pages/Notifications');
 const importDecks          = () => import('./pages/Decks');
 const importMyClasses      = () => import('./pages/MyClasses');
 const importMyClassesTeacher = () => import('./pages/MyClassesTeacher');
+const importClassPage      = () => import('./pages/ClassPage');
 const importTeacherProfile = () => import('./pages/TeacherProfile');
 const importAdminAIStats   = () => import('./pages/AdminAIStats');
 
@@ -48,20 +49,35 @@ const Notifications    = lazy(importNotifications);
 const Decks            = lazy(importDecks);
 const MyClasses        = lazy(importMyClasses);
 const MyClassesTeacher = lazy(importMyClassesTeacher);
+const ClassPage        = lazy(importClassPage);
 const TeacherProfile   = lazy(importTeacherProfile);
 const AdminAIStats     = lazy(importAdminAIStats);
 import { useIsMobile } from './components/MobileMenuButton';
 import { countVisibleNotifications } from './lib/notifications';
 import { C } from './components/tokens';
 
-// MyClasses wrapper — both roles use /classes but see different content.
-// Teachers: their own classes with codes (MyClassesTeacher).
-// Students: classes they've joined (MyClasses, the original component).
-// Both lazy chunks are tiny and prefetch logic below loads only the relevant
-// one per role, so no waste.
+// MyClasses wrapper — /classes is shared between roles and now has a
+// nested route for class detail:
+//   /classes              → list view
+//                           teacher: MyClassesTeacher (cards + codes)
+//                           student: MyClasses (joined classes)
+//   /classes/:classId     → detail view
+//                           teacher: ClassPage (warmups/exit tickets/review)
+//                           student: MyClasses (existing class drilldown)
+//
+// We do the URL match here rather than each component reading the URL
+// independently — keeps the routing decision in one place.
 function MyClassesByRole(props) {
   const role = props.profile?.role;
-  if (role === "teacher") return <MyClassesTeacher {...props} />;
+  const classMatch = useMatch("/classes/:classId");
+  const classId = classMatch?.params?.classId || null;
+
+  if (role === "teacher") {
+    if (classId) return <ClassPage {...props} classId={classId} />;
+    return <MyClassesTeacher {...props} />;
+  }
+  // Students stay on the existing MyClasses component, which already
+  // handles its own /classes/:classId drilldown internally.
   return <MyClasses {...props} />;
 }
 
@@ -497,7 +513,7 @@ export default function App() {
     // Pages the user is most likely to click next from their default view.
     // Loaded first (~50-100ms after profile is ready).
     const primary = isTeacher
-      ? [importDecks, importSessionFlow, importMyClassesTeacher, importSettings]
+      ? [importDecks, importSessionFlow, importMyClassesTeacher, importClassPage, importSettings]
       : [importMyClasses, importStudentJoin, importSettings];
 
     // Less-frequent but still in-role pages. Loaded after the primary batch

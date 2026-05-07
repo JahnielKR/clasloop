@@ -5,7 +5,8 @@ import { CIcon, SchoolIcon } from "../components/Icons";
 import { useIsMobile } from "../components/MobileMenuButton";
 import CreateClassModal from "../components/CreateClassModal";
 import { C, MONO } from "../components/tokens";
-import { ROUTES, QUERY, buildPathWithOpts } from "../routes";
+import { ROUTES, QUERY, buildPathWithOpts, buildRoute } from "../routes";
+import { resolveClassAccent } from "../lib/class-hierarchy";
 
 // ─── i18n ────────────────────────────────────────────────────────────────
 const i18n = {
@@ -102,27 +103,10 @@ const i18n = {
   },
 };
 
-// ─── Subject color map (mirrors Decks.jsx) ──────────────────────────────
-const SUBJ_COLOR = {
-  Math: "blue", Science: "green", History: "orange",
-  Language: "purple", Art: "pink", Music: "yellow",
-  PE: "green", Other: "gray",
-};
-const ACCENT_FOR = (subj) => {
-  const id = SUBJ_COLOR[subj];
-  if (id === "blue")    return C.accent;
-  if (id === "green")   return C.green;
-  if (id === "orange")  return C.orange;
-  if (id === "purple")  return C.purple;
-  if (id === "pink")    return C.pink;
-  if (id === "yellow")  return C.yellow;
-  return C.accent;
-};
-
 // ─── Class Card ─────────────────────────────────────────────────────────
 function ClassCard({ cls, t, lang, onOpen, deckCount = 0, studentCount = 0, highlight = false }) {
   const [copied, setCopied] = useState(false);
-  const accent = ACCENT_FOR(cls.subject);
+  const accent = resolveClassAccent(cls);
 
   const handleCopy = async (e) => {
     e.stopPropagation(); // don't trigger card open
@@ -368,10 +352,12 @@ export default function MyClassesTeacher({ lang = "en", profile, onNavigateToSes
   };
 
   const handleOpenClass = (cls) => {
-    // Phase 0: opening a class drops the teacher into Decks filtered to that
-    // class. Phase 1+ (the warmups/exit-tickets/general-review refactor) will
-    // replace this with a dedicated /classes/:classId teacher page.
-    navigate(buildPathWithOpts(ROUTES.DECKS, { focusClassId: cls.id }, "decks"));
+    // Phase 1: open the dedicated class page with section tabs (warmups /
+    // exit tickets / general review). The old behavior of jumping to
+    // /decks?class=<id> is kept reachable from a "All decks" link in the
+    // class page if needed later — for now the class page is the home for
+    // anything inside a class.
+    navigate(buildRoute.classDetail(cls.id));
   };
 
   // ─── Empty state ────────────────────────────────────────────────────
