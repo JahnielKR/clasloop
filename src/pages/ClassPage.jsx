@@ -164,6 +164,7 @@ function ColorPickerPopover({ classObj, onPick, onClose, t, accent }) {
                 onClick={() => onPick("auto")}
                 aria-label={t.autoColor}
                 title={t.autoColor}
+                className="cl-color-swatch cl-color-swatch-auto"
                 style={{
                   height: 28,
                   borderRadius: 7,
@@ -187,6 +188,7 @@ function ColorPickerPopover({ classObj, onPick, onClose, t, accent }) {
               onClick={() => onPick(c.id)}
               aria-label={c.id}
               title={c.id}
+              className="cl-color-swatch"
               style={{
                 height: 28,
                 borderRadius: 7,
@@ -690,6 +692,24 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
         .cl-deck-row:hover {
           transform: translateY(-1px);
           box-shadow: 0 3px 10px rgba(0,0,0,.05);
+        }
+        /* Color picker swatches: subtle lift on hover so it's clear which one
+           the cursor is over. The ring expands to a soft shadow so it works
+           on both colored swatches and the dashed "auto" tile. */
+        .cl-color-swatch {
+          transition: transform .12s ease, box-shadow .15s ease, filter .15s ease;
+        }
+        .cl-color-swatch:hover {
+          transform: translateY(-1px);
+          box-shadow: 0 2px 6px rgba(0,0,0,.18);
+          filter: brightness(1.08);
+        }
+        .cl-color-swatch:active {
+          transform: translateY(0);
+        }
+        .cl-color-swatch-auto:hover {
+          filter: none;
+          box-shadow: 0 2px 6px rgba(0,0,0,.08);
         }
         @keyframes ns-fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
         .ns-fade { animation: ns-fadeIn .25s ease; }

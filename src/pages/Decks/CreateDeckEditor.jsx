@@ -25,6 +25,7 @@ import { analyzeDerivation } from "../../lib/deck-derivation";
 import { useIsMobile } from "../../components/MobileMenuButton";
 import { MONO } from "../../components/tokens";
 import { C, css } from "./styles";
+import { SECTIONS, DEFAULT_SECTION, isValidSection, sectionLabels, resolveClassAccent } from "../../lib/class-hierarchy";
 
 const SUBJECTS = ["Math", "Science", "History", "Language", "Geography", "Art", "Music", "Other"];
 
@@ -513,7 +514,7 @@ function AIGeneratePanel({
   );
 }
 
-function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existingDeck, prefilledClassId = null }) {
+function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existingDeck, prefilledClassId = null, prefilledSection = null }) {
   const isMobile = useIsMobile();
   const [title, setTitle] = useState(existingDeck?.title || "");
   const [desc, setDesc] = useState(existingDeck?.description || "");
@@ -529,6 +530,14 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
   const [deckLang, setDeckLang] = useState(existingDeck?.language || "");
   const [tags, setTags] = useState((existingDeck?.tags || []).join(", "));
   const [classId, setClassId] = useState(existingDeck?.class_id || prefilledClassId || "");
+  // Section (warmup / exit_ticket / general_review). Comes from existing deck
+  // if editing, from URL ?section= when creating from a section tab in
+  // ClassPage, or defaults to general_review otherwise. Validated against the
+  // schema's enum so an invalid query string never reaches the DB.
+  const initialSection = existingDeck?.section
+    || (isValidSection(prefilledSection) ? prefilledSection : null)
+    || DEFAULT_SECTION;
+  const [section, setSection] = useState(initialSection);
   const [makePublic, setMakePublic] = useState(existingDeck?.is_public || false);
   const [activityType, setActivityType] = useState(existingDeck?.questions?.[0]?.type || "mcq");
   const [questions, setQuestions] = useState(existingDeck?.questions || []);
@@ -540,6 +549,22 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
   const [uploadError, setUploadError] = useState("");
   const [editorTab, setEditorTab] = useState("general");
   const fileInputRef = useRef(null);
+
+  // Resilient prefill — `userClasses` may arrive AFTER this component mounts
+  // (Decks.jsx fetches them in parallel with the route). If subject/grade
+  // started empty because prefilledClass was null at mount, fill them in once
+  // the class data lands. We only do this for creation-from-prefill, never
+  // for an existing deck (whose values are authoritative).
+  useEffect(() => {
+    if (existingDeck) return;
+    if (!prefilledClassId) return;
+    if (subject && grade) return; // already filled by initial state, nothing to do
+    const cls = userClasses.find(c => c.id === prefilledClassId);
+    if (!cls) return;
+    if (!subject) setSubject(cls.subject);
+    if (!grade) setGrade(cls.grade);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userClasses, prefilledClassId, existingDeck]);
 
   // ── Derivation tracking ──
   // If this deck is a copy of someone else's, fetch the original's questions
@@ -1293,6 +1318,10 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
     const payload = {
       author_id: userId, class_id: classId || null, title: title.trim(), description: desc.trim(),
       subject, grade, language: deckLang, questions, tags: tagArr,
+      // Section is required by the schema (NOT NULL with check constraint).
+      // Validate again right before INSERT in case it got mutated; default to
+      // general_review if anything weird shows up.
+      section: isValidSection(section) ? section : DEFAULT_SECTION,
       is_public: finalPublic,
       is_adapted: finalAdapted,
       cover_color: coverColor, cover_icon: coverIcon,
@@ -1385,6 +1414,52 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
             <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: C.textSecondary, marginBottom: 5 }}>{t.description}</label>
             <textarea className="dk-input" value={desc} onChange={e => setDesc(e.target.value)} placeholder={t.descPlaceholder} style={{ ...inp, minHeight: 60, resize: "vertical" }} />
           </div>
+          {/* Class selection. Three layers:
+                1. If a class is selected, a colored pill shows "Adding to: ClassName"
+                   so the teacher always knows the context, even when they came in
+                   from a class page (where this is supposed to be obvious but
+                   the form's emptiness made it confusing).
+                2. The select itself — for switching/clearing.
+                3. The section selector below — only meaningful when a class is set. */}
+          {classId && (() => {
+            const selectedClass = userClasses.find(c => c.id === classId);
+            if (!selectedClass) return null;
+            const clsAccent = resolveClassAccent(selectedClass);
+            return (
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                  padding: "8px 12px",
+                  background: clsAccent + "10",
+                  border: `1px solid ${clsAccent}33`,
+                  borderRadius: 10,
+                  fontFamily: "'Outfit',sans-serif",
+                }}
+              >
+                <div style={{
+                  width: 28, height: 28, borderRadius: 7,
+                  background: clsAccent,
+                  display: "inline-flex", alignItems: "center", justifyContent: "center",
+                  flexShrink: 0,
+                }}>
+                  <CIcon name="school" size={14} inline />
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 10, fontWeight: 600, color: C.textMuted, textTransform: "uppercase", letterSpacing: ".05em" }}>
+                    {t.addingToClass}
+                  </div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: C.text, lineHeight: 1.2, wordBreak: "break-word" }}>
+                    {selectedClass.name}
+                  </div>
+                  <div style={{ fontSize: 11, color: C.textSecondary, marginTop: 1 }}>
+                    {selectedClass.subject} · {selectedClass.grade}
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
           <div>
             <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: C.textSecondary, marginBottom: 5 }}>{t.addToClass}</label>
             <select className="dk-input" value={classId} onChange={e => {
@@ -1397,6 +1472,27 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
             }} style={sel}>
               <option value="">{t.noClass}</option>
               {userClasses.map(c => <option key={c.id} value={c.id}>{c.name} ({c.subject} · {c.grade})</option>)}
+            </select>
+          </div>
+          {/* Section selector — only meaningful when a class is set. We still
+              render it greyed out when no class so the teacher knows the
+              option exists; tooltip explains. */}
+          <div>
+            <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: C.textSecondary, marginBottom: 5 }}>
+              {t.sectionLabel}
+            </label>
+            <select
+              className="dk-input"
+              value={section}
+              onChange={e => setSection(e.target.value)}
+              disabled={!classId}
+              style={{ ...sel, opacity: classId ? 1 : 0.55, cursor: classId ? "pointer" : "not-allowed" }}
+              title={classId ? t.sectionHelp : t.sectionLockedHelp}
+            >
+              {SECTIONS.map(s => {
+                const labels = sectionLabels(l);
+                return <option key={s.id} value={s.id}>{labels[s.id]?.name || s.id}</option>;
+              })}
             </select>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 10 }}>

@@ -40,6 +40,10 @@ const i18n = {
     title: "Title", titlePlaceholder: "e.g. French Revolution Review",
     description: "Description", descPlaceholder: "What this deck covers...",
     addToClass: "Add to class (optional)", noClass: "No class — general deck",
+    addingToClass: "Adding to",
+    sectionLabel: "Section",
+    sectionHelp: "Where this deck lives in the class.",
+    sectionLockedHelp: "Pick a class first to choose a section.",
     subject: "Subject", grade: "Grade", language: "Language", tags: "Tags (comma-separated)",
     tagsPlaceholder: "revolution, europe, history",
     activityType: "Activity type", questions: "Questions", addQuestion: "+ Add question",
@@ -156,6 +160,10 @@ const i18n = {
     title: "Título", titlePlaceholder: "ej. Repaso Revolución Francesa",
     description: "Descripción", descPlaceholder: "Qué cubre este deck...",
     addToClass: "Agregar a clase (opcional)", noClass: "Sin clase — deck general",
+    addingToClass: "Agregando a",
+    sectionLabel: "Sección",
+    sectionHelp: "Dónde vive este deck en la clase.",
+    sectionLockedHelp: "Elige una clase primero para escoger sección.",
     subject: "Materia", grade: "Grado", language: "Idioma", tags: "Etiquetas (separadas por coma)",
     tagsPlaceholder: "revolución, europa, historia",
     activityType: "Tipo de actividad", questions: "Preguntas", addQuestion: "+ Agregar pregunta",
@@ -272,6 +280,10 @@ const i18n = {
     title: "제목", titlePlaceholder: "예: 프랑스 혁명 복습",
     description: "설명", descPlaceholder: "이 덱의 내용...",
     addToClass: "수업에 추가 (선택)", noClass: "수업 없음 — 일반 덱",
+    addingToClass: "추가 대상",
+    sectionLabel: "섹션",
+    sectionHelp: "이 덱이 수업에서 위치할 곳입니다.",
+    sectionLockedHelp: "먼저 수업을 선택하세요.",
     subject: "과목", grade: "학년", language: "언어", tags: "태그 (쉼표 구분)",
     tagsPlaceholder: "혁명, 유럽, 역사",
     activityType: "활동 유형", questions: "문제", addQuestion: "+ 문제 추가",
@@ -570,11 +582,28 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
     // "+ Create deck" inside an empty class group). On /decks/:id/edit the
     // existing deck's class wins, so we ignore the param.
     const prefilledClassId = view === "create" ? (searchParams.get(QUERY.CLASS) || null) : null;
+    // ?section= on /decks/new pre-fills the deck's section, used when the
+    // teacher clicks "+ New warmup" / "+ New exit ticket" / "+ New review"
+    // from inside ClassPage. On edit, existing deck's section wins.
+    const prefilledSection = view === "create" ? (searchParams.get("section") || null) : null;
 
     // Edge case: deep-link refresh on /decks/:id/edit before myDecks finished
     // loading. Show the page-level loader and let the next render resolve
     // `editing` from the loaded list.
     if (view === "edit" && loading) {
+      return (
+        <div style={{ padding: "28px 20px" }}>
+          <style>{css}</style>
+          <PageHeader title={t.pageTitle} icon="book" lang={l} setLang={setLang} maxWidth={600} onOpenMobileMenu={onOpenMobileMenu} />
+          <div style={{ maxWidth: 600, margin: "0 auto", padding: 40, textAlign: "center", color: C.textMuted, fontFamily: "'Outfit',sans-serif" }}>{t.loading || "Loading…"}</div>
+        </div>
+      );
+    }
+    // Same race-condition guard for create: if we land on /decks/new?class=<id>
+    // before userClasses has loaded, the editor would mount with an empty
+    // userClasses array and not be able to resolve the class for prefill.
+    // Wait for the load to finish before instantiating the editor.
+    if (view === "create" && loading && prefilledClassId) {
       return (
         <div style={{ padding: "28px 20px" }}>
           <style>{css}</style>
@@ -601,6 +630,7 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
           userClasses={userClasses}
           existingDeck={editing}
           prefilledClassId={prefilledClassId}
+          prefilledSection={prefilledSection}
           onCreated={(d) => {
             if (editing) setMyDecks(prev => prev.map(dk => dk.id === d.id ? d : dk));
             else setMyDecks(prev => [d, ...prev]);
