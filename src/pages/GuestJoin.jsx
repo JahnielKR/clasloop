@@ -114,6 +114,16 @@ export default function GuestJoin({ initialCode = "" }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Force light theme while mounted — same rationale as PublicHome. Guest
+  // join is a marketing-adjacent entry point, students arrive here without
+  // an account and we want consistent visuals regardless of their OS theme.
+  useEffect(() => {
+    const html = document.documentElement;
+    const previous = html.getAttribute("data-theme") || "light";
+    html.setAttribute("data-theme", "light");
+    return () => { html.setAttribute("data-theme", previous); };
+  }, []);
+
   const handleSubmit = () => {
     setError("");
     if (!codeValid) { setError(t.notFound); return; }

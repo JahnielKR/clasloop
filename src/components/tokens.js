@@ -21,6 +21,11 @@
 // ─── Theme CSS — injected once at app boot ──────────────────────────────
 export const THEME_CSS = `
 :root {
+  /* color-scheme tells the browser to render native widgets (option lists,
+     scrollbars, autofill, etc.) using the matching theme. Without this,
+     <option> dropdowns inherit the OS appearance and end up black-on-white
+     even when the page is dark. */
+  color-scheme: light;
   /* Surfaces */
   --c-bg: #FFFFFF;
   --c-bg-soft: #F7F7F5;
@@ -59,6 +64,7 @@ export const THEME_CSS = `
 }
 
 [data-theme="dark"] {
+  color-scheme: dark;
   /* Surfaces — dark inverts white→near-black, soft→slightly lifted surface */
   --c-bg: #1E1F22;
   --c-bg-soft: #16171A;

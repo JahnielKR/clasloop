@@ -132,16 +132,21 @@ const inp = { fontFamily: "'Outfit',sans-serif", background: C.bg, border: `1px 
 const css = `
   @keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
   @keyframes flashGlow {
-    0%   { box-shadow: 0 0 0 0 #2383E266, 0 0 18px 6px #2383E244; }
+    /* Uses --c-accent so the flash matches the active theme (lighter blue
+       in dark mode, deeper blue in light mode). */
+    0%   { box-shadow: 0 0 0 0 var(--c-accent), 0 0 18px 6px var(--c-accent); }
     100% { box-shadow: 0 0 0 0 transparent, 0 0 0 0 transparent; }
   }
   .fade-up { animation: fadeUp .35s ease-out both; }
   .mc-flash { animation: flashGlow 1.6s ease-out; border-radius: 12px; }
+  /* Hover: previously hardcoded #F5F9FF (very light blue) which read fine
+     in light mode but flashed near-white over the dark surface in dark
+     mode. Use accent-soft so it stays subtle in both themes. */
   .mc-class-card { transition: all .15s ease; cursor: pointer; }
-  .mc-class-card:hover { background: #F5F9FF !important; transform: translateY(-2px); box-shadow: 0 4px 14px rgba(35,131,226,0.10); }
+  .mc-class-card:hover { background: var(--c-accent-soft) !important; transform: translateY(-2px); box-shadow: 0 4px 14px rgba(35,131,226,0.10); }
   .mc-class-card:active { transform: translateY(0) scale(.99); }
   .mc-deck-card { transition: all .15s ease; cursor: pointer; }
-  .mc-deck-card:hover { background: #F5F9FF !important; transform: translateY(-2px); box-shadow: 0 4px 14px rgba(35,131,226,0.10); }
+  .mc-deck-card:hover { background: var(--c-accent-soft) !important; transform: translateY(-2px); box-shadow: 0 4px 14px rgba(35,131,226,0.10); }
   .mc-deck-card:active { transform: translateY(0) scale(.99); }
   .mc-tab:hover { color: #2383E2 !important; }
   .mc-join-btn:not(:disabled):hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(35,131,226,0.25); }
