@@ -1,13 +1,15 @@
 // ─── ClassPage — teacher's view of a single class ──────────────────────
-// Phase 1 of the Punto 4 refactor. Replaces the old "Decks filtered by class"
-// drilldown with a dedicated page that organizes content by section:
+// Punto 4 refactor (Phases 1 + 3). Organizes class content by section:
 //   - Warmups (start of class)
 //   - Exit tickets (end of class)
 //   - General review (everything else / spaced repetition pool)
 //
-// Phase 3 will add Units (a layer between section and decks) — the data
-// model already supports them via decks.unit_id, this page just doesn't
-// render them yet. Search for "TODO Phase 3" for the hookup points.
+// Phase 3 adds Units — an optional layer between section and decks. Within
+// each section the teacher can group decks into named units (e.g. inside
+// Warmups: "Unit 1", "Unit 2"). Decks with unit_id=null show under an
+// "Unsorted" bucket. Drag-reorder, inline rename, and unit deletion are
+// deferred to a follow-up turn — this iteration covers create + assign +
+// listing, which is enough to validate the model.
 
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
@@ -55,6 +57,17 @@ const i18n = {
     slider: "Slider",
     edit: "Edit",
     practice: "Practice",
+    // Units (Phase 3)
+    unitsAll: "All",
+    unitsUnsorted: "Unsorted",
+    unitNew: "+ Unit",
+    unitNamePlaceholder: "Unit name (e.g. Unit 1, Mitosis)",
+    unitCreate: "Create",
+    unitCancel: "Cancel",
+    unitMoveTo: "Move to…",
+    unitNoUnitsHint: "Group decks into units (Unit 1, Unit 2…) to keep them organized as you build up.",
+    unitErrorEmpty: "Give the unit a name first.",
+    unitErrorTooLong: "Keep the name under 60 characters.",
   },
   es: {
     backToMyClasses: "Volver a Mis clases",
@@ -83,6 +96,16 @@ const i18n = {
     slider: "Slider",
     edit: "Editar",
     practice: "Practicar",
+    unitsAll: "Todas",
+    unitsUnsorted: "Sin unidad",
+    unitNew: "+ Unidad",
+    unitNamePlaceholder: "Nombre de unidad (ej. Unidad 1, Mitosis)",
+    unitCreate: "Crear",
+    unitCancel: "Cancelar",
+    unitMoveTo: "Mover a…",
+    unitNoUnitsHint: "Agrupa decks en unidades (Unidad 1, Unidad 2…) para mantenerlos organizados a medida que crece la clase.",
+    unitErrorEmpty: "Ponle un nombre a la unidad.",
+    unitErrorTooLong: "Mantén el nombre bajo 60 caracteres.",
   },
   ko: {
     backToMyClasses: "내 수업으로 돌아가기",
@@ -111,6 +134,16 @@ const i18n = {
     slider: "슬라이더",
     edit: "편집",
     practice: "연습",
+    unitsAll: "전체",
+    unitsUnsorted: "미분류",
+    unitNew: "+ 단원",
+    unitNamePlaceholder: "단원 이름 (예: 1단원, 세포분열)",
+    unitCreate: "만들기",
+    unitCancel: "취소",
+    unitMoveTo: "이동…",
+    unitNoUnitsHint: "덱을 단원(1단원, 2단원...)으로 묶으면 정리하기 좋습니다.",
+    unitErrorEmpty: "단원 이름을 입력하세요.",
+    unitErrorTooLong: "이름은 60자 이내로 작성하세요.",
   },
 };
 
@@ -265,9 +298,18 @@ function activityLabel(deck, t) {
 }
 
 // ─── Deck card (within a section) ───────────────────────────────────────
-function DeckRow({ deck, accent, t, onOpen, onPractice }) {
+// units: list of {id, name} for the deck's section, used by the Move-to
+// dropdown so the teacher can reassign the deck to a different unit
+// without leaving the page.
+function DeckRow({ deck, accent, t, onOpen, onPractice, units = [], onChangeUnit }) {
   const qs = deck.questions || [];
   const deckAccent = resolveDeckColor(deck) || accent;
+  const handleUnitChange = (e) => {
+    e.stopPropagation();
+    const newId = e.target.value || null;
+    if (newId === (deck.unit_id || null)) return;
+    onChangeUnit && onChangeUnit(deck, newId);
+  };
   return (
     <div
       onClick={onOpen}
@@ -294,8 +336,38 @@ function DeckRow({ deck, accent, t, onOpen, onPractice }) {
           </div>
         </div>
       </div>
-      <div style={{ fontSize: 11, color: C.textMuted, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <span>{qs.length} {t.questions} · {activityLabel(deck, t)}</span>
+      <div style={{ fontSize: 11, color: C.textMuted, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+        <span style={{ flexShrink: 0 }}>{qs.length} {t.questions} · {activityLabel(deck, t)}</span>
+        {/* Move-to-unit selector — only renders if there's at least one unit
+            in this section. Click events stop-propagation so opening the
+            dropdown doesn't trigger the card's onOpen. Native <select> for
+            a11y + free mobile picker. */}
+        {units.length > 0 && (
+          <select
+            value={deck.unit_id || ""}
+            onChange={handleUnitChange}
+            onClick={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
+            title={t.unitMoveTo}
+            style={{
+              fontSize: 10,
+              fontFamily: "'Outfit',sans-serif",
+              padding: "2px 18px 2px 6px",
+              border: `1px solid ${C.border}`,
+              borderRadius: 5,
+              background: C.bg,
+              color: C.textSecondary,
+              cursor: "pointer",
+              maxWidth: 130,
+              minWidth: 0,
+              textOverflow: "ellipsis",
+              flexShrink: 1,
+            }}
+          >
+            <option value="">{t.unitsUnsorted}</option>
+            {units.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+          </select>
+        )}
       </div>
     </div>
   );
@@ -310,29 +382,42 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
 
   const [classObj, setClassObj] = useState(null);
   const [decks, setDecks] = useState([]);
+  const [units, setUnits] = useState([]);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [activeSection, setActiveSection] = useState(DEFAULT_SECTION);
+  // Per-section unit filter. null = "All units" (show every deck in the
+  // section, grouped by unit). A specific unit id = show only that unit.
+  // "__unsorted__" = show only the decks with unit_id null. Resets when
+  // the active section changes (filters from one tab don't bleed into
+  // another).
+  const [unitFilter, setUnitFilter] = useState(null);
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [showNewUnit, setShowNewUnit] = useState(false);
+  const [newUnitName, setNewUnitName] = useState("");
+  const [newUnitError, setNewUnitError] = useState("");
+  const [creatingUnit, setCreatingUnit] = useState(false);
 
-  // Hydrate class + its decks. We refetch when classId changes so the page
-  // works correctly when a teacher navigates between two classes.
+  // Hydrate class + its decks + its units. We refetch when classId changes
+  // so the page works correctly when a teacher navigates between two classes.
   useEffect(() => {
     if (!classId || !profile?.id) return;
     let cancelled = false;
     (async () => {
       setLoading(true);
       setNotFound(false);
-      const [classRes, decksRes] = await Promise.all([
+      const [classRes, decksRes, unitsRes] = await Promise.all([
         supabase.from("classes").select("*").eq("id", classId).maybeSingle(),
         supabase.from("decks").select("*").eq("class_id", classId).order("created_at", { ascending: false }),
+        supabase.from("units").select("*").eq("class_id", classId).order("position", { ascending: true }),
       ]);
       if (cancelled) return;
       if (!classRes.data) {
         setNotFound(true);
         setClassObj(null);
         setDecks([]);
+        setUnits([]);
         setLoading(false);
         return;
       }
@@ -344,15 +429,27 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
         setNotFound(true);
         setClassObj(null);
         setDecks([]);
+        setUnits([]);
         setLoading(false);
         return;
       }
       setClassObj(classRes.data);
       setDecks(decksRes.data || []);
+      setUnits(unitsRes.data || []);
       setLoading(false);
     })();
     return () => { cancelled = true; };
   }, [classId, profile?.id]);
+
+  // When the section changes, reset the unit filter — filters are scoped
+  // to one section at a time. Also close any open unit-creation form so
+  // we don't leave half-typed input lying around when switching tabs.
+  useEffect(() => {
+    setUnitFilter(null);
+    setShowNewUnit(false);
+    setNewUnitName("");
+    setNewUnitError("");
+  }, [activeSection]);
 
   const accent = classObj ? resolveClassAccent(classObj) : C.accent;
 
@@ -390,6 +487,62 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
       try { document.execCommand("copy"); setCopied(true); setTimeout(() => setCopied(false), 1500); }
       catch (_) {}
       document.body.removeChild(ta);
+    }
+  };
+
+  // ── Unit handlers ─────────────────────────────────────────────────────
+  // Create a unit in the active section. Optimistic insert: we add a temp
+  // record to state so the UI feels instant, then reconcile with the
+  // server's row (which has the real id + position) when it returns.
+  const handleCreateUnit = async () => {
+    const trimmed = newUnitName.trim();
+    if (!trimmed) { setNewUnitError(t.unitErrorEmpty); return; }
+    if (trimmed.length > 60) { setNewUnitError(t.unitErrorTooLong); return; }
+    setNewUnitError("");
+    setCreatingUnit(true);
+    // Position = max + 1 within (class, section) so it lands at the end of
+    // the chip row. Computing client-side is fine for the small N we expect
+    // per section; under serious load we'd switch to a DB trigger.
+    const sectionUnits = units.filter(u => u.section === activeSection);
+    const nextPos = sectionUnits.length === 0
+      ? 0
+      : Math.max(...sectionUnits.map(u => u.position || 0)) + 1;
+    const { data, error } = await supabase
+      .from("units")
+      .insert({
+        class_id: classObj.id,
+        section: activeSection,
+        name: trimmed,
+        position: nextPos,
+      })
+      .select()
+      .single();
+    setCreatingUnit(false);
+    if (error || !data) {
+      setNewUnitError(error?.message || "Could not create unit");
+      return;
+    }
+    setUnits(prev => [...prev, data]);
+    setNewUnitName("");
+    setShowNewUnit(false);
+    // Auto-focus the freshly-created unit so the teacher can immediately see
+    // its bucket (empty, but ready to receive decks via the Move-to picker).
+    setUnitFilter(data.id);
+  };
+
+  // Reassign a deck to a different unit (or to no unit at all when newUnitId
+  // is null). Optimistic UI: flip locally first, roll back on error so the
+  // dropdown doesn't feel laggy. Server responds with no payload (just status).
+  const handleChangeDeckUnit = async (deck, newUnitId) => {
+    const previous = deck.unit_id;
+    setDecks(prev => prev.map(d => d.id === deck.id ? { ...d, unit_id: newUnitId } : d));
+    const { error } = await supabase
+      .from("decks")
+      .update({ unit_id: newUnitId })
+      .eq("id", deck.id);
+    if (error) {
+      // Rollback so the picker goes back to where the deck actually lives.
+      setDecks(prev => prev.map(d => d.id === deck.id ? { ...d, unit_id: previous } : d));
     }
   };
 
@@ -452,6 +605,38 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
   const activeLabel = sLabels[activeSection]?.name || activeSection;
   const activeNewLabel = sLabels[activeSection]?.newOne || "New";
   const activeEmptyLabel = sLabels[activeSection]?.empty || "Nothing yet.";
+
+  // Units that belong to the active section. Pre-sorted by position from
+  // the fetch query, so chip order is stable.
+  const unitsForSection = units.filter(u => u.section === activeSection);
+
+  // Decks visible in the active tab, after applying the unit filter.
+  // unitFilter === null (default)         → show everything in the section
+  // unitFilter === "__unsorted__"         → only decks with unit_id null
+  // unitFilter === <uuid>                 → only decks with that unit_id
+  const filteredDecks = unitFilter === null
+    ? activeDecks
+    : unitFilter === "__unsorted__"
+      ? activeDecks.filter(d => !d.unit_id)
+      : activeDecks.filter(d => d.unit_id === unitFilter);
+
+  // For the "All" view (unitFilter null) we group decks visually by unit
+  // so the teacher sees the structure even without filtering. When a
+  // specific unit is selected we render a flat grid (no extra grouping
+  // headers — only one group is visible by definition).
+  const groupedByUnit = (() => {
+    if (unitFilter !== null) return null;
+    if (unitsForSection.length === 0) return null; // no units → flat grid
+    const groups = unitsForSection.map(u => ({
+      unit: u,
+      decks: activeDecks.filter(d => d.unit_id === u.id),
+    }));
+    const unsorted = activeDecks.filter(d => !d.unit_id);
+    if (unsorted.length > 0) {
+      groups.push({ unit: null, decks: unsorted });
+    }
+    return groups;
+  })();
 
   // ── Render ────────────────────────────────────────────────────────────
   return (
@@ -652,7 +837,211 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
         </button>
       </div>
 
-      {/* Deck list (or empty state) */}
+      {/* Unit filter chips + create-unit button. Shown whenever there's at
+          least one unit in the section, OR the teacher hasn't created any
+          yet but there are decks (to expose the "+ Unit" affordance). When
+          the section is empty AND has no units, hide entirely so the
+          empty state of decks is the only message. */}
+      {(unitsForSection.length > 0 || activeDecks.length > 0) && (
+        <div style={{ marginBottom: 14 }}>
+          <div style={{
+            display: "flex",
+            flexWrap: "wrap",
+            gap: 6,
+            alignItems: "center",
+          }}>
+            {/* "All" chip */}
+            <button
+              onClick={() => setUnitFilter(null)}
+              className="cl-unit-chip"
+              style={{
+                padding: "5px 11px",
+                borderRadius: 999,
+                fontSize: 12,
+                fontWeight: 600,
+                fontFamily: "'Outfit',sans-serif",
+                background: unitFilter === null ? accent : C.bgSoft,
+                color: unitFilter === null ? "#fff" : C.textSecondary,
+                border: `1px solid ${unitFilter === null ? accent : C.border}`,
+                cursor: "pointer",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {t.unitsAll} <span style={{ opacity: .8, marginLeft: 2 }}>({activeDecks.length})</span>
+            </button>
+            {/* One chip per unit */}
+            {unitsForSection.map(u => {
+              const count = activeDecks.filter(d => d.unit_id === u.id).length;
+              const isActive = unitFilter === u.id;
+              return (
+                <button
+                  key={u.id}
+                  onClick={() => setUnitFilter(u.id)}
+                  className="cl-unit-chip"
+                  style={{
+                    padding: "5px 11px",
+                    borderRadius: 999,
+                    fontSize: 12,
+                    fontWeight: 600,
+                    fontFamily: "'Outfit',sans-serif",
+                    background: isActive ? accent : C.bgSoft,
+                    color: isActive ? "#fff" : C.textSecondary,
+                    border: `1px solid ${isActive ? accent : C.border}`,
+                    cursor: "pointer",
+                    whiteSpace: "nowrap",
+                    maxWidth: 200,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                  }}
+                  title={u.name}
+                >
+                  {u.name} <span style={{ opacity: .8, marginLeft: 2 }}>({count})</span>
+                </button>
+              );
+            })}
+            {/* "Unsorted" chip — only show if there are actually unsorted
+                decks (otherwise it's just visual noise). */}
+            {activeDecks.some(d => !d.unit_id) && unitsForSection.length > 0 && (
+              <button
+                onClick={() => setUnitFilter("__unsorted__")}
+                className="cl-unit-chip"
+                style={{
+                  padding: "5px 11px",
+                  borderRadius: 999,
+                  fontSize: 12,
+                  fontWeight: 600,
+                  fontFamily: "'Outfit',sans-serif",
+                  background: unitFilter === "__unsorted__" ? C.textSecondary : C.bgSoft,
+                  color: unitFilter === "__unsorted__" ? "#fff" : C.textMuted,
+                  border: `1px solid ${unitFilter === "__unsorted__" ? C.textSecondary : C.border}`,
+                  cursor: "pointer",
+                  whiteSpace: "nowrap",
+                  fontStyle: "italic",
+                }}
+              >
+                {t.unitsUnsorted} <span style={{ opacity: .8, marginLeft: 2 }}>({activeDecks.filter(d => !d.unit_id).length})</span>
+              </button>
+            )}
+            {/* "+ Unit" button — opens the inline create form. */}
+            {!showNewUnit && (
+              <button
+                onClick={() => { setShowNewUnit(true); setNewUnitError(""); }}
+                style={{
+                  padding: "5px 11px",
+                  borderRadius: 999,
+                  fontSize: 12,
+                  fontWeight: 600,
+                  fontFamily: "'Outfit',sans-serif",
+                  background: "transparent",
+                  color: accent,
+                  border: `1px dashed ${accent}66`,
+                  cursor: "pointer",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {t.unitNew}
+              </button>
+            )}
+          </div>
+
+          {/* Inline create-unit form. Inputs autofocus so the teacher can
+              just type → Enter without grabbing the mouse. */}
+          {showNewUnit && (
+            <div className="ns-fade" style={{
+              marginTop: 8,
+              display: "flex",
+              gap: 6,
+              alignItems: "center",
+              flexWrap: "wrap",
+            }}>
+              <input
+                type="text"
+                value={newUnitName}
+                onChange={(e) => { setNewUnitName(e.target.value); if (newUnitError) setNewUnitError(""); }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !creatingUnit) handleCreateUnit();
+                  if (e.key === "Escape") { setShowNewUnit(false); setNewUnitName(""); setNewUnitError(""); }
+                }}
+                placeholder={t.unitNamePlaceholder}
+                autoFocus
+                disabled={creatingUnit}
+                maxLength={60}
+                style={{
+                  flex: "1 1 220px",
+                  minWidth: 0,
+                  fontFamily: "'Outfit',sans-serif",
+                  fontSize: 13,
+                  padding: "7px 11px",
+                  border: `1px solid ${C.border}`,
+                  borderRadius: 8,
+                  background: C.bg,
+                  color: C.text,
+                  outline: "none",
+                }}
+              />
+              <button
+                onClick={handleCreateUnit}
+                disabled={creatingUnit || !newUnitName.trim()}
+                style={{
+                  padding: "7px 14px",
+                  borderRadius: 8,
+                  fontSize: 12,
+                  fontWeight: 600,
+                  fontFamily: "'Outfit',sans-serif",
+                  background: (creatingUnit || !newUnitName.trim()) ? C.bgSoft : accent,
+                  color: (creatingUnit || !newUnitName.trim()) ? C.textMuted : "#fff",
+                  border: "none",
+                  cursor: (creatingUnit || !newUnitName.trim()) ? "default" : "pointer",
+                }}
+              >
+                {creatingUnit ? "…" : t.unitCreate}
+              </button>
+              <button
+                onClick={() => { setShowNewUnit(false); setNewUnitName(""); setNewUnitError(""); }}
+                disabled={creatingUnit}
+                style={{
+                  padding: "7px 12px",
+                  borderRadius: 8,
+                  fontSize: 12,
+                  fontWeight: 500,
+                  fontFamily: "'Outfit',sans-serif",
+                  background: "transparent",
+                  color: C.textMuted,
+                  border: `1px solid ${C.border}`,
+                  cursor: creatingUnit ? "default" : "pointer",
+                }}
+              >
+                {t.unitCancel}
+              </button>
+              {newUnitError && (
+                <div style={{ flexBasis: "100%", fontSize: 11, color: C.red, fontFamily: "'Outfit',sans-serif" }}>
+                  {newUnitError}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Hint when there are decks but no units yet — soft nudge,
+              not a blocker. Disappears as soon as the teacher creates
+              their first unit. */}
+          {unitsForSection.length === 0 && activeDecks.length > 0 && !showNewUnit && (
+            <div style={{
+              marginTop: 8,
+              fontSize: 11,
+              color: C.textMuted,
+              fontFamily: "'Outfit',sans-serif",
+              fontStyle: "italic",
+            }}>
+              {t.unitNoUnitsHint}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Deck list (or empty state) — three modes:
+            1. activeDecks empty                      → empty state
+            2. unitFilter set or no units exist        → flat grid (filteredDecks)
+            3. unitFilter null AND units exist         → grouped by unit */}
       {activeDecks.length === 0 ? (
         <div style={{
           background: C.bg,
@@ -666,6 +1055,56 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
         }}>
           {activeEmptyLabel}
         </div>
+      ) : groupedByUnit ? (
+        <div className="ns-fade" style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+          {groupedByUnit.map(({ unit, decks: groupDecks }) => (
+            <div key={unit ? unit.id : "__unsorted__"}>
+              <div style={{
+                fontSize: 12,
+                fontWeight: 700,
+                color: unit ? C.text : C.textMuted,
+                fontFamily: "'Outfit',sans-serif",
+                marginBottom: 8,
+                paddingLeft: 2,
+                fontStyle: unit ? "normal" : "italic",
+              }}>
+                {unit ? unit.name : t.unitsUnsorted}
+                <span style={{ fontWeight: 500, color: C.textMuted, marginLeft: 6 }}>· {groupDecks.length}</span>
+              </div>
+              <div style={{
+                display: "grid",
+                gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fill, minmax(220px, 1fr))",
+                gap: 12,
+              }}>
+                {groupDecks.map(deck => (
+                  <DeckRow
+                    key={deck.id}
+                    deck={deck}
+                    accent={accent}
+                    t={t}
+                    units={unitsForSection}
+                    onChangeUnit={handleChangeDeckUnit}
+                    onOpen={() => navigate(buildRoute.deckEdit(deck.id))}
+                    onPractice={() => onLaunchPractice && onLaunchPractice(deck)}
+                  />
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : filteredDecks.length === 0 ? (
+        <div style={{
+          background: C.bg,
+          border: `1px dashed ${C.border}`,
+          borderRadius: 12,
+          padding: "30px 20px",
+          textAlign: "center",
+          color: C.textMuted,
+          fontSize: 12,
+          fontFamily: "'Outfit',sans-serif",
+        }}>
+          —
+        </div>
       ) : (
         <div
           className="ns-fade"
@@ -675,12 +1114,14 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
             gap: 12,
           }}
         >
-          {activeDecks.map(deck => (
+          {filteredDecks.map(deck => (
             <DeckRow
               key={deck.id}
               deck={deck}
               accent={accent}
               t={t}
+              units={unitsForSection}
+              onChangeUnit={handleChangeDeckUnit}
               onOpen={() => navigate(buildRoute.deckEdit(deck.id))}
               onPractice={() => onLaunchPractice && onLaunchPractice(deck)}
             />
@@ -710,6 +1151,18 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
         .cl-color-swatch-auto:hover {
           filter: none;
           box-shadow: 0 2px 6px rgba(0,0,0,.08);
+        }
+        /* Unit chips: soft hover so the click target feels alive without
+           changing the active state visually. */
+        .cl-unit-chip {
+          transition: filter .12s ease, transform .12s ease, box-shadow .12s ease;
+        }
+        .cl-unit-chip:hover {
+          filter: brightness(1.04);
+          transform: translateY(-1px);
+        }
+        .cl-unit-chip:active {
+          transform: translateY(0);
         }
         @keyframes ns-fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
         .ns-fade { animation: ns-fadeIn .25s ease; }
