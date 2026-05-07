@@ -387,10 +387,11 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
   const [notFound, setNotFound] = useState(false);
   const [activeSection, setActiveSection] = useState(DEFAULT_SECTION);
   // Per-section unit filter. null = "All units" (show every deck in the
-  // section, grouped by unit). A specific unit id = show only that unit.
-  // "__unsorted__" = show only the decks with unit_id null. Resets when
-  // the active section changes (filters from one tab don't bleed into
-  // another).
+  // section, grouped by unit, with an "Unsorted" group at the end for decks
+  // without a unit). A specific unit id = show only that unit. The legacy
+  // "__unsorted__" filter was removed — its info is already visible in the
+  // "All" grouped view, and a duplicate chip just added noise. Resets when
+  // the active section changes.
   const [unitFilter, setUnitFilter] = useState(null);
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -398,6 +399,21 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
   const [newUnitName, setNewUnitName] = useState("");
   const [newUnitError, setNewUnitError] = useState("");
   const [creatingUnit, setCreatingUnit] = useState(false);
+  // Which unit groups are currently collapsed in the "All" view. Set of unit
+  // ids (string for a real unit, "__unsorted__" for the unsorted bucket).
+  // Stored in component state — persists while the page is open but resets
+  // on full reload, which is the right tradeoff for a UI affordance like
+  // this (no need to remember collapse state across sessions).
+  const [collapsedUnits, setCollapsedUnits] = useState(() => new Set());
+
+  const toggleUnitCollapsed = (key) => {
+    setCollapsedUnits(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
 
   // Hydrate class + its decks + its units. We refetch when classId changes
   // so the page works correctly when a teacher navigates between two classes.
@@ -611,14 +627,11 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
   const unitsForSection = units.filter(u => u.section === activeSection);
 
   // Decks visible in the active tab, after applying the unit filter.
-  // unitFilter === null (default)         → show everything in the section
-  // unitFilter === "__unsorted__"         → only decks with unit_id null
-  // unitFilter === <uuid>                 → only decks with that unit_id
+  // unitFilter === null      → show everything in the section
+  // unitFilter === <uuid>    → show only decks with that unit_id
   const filteredDecks = unitFilter === null
     ? activeDecks
-    : unitFilter === "__unsorted__"
-      ? activeDecks.filter(d => !d.unit_id)
-      : activeDecks.filter(d => d.unit_id === unitFilter);
+    : activeDecks.filter(d => d.unit_id === unitFilter);
 
   // For the "All" view (unitFilter null) we group decks visually by unit
   // so the teacher sees the structure even without filtering. When a
@@ -899,29 +912,6 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
                 </button>
               );
             })}
-            {/* "Unsorted" chip — only show if there are actually unsorted
-                decks (otherwise it's just visual noise). */}
-            {activeDecks.some(d => !d.unit_id) && unitsForSection.length > 0 && (
-              <button
-                onClick={() => setUnitFilter("__unsorted__")}
-                className="cl-unit-chip"
-                style={{
-                  padding: "5px 11px",
-                  borderRadius: 999,
-                  fontSize: 12,
-                  fontWeight: 600,
-                  fontFamily: "'Outfit',sans-serif",
-                  background: unitFilter === "__unsorted__" ? C.textSecondary : C.bgSoft,
-                  color: unitFilter === "__unsorted__" ? "#fff" : C.textMuted,
-                  border: `1px solid ${unitFilter === "__unsorted__" ? C.textSecondary : C.border}`,
-                  cursor: "pointer",
-                  whiteSpace: "nowrap",
-                  fontStyle: "italic",
-                }}
-              >
-                {t.unitsUnsorted} <span style={{ opacity: .8, marginLeft: 2 }}>({activeDecks.filter(d => !d.unit_id).length})</span>
-              </button>
-            )}
             {/* "+ Unit" button — opens the inline create form. */}
             {!showNewUnit && (
               <button
@@ -1057,40 +1047,76 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
         </div>
       ) : groupedByUnit ? (
         <div className="ns-fade" style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-          {groupedByUnit.map(({ unit, decks: groupDecks }) => (
-            <div key={unit ? unit.id : "__unsorted__"}>
-              <div style={{
-                fontSize: 12,
-                fontWeight: 700,
-                color: unit ? C.text : C.textMuted,
-                fontFamily: "'Outfit',sans-serif",
-                marginBottom: 8,
-                paddingLeft: 2,
-                fontStyle: unit ? "normal" : "italic",
-              }}>
-                {unit ? unit.name : t.unitsUnsorted}
-                <span style={{ fontWeight: 500, color: C.textMuted, marginLeft: 6 }}>· {groupDecks.length}</span>
+          {groupedByUnit.map(({ unit, decks: groupDecks }) => {
+            // Key for the collapse state — real id for units, sentinel for unsorted.
+            const groupKey = unit ? unit.id : "__unsorted__";
+            const isCollapsed = collapsedUnits.has(groupKey);
+            return (
+              <div key={groupKey}>
+                {/* Group header is now a button so the whole row is clickable
+                    (chevron + name + count). Caret rotates 90° to signal
+                    state. Headers default to expanded — collapse is opt-in. */}
+                <button
+                  onClick={() => toggleUnitCollapsed(groupKey)}
+                  aria-expanded={!isCollapsed}
+                  className="cl-unit-group-toggle"
+                  style={{
+                    width: "100%",
+                    background: "transparent",
+                    border: "none",
+                    padding: "4px 2px",
+                    margin: "0 0 8px",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                    textAlign: "left",
+                    fontFamily: "'Outfit',sans-serif",
+                    fontSize: 12,
+                    fontWeight: 700,
+                    color: unit ? C.text : C.textMuted,
+                    fontStyle: unit ? "normal" : "italic",
+                    borderRadius: 6,
+                    transition: "background .12s ease",
+                  }}
+                >
+                  <svg
+                    width="12" height="12" viewBox="0 0 24 24" fill="none"
+                    style={{
+                      transition: "transform .15s ease",
+                      transform: isCollapsed ? "rotate(0deg)" : "rotate(90deg)",
+                      flexShrink: 0,
+                      color: C.textMuted,
+                    }}
+                  >
+                    <path d="M9 6l6 6-6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                  <span>{unit ? unit.name : t.unitsUnsorted}</span>
+                  <span style={{ fontWeight: 500, color: C.textMuted, marginLeft: 2 }}>· {groupDecks.length}</span>
+                </button>
+                {!isCollapsed && (
+                  <div style={{
+                    display: "grid",
+                    gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fill, minmax(220px, 1fr))",
+                    gap: 12,
+                  }}>
+                    {groupDecks.map(deck => (
+                      <DeckRow
+                        key={deck.id}
+                        deck={deck}
+                        accent={accent}
+                        t={t}
+                        units={unitsForSection}
+                        onChangeUnit={handleChangeDeckUnit}
+                        onOpen={() => navigate(buildRoute.deckEdit(deck.id))}
+                        onPractice={() => onLaunchPractice && onLaunchPractice(deck)}
+                      />
+                    ))}
+                  </div>
+                )}
               </div>
-              <div style={{
-                display: "grid",
-                gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fill, minmax(220px, 1fr))",
-                gap: 12,
-              }}>
-                {groupDecks.map(deck => (
-                  <DeckRow
-                    key={deck.id}
-                    deck={deck}
-                    accent={accent}
-                    t={t}
-                    units={unitsForSection}
-                    onChangeUnit={handleChangeDeckUnit}
-                    onOpen={() => navigate(buildRoute.deckEdit(deck.id))}
-                    onPractice={() => onLaunchPractice && onLaunchPractice(deck)}
-                  />
-                ))}
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       ) : filteredDecks.length === 0 ? (
         <div style={{
@@ -1163,6 +1189,11 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
         }
         .cl-unit-chip:active {
           transform: translateY(0);
+        }
+        /* Group toggle button: subtle background tint on hover so the
+           whole header row feels clickable, not just the chevron. */
+        .cl-unit-group-toggle:hover {
+          background: rgba(0,0,0,.03) !important;
         }
         @keyframes ns-fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
         .ns-fade { animation: ns-fadeIn .25s ease; }
