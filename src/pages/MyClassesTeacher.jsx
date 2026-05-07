@@ -26,6 +26,10 @@ const i18n = {
     deck: "deck",
     openClass: "Open",
     schoolAnalytics: "School analytics",
+    importClass: "Import",
+    importComingSoon: "Class import is coming soon. We'll let you bring back any class you've exported as JSON.",
+    importComingSoonTitle: "Import class — coming soon",
+    importGotIt: "Got it",
     loading: "Loading...",
     grade: "Grade",
     subject: "Subject",
@@ -57,6 +61,10 @@ const i18n = {
     deck: "deck",
     openClass: "Abrir",
     schoolAnalytics: "Estadísticas escolares",
+    importClass: "Importar",
+    importComingSoon: "La importación de clases llega pronto. Vas a poder traer de vuelta cualquier clase que hayas exportado como JSON.",
+    importComingSoonTitle: "Importar clase — próximamente",
+    importGotIt: "Entendido",
     loading: "Cargando...",
     grade: "Grado",
     subject: "Materia",
@@ -87,6 +95,10 @@ const i18n = {
     deck: "덱",
     openClass: "열기",
     schoolAnalytics: "학교 분석",
+    importClass: "가져오기",
+    importComingSoon: "수업 가져오기 기능이 곧 출시됩니다. JSON으로 내보낸 모든 수업을 다시 가져올 수 있습니다.",
+    importComingSoonTitle: "수업 가져오기 — 곧 출시",
+    importGotIt: "확인",
     loading: "로딩 중...",
     grade: "학년",
     subject: "과목",
@@ -268,6 +280,7 @@ export default function MyClassesTeacher({ lang = "en", profile, onNavigateToSes
   const [studentCounts, setStudentCounts] = useState({}); // { classId: count }
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showImportComingSoon, setShowImportComingSoon] = useState(false);
   // Highlight + toast for the freshly-created class so the teacher's eye lands
   // on it immediately (the new card animates in at the top of the grid, but
   // a quick visual cue makes "I just made this" obvious).
@@ -494,6 +507,34 @@ export default function MyClassesTeacher({ lang = "en", profile, onNavigateToSes
             <CIcon name="chart" size={13} inline />
             {!isMobile && t.schoolAnalytics}
           </button>
+          {/* Import — placeholder this iteration. The button is here so the
+              affordance exists from day one (teachers see export-and-import
+              as a pair from the start), but the actual import flow is its
+              own sprint. Click → "coming soon" modal. */}
+          <button
+            onClick={() => setShowImportComingSoon(true)}
+            title={t.importClass}
+            style={{
+              padding: "8px 14px",
+              borderRadius: 8,
+              background: "transparent",
+              color: C.textSecondary,
+              border: `1px solid ${C.border}`,
+              fontSize: 13,
+              fontWeight: 500,
+              cursor: "pointer",
+              fontFamily: "'Outfit',sans-serif",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              whiteSpace: "nowrap",
+            }}
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
+              <path d="M12 20V8m0 0l-4 4m4-4l4 4M4 4h16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            {!isMobile && t.importClass}
+          </button>
           <button
             onClick={handleNewClass}
             style={{
@@ -555,6 +596,56 @@ export default function MyClassesTeacher({ lang = "en", profile, onNavigateToSes
           onClose={() => setShowCreateModal(false)}
           onCreated={handleClassCreated}
         />
+      )}
+
+      {/* Import — coming-soon placeholder. The button exists in the header
+          so teachers see export and import as a pair from the start; the
+          actual import flow ships in a follow-up turn. Plain modal, not a
+          full component, because there's no real interaction yet. */}
+      {showImportComingSoon && (
+        <div
+          onClick={() => setShowImportComingSoon(false)}
+          style={{
+            position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            zIndex: 100, padding: 20,
+          }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            className="ns-fade"
+            style={{
+              background: C.bg, borderRadius: 14, padding: 24,
+              maxWidth: 420, width: "100%",
+              boxShadow: "0 12px 40px rgba(0,0,0,0.15)",
+              fontFamily: "'Outfit',sans-serif",
+            }}
+          >
+            <h3 style={{ fontSize: 17, fontWeight: 700, margin: "0 0 8px", color: C.text }}>
+              {t.importComingSoonTitle}
+            </h3>
+            <p style={{ fontSize: 13, color: C.textSecondary, margin: "0 0 16px", lineHeight: 1.5 }}>
+              {t.importComingSoon}
+            </p>
+            <button
+              onClick={() => setShowImportComingSoon(false)}
+              style={{
+                padding: "9px 18px",
+                borderRadius: 8,
+                fontSize: 13,
+                fontWeight: 600,
+                background: `linear-gradient(135deg, ${C.accent}, ${C.purple})`,
+                color: "#fff",
+                border: "none",
+                cursor: "pointer",
+                fontFamily: "'Outfit',sans-serif",
+                width: "100%",
+              }}
+            >
+              {t.importGotIt}
+            </button>
+          </div>
+        </div>
       )}
 
       {/* Toast — bottom-right. Carries the new class code for ~5s after

@@ -17,6 +17,7 @@ import { supabase } from "../lib/supabase";
 import { CIcon } from "../components/Icons";
 import { DeckCover, resolveColor as resolveDeckColor } from "../lib/deck-cover";
 import { useIsMobile } from "../components/MobileMenuButton";
+import EditClassModal from "../components/EditClassModal";
 import { C, MONO } from "../components/tokens";
 import { ROUTES, QUERY, buildRoute } from "../routes";
 import {
@@ -68,6 +69,35 @@ const i18n = {
     unitNoUnitsHint: "Group decks into units (Unit 1, Unit 2…) to keep them organized as you build up.",
     unitErrorEmpty: "Give the unit a name first.",
     unitErrorTooLong: "Keep the name under 60 characters.",
+    // Edit class modal
+    edit_title: "Edit class",
+    edit_save: "Save",
+    edit_saving: "Saving...",
+    edit_saved: "Saved",
+    edit_close: "Close",
+    edit_cancel: "Cancel",
+    edit_className: "Class name",
+    edit_classNamePlaceholder: "e.g. Math 6th Grade",
+    edit_classSubject: "Subject",
+    edit_classGrade: "Grade",
+    edit_classGradePlaceholder: "e.g. 6th, 7th–9th, Mixed",
+    edit_exportTitle: "Export",
+    edit_exportHelp: "Download a JSON backup of this class — its units and decks. Useful before deleting, or to move content elsewhere.",
+    edit_exportButton: "Download as JSON",
+    edit_exporting: "Preparing...",
+    edit_exportFailed: "Export failed",
+    edit_dangerTitle: "Danger zone",
+    edit_deleteButton: "Delete class",
+    edit_deleteWarningTitle: "This is permanent",
+    edit_deleteWarningBody: "This will delete the class, its {units} units, and its {decks} decks. Students will lose access immediately. Download a JSON backup first if you might want this content later.",
+    edit_deleteConfirmLabel: "Type the class name to confirm",
+    edit_deleteConfirm: "Delete forever",
+    edit_deleting: "Deleting...",
+    edit_deleteCancel: "Cancel",
+    edit_errorEmptyName: "Class name can't be empty.",
+    edit_errorSaveFailed: "Could not save changes",
+    edit_errorDeleteFailed: "Could not delete class",
+    edit_errorTypeMismatch: "Class name doesn't match.",
   },
   es: {
     backToMyClasses: "Volver a Mis clases",
@@ -106,6 +136,35 @@ const i18n = {
     unitNoUnitsHint: "Agrupa decks en unidades (Unidad 1, Unidad 2…) para mantenerlos organizados a medida que crece la clase.",
     unitErrorEmpty: "Ponle un nombre a la unidad.",
     unitErrorTooLong: "Mantén el nombre bajo 60 caracteres.",
+    // Edit class modal
+    edit_title: "Editar clase",
+    edit_save: "Guardar",
+    edit_saving: "Guardando...",
+    edit_saved: "Guardado",
+    edit_close: "Cerrar",
+    edit_cancel: "Cancelar",
+    edit_className: "Nombre de la clase",
+    edit_classNamePlaceholder: "ej. Matemáticas 6to",
+    edit_classSubject: "Materia",
+    edit_classGrade: "Grado",
+    edit_classGradePlaceholder: "ej. 6to, 7mo–9no, Mixto",
+    edit_exportTitle: "Exportar",
+    edit_exportHelp: "Descarga un backup JSON de esta clase — sus unidades y decks. Útil antes de eliminar, o para mover el contenido a otro lugar.",
+    edit_exportButton: "Descargar como JSON",
+    edit_exporting: "Preparando...",
+    edit_exportFailed: "Error al exportar",
+    edit_dangerTitle: "Zona de peligro",
+    edit_deleteButton: "Eliminar clase",
+    edit_deleteWarningTitle: "Esto es permanente",
+    edit_deleteWarningBody: "Esto eliminará la clase, sus {units} unidades y sus {decks} decks. Los estudiantes perderán acceso de inmediato. Descarga un backup JSON antes si pudieras necesitar este contenido más adelante.",
+    edit_deleteConfirmLabel: "Escribe el nombre de la clase para confirmar",
+    edit_deleteConfirm: "Eliminar para siempre",
+    edit_deleting: "Eliminando...",
+    edit_deleteCancel: "Cancelar",
+    edit_errorEmptyName: "El nombre no puede estar vacío.",
+    edit_errorSaveFailed: "No se pudieron guardar los cambios",
+    edit_errorDeleteFailed: "No se pudo eliminar la clase",
+    edit_errorTypeMismatch: "El nombre no coincide.",
   },
   ko: {
     backToMyClasses: "내 수업으로 돌아가기",
@@ -144,6 +203,35 @@ const i18n = {
     unitNoUnitsHint: "덱을 단원(1단원, 2단원...)으로 묶으면 정리하기 좋습니다.",
     unitErrorEmpty: "단원 이름을 입력하세요.",
     unitErrorTooLong: "이름은 60자 이내로 작성하세요.",
+    // Edit class modal
+    edit_title: "수업 편집",
+    edit_save: "저장",
+    edit_saving: "저장 중...",
+    edit_saved: "저장됨",
+    edit_close: "닫기",
+    edit_cancel: "취소",
+    edit_className: "수업 이름",
+    edit_classNamePlaceholder: "예: 수학 6학년",
+    edit_classSubject: "과목",
+    edit_classGrade: "학년",
+    edit_classGradePlaceholder: "예: 6학년, 7~9학년, 혼합",
+    edit_exportTitle: "내보내기",
+    edit_exportHelp: "이 수업의 단원과 덱을 JSON 백업으로 다운로드합니다. 삭제 전이나 다른 곳으로 이동할 때 유용합니다.",
+    edit_exportButton: "JSON으로 다운로드",
+    edit_exporting: "준비 중...",
+    edit_exportFailed: "내보내기 실패",
+    edit_dangerTitle: "위험 영역",
+    edit_deleteButton: "수업 삭제",
+    edit_deleteWarningTitle: "이 작업은 되돌릴 수 없습니다",
+    edit_deleteWarningBody: "수업, 단원 {units}개, 덱 {decks}개가 모두 삭제됩니다. 학생들은 즉시 접근을 잃습니다. 나중에 이 콘텐츠가 필요할 수 있다면 먼저 JSON 백업을 다운로드하세요.",
+    edit_deleteConfirmLabel: "확인하려면 수업 이름을 입력하세요",
+    edit_deleteConfirm: "영구 삭제",
+    edit_deleting: "삭제 중...",
+    edit_deleteCancel: "취소",
+    edit_errorEmptyName: "수업 이름을 입력하세요.",
+    edit_errorSaveFailed: "변경 사항을 저장할 수 없습니다",
+    edit_errorDeleteFailed: "수업을 삭제할 수 없습니다",
+    edit_errorTypeMismatch: "수업 이름이 일치하지 않습니다.",
   },
 };
 
@@ -426,6 +514,7 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
   // the active section changes.
   const [unitFilter, setUnitFilter] = useState(null);
   const [showColorPicker, setShowColorPicker] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
   const [copied, setCopied] = useState(false);
   const [showNewUnit, setShowNewUnit] = useState(false);
   const [newUnitName, setNewUnitName] = useState("");
@@ -545,6 +634,55 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
       catch (_) {}
       document.body.removeChild(ta);
     }
+  };
+
+  // ── Edit class modal handlers ─────────────────────────────────────────
+  // Saved: merge updated fields into local classObj so the header reflects
+  // changes immediately (no refetch needed). The modal stays open with
+  // a brief "✓ Saved" flash; the teacher closes manually.
+  const handleClassSaved = (updated) => {
+    setClassObj(prev => ({ ...prev, ...updated }));
+  };
+
+  // Deleted: navigate away. The class row is gone and the cascade has
+  // already removed decks/units/members. Going back to /classes lands the
+  // teacher on the list, which will refetch on mount.
+  const handleClassDeleted = () => {
+    setShowEditModal(false);
+    navigate(ROUTES.CLASSES);
+  };
+
+  // Build the i18n dict the modal expects (it uses unprefixed keys; ours
+  // are namespaced as edit_*). One pass at render — cheap.
+  const editModalT = {
+    title: t.edit_title,
+    save: t.edit_save,
+    saving: t.edit_saving,
+    saved: t.edit_saved,
+    close: t.edit_close,
+    cancel: t.edit_cancel,
+    className: t.edit_className,
+    classNamePlaceholder: t.edit_classNamePlaceholder,
+    classSubject: t.edit_classSubject,
+    classGrade: t.edit_classGrade,
+    classGradePlaceholder: t.edit_classGradePlaceholder,
+    exportTitle: t.edit_exportTitle,
+    exportHelp: t.edit_exportHelp,
+    exportButton: t.edit_exportButton,
+    exporting: t.edit_exporting,
+    exportFailed: t.edit_exportFailed,
+    dangerTitle: t.edit_dangerTitle,
+    deleteButton: t.edit_deleteButton,
+    deleteWarningTitle: t.edit_deleteWarningTitle,
+    deleteWarningBody: t.edit_deleteWarningBody,
+    deleteConfirmLabel: t.edit_deleteConfirmLabel,
+    deleteConfirm: t.edit_deleteConfirm,
+    deleting: t.edit_deleting,
+    deleteCancel: t.edit_deleteCancel,
+    errorEmptyName: t.edit_errorEmptyName,
+    errorSaveFailed: t.edit_errorSaveFailed,
+    errorDeleteFailed: t.edit_errorDeleteFailed,
+    errorTypeMismatch: t.edit_errorTypeMismatch,
   };
 
   // ── Unit handlers ─────────────────────────────────────────────────────
@@ -922,21 +1060,23 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
                 t={t}
               />
             )}
-            {/* "Edit class" — placeholder for now (full edit modal in Fase 2/4).
-                Hidden on mobile to keep the header tight. */}
+            {/* Edit class — opens the full edit modal (name, subject, grade,
+                export, delete). Hidden on mobile to keep the header tight;
+                mobile teachers reach edit by long-pressing the class card on
+                MyClasses (TODO if needed). */}
             {!isMobile && (
               <button
+                onClick={() => setShowEditModal(true)}
                 aria-label={t.editClass}
                 title={t.editClass}
-                disabled
                 style={{
                   width: 32, height: 32, borderRadius: 8,
-                  background: "transparent",
-                  border: `1px solid ${C.border}`,
-                  cursor: "not-allowed",
-                  opacity: .4,
+                  background: showEditModal ? accent + "1A" : "transparent",
+                  border: `1px solid ${showEditModal ? accent + "55" : C.border}`,
+                  cursor: "pointer",
                   display: "inline-flex", alignItems: "center", justifyContent: "center",
-                  color: C.textMuted,
+                  color: showEditModal ? accent : C.textSecondary,
+                  transition: "background .15s ease, color .15s ease, border-color .15s ease",
                 }}
               >
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
@@ -1318,6 +1458,19 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
             />
           ))}
         </div>
+      )}
+
+      {/* Edit class modal */}
+      {showEditModal && classObj && (
+        <EditClassModal
+          classObj={classObj}
+          unitsCount={units.length}
+          decksCount={decks.length}
+          t={editModalT}
+          onClose={() => setShowEditModal(false)}
+          onSaved={handleClassSaved}
+          onDeleted={handleClassDeleted}
+        />
       )}
 
       <style>{`
