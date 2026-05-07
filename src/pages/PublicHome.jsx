@@ -309,7 +309,7 @@ const css = `
      hero tiene que ser COMPACTO para que entren tagline + CTA + cards +
      pills sin scroll. */
   @media (max-width: 1366px) {
-    .ph-tagline { font-size: 42px !important; line-height: 1.15 !important; }
+    .ph-tagline { font-size: 48px !important; line-height: 1.12 !important; }
     .ph-sub { font-size: 16px !important; }
     .ph-cta-primary { font-size: 15px !important; padding: 12px 28px !important; }
     .ph-section { padding: 60px 28px !important; }
@@ -324,6 +324,10 @@ const css = `
        hero tiene que entrar en ~600px máximo dejando espacio para los
        pills de tipos abajo. */
     .ph-hero { padding: 36px 28px 28px !important; min-height: auto !important; }
+    /* Hero container: max-width más chico para forzar wrap a 2-3 líneas
+       en lugar de una sola línea estirada. Esto le da el "centrado y
+       compacto" que el user pidió. */
+    .ph-hero-content { max-width: 720px !important; }
     /* Cards más chicas y bien en las esquinas para no chocar con texto. */
     .ph-floating-card { width: 150px !important; height: 100px !important; }
     .ph-floating-card[data-card="1"] { top: 32px !important; left: 18px !important; }
@@ -576,7 +580,7 @@ export default function PublicHome({ onSignIn, onSignUp }) {
             </div>
           ))}
 
-          <div style={{ position: "relative", zIndex: 2, maxWidth: 1100, margin: "0 auto" }}>
+          <div className="ph-hero-content" style={{ position: "relative", zIndex: 2, maxWidth: 1100, margin: "0 auto" }}>
             <div className="ph-pill" style={{
               display: "inline-block",
               padding: "9px 22px",
