@@ -19,17 +19,35 @@ import AvatarOnboarding from './pages/AvatarOnboarding';
 // wins, so StudentJoin ends up bundled into the main chunk anyway. Vite warns
 // about this but it's intentional — guests entering by PIN should see the
 // quiz instantly without a Suspense flash, even if it costs some KB up front.
-const SessionFlow      = lazy(() => import('./pages/SessionFlow'));
-const StudentJoin      = lazy(() => import('./pages/StudentJoin'));
-const Community        = lazy(() => import('./pages/Community'));
-const Achievements     = lazy(() => import('./pages/Achievements'));
-const Settings         = lazy(() => import('./pages/Settings'));
-const Director         = lazy(() => import('./pages/Director'));
-const Notifications    = lazy(() => import('./pages/Notifications'));
-const Decks            = lazy(() => import('./pages/Decks'));
-const MyClasses        = lazy(() => import('./pages/MyClasses'));
-const TeacherProfile   = lazy(() => import('./pages/TeacherProfile'));
-const AdminAIStats     = lazy(() => import('./pages/AdminAIStats'));
+//
+// Each import is bound to a thunk so it can be invoked twice: once by lazy()
+// (which uses the result to render) and once by the prefetch effect below
+// (which warms the cache so navigation never shows a Suspense flash). Vite
+// caches dynamic imports — calling the thunk a second time returns the same
+// already-resolved module without re-downloading.
+const importSessionFlow    = () => import('./pages/SessionFlow');
+const importStudentJoin    = () => import('./pages/StudentJoin');
+const importCommunity      = () => import('./pages/Community');
+const importAchievements   = () => import('./pages/Achievements');
+const importSettings       = () => import('./pages/Settings');
+const importDirector       = () => import('./pages/Director');
+const importNotifications  = () => import('./pages/Notifications');
+const importDecks          = () => import('./pages/Decks');
+const importMyClasses      = () => import('./pages/MyClasses');
+const importTeacherProfile = () => import('./pages/TeacherProfile');
+const importAdminAIStats   = () => import('./pages/AdminAIStats');
+
+const SessionFlow      = lazy(importSessionFlow);
+const StudentJoin      = lazy(importStudentJoin);
+const Community        = lazy(importCommunity);
+const Achievements     = lazy(importAchievements);
+const Settings         = lazy(importSettings);
+const Director         = lazy(importDirector);
+const Notifications    = lazy(importNotifications);
+const Decks            = lazy(importDecks);
+const MyClasses        = lazy(importMyClasses);
+const TeacherProfile   = lazy(importTeacherProfile);
+const AdminAIStats     = lazy(importAdminAIStats);
 import { useIsMobile } from './components/MobileMenuButton';
 import { countVisibleNotifications } from './lib/notifications';
 import { C } from './components/tokens';
@@ -442,6 +460,62 @@ export default function App() {
       navigate(defaultRouteForRole(profile.role), { replace: true });
     }
   }, [location.pathname, profile, navigate]);
+
+  // ── Background prefetch of page chunks ──
+  // Without this, every first visit to a page within a session shows a
+  // Suspense fallback while its chunk downloads. We get the perf win of code-
+  // splitting (small initial bundle) AND instant in-app navigation by warming
+  // the chunk cache as soon as the profile is known.
+  //
+  // Run once per session. Tied to profile so that:
+  //   1. We don't waste bandwidth before the user is authenticated.
+  //   2. We pick the right chunks for the user's role.
+  //   3. We can split the work into a "primary" (likely next-click) batch
+  //      that runs first and a "rest" batch that runs after a short delay,
+  //      so we don't hammer the network during the page's first paint.
+  const prefetchedRef = useRef(false);
+  useEffect(() => {
+    if (!profile) return;
+    if (prefetchedRef.current) return;
+    prefetchedRef.current = true;
+
+    const isTeacher = profile.role === "teacher";
+
+    // Pages the user is most likely to click next from their default view.
+    // Loaded first (~50-100ms after profile is ready).
+    const primary = isTeacher
+      ? [importDecks, importSessionFlow, importSettings]
+      : [importMyClasses, importStudentJoin, importSettings];
+
+    // Less-frequent but still in-role pages. Loaded after the primary batch
+    // settles — they're nice-to-have, not critical-path.
+    const secondary = [
+      importCommunity,
+      importNotifications,
+      importTeacherProfile,
+      ...(isTeacher ? [importDirector] : [importAchievements]),
+      ...(profile.is_admin ? [importAdminAIStats] : []),
+    ];
+
+    // Prefer requestIdleCallback so we yield to user interactions; fall back
+    // to setTimeout for browsers (Safari, mobile) that don't have it.
+    const idle = (cb, timeout) => {
+      if (typeof window !== "undefined" && typeof window.requestIdleCallback === "function") {
+        return window.requestIdleCallback(cb, { timeout });
+      }
+      return setTimeout(cb, timeout);
+    };
+
+    // Fire-and-forget: failures (offline, tab closing, etc.) don't matter —
+    // lazy() will retry on the actual navigation if the chunk is still missing.
+    const fireAll = (list) => list.forEach(fn => { fn().catch(() => {}); });
+
+    idle(() => fireAll(primary), 200);
+    idle(() => fireAll(secondary), 1500);
+    // We intentionally don't return a cleanup that aborts the imports — once
+    // the network request is in flight, letting it complete is fine and
+    // populates the cache for any future visit.
+  }, [profile]);
 
   // ── Practice deck hydration ──
   // The practice deck object is held in `practiceDeck` state for rendering.
