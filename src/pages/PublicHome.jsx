@@ -217,7 +217,11 @@ const FLOATING_CARDS = [
     questionTag: { en: "WARMUP · MCQ", es: "WARMUP · MCQ", ko: "워밍업 · 객관식" },
     questionText: { en: "What is photosynthesis?", es: "¿Qué es la fotosíntesis?", ko: "광합성이란 무엇인가요?" },
     bg: "#DDEBFB", border: "#2383E2", labelColor: "#185FA5", textColor: "#042C53",
-    pos: { top: 60, left: 90 }, size: { w: 130, h: 88 },
+    // Posicionamos con clamp: nunca más cerca de 40px del borde, nunca más
+    // lejos que el hero (860px max). El cálculo "calc((100vw - 860px)/2)"
+    // da el espacio entre el container del hero y el viewport.
+    pos: { top: 70, left: "clamp(20px, calc((100vw - 920px) / 2), 180px)" },
+    size: { w: 130, h: 88 },
     floatDelay: 0,
   },
   {
@@ -228,7 +232,8 @@ const FLOATING_CARDS = [
     questionTag: { en: "EXIT TICKET · TF", es: "EXIT TICKET · VF", ko: "종료 티켓 · 참거짓" },
     questionText: { en: "Mitosis happens in 4 phases.", es: "La mitosis tiene 4 fases.", ko: "유사분열은 4단계입니다." },
     bg: "#FAEEDA", border: "#BA7517", labelColor: "#854F0B", textColor: "#412402",
-    pos: { top: 40, right: 100 }, size: { w: 120, h: 82 },
+    pos: { top: 50, right: "clamp(20px, calc((100vw - 920px) / 2), 180px)" },
+    size: { w: 120, h: 82 },
     floatDelay: -1,
   },
   {
@@ -239,7 +244,8 @@ const FLOATING_CARDS = [
     questionTag: { en: "WARMUP · FILL", es: "WARMUP · ESPACIO", ko: "워밍업 · 빈칸" },
     questionText: { en: "The mitochondria is the ___.", es: "La mitocondria es el ___.", ko: "미토콘드리아는 ___입니다." },
     bg: "#E1F5EE", border: "#1D9E75", labelColor: "#0F6E56", textColor: "#04342C",
-    pos: { bottom: 50, left: 130 }, size: { w: 120, h: 82 },
+    pos: { bottom: 60, left: "clamp(40px, calc((100vw - 920px) / 2 + 30px), 220px)" },
+    size: { w: 120, h: 82 },
     floatDelay: -2,
   },
   {
@@ -250,7 +256,8 @@ const FLOATING_CARDS = [
     questionTag: { en: "EXIT TICKET · MATCH", es: "EXIT TICKET · EMPAREJAR", ko: "종료 티켓 · 짝짓기" },
     questionText: { en: "Match cell parts to functions", es: "Empareja partes de la célula", ko: "세포 부분과 기능 짝짓기" },
     bg: "#FBEAF0", border: "#D4537E", labelColor: "#993556", textColor: "#4B1528",
-    pos: { bottom: 70, right: 90 }, size: { w: 115, h: 78 },
+    pos: { bottom: 80, right: "clamp(30px, calc((100vw - 920px) / 2 + 20px), 200px)" },
+    size: { w: 115, h: 78 },
     floatDelay: -1.5,
   },
 ];
@@ -511,7 +518,7 @@ export default function PublicHome({ onSignIn, onSignUp }) {
             </div>
           ))}
 
-          <div style={{ position: "relative", zIndex: 2, maxWidth: 640, margin: "0 auto" }}>
+          <div style={{ position: "relative", zIndex: 2, maxWidth: 860, margin: "0 auto" }}>
             <div style={{
               display: "inline-block",
               padding: "5px 14px",
@@ -521,8 +528,8 @@ export default function PublicHome({ onSignIn, onSignUp }) {
             }}>{t.pill}</div>
 
             <h1 className="ph-tagline" style={{
-              fontSize: 48, fontWeight: 700, color: C.text,
-              lineHeight: 1.12, margin: "0 0 16px",
+              fontSize: 44, fontWeight: 700, color: C.text,
+              lineHeight: 1.15, margin: "0 0 16px",
               letterSpacing: "-0.02em",
             }}>
               {t.taglinePart1} <span style={{ color: C.accent }}>{t.taglineHighlight}</span>
