@@ -301,7 +301,21 @@ function activityLabel(deck, t) {
 // units: list of {id, name} for the deck's section, used by the Move-to
 // dropdown so the teacher can reassign the deck to a different unit
 // without leaving the page.
-function DeckRow({ deck, accent, t, onOpen, onPractice, units = [], onChangeUnit }) {
+// Drag props: when defined, the card is draggable and can be dropped on
+// other cards in the same bucket to reorder. Drop only valid intra-bucket
+// (same section + same unit_id) — cross-bucket reassignment goes through
+// the Move-to dropdown.
+function DeckRow({
+  deck, accent, t, onOpen, onPractice, units = [], onChangeUnit,
+  draggable = false,
+  isDraggingMe = false,
+  isDropTargetMe = false,
+  onDragStart,
+  onDragOver,
+  onDragLeave,
+  onDrop,
+  onDragEnd,
+}) {
   const qs = deck.questions || [];
   const deckAccent = resolveDeckColor(deck) || accent;
   const handleUnitChange = (e) => {
@@ -313,14 +327,26 @@ function DeckRow({ deck, accent, t, onOpen, onPractice, units = [], onChangeUnit
   return (
     <div
       onClick={onOpen}
+      draggable={draggable}
+      onDragStart={draggable ? onDragStart : undefined}
+      onDragOver={draggable ? onDragOver : undefined}
+      onDragLeave={draggable ? onDragLeave : undefined}
+      onDrop={draggable ? onDrop : undefined}
+      onDragEnd={draggable ? onDragEnd : undefined}
       style={{
         background: C.bg,
-        border: `1px solid ${C.border}`,
+        border: `1px solid ${isDropTargetMe ? accent : C.border}`,
         borderLeft: `3px solid ${deckAccent}`,
         borderRadius: 10,
         padding: 12,
         cursor: "pointer",
-        transition: "transform .12s ease, box-shadow .12s ease, border-color .12s ease",
+        // Visual cues during drag: the source card fades (so the teacher
+        // sees what they're moving), the drop target gets an accent ring
+        // and slight lift (so they know where it'll land).
+        opacity: isDraggingMe ? 0.4 : 1,
+        boxShadow: isDropTargetMe ? `0 0 0 2px ${accent}, 0 4px 14px rgba(0,0,0,.08)` : undefined,
+        transform: isDropTargetMe ? "translateY(-1px)" : undefined,
+        transition: "transform .12s ease, box-shadow .12s ease, border-color .12s ease, opacity .12s ease",
         fontFamily: "'Outfit',sans-serif",
         display: "flex",
         flexDirection: "column",
@@ -385,7 +411,13 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
   const [units, setUnits] = useState([]);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
-  const [activeSection, setActiveSection] = useState(DEFAULT_SECTION);
+  // Which tab to open first when a teacher lands on the class. Warmups —
+  // it's the most-used section in real classroom rhythm (start of every
+  // class), so it's the right thing to surface. NOT to be confused with
+  // DEFAULT_SECTION (which is the schema-level fallback bucket for any
+  // deck that somehow lands without a valid section — that stays as
+  // general_review because it's the most conservative landing spot).
+  const [activeSection, setActiveSection] = useState("warmup");
   // Per-section unit filter. null = "All units" (show every deck in the
   // section, grouped by unit, with an "Unsorted" group at the end for decks
   // without a unit). A specific unit id = show only that unit. The legacy
@@ -406,6 +438,15 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
   // this (no need to remember collapse state across sessions).
   const [collapsedUnits, setCollapsedUnits] = useState(() => new Set());
 
+  // Drag-and-drop state for reordering decks within their bucket. Two ids:
+  // the deck being dragged, and the deck currently being hovered over as a
+  // potential drop target. We set the drop target on dragover (with debounce
+  // built in by virtue of dragover firing repeatedly) and clear on drop or
+  // dragend. Disabled on mobile — HTML5 D&D on touch is unreliable; mobile
+  // users still see the existing newest-first order plus the Move-to dropdown.
+  const [draggingDeckId, setDraggingDeckId] = useState(null);
+  const [dropTargetDeckId, setDropTargetDeckId] = useState(null);
+
   const toggleUnitCollapsed = (key) => {
     setCollapsedUnits(prev => {
       const next = new Set(prev);
@@ -425,7 +466,7 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
       setNotFound(false);
       const [classRes, decksRes, unitsRes] = await Promise.all([
         supabase.from("classes").select("*").eq("id", classId).maybeSingle(),
-        supabase.from("decks").select("*").eq("class_id", classId).order("created_at", { ascending: false }),
+        supabase.from("decks").select("*").eq("class_id", classId).order("position", { ascending: true }).order("created_at", { ascending: false }),
         supabase.from("units").select("*").eq("class_id", classId).order("position", { ascending: true }),
       ]);
       if (cancelled) return;
@@ -562,13 +603,121 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
     }
   };
 
+  // ── Drag-reorder handlers ─────────────────────────────────────────────
+  // Reorder is intra-bucket only (same section + same unit_id). Cross-bucket
+  // moves go through the Move-to dropdown (changes unit_id) or the section
+  // selector in the deck editor — keeps drag's mental model simple.
+  //
+  // Strategy: on drop, splice the dragged deck out of its current position
+  // and insert at the target's index. Then re-number positions 1..N for the
+  // affected bucket and persist. Optimistic local update first; on error
+  // we re-fetch (rare path, simpler than rolling back N rows individually).
+  const handleDeckDragStart = (deck) => (e) => {
+    setDraggingDeckId(deck.id);
+    // dataTransfer is required for Firefox to actually fire drop events.
+    // The payload itself doesn't matter — we resolve the deck via state.
+    if (e.dataTransfer) {
+      e.dataTransfer.effectAllowed = "move";
+      try { e.dataTransfer.setData("text/plain", deck.id); } catch (_) {}
+    }
+  };
+
+  const handleDeckDragOver = (targetDeck) => (e) => {
+    if (!draggingDeckId || draggingDeckId === targetDeck.id) return;
+    // Same-bucket guard: only valid drop target if section + unit_id match.
+    const dragging = decks.find(d => d.id === draggingDeckId);
+    if (!dragging) return;
+    const sameSection = dragging.section === targetDeck.section;
+    const sameUnit = (dragging.unit_id || null) === (targetDeck.unit_id || null);
+    if (!sameSection || !sameUnit) return;
+    // preventDefault is what tells the browser "this IS a valid drop target"
+    // — without it, drop never fires.
+    e.preventDefault();
+    if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
+    if (dropTargetDeckId !== targetDeck.id) setDropTargetDeckId(targetDeck.id);
+  };
+
+  const handleDeckDragLeave = (targetDeck) => () => {
+    // Only clear if we're leaving the current target. Other dragLeaves from
+    // siblings shouldn't flicker the highlight.
+    if (dropTargetDeckId === targetDeck.id) setDropTargetDeckId(null);
+  };
+
+  const handleDeckDragEnd = () => {
+    setDraggingDeckId(null);
+    setDropTargetDeckId(null);
+  };
+
+  const handleDeckDrop = (targetDeck) => async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const draggedId = draggingDeckId;
+    setDraggingDeckId(null);
+    setDropTargetDeckId(null);
+    if (!draggedId || draggedId === targetDeck.id) return;
+    const dragging = decks.find(d => d.id === draggedId);
+    if (!dragging) return;
+    if (dragging.section !== targetDeck.section) return;
+    if ((dragging.unit_id || null) !== (targetDeck.unit_id || null)) return;
+
+    // Build the bucket: all decks in the same section + unit, sorted by
+    // current position. Splice the dragged out, insert at target's index.
+    const bucket = decks
+      .filter(d => d.section === dragging.section && (d.unit_id || null) === (dragging.unit_id || null))
+      .slice()
+      .sort((a, b) => (a.position || 0) - (b.position || 0) || (b.created_at > a.created_at ? 1 : -1));
+    const fromIdx = bucket.findIndex(d => d.id === draggedId);
+    const toIdx = bucket.findIndex(d => d.id === targetDeck.id);
+    if (fromIdx < 0 || toIdx < 0) return;
+    const [removed] = bucket.splice(fromIdx, 1);
+    bucket.splice(toIdx, 0, removed);
+    // Re-number 1..N. Bulk update via Promise.all.
+    const updates = bucket.map((d, i) => ({ id: d.id, position: i + 1 }));
+
+    // Optimistic local update — patch positions on the visible decks.
+    setDecks(prev => prev.map(d => {
+      const u = updates.find(x => x.id === d.id);
+      return u ? { ...d, position: u.position } : d;
+    }));
+
+    // Persist. We update only the rows whose position actually changed
+    // (skipping the rows above fromIdx/toIdx whose positions stayed the
+    // same is a micro-optimization we skip — N decks per unit will be
+    // small in practice).
+    const results = await Promise.all(
+      updates.map(u => supabase.from("decks").update({ position: u.position }).eq("id", u.id))
+    );
+    const anyError = results.find(r => r.error);
+    if (anyError) {
+      // Re-fetch on failure rather than rolling back N rows manually. This
+      // is rare (write conflicts on a single teacher's own decks would be
+      // very unusual) so a refetch is fine.
+      const { data: fresh } = await supabase
+        .from("decks").select("*")
+        .eq("class_id", classObj.id)
+        .order("position", { ascending: true })
+        .order("created_at", { ascending: false });
+      setDecks(fresh || []);
+    }
+  };
+
   // ── Group decks by section ────────────────────────────────────────────
   // Validates against the schema — anything stored with a stray section
   // (shouldn't happen, but defensive) drops to general_review.
+  // Sorted by position (asc) within each section, ties by created_at desc.
+  // The DB query already orders by these fields, but groupBy can shuffle
+  // when decks have different sections, so we re-sort after bucketing.
   const decksBySection = SECTIONS.reduce((acc, s) => ({ ...acc, [s.id]: [] }), {});
   decks.forEach(d => {
     const sec = isValidSection(d.section) ? d.section : DEFAULT_SECTION;
     decksBySection[sec].push(d);
+  });
+  Object.keys(decksBySection).forEach(secId => {
+    decksBySection[secId].sort((a, b) => {
+      const posDiff = (a.position || 0) - (b.position || 0);
+      if (posDiff !== 0) return posDiff;
+      return (b.created_at || "") > (a.created_at || "") ? 1 : -1;
+    });
   });
 
   // ── Not found / loading states ────────────────────────────────────────
@@ -1110,6 +1259,14 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
                         onChangeUnit={handleChangeDeckUnit}
                         onOpen={() => navigate(buildRoute.deckEdit(deck.id))}
                         onPractice={() => onLaunchPractice && onLaunchPractice(deck)}
+                        draggable={!isMobile}
+                        isDraggingMe={draggingDeckId === deck.id}
+                        isDropTargetMe={dropTargetDeckId === deck.id}
+                        onDragStart={handleDeckDragStart(deck)}
+                        onDragOver={handleDeckDragOver(deck)}
+                        onDragLeave={handleDeckDragLeave(deck)}
+                        onDrop={handleDeckDrop(deck)}
+                        onDragEnd={handleDeckDragEnd}
                       />
                     ))}
                   </div>
@@ -1150,6 +1307,14 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
               onChangeUnit={handleChangeDeckUnit}
               onOpen={() => navigate(buildRoute.deckEdit(deck.id))}
               onPractice={() => onLaunchPractice && onLaunchPractice(deck)}
+              draggable={!isMobile}
+              isDraggingMe={draggingDeckId === deck.id}
+              isDropTargetMe={dropTargetDeckId === deck.id}
+              onDragStart={handleDeckDragStart(deck)}
+              onDragOver={handleDeckDragOver(deck)}
+              onDragLeave={handleDeckDragLeave(deck)}
+              onDrop={handleDeckDrop(deck)}
+              onDragEnd={handleDeckDragEnd}
             />
           ))}
         </div>
