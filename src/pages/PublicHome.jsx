@@ -304,36 +304,35 @@ const css = `
   .ph-lang-btn { transition: all .15s ease; cursor: pointer; }
 
   /* Tablet grande / laptop chica (≤1366px) — Galaxy Tab S9 FE en
-     landscape (~1316px viewport), MacBook Air 13", iPads en landscape.
-     Bajamos los textos pero MANTENEMOS las cards flotantes — hay espacio.
-     IMPORTANTE: subimos padding vertical del hero y achicamos las cards
-     porque a 1316px las cards estaban solapando el tagline. */
+     landscape (~1316x682). El problema crítico aquí no es el ancho sino
+     la ALTURA: 682px de alto deja muy poco espacio vertical, así que el
+     hero tiene que ser COMPACTO para que entren tagline + CTA + cards +
+     pills sin scroll. */
   @media (max-width: 1366px) {
-    .ph-tagline { font-size: 56px !important; line-height: 1.12 !important; }
-    .ph-sub { font-size: 19px !important; }
-    .ph-cta-primary { font-size: 17px !important; padding: 15px 34px !important; }
-    .ph-section { padding: 80px 28px !important; }
-    .ph-section-h2 { font-size: 40px !important; }
-    .ph-section-sub { font-size: 18px !important; }
-    .ph-step-title, .ph-why-title { font-size: 21px !important; }
-    .ph-step-body, .ph-why-body { font-size: 15px !important; }
-    .ph-final-h2 { font-size: 46px !important; }
-    .ph-final-sub { font-size: 22px !important; }
-    .ph-pill { font-size: 14px !important; padding: 7px 18px !important; }
-    /* Hero específicamente: más padding arriba para separar del header,
-       más min-height para que las cards no toquen los pills de abajo. */
-    .ph-hero { padding: 130px 28px 90px !important; min-height: 780px !important; }
-    /* Cards flotantes: 30% más chicas (no usar transform: scale porque
-       choca con la animación de translateY). Usamos width/height directos. */
-    .ph-floating-card { width: 160px !important; height: 110px !important; }
-    .ph-floating-card[data-card="1"] { top: 110px !important; left: 20px !important; }
-    .ph-floating-card[data-card="2"] { top: 90px !important; right: 30px !important; }
-    .ph-floating-card[data-card="3"] { bottom: 110px !important; left: 50px !important; }
-    .ph-floating-card[data-card="4"] { bottom: 130px !important; right: 20px !important; }
-    /* Texto interno de las cards: más chico para que quepa bien en el
-       nuevo tamaño 160x110. */
+    .ph-tagline { font-size: 42px !important; line-height: 1.15 !important; }
+    .ph-sub { font-size: 16px !important; }
+    .ph-cta-primary { font-size: 15px !important; padding: 12px 28px !important; }
+    .ph-section { padding: 60px 28px !important; }
+    .ph-section-h2 { font-size: 34px !important; }
+    .ph-section-sub { font-size: 16px !important; }
+    .ph-step-title, .ph-why-title { font-size: 19px !important; }
+    .ph-step-body, .ph-why-body { font-size: 14px !important; }
+    .ph-final-h2 { font-size: 38px !important; }
+    .ph-final-sub { font-size: 18px !important; }
+    .ph-pill { font-size: 13px !important; padding: 6px 16px !important; }
+    /* Hero compacto verticalmente: la pantalla es solo 682px de alto,
+       hero tiene que entrar en ~600px máximo dejando espacio para los
+       pills de tipos abajo. */
+    .ph-hero { padding: 36px 28px 28px !important; min-height: auto !important; }
+    /* Cards más chicas y bien en las esquinas para no chocar con texto. */
+    .ph-floating-card { width: 150px !important; height: 100px !important; }
+    .ph-floating-card[data-card="1"] { top: 32px !important; left: 18px !important; }
+    .ph-floating-card[data-card="2"] { top: 28px !important; right: 24px !important; }
+    .ph-floating-card[data-card="3"] { bottom: 24px !important; left: 40px !important; }
+    .ph-floating-card[data-card="4"] { bottom: 32px !important; right: 18px !important; }
+    /* Texto interno de las cards: más chico para que quepa bien. */
     .ph-floating-card .ph-morph-from,
-    .ph-floating-card .ph-morph-to { padding: 12px !important; }
+    .ph-floating-card .ph-morph-to { padding: 10px !important; }
   }
 
   /* Tablet chica / mobile grande (≤900px) — aquí SÍ escondemos cards
