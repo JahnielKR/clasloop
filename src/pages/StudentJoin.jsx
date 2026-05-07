@@ -904,9 +904,10 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               {/* Toggle de timer en practice mode. Solo visible en practice;
                   en live el profe controla y el estudiante no decide.
-                  Visual: mismo lenguaje que el botón de la card en MyClasses
-                  — SVG de reloj que se ilumina (accent) cuando ON, gris cuando
-                  OFF. Sin emojis ambiguos. */}
+                  Visual: stopwatch que se rellena cuando ON (accent) y queda
+                  outline gris cuando OFF — mismo lenguaje que la estrella en
+                  MyClasses (icono con cuerpo que se ilumina, no solo cambia
+                  color de borde). */}
               {isPractice && (
                 <button
                   onClick={() => setPracticeTimerOn(v => !v)}
@@ -921,9 +922,12 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
                     transition: "all .15s ease",
                   }}
                 >
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={practiceTimerOn ? C.accent : C.textMuted} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <circle cx="12" cy="12" r="9" />
-                    <polyline points="12,7 12,12 16,14" />
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill={practiceTimerOn ? C.accent : "none"} stroke={practiceTimerOn ? C.accent : C.textMuted} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="10" y1="2" x2="14" y2="2" />
+                    <line x1="12" y1="2" x2="12" y2="5" />
+                    <circle cx="12" cy="14" r="7.5" />
+                    <line x1="12" y1="14" x2="12" y2="9.5" stroke={practiceTimerOn ? "#fff" : C.textMuted} />
+                    <line x1="12" y1="14" x2="15.2" y2="14" stroke={practiceTimerOn ? "#fff" : C.textMuted} />
                   </svg>
                 </button>
               )}

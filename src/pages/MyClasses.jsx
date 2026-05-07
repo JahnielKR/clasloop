@@ -625,9 +625,10 @@ function SavedDeckCard({ deck, t, onPractice, onToggleFavorite, onUnsave }) {
         {/* Practice timer toggle — top-right. Decision happens BEFORE entering
             the deck (more intuitive than discovering the small button inside
             the quiz). Per-deck preference: each deck remembers its own.
-            Visual language matches the star: SVG with fill+stroke when ON
-            (accent color), outline-only stroke when OFF (muted gray). No
-            ambiguous symbols — same icon both states, just illuminated or not. */}
+            Visual language matches the star: SVG with a real body that gets
+            FILLED when ON (illuminated, like the star turning yellow), and
+            outline-only when OFF. The icon is a stopwatch (race-style pocket
+            watch) — instantly recognizable as "timer on/off". */}
         <button
           onClick={handleToggleTimer}
           title={timerOn ? t.practiceTimerOnTip : t.practiceTimerOffTip}
@@ -643,13 +644,19 @@ function SavedDeckCard({ deck, t, onPractice, onToggleFavorite, onUnsave }) {
             zIndex: 1,
           }}
         >
-          {/* Clock icon: circle + hour/minute hands. fill="none" siempre
-              (el círculo del reloj no se rellena, solo cambia el color del
-              stroke). Cuando ON usa C.accent, cuando OFF usa el mismo gris
-              que la estrella apagada (#5A5A5A). */}
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={timerOn ? C.accent : "#5A5A5A"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="12" r="9" />
-            <polyline points="12,7 12,12 16,14" />
+          {/* Stopwatch: crown (button on top), side arms, round body, hands.
+              When ON: body filled with C.accent, hands in white. When OFF:
+              outline only in muted gray. Matches the star's "on/off" visual
+              with a real shape that fills, not just a stroke color change. */}
+          <svg width="18" height="18" viewBox="0 0 24 24" fill={timerOn ? C.accent : "none"} stroke={timerOn ? C.accent : "#5A5A5A"} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            {/* Crown (top button) */}
+            <line x1="10" y1="2" x2="14" y2="2" />
+            <line x1="12" y1="2" x2="12" y2="5" />
+            {/* Body (filled circle when ON) */}
+            <circle cx="12" cy="14" r="7.5" />
+            {/* Hands — white when ON (visible against accent fill), gray when OFF */}
+            <line x1="12" y1="14" x2="12" y2="9.5" stroke={timerOn ? "#fff" : "#5A5A5A"} />
+            <line x1="12" y1="14" x2="15.2" y2="14" stroke={timerOn ? "#fff" : "#5A5A5A"} />
           </svg>
         </button>
       </div>
