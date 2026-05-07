@@ -3,7 +3,6 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { CIcon, SchoolIcon } from "../components/Icons";
 import { useIsMobile } from "../components/MobileMenuButton";
-import PageHeader from "../components/PageHeader";
 import { C, MONO } from "../components/tokens";
 import { ROUTES, QUERY, buildPathWithOpts } from "../routes";
 
@@ -369,54 +368,111 @@ export default function MyClassesTeacher({ lang = "en", profile, onNavigateToSes
   );
 
   // ─── Render ─────────────────────────────────────────────────────────
+  // Header is custom (instead of <PageHeader>) because we need:
+  //   1) subtitle line under the title
+  //   2) action buttons on the right (New class + School analytics)
+  //   3) full 1100px max-width so it lines up with the cards grid below
+  //      (the shared PageHeader caps at 800px).
   return (
     <div style={{ padding: isMobile ? "16px 14px 32px" : "20px 28px 40px", maxWidth: 1100, margin: "0 auto" }}>
-      <PageHeader
-        title={t.pageTitle}
-        subtitle={t.subtitle}
-        onOpenMobileMenu={onOpenMobileMenu}
-        right={
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "flex-start",
+          justifyContent: "space-between",
+          gap: 16,
+          paddingBottom: 18,
+          marginBottom: 22,
+          borderBottom: `1px solid ${C.border}`,
+          flexWrap: isMobile ? "wrap" : "nowrap",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "flex-start", gap: 10, minWidth: 0, flex: 1 }}>
+          {onOpenMobileMenu && (
             <button
-              onClick={() => navigate(ROUTES.SCHOOL)}
+              onClick={onOpenMobileMenu}
+              aria-label="Open menu"
               style={{
-                padding: "8px 14px",
-                borderRadius: 8,
-                background: "transparent",
+                marginTop: 2,
+                width: 32, height: 32, borderRadius: 8,
+                background: C.bgSoft, border: `1px solid ${C.border}`,
+                display: "inline-flex", alignItems: "center", justifyContent: "center",
+                cursor: "pointer", flexShrink: 0,
+              }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                <path d="M4 6h16M4 12h16M4 18h16" stroke={C.text} strokeWidth="2" strokeLinecap="round"/>
+              </svg>
+            </button>
+          )}
+          <div style={{ minWidth: 0 }}>
+            <h1
+              style={{
+                fontFamily: "'Outfit',sans-serif",
+                fontSize: isMobile ? 20 : 24,
+                fontWeight: 700,
+                color: C.text,
+                margin: 0,
+                lineHeight: 1.15,
+              }}
+            >
+              {t.pageTitle}
+            </h1>
+            <p
+              style={{
+                fontFamily: "'Outfit',sans-serif",
+                fontSize: isMobile ? 13 : 14,
                 color: C.textSecondary,
-                border: `1px solid ${C.border}`,
-                fontSize: 13,
-                fontWeight: 500,
-                cursor: "pointer",
-                fontFamily: "'Outfit',sans-serif",
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 6,
+                margin: "4px 0 0",
+                lineHeight: 1.4,
               }}
             >
-              <CIcon name="chart" size={13} inline />
-              {!isMobile && t.schoolAnalytics}
-            </button>
-            <button
-              onClick={handleNewClass}
-              style={{
-                padding: "9px 16px",
-                borderRadius: 8,
-                background: `linear-gradient(135deg, ${C.accent}, ${C.purple})`,
-                color: "#fff",
-                border: "none",
-                fontSize: 13,
-                fontWeight: 600,
-                cursor: "pointer",
-                fontFamily: "'Outfit',sans-serif",
-                boxShadow: `0 2px 8px ${C.accent}33`,
-              }}
-            >
-              {t.newClass}
-            </button>
+              {t.subtitle}
+            </p>
           </div>
-        }
-      />
+        </div>
+        <div style={{ display: "flex", gap: 8, alignItems: "center", flexShrink: 0 }}>
+          <button
+            onClick={() => navigate(ROUTES.SCHOOL)}
+            style={{
+              padding: "8px 14px",
+              borderRadius: 8,
+              background: "transparent",
+              color: C.textSecondary,
+              border: `1px solid ${C.border}`,
+              fontSize: 13,
+              fontWeight: 500,
+              cursor: "pointer",
+              fontFamily: "'Outfit',sans-serif",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              whiteSpace: "nowrap",
+            }}
+          >
+            <CIcon name="chart" size={13} inline />
+            {!isMobile && t.schoolAnalytics}
+          </button>
+          <button
+            onClick={handleNewClass}
+            style={{
+              padding: "9px 16px",
+              borderRadius: 8,
+              background: `linear-gradient(135deg, ${C.accent}, ${C.purple})`,
+              color: "#fff",
+              border: "none",
+              fontSize: 13,
+              fontWeight: 600,
+              cursor: "pointer",
+              fontFamily: "'Outfit',sans-serif",
+              boxShadow: `0 2px 8px ${C.accent}33`,
+              whiteSpace: "nowrap",
+            }}
+          >
+            {t.newClass}
+          </button>
+        </div>
+      </div>
 
       {loading ? (
         <div style={{ textAlign: "center", color: C.textMuted, padding: 60, fontSize: 14 }}>
