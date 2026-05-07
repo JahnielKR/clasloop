@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { useSearchParams } from "react-router-dom";
 import { QRCodeSVG } from "qrcode.react";
 import { supabase } from "../lib/supabase";
 import { processSessionResults, getSuggestedDecksForToday } from "../lib/spaced-repetition";
@@ -8,6 +9,7 @@ import MobileMenuButton, { useIsMobile } from "../components/MobileMenuButton";
 import PageHeader from "../components/PageHeader";
 import { C, MONO } from "../components/tokens";
 import { estimateDeckSeconds, formatDeckDuration } from "../lib/time-limits";
+import { QUERY } from "../routes";
 
 // ─── Theme ─────────────────────────────────────────────────────────────────
 const SUBJECTS = ["Math", "Science", "History", "Language", "Geography", "Art", "Music", "Other"];
@@ -1055,7 +1057,7 @@ function generateClassCode() {
 }
 
 // ─── Main Export ───────────────────────────────────────────────────────────
-export default function SessionFlow({ lang = "en", setLang, onNavigateToDecks, sessionsOpts, onConsumeSessionsOpts, onOpenMobileMenu }) {
+export default function SessionFlow({ lang = "en", setLang, onNavigateToDecks, onOpenMobileMenu }) {
   const t = i18n[lang] || i18n.en;
   const [user, setUser] = useState(null);
   const [classes, setClasses] = useState([]);
@@ -1064,6 +1066,14 @@ export default function SessionFlow({ lang = "en", setLang, onNavigateToDecks, s
   const [session, setSession] = useState(null);
   const [showCreateClass, setShowCreateClass] = useState(false);
   const [toast, setToast] = useState(null); // { message } | null
+
+  // URL-driven intents (Phase 2):
+  //   ?createClass=1 → open the "new class" modal on mount
+  //   ?class=<id>    → focus the deck picker on this class
+  // Both are consumed once and then cleared from the URL with replace=true so
+  // they don't re-trigger on tab focus / token refresh.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const focusClassId = searchParams.get(QUERY.CLASS) || "";
 
   useEffect(() => {
     (async () => {
@@ -1075,25 +1085,33 @@ export default function SessionFlow({ lang = "en", setLang, onNavigateToDecks, s
     })();
   }, []);
 
-  // If we arrived here from "+ New class" elsewhere, auto-open the modal,
-  // then clear the flag so it doesn't re-trigger on subsequent visits.
+  // If we arrived with ?createClass=1 (e.g. from "+ New class" elsewhere),
+  // open the modal and remove the param so the modal doesn't reopen on
+  // back/forward or token refresh.
   useEffect(() => {
-    if (sessionsOpts?.openCreateClass) {
+    if (searchParams.get(QUERY.CREATE_CLASS) === "1") {
       setShowCreateClass(true);
-      if (onConsumeSessionsOpts) onConsumeSessionsOpts();
+      // Strip just createClass=1 from the URL but keep ?class= if present.
+      const next = new URLSearchParams(searchParams);
+      next.delete(QUERY.CREATE_CLASS);
+      setSearchParams(next, { replace: true });
     }
-  }, [sessionsOpts, onConsumeSessionsOpts]);
+  }, [searchParams, setSearchParams]);
 
-  // If we arrived with a class focus (e.g. from a notification's "Review now"),
-  // we let DeckPicker pick it up via initialClassFilter; once that prop has
-  // landed, clear the opts so we don't re-apply the filter on every nav.
+  // ?class=<id> is consumed by DeckPicker via initialClassFilter (the param
+  // is read directly from the URL on render). We clear it on the next tick
+  // so DeckPicker's mount effect sees it before it disappears, but a refresh
+  // on the same page doesn't re-apply it.
   useEffect(() => {
-    if (sessionsOpts?.focusClassId && onConsumeSessionsOpts) {
-      // Defer one tick so DeckPicker's mount effect reads the prop first.
-      const t = setTimeout(() => onConsumeSessionsOpts(), 0);
-      return () => clearTimeout(t);
-    }
-  }, [sessionsOpts, onConsumeSessionsOpts]);
+    if (!focusClassId) return;
+    const t = setTimeout(() => {
+      const next = new URLSearchParams(searchParams);
+      next.delete(QUERY.CLASS);
+      setSearchParams(next, { replace: true });
+    }, 0);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusClassId]);
 
   // Auto-dismiss toast after 3s
   useEffect(() => {
@@ -1216,7 +1234,7 @@ export default function SessionFlow({ lang = "en", setLang, onNavigateToDecks, s
               t={t}
               onPick={(dk) => { setSelectedDeck(dk); setStep("options"); }}
               navigateToDecks={onNavigateToDecks || (() => {})}
-              initialClassFilter={sessionsOpts?.focusClassId || ""}
+              initialClassFilter={focusClassId}
             />
           </>
         )}

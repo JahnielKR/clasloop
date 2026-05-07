@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate, useMatch } from 'react-router-dom';
-import { PAGE_TO_ROUTE, pathToPage, defaultRouteForRole, buildRoute } from './routes';
+import { ROUTES, PAGE_TO_ROUTE, pathToPage, defaultRouteForRole, buildRoute, buildPathWithOpts } from './routes';
 import { supabase } from './lib/supabase';
 import Icon, { LogoMark, SessionsIcon, AIGenIcon, SchoolIcon, CommunityIcon, DecksIcon, NotificationsIcon, SettingsIcon, JoinSessionIcon, ProgressIcon, AchievementsIcon, ActivitiesIcon, TeacherInline, StudentInline, TeacherAvatar, StudentAvatar, BackArrow } from './components/Icons';
 import { Avatar as ProfileAvatar } from './components/Avatars';
@@ -290,10 +290,15 @@ export default function App() {
   // sidebar icon. Source of truth lives in Notifications.jsx — App just
   // mirrors the number for display.
   const [notifsCount, setNotifsCount] = useState(0);
-  const [sessionsOpts, setSessionsOpts] = useState(null); // options passed when navigating to sessions (e.g. {openCreateClass:true})
-  const [decksOpts, setDecksOpts] = useState(null); // options passed when navigating to decks (e.g. {focusClassId})
-  const [studentJoinOpts, setStudentJoinOpts] = useState(null); // options for StudentJoin (e.g. {prefilledPin: "123456"} from notif "Join now")
-  // viewingTeacherId is no longer state — it's derived from the URL via
+  // sessionsOpts/decksOpts/studentJoinOpts used to be state here. As of
+  // Phase 2 they live in the URL as search params:
+  //   sessions: ?createClass=1, ?class=<id>
+  //   decks:    ?class=<id>
+  //   join:     ?pin=<6digits>
+  // Each consumer page reads them via useSearchParams, runs its effect, and
+  // clears the param with setSearchParams({}, {replace:true}). This makes
+  // those intents shareable via URL and removes the App-level plumbing.
+  // viewingTeacherId is also no longer state — it's derived from the URL via
   // useMatch("/teacher/:teacherId") near the top of this component. Navigation
   // to a teacher profile happens via navigate(buildRoute.teacher(id)), and the
   // back button works because react-router owns history.
@@ -558,14 +563,13 @@ export default function App() {
       <Sidebar
         page={page}
         setPage={(p) => {
-          // Sidebar nav. We still clear the transient opts (search-param-style
-          // intents from notifications, etc.) because they're not URL state
-          // yet — that's Phase 2. practiceDeck is also cleared so clicking a
-          // sidebar item exits practice mode, matching the old behavior.
+          // Sidebar nav. practiceDeck is cleared so clicking a sidebar item
+          // exits practice mode (the practice render-branch is still driven
+          // by this state — its migration to /practice/:deckId is Phase 3).
+          // The transient opts that used to live here (sessionsOpts/etc.) are
+          // gone — they live in URL search params now, and a fresh sidebar
+          // click navigates to a clean URL with no params.
           setPracticeDeck(null);
-          setSessionsOpts(null);
-          setDecksOpts(null);
-          setStudentJoinOpts(null);
           goToPage(p);
         }}
         profile={profile}
@@ -603,33 +607,20 @@ export default function App() {
             refreshProfile={() => { if (user?.id) fetchProfile(user.id, false); }}
             onOpenMobileMenu={isMobile ? () => setMobileDrawerOpen(true) : undefined}
             onLaunchPractice={(deck) => setPracticeDeck(deck)}
-            onNavigateToDecks={(opts) => { setDecksOpts(opts || null); goToPage("decks"); }}
-            onNavigateToSessions={(opts) => { setSessionsOpts(opts || {}); goToPage("sessions"); }}
-            sessionsOpts={page === "sessions" ? sessionsOpts : null}
-            onConsumeSessionsOpts={() => setSessionsOpts(null)}
-            decksOpts={page === "decks" ? decksOpts : null}
-            onConsumeDecksOpts={() => setDecksOpts(null)}
-            prefilledPin={page === "studentJoin" ? (studentJoinOpts?.prefilledPin || "") : ""}
+            // Navigation callbacks: opts are now serialized into URL search
+            // params. The destination page reads them via useSearchParams,
+            // runs its effect, and clears them with setSearchParams({}, {replace:true}).
+            onNavigateToDecks={(opts) => navigate(buildPathWithOpts(ROUTES.DECKS, opts, "decks"))}
+            onNavigateToSessions={(opts) => navigate(buildPathWithOpts(ROUTES.SESSIONS, opts, "sessions"))}
             teacherId={page === "teacherProfile" ? viewingTeacherId : null}
             onNavigateToTeacher={(id) => navigate(buildRoute.teacher(id))}
             onNavigateToCommunity={() => goToPage("community")}
             onNavigate={(targetPage, opts) => {
-              // Generic navigator used by Notifications. Routes any target
-              // page with optional opts that the destination understands.
-              if (targetPage === "sessions") {
-                setSessionsOpts(opts || {});
-                goToPage("sessions");
-              } else if (targetPage === "decks") {
-                setDecksOpts(opts || null);
-                goToPage("decks");
-              } else if (targetPage === "myClasses") {
-                goToPage("myClasses");
-              } else if (targetPage === "studentJoin") {
-                setStudentJoinOpts(opts || null);
-                goToPage("studentJoin");
-              } else {
-                goToPage(targetPage);
-              }
+              // Generic navigator used by Notifications. The opts dict is
+              // mapped to the destination page's URL + search params.
+              const path = PAGE_TO_ROUTE[targetPage];
+              if (!path) return;
+              navigate(buildPathWithOpts(path, opts, targetPage));
             }}
           />
         )}

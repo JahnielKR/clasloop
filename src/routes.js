@@ -212,3 +212,49 @@ export function defaultRouteForRole(role) {
   if (role === "student") return ROUTES.CLASSES;
   return ROUTES.SESSIONS; // teacher (y fallback)
 }
+
+// ── Legacy opts → URL ──────────────────────────────────────────────────────
+//
+// Phase 2 migration helper. The old App.jsx held three pieces of transient
+// state (sessionsOpts/decksOpts/studentJoinOpts) that callers passed when
+// navigating. They now travel through URL search params instead so:
+//   1. The intents are shareable links.
+//   2. Refresh / back / forward all preserve them naturally.
+//   3. App.jsx no longer holds the state.
+//
+// This function takes a base path (e.g. "/sessions") and an opts object
+// (e.g. {focusClassId:"abc", openCreateClass:true}), translates the keys to
+// the canonical query keys (QUERY.CLASS, QUERY.CREATE_CLASS, ...), and
+// returns the final URL. Unknown keys are ignored — they shouldn't reach
+// here, but if they do we'd rather drop them than pollute the URL.
+//
+// `targetPage` is used so we can tell apart cases where the same opts dict
+// would mean different things on different pages (today there's just one
+// target per key, but it makes future-proofing trivial).
+
+export function buildPathWithOpts(basePath, opts, targetPage) {
+  if (!opts || typeof opts !== "object") return basePath;
+
+  const params = new URLSearchParams();
+
+  // sessions: focusClassId → ?class, openCreateClass → ?createClass=1
+  if (targetPage === "sessions") {
+    if (opts.focusClassId) params.set(QUERY.CLASS, String(opts.focusClassId));
+    if (opts.openCreateClass) params.set(QUERY.CREATE_CLASS, "1");
+    if (opts.openCreateSession) params.set("createSession", "1");
+  }
+  // decks: focusClassId → ?class
+  else if (targetPage === "decks") {
+    if (opts.focusClassId) params.set(QUERY.CLASS, String(opts.focusClassId));
+  }
+  // studentJoin: prefilledPin → ?pin
+  else if (targetPage === "studentJoin") {
+    if (opts.prefilledPin) params.set(QUERY.PIN, String(opts.prefilledPin));
+  }
+  // myClasses and others: no opts mapped today
+  // (teacherProfile and practice are *not* opts targets — they use route
+  // params via buildRoute.teacher() / buildRoute.practice())
+
+  const qs = params.toString();
+  return qs ? `${basePath}?${qs}` : basePath;
+}

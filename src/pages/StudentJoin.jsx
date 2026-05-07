@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { useSearchParams } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { LogoMark, CIcon } from "../components/Icons";
 import { Avatar } from "../components/Avatars";
@@ -7,6 +8,7 @@ import { generateGuestToken, saveGuestSession, validateGuestName, clearGuestSess
 import { C, MONO } from "../components/tokens";
 import { resolveTimeLimit } from "../lib/time-limits";
 import { getPracticeTimerPref, setPracticeTimerPref } from "../lib/practice-timer-pref";
+import { QUERY } from "../routes";
 
 // Quiz option colors — kahoot-style fixed palette. NOT theme-aware on purpose:
 // students need to see the same colors the teacher launches the session with.
@@ -253,17 +255,26 @@ const evaluateAnswer = (q, type, raw) => {
   }
 };
 
-export default function StudentJoin({ lang: pageLang = "en", profile = null, practiceDeck = null, onPracticeExit = null, guestMode = false, guestPin = "", guestName = "", guestToken = "", onGuestKicked = null, prefilledPin = "" }) {
+export default function StudentJoin({ lang: pageLang = "en", profile = null, practiceDeck = null, onPracticeExit = null, guestMode = false, guestPin = "", guestName = "", guestToken = "", onGuestKicked = null }) {
   // Practice mode: start straight in the quiz with the deck's questions, no PIN, no live session.
   const isPractice = Boolean(practiceDeck);
   // Guest mode: prefilled pin + name from the /join page; no profile linkage.
   const isGuest = Boolean(guestMode);
 
+  // ?pin=<6digits>: prefilled PIN when arriving from a notification's "Join now"
+  // action (or any future shareable link). Only honored when we're in the
+  // logged-in flow (not practice, not guest — those have their own sources).
+  // We consume it once on mount and clear it from the URL with replace=true
+  // so a back/forward or refresh doesn't re-prefill an old PIN.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const urlPin = (!isPractice && !isGuest) ? (searchParams.get(QUERY.PIN) || "") : "";
+
   const [step, setStep] = useState(isPractice ? "quiz" : (isGuest ? "joining" : "join"));
-  const [pin, setPin] = useState(isGuest ? guestPin : (prefilledPin || ""));
+  const [pin, setPin] = useState(isGuest ? guestPin : urlPin);
   const [name, setName] = useState(isGuest ? guestName : (profile?.full_name || ""));
   const isLoggedIn = !isGuest && Boolean(profile?.full_name);
   const [error, setError] = useState("");
+
   const [session, setSession] = useState(isPractice
     ? { id: `practice-${practiceDeck.id}`, questions: practiceDeck.questions || [], topic: practiceDeck.title, class_id: practiceDeck.class_id, status: "active", _isPractice: true }
     : null);
@@ -299,6 +310,20 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
   useEffect(() => {
     setPracticeTimerOn(getPracticeTimerPref(practiceDeckId));
   }, [practiceDeckId]);
+
+  // ── URL pin consumption ──
+  // After mount, if we arrived with ?pin=, strip it from the URL so a
+  // refresh/back doesn't keep re-prefilling an old PIN. The initial value is
+  // already in state via useState above.
+  useEffect(() => {
+    if (urlPin) {
+      const next = new URLSearchParams(searchParams);
+      next.delete(QUERY.PIN);
+      setSearchParams(next, { replace: true });
+    }
+    // We only want to consume on mount — deliberately not depending on urlPin.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // ── Unlock celebration (Phase 3) ──
   const [newUnlocks, setNewUnlocks] = useState([]);  // queue of just-unlocked avatars

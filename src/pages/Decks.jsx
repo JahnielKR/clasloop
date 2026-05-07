@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useSearchParams } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { CIcon } from "../components/Icons";
 import { DeckCover, SUBJ_ICON, SUBJ_COLOR, resolveColor, colorTint, DECK_COLORS } from "../lib/deck-cover";
@@ -8,6 +9,7 @@ import PageHeader from "../components/PageHeader";
 import { MONO } from "../components/tokens";
 import { C, css } from "./Decks/styles";
 import CreateDeckEditor from "./Decks/CreateDeckEditor";
+import { QUERY } from "../routes";
 
 const SUBJECTS = ["Math", "Science", "History", "Language", "Geography", "Art", "Music", "Other"];
 const GRADES = ["6th-7th", "7th-8th", "8th-9th", "9th-10th", "10th-11th", "11th-12th"];
@@ -378,7 +380,7 @@ const LangBadge = ({ lang }) => {
 
 // ─── Create Deck Editor ─────────────────────────────
 // ─── Live preview of a deck card while editing ──────────────────────────────
-export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onNavigateToSessions, decksOpts, onConsumeDecksOpts, onOpenMobileMenu }) {
+export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onNavigateToSessions, onOpenMobileMenu }) {
   const isMobile = useIsMobile();
   const [lang, setLangLocal] = useState(pageLang);
   const setLang = pageSetLang || setLangLocal;
@@ -407,25 +409,32 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
 
   useEffect(() => { loadData(); }, []);
 
-  // Cross-page navigation hint: when arriving from "Create class" in Sessions
-  // we get a focusClassId so we can show the teacher exactly where their new
-  // class lives. We switch to grouped-by-class and expand that class's group +
-  // scroll to it — but we DON'T set filterClass, so all classes stay visible
-  // (otherwise the screen would only show the new class and feel empty).
+  // Cross-page navigation hint via URL search param: ?class=<id>. When
+  // arriving from "Create class" in Sessions we get a focusClassId so we can
+  // show the teacher exactly where their new class lives. We switch to
+  // grouped-by-class and expand that class's group + scroll to it — but we
+  // DON'T set filterClass, so all classes stay visible (otherwise the screen
+  // would only show the new class and feel empty). The param is consumed
+  // once and removed from the URL with replace=true so refresh / back /
+  // forward don't re-trigger the focus.
+  const [searchParams, setSearchParams] = useSearchParams();
   useEffect(() => {
-    if (!decksOpts?.focusClassId) return;
-    const id = decksOpts.focusClassId;
+    const id = searchParams.get(QUERY.CLASS);
+    if (!id) return;
     setTab("myDecks");
     setGroupBy("class");
     setExpandedGroups(prev => ({ ...prev, [id]: true }));
-    if (onConsumeDecksOpts) onConsumeDecksOpts();
+    // Strip the param so it doesn't keep firing this effect.
+    const next = new URLSearchParams(searchParams);
+    next.delete(QUERY.CLASS);
+    setSearchParams(next, { replace: true });
     // Scroll into view shortly after render
     setTimeout(() => {
       const el = document.querySelector(`[data-group-id="${id}"]`);
       if (el && el.scrollIntoView) el.scrollIntoView({ behavior: "smooth", block: "start" });
     }, 200);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [decksOpts?.focusClassId]);
+  }, [searchParams.get(QUERY.CLASS)]);
 
   const loadData = async () => {
     const { data: { user } } = await supabase.auth.getUser();
