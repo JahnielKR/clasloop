@@ -4,6 +4,7 @@ import { supabase } from "../lib/supabase";
 import { CIcon, SchoolIcon } from "../components/Icons";
 import { useIsMobile } from "../components/MobileMenuButton";
 import CreateClassModal from "../components/CreateClassModal";
+import ImportClassModal from "../components/ImportClassModal";
 import { C, MONO } from "../components/tokens";
 import { ROUTES, QUERY, buildPathWithOpts, buildRoute } from "../routes";
 import { resolveClassAccent } from "../lib/class-hierarchy";
@@ -27,9 +28,32 @@ const i18n = {
     openClass: "Open",
     schoolAnalytics: "School analytics",
     importClass: "Import",
-    importComingSoon: "Class import is coming soon. We'll let you bring back any class you've exported as JSON.",
-    importComingSoonTitle: "Import class — coming soon",
-    importGotIt: "Got it",
+    // Real import modal strings (used by ImportClassModal)
+    import_title: "Import class",
+    import_description: "Pick a JSON file you've previously exported from a Clasloop class. The class is created fresh — you can rename it before confirming.",
+    import_pickFile: "Choose JSON file",
+    import_changeFile: "Choose another file",
+    import_cancel: "Cancel",
+    import_close: "Close",
+    import_previewTitle: "Ready to import",
+    import_className: "Class name",
+    import_classNamePlaceholder: "Class name",
+    import_willImport: "Will import",
+    import_unitsCount: "{n} units",
+    import_decksCount: "{n} decks",
+    import_fromOriginal: "From export of \"{name}\"",
+    import_importButton: "Import class",
+    import_importing: "Importing...",
+    import_errorReadFile: "Couldn't read the file.",
+    import_errorParseJson: "This file isn't valid JSON.",
+    import_errorEmptyName: "Class name can't be empty.",
+    import_errorImportFailed: "Could not import class.",
+    import_errorWrongSchema: "This file isn't a Clasloop class export.",
+    import_errorNoClass: "The file is missing the class info.",
+    import_errorTooManyUnits: "This export has too many units (limit: {max}).",
+    import_errorTooManyDecks: "This export has too many decks (limit: {max}).",
+    import_errorInvalidGeneric: "The file structure isn't valid.",
+    importedToast: "Imported \"{name}\" — code {code}",
     loading: "Loading...",
     grade: "Grade",
     subject: "Subject",
@@ -62,9 +86,31 @@ const i18n = {
     openClass: "Abrir",
     schoolAnalytics: "Estadísticas escolares",
     importClass: "Importar",
-    importComingSoon: "La importación de clases llega pronto. Vas a poder traer de vuelta cualquier clase que hayas exportado como JSON.",
-    importComingSoonTitle: "Importar clase — próximamente",
-    importGotIt: "Entendido",
+    import_title: "Importar clase",
+    import_description: "Elige un archivo JSON que hayas exportado previamente desde una clase de Clasloop. La clase se crea nueva — puedes renombrarla antes de confirmar.",
+    import_pickFile: "Elegir archivo JSON",
+    import_changeFile: "Elegir otro archivo",
+    import_cancel: "Cancelar",
+    import_close: "Cerrar",
+    import_previewTitle: "Listo para importar",
+    import_className: "Nombre de la clase",
+    import_classNamePlaceholder: "Nombre de la clase",
+    import_willImport: "Se importará",
+    import_unitsCount: "{n} unidades",
+    import_decksCount: "{n} decks",
+    import_fromOriginal: "Del export de \"{name}\"",
+    import_importButton: "Importar clase",
+    import_importing: "Importando...",
+    import_errorReadFile: "No se pudo leer el archivo.",
+    import_errorParseJson: "Este archivo no es JSON válido.",
+    import_errorEmptyName: "El nombre no puede estar vacío.",
+    import_errorImportFailed: "No se pudo importar la clase.",
+    import_errorWrongSchema: "Este archivo no es un export de clase de Clasloop.",
+    import_errorNoClass: "El archivo no tiene información de la clase.",
+    import_errorTooManyUnits: "Este export tiene demasiadas unidades (límite: {max}).",
+    import_errorTooManyDecks: "Este export tiene demasiados decks (límite: {max}).",
+    import_errorInvalidGeneric: "La estructura del archivo no es válida.",
+    importedToast: "Importada \"{name}\" — código {code}",
     loading: "Cargando...",
     grade: "Grado",
     subject: "Materia",
@@ -96,9 +142,31 @@ const i18n = {
     openClass: "열기",
     schoolAnalytics: "학교 분석",
     importClass: "가져오기",
-    importComingSoon: "수업 가져오기 기능이 곧 출시됩니다. JSON으로 내보낸 모든 수업을 다시 가져올 수 있습니다.",
-    importComingSoonTitle: "수업 가져오기 — 곧 출시",
-    importGotIt: "확인",
+    import_title: "수업 가져오기",
+    import_description: "Clasloop 수업에서 이전에 내보낸 JSON 파일을 선택하세요. 수업은 새로 생성되며, 확인 전에 이름을 바꿀 수 있습니다.",
+    import_pickFile: "JSON 파일 선택",
+    import_changeFile: "다른 파일 선택",
+    import_cancel: "취소",
+    import_close: "닫기",
+    import_previewTitle: "가져올 준비 완료",
+    import_className: "수업 이름",
+    import_classNamePlaceholder: "수업 이름",
+    import_willImport: "가져옴",
+    import_unitsCount: "단원 {n}개",
+    import_decksCount: "덱 {n}개",
+    import_fromOriginal: "\"{name}\"의 내보내기에서",
+    import_importButton: "수업 가져오기",
+    import_importing: "가져오는 중...",
+    import_errorReadFile: "파일을 읽을 수 없습니다.",
+    import_errorParseJson: "유효한 JSON 파일이 아닙니다.",
+    import_errorEmptyName: "수업 이름을 입력하세요.",
+    import_errorImportFailed: "수업을 가져올 수 없습니다.",
+    import_errorWrongSchema: "Clasloop 수업 내보내기 파일이 아닙니다.",
+    import_errorNoClass: "파일에 수업 정보가 없습니다.",
+    import_errorTooManyUnits: "단원이 너무 많습니다 (한도: {max}).",
+    import_errorTooManyDecks: "덱이 너무 많습니다 (한도: {max}).",
+    import_errorInvalidGeneric: "파일 구조가 올바르지 않습니다.",
+    importedToast: "\"{name}\" 가져옴 — 코드 {code}",
     loading: "로딩 중...",
     grade: "학년",
     subject: "과목",
@@ -280,7 +348,7 @@ export default function MyClassesTeacher({ lang = "en", profile, onNavigateToSes
   const [studentCounts, setStudentCounts] = useState({}); // { classId: count }
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [showImportComingSoon, setShowImportComingSoon] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
   // Highlight + toast for the freshly-created class so the teacher's eye lands
   // on it immediately (the new card animates in at the top of the grid, but
   // a quick visual cue makes "I just made this" obvious).
@@ -507,12 +575,12 @@ export default function MyClassesTeacher({ lang = "en", profile, onNavigateToSes
             <CIcon name="chart" size={13} inline />
             {!isMobile && t.schoolAnalytics}
           </button>
-          {/* Import — placeholder this iteration. The button is here so the
-              affordance exists from day one (teachers see export-and-import
-              as a pair from the start), but the actual import flow is its
-              own sprint. Click → "coming soon" modal. */}
+          {/* Import — opens the real import modal (file picker → preview →
+              confirm). The actual flow lives in ImportClassModal +
+              lib/class-import.js. Header chrome here just hosts the entry
+              point. */}
           <button
-            onClick={() => setShowImportComingSoon(true)}
+            onClick={() => setShowImportModal(true)}
             title={t.importClass}
             style={{
               padding: "8px 14px",
@@ -598,54 +666,57 @@ export default function MyClassesTeacher({ lang = "en", profile, onNavigateToSes
         />
       )}
 
-      {/* Import — coming-soon placeholder. The button exists in the header
-          so teachers see export and import as a pair from the start; the
-          actual import flow ships in a follow-up turn. Plain modal, not a
-          full component, because there's no real interaction yet. */}
-      {showImportComingSoon && (
-        <div
-          onClick={() => setShowImportComingSoon(false)}
-          style={{
-            position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            zIndex: 100, padding: 20,
+      {/* Import class modal — file picker → preview → confirm. The flow
+          and DB calls live inside ImportClassModal + lib/class-import.js;
+          we just hand it the i18n it needs and a callback to navigate
+          when the new class is ready. */}
+      {showImportModal && (
+        <ImportClassModal
+          userId={userId}
+          t={{
+            title: t.import_title,
+            description: t.import_description,
+            pickFile: t.import_pickFile,
+            changeFile: t.import_changeFile,
+            cancel: t.import_cancel,
+            close: t.import_close,
+            previewTitle: t.import_previewTitle,
+            className: t.import_className,
+            classNamePlaceholder: t.import_classNamePlaceholder,
+            willImport: t.import_willImport,
+            unitsCount: t.import_unitsCount,
+            decksCount: t.import_decksCount,
+            fromOriginal: t.import_fromOriginal,
+            importButton: t.import_importButton,
+            importing: t.import_importing,
+            errorReadFile: t.import_errorReadFile,
+            errorParseJson: t.import_errorParseJson,
+            errorEmptyName: t.import_errorEmptyName,
+            errorImportFailed: t.import_errorImportFailed,
+            errorWrongSchema: t.import_errorWrongSchema,
+            errorNoClass: t.import_errorNoClass,
+            errorTooManyUnits: t.import_errorTooManyUnits,
+            errorTooManyDecks: t.import_errorTooManyDecks,
+            errorInvalidGeneric: t.import_errorInvalidGeneric,
           }}
-        >
-          <div
-            onClick={e => e.stopPropagation()}
-            className="ns-fade"
-            style={{
-              background: C.bg, borderRadius: 14, padding: 24,
-              maxWidth: 420, width: "100%",
-              boxShadow: "0 12px 40px rgba(0,0,0,0.15)",
-              fontFamily: "'Outfit',sans-serif",
-            }}
-          >
-            <h3 style={{ fontSize: 17, fontWeight: 700, margin: "0 0 8px", color: C.text }}>
-              {t.importComingSoonTitle}
-            </h3>
-            <p style={{ fontSize: 13, color: C.textSecondary, margin: "0 0 16px", lineHeight: 1.5 }}>
-              {t.importComingSoon}
-            </p>
-            <button
-              onClick={() => setShowImportComingSoon(false)}
-              style={{
-                padding: "9px 18px",
-                borderRadius: 8,
-                fontSize: 13,
-                fontWeight: 600,
-                background: `linear-gradient(135deg, ${C.accent}, ${C.purple})`,
-                color: "#fff",
-                border: "none",
-                cursor: "pointer",
-                fontFamily: "'Outfit',sans-serif",
-                width: "100%",
-              }}
-            >
-              {t.importGotIt}
-            </button>
-          </div>
-        </div>
+          onClose={() => setShowImportModal(false)}
+          onImported={(insertedClass) => {
+            // Treat an imported class like a freshly-created one: prepend
+            // to the list, flash the card, show the toast with code, and
+            // close the modal. The teacher stays on /classes — they can
+            // click into the new class when ready.
+            setClasses(prev => [insertedClass, ...prev]);
+            setJustCreatedId(insertedClass.id);
+            setShowImportModal(false);
+            setToast({
+              message: (t.importedToast || "Imported \"{name}\" — code {code}")
+                .replace("{name}", insertedClass.name)
+                .replace("{code}", insertedClass.class_code),
+              code: insertedClass.class_code,
+            });
+            setTimeout(() => setJustCreatedId(null), 4500);
+          }}
+        />
       )}
 
       {/* Toast — bottom-right. Carries the new class code for ~5s after
