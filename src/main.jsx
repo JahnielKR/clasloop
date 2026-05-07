@@ -1,9 +1,11 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
+import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import App from './App'
 import GuestJoin from './pages/GuestJoin'
 import './index.css'
 import { ensureThemeCss, applyTheme, getStoredTheme } from './components/tokens'
+import { ROUTE_PATTERNS } from './routes'
 
 // ── Theme boot ──
 // Inject the theme CSS variables and apply the persisted theme BEFORE
@@ -16,15 +18,24 @@ requestAnimationFrame(() => {
   document.documentElement.classList.add("theme-ready");
 });
 
-// Simple route splitter — only /join is a truly public, no-auth entry point
-// (for guests joining a session by code). Everything else, including
-// /teacher/:id, lives inside the authenticated App shell.
+// Routing entry point.
+//
+// /join is the only truly public, no-auth entry point (guests joining a
+// session by PIN). Everything else lives inside the authenticated <App />
+// shell, which itself uses react-router for its internal navigation.
+//
+// The catch-all "/*" handing routing to App lets App own *all* its internal
+// routes (sessions, decks, settings, /teacher/:id, etc.) while keeping
+// /join as a sibling that bypasses the auth shell entirely.
 function Root() {
-  const path = typeof window !== 'undefined' ? window.location.pathname : '/';
-  if (path === '/join') {
-    return <GuestJoin />;
-  }
-  return <App />;
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path={ROUTE_PATTERNS.JOIN} element={<GuestJoin />} />
+        <Route path="/*" element={<App />} />
+      </Routes>
+    </BrowserRouter>
+  );
 }
 
 ReactDOM.createRoot(document.getElementById('root')).render(

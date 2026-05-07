@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
+import { useLocation, useNavigate, useMatch } from 'react-router-dom';
+import { PAGE_TO_ROUTE, pathToPage, defaultRouteForRole, buildRoute } from './routes';
 import { supabase } from './lib/supabase';
 import Icon, { LogoMark, SessionsIcon, AIGenIcon, SchoolIcon, CommunityIcon, DecksIcon, NotificationsIcon, SettingsIcon, JoinSessionIcon, ProgressIcon, AchievementsIcon, ActivitiesIcon, TeacherInline, StudentInline, TeacherAvatar, StudentAvatar, BackArrow } from './components/Icons';
 import { Avatar as ProfileAvatar } from './components/Avatars';
@@ -235,10 +237,27 @@ function Sidebar({ page, setPage, profile, lang, setLang, open, setOpen, onSignO
 }
 
 export default function App() {
+  // ── Router hooks ──
+  // location/navigate are the single source of truth for "what page is showing".
+  // The local `page` state below is kept as a *shadow* of the URL during this
+  // refactor phase so that all the existing child components (Decks, SessionFlow,
+  // etc.) keep receiving the same `page` prop they used to. The single useEffect
+  // a few lines down syncs URL → page state on every navigation.
+  const location = useLocation();
+  const navigate = useNavigate();
+  // useMatch reads the :teacherId param from /teacher/:teacherId — replaces the
+  // old regex-on-pathname trick that lived in this file's state initializer.
+  const teacherMatch = useMatch("/teacher/:teacherId");
+  const viewingTeacherId = teacherMatch?.params?.teacherId || null;
+
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [page, setPage] = useState("sessions");
+  // `page` mirrors the URL (kept in sync by an effect below). Initialised from
+  // the current pathname so the very first render already shows the correct
+  // page without a flash. Default to "sessions" when path is "/" — fetchProfile
+  // will redirect to the role's home as soon as the profile loads.
+  const [page, setPage] = useState(() => pathToPage(location.pathname) || "sessions");
   const [pageKey, setPageKey] = useState(0);
   // El idioma de la UI persiste en localStorage. Si Jota cambia a español
   // y recarga la página, debe seguir en español — antes se reseteaba a "en"
@@ -274,20 +293,10 @@ export default function App() {
   const [sessionsOpts, setSessionsOpts] = useState(null); // options passed when navigating to sessions (e.g. {openCreateClass:true})
   const [decksOpts, setDecksOpts] = useState(null); // options passed when navigating to decks (e.g. {focusClassId})
   const [studentJoinOpts, setStudentJoinOpts] = useState(null); // options for StudentJoin (e.g. {prefilledPin: "123456"} from notif "Join now")
-  // When viewing a public teacher profile (via /teacher/:id link or click in
-  // Community), this holds the id. We read the URL once at mount and then
-  // immediately clean it — otherwise tab focus / token refresh / OAuth bounces
-  // re-trigger the same code path and you'd land on the profile every time.
-  const [viewingTeacherId, setViewingTeacherId] = useState(() => {
-    if (typeof window === "undefined") return null;
-    const m = window.location.pathname.match(/^\/teacher\/([^/?#]+)/);
-    if (m) {
-      // Replace the URL so a re-render or re-auth doesn't try to handle it again.
-      try { window.history.replaceState(null, "", "/"); } catch (_) {}
-      return m[1];
-    }
-    return null;
-  });
+  // viewingTeacherId is no longer state — it's derived from the URL via
+  // useMatch("/teacher/:teacherId") near the top of this component. Navigation
+  // to a teacher profile happens via navigate(buildRoute.teacher(id)), and the
+  // back button works because react-router owns history.
 
   // Track whether the initial profile load already ran. Subsequent calls (token
   // refresh on tab return, etc.) shouldn't reset the page state.
@@ -334,6 +343,28 @@ export default function App() {
 
     return () => subscription.unsubscribe();
   }, []);
+
+  // ── URL → page state sync ──
+  // The router owns navigation. This effect keeps the legacy `page` shadow in
+  // step with whatever path is currently active so child components (which
+  // still receive `page` as a prop) keep working unchanged. We only update
+  // `page` if the URL maps to a known page id; for "/" we leave it alone
+  // (fetchProfile will navigate to the role's default route once it loads).
+  useEffect(() => {
+    const next = pathToPage(location.pathname);
+    if (next && next !== page) {
+      setPage(next);
+    }
+  }, [location.pathname, page]);
+
+  // Navigation helper that replaces every old `setPage(id)` call. It walks the
+  // legacy id → URL map and pushes the URL; the effect above then updates
+  // `page` reactively.
+  const goToPage = (id) => {
+    const path = PAGE_TO_ROUTE[id];
+    if (!path) return;
+    navigate(path);
+  };
 
   // Lock body scroll while the mobile drawer is open so the page underneath
   // doesn't scroll behind the backdrop.
@@ -422,13 +453,23 @@ export default function App() {
         // Only set the default page on the first profile load. Re-fetches
         // (e.g. token refresh on tab return) shouldn't yank the user back to
         // a default — they should stay where they were.
-        if (isInitial) {
+        //
+        // Important: only navigate when the current URL is the bare "/".
+        // If the user arrived with a deep link (e.g. /teacher/abc, /decks,
+        // or any specific page), we leave the URL alone — the router is
+        // already showing the right page and pathToPage() has the shadow
+        // `page` state in sync.
+        if (isInitial && location.pathname === "/") {
           if (viewingTeacherId) {
-            setPage("teacherProfile");
+            // Defensive: viewingTeacherId is derived from the URL, so this
+            // branch only fires if pathname is "/teacher/:id" — which the
+            // outer `=== "/"` guard rules out. Kept for completeness in case
+            // the matching logic changes later.
+            navigate(buildRoute.teacher(viewingTeacherId), { replace: true });
           } else if (finalProfile.role === "student") {
-            setPage("myClasses");
+            navigate(defaultRouteForRole("student"), { replace: true });
           } else {
-            setPage("sessions");
+            navigate(defaultRouteForRole("teacher"), { replace: true });
           }
         }
       }
@@ -516,7 +557,17 @@ export default function App() {
       )}
       <Sidebar
         page={page}
-        setPage={(p) => { setPracticeDeck(null); setSessionsOpts(null); setDecksOpts(null); setStudentJoinOpts(null); setViewingTeacherId(null); setPage(p); }}
+        setPage={(p) => {
+          // Sidebar nav. We still clear the transient opts (search-param-style
+          // intents from notifications, etc.) because they're not URL state
+          // yet — that's Phase 2. practiceDeck is also cleared so clicking a
+          // sidebar item exits practice mode, matching the old behavior.
+          setPracticeDeck(null);
+          setSessionsOpts(null);
+          setDecksOpts(null);
+          setStudentJoinOpts(null);
+          goToPage(p);
+        }}
         profile={profile}
         lang={lang}
         setLang={setLang}
@@ -552,32 +603,32 @@ export default function App() {
             refreshProfile={() => { if (user?.id) fetchProfile(user.id, false); }}
             onOpenMobileMenu={isMobile ? () => setMobileDrawerOpen(true) : undefined}
             onLaunchPractice={(deck) => setPracticeDeck(deck)}
-            onNavigateToDecks={(opts) => { setDecksOpts(opts || null); setPage("decks"); }}
-            onNavigateToSessions={(opts) => { setSessionsOpts(opts || {}); setPage("sessions"); }}
+            onNavigateToDecks={(opts) => { setDecksOpts(opts || null); goToPage("decks"); }}
+            onNavigateToSessions={(opts) => { setSessionsOpts(opts || {}); goToPage("sessions"); }}
             sessionsOpts={page === "sessions" ? sessionsOpts : null}
             onConsumeSessionsOpts={() => setSessionsOpts(null)}
             decksOpts={page === "decks" ? decksOpts : null}
             onConsumeDecksOpts={() => setDecksOpts(null)}
             prefilledPin={page === "studentJoin" ? (studentJoinOpts?.prefilledPin || "") : ""}
             teacherId={page === "teacherProfile" ? viewingTeacherId : null}
-            onNavigateToTeacher={(id) => { setViewingTeacherId(id); setPage("teacherProfile"); }}
-            onNavigateToCommunity={() => { setViewingTeacherId(null); setPage("community"); }}
+            onNavigateToTeacher={(id) => navigate(buildRoute.teacher(id))}
+            onNavigateToCommunity={() => goToPage("community")}
             onNavigate={(targetPage, opts) => {
               // Generic navigator used by Notifications. Routes any target
               // page with optional opts that the destination understands.
               if (targetPage === "sessions") {
                 setSessionsOpts(opts || {});
-                setPage("sessions");
+                goToPage("sessions");
               } else if (targetPage === "decks") {
                 setDecksOpts(opts || null);
-                setPage("decks");
+                goToPage("decks");
               } else if (targetPage === "myClasses") {
-                setPage("myClasses");
+                goToPage("myClasses");
               } else if (targetPage === "studentJoin") {
                 setStudentJoinOpts(opts || null);
-                setPage("studentJoin");
+                goToPage("studentJoin");
               } else {
-                setPage(targetPage);
+                goToPage(targetPage);
               }
             }}
           />
