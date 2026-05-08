@@ -61,6 +61,9 @@ export const ROUTES = {
   // PRACTICE: "/practice/:deckId"       → buildRoute.practice(deckId)
   ACHIEVEMENTS: "/achievements",
 
+  // ─ Teacher: To Review (free-text grading) ─
+  REVIEW: "/review",                    // /review queue — pending free-text answers
+
   // ─ Compartidas ─
   NOTIFICATIONS: "/notifications",
   SETTINGS: "/settings",
@@ -127,6 +130,8 @@ export const ROUTE_PATTERNS = {
   PRACTICE: "/practice/:deckId",
   ACHIEVEMENTS: "/achievements",
 
+  REVIEW: "/review",
+
   NOTIFICATIONS: "/notifications",
   SETTINGS: "/settings",
 
@@ -165,6 +170,7 @@ export const PAGE_TO_ROUTE = {
   notifications: ROUTES.NOTIFICATIONS,
   decks: ROUTES.DECKS,
   myClasses: ROUTES.CLASSES,
+  review: ROUTES.REVIEW,
   // teacherProfile no entra acá: es ruta con param. Se navega con
   // buildRoute.teacher(id), no con setPage("teacherProfile").
   adminAIStats: ROUTES.ADMIN_AI_STATS,
@@ -194,6 +200,7 @@ export function pathToPage(pathname) {
 
   if (pathname === "/notifications")       return "notifications";
   if (pathname === "/settings")            return "settings";
+  if (pathname === "/review")              return "review";
 
   if (pathname === "/admin/ai-stats")      return "adminAIStats";
 

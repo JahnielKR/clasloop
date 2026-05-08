@@ -38,6 +38,7 @@ const importMyClassesTeacher = () => import('./pages/MyClassesTeacher');
 const importClassPage      = () => import('./pages/ClassPage');
 const importTeacherProfile = () => import('./pages/TeacherProfile');
 const importAdminAIStats   = () => import('./pages/AdminAIStats');
+const importReview         = () => import('./pages/Review');
 
 const SessionFlow      = lazy(importSessionFlow);
 const StudentJoin      = lazy(importStudentJoin);
@@ -52,6 +53,7 @@ const MyClassesTeacher = lazy(importMyClassesTeacher);
 const ClassPage        = lazy(importClassPage);
 const TeacherProfile   = lazy(importTeacherProfile);
 const AdminAIStats     = lazy(importAdminAIStats);
+const Review           = lazy(importReview);
 import { useIsMobile } from './components/MobileMenuButton';
 import { countVisibleNotifications } from './lib/notifications';
 import { C } from './components/tokens';
@@ -81,7 +83,7 @@ function MyClassesByRole(props) {
   return <MyClasses {...props} />;
 }
 
-const COMPONENTS = { sessions: SessionFlow, studentJoin: StudentJoin, community: Community, achievements: Achievements, settings: Settings, director: Director, notifications: Notifications, decks: Decks, myClasses: MyClassesByRole, teacherProfile: TeacherProfile, adminAIStats: AdminAIStats };
+const COMPONENTS = { sessions: SessionFlow, studentJoin: StudentJoin, community: Community, achievements: Achievements, settings: Settings, director: Director, notifications: Notifications, decks: Decks, myClasses: MyClassesByRole, teacherProfile: TeacherProfile, adminAIStats: AdminAIStats, review: Review };
 
 function AuthScreen({ initialMode = "select", initialRole = "teacher", onBack }) {
   const [mode, setMode] = useState(initialMode);
@@ -179,7 +181,7 @@ function Sidebar({ page, setPage, profile, lang, setLang, open, setOpen, onSignO
   // se renderizan si profile.is_admin === true. La protección real está en
   // la página + RLS de Supabase; ocultar en sidebar es solo UX.
   const baseNav = isT
-    ? [{ id:"sessions",icon:(a)=><SessionsIcon size={28} active={a}/>,l:"Sessions" },{ id:"decks",icon:(a)=><DecksIcon size={28} active={a}/>,l:"Decks" },{ id:"myClasses",icon:(a)=><SchoolIcon size={28} active={a}/>,l:"My Classes" },{ id:"community",icon:(a)=><CommunityIcon size={28} active={a}/>,l:"Community" },{ id:"notifications",icon:(a)=><NotificationsIcon size={28} active={a} badge={notifsCount}/>,l:"Notifications" },{ id:"settings",icon:(a)=><SettingsIcon size={28} active={a}/>,l:"Settings" }]
+    ? [{ id:"sessions",icon:(a)=><SessionsIcon size={28} active={a}/>,l:"Sessions" },{ id:"decks",icon:(a)=><DecksIcon size={28} active={a}/>,l:"Decks" },{ id:"myClasses",icon:(a)=><SchoolIcon size={28} active={a}/>,l:"My Classes" },{ id:"review",icon:(a)=><ReviewIcon size={28} active={a}/>,l:"To review" },{ id:"community",icon:(a)=><CommunityIcon size={28} active={a}/>,l:"Community" },{ id:"notifications",icon:(a)=><NotificationsIcon size={28} active={a} badge={notifsCount}/>,l:"Notifications" },{ id:"settings",icon:(a)=><SettingsIcon size={28} active={a}/>,l:"Settings" }]
     : [{ id:"myClasses",icon:(a)=><SchoolIcon size={28} active={a}/>,l:"My Classes" },{ id:"studentJoin",icon:(a)=><JoinSessionIcon size={28} active={a}/>,l:"Join Session" },{ id:"achievements",icon:(a)=><AchievementsIcon size={28} active={a}/>,l:"Achievements" },{ id:"community",icon:(a)=><CommunityIcon size={28} active={a}/>,l:"Community" },{ id:"notifications",icon:(a)=><NotificationsIcon size={28} active={a} badge={notifsCount}/>,l:"Notifications" },{ id:"settings",icon:(a)=><SettingsIcon size={28} active={a}/>,l:"Settings" }];
   const nav = isAdmin
     ? [...baseNav, { id:"adminAIStats", icon:(a)=><AIGenIcon size={28} active={a}/>, l:"AI Stats" }]
@@ -343,6 +345,22 @@ function PageSuspenseFallback() {
         <p style={{ color: C.textMuted, fontSize: 13, fontFamily: "'Outfit',sans-serif" }}>Loading…</p>
       </div>
     </div>
+  );
+}
+
+// ReviewIcon — sidebar pictogram for /review. Inline SVG keeps App.jsx
+// self-contained. The shape: a clipboard with a checkmark — universally
+// reads as "to-do / approve". Active state matches the rest of the
+// sidebar icons (filled accent).
+function ReviewIcon({ size = 28, active = false }) {
+  const stroke = active ? C.accent : C.textSecondary;
+  const fill = active ? C.accentSoft : "none";
+  return (
+    <svg width={size} height={size} viewBox="0 0 32 32" fill="none">
+      <rect x="8" y="6" width="16" height="22" rx="3" fill={fill} stroke={stroke} strokeWidth="2"/>
+      <rect x="12" y="3" width="8" height="5" rx="1.5" fill={active ? C.accent : C.bg} stroke={stroke} strokeWidth="2"/>
+      <path d="M12 16 L15 19 L21 13" stroke={active ? C.accent : stroke} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+    </svg>
   );
 }
 

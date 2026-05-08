@@ -58,6 +58,8 @@ const i18n = {
     clickEnlarge: "Click to enlarge", clickClose: "Click anywhere to close",
     liveResults: "Live results", endSession: "End session",
     students: "students", average: "average", waitingResponses: "Waiting for responses...",
+    sessionNeedsClass: "This deck isn't linked to a class yet. Open the deck and add it to a class to start a session.",
+    sessionCreateFailed: "Could not create session. Please try again.",
   },
   es: {
     pageTitle: "Nueva Sesión", subtitle: "Lanza un deck en vivo en clase",
@@ -101,6 +103,8 @@ const i18n = {
     clickEnlarge: "Click para ampliar", clickClose: "Click en cualquier lugar para cerrar",
     liveResults: "Resultados en vivo", endSession: "Terminar sesión",
     students: "estudiantes", average: "promedio", waitingResponses: "Esperando respuestas...",
+    sessionNeedsClass: "Este deck todavía no está asignado a una clase. Abrí el deck y agregalo a una clase para iniciar una sesión.",
+    sessionCreateFailed: "No se pudo crear la sesión. Probá de nuevo.",
   },
   ko: {
     pageTitle: "새 세션", subtitle: "수업에서 덱을 라이브로 실행하세요",
@@ -144,6 +148,8 @@ const i18n = {
     clickEnlarge: "클릭하여 확대", clickClose: "아무곳이나 클릭하여 닫기",
     liveResults: "실시간 결과", endSession: "세션 종료",
     students: "학생", average: "평균", waitingResponses: "응답 기다리는 중...",
+    sessionNeedsClass: "이 덱은 아직 수업에 연결되지 않았습니다. 덱을 열고 수업에 추가한 후 세션을 시작하세요.",
+    sessionCreateFailed: "세션을 만들 수 없습니다. 다시 시도하세요.",
   },
 };
 
@@ -1076,6 +1082,18 @@ export default function SessionFlow({ lang = "en", setLang, onNavigateToDecks, o
 
   const handleLaunch = async (config) => {
     const { deck, classId, timeLimit, timeMode, showLeaderboard, showAnswers, allowGuests } = config;
+
+    // Pre-flight: sessions.class_id is NOT NULL. If the deck isn't in a
+    // class, surface an actionable message instead of letting the INSERT
+    // fail with a generic "Could not create session". Most decks ARE in a
+    // class (created from inside a ClassPage), so this only triggers for
+    // decks made stand-alone (e.g. via /decks/new without a class
+    // prefilled).
+    if (!classId) {
+      alert(t.sessionNeedsClass || "This deck isn't linked to a class yet. Open the deck and add it to a class to start a session.");
+      return;
+    }
+
     const pin = String(Math.floor(100000 + Math.random() * 900000));
 
     const { data, error } = await supabase.from("sessions").insert({
@@ -1102,7 +1120,14 @@ export default function SessionFlow({ lang = "en", setLang, onNavigateToDecks, o
 
     if (error) {
       console.error("Failed to create session:", error);
-      alert("Could not create session. Please try again.");
+      // If the failure was a NOT NULL violation on class_id (somehow we
+      // got past the pre-flight), surface the same actionable message
+      // instead of a generic one. Other errors (network, RLS, etc.) get
+      // the existing generic alert.
+      const isClassError = error.message && (error.message.includes("class_id") || error.code === "23502");
+      alert(isClassError
+        ? (t.sessionNeedsClass || "This deck isn't linked to a class yet. Open the deck and add it to a class to start a session.")
+        : (t.sessionCreateFailed || "Could not create session. Please try again."));
       return;
     }
 
