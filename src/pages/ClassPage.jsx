@@ -28,6 +28,28 @@ import {
   CLASS_COLORS,
   resolveClassAccent,
 } from "../lib/class-hierarchy";
+// dnd-kit drives the drag-reorder UX. Replaces the previous HTML5 D&D
+// implementation, which suffered from the browser-generated translucent
+// "ghost" thumbnail (the teacher described it as cutre — fair). With
+// dnd-kit we render a custom DragOverlay that matches the real card and
+// the surrounding cards animate aside (FLIP under the hood).
+import {
+  DndContext,
+  PointerSensor,
+  KeyboardSensor,
+  useSensor,
+  useSensors,
+  closestCenter,
+  DragOverlay,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  useSortable,
+  arrayMove,
+  rectSortingStrategy,
+  sortableKeyboardCoordinates,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 // ─── i18n ────────────────────────────────────────────────────────────────
 const i18n = {
@@ -385,24 +407,32 @@ function activityLabel(deck, t) {
   return t[only] || only || "—";
 }
 
-// ─── Deck card (within a section) ───────────────────────────────────────
-// units: list of {id, name} for the deck's section, used by the Move-to
-// dropdown so the teacher can reassign the deck to a different unit
-// without leaving the page.
-// Drag props: when defined, the card is draggable and can be dropped on
-// other cards in the same bucket to reorder. Drop only valid intra-bucket
-// (same section + same unit_id) — cross-bucket reassignment goes through
-// the Move-to dropdown.
-function DeckRow({
-  deck, accent, t, onOpen, onPractice, units = [], onChangeUnit,
-  draggable = false,
-  isDraggingMe = false,
-  isDropTargetMe = false,
-  onDragStart,
-  onDragOver,
-  onDragLeave,
-  onDrop,
-  onDragEnd,
+// ─── Deck card (presentation only) ──────────────────────────────────────
+// Pure visual component — knows nothing about dnd-kit. Used both by the
+// SortableDeckCard wrapper (the cards in the grid) and by the DragOverlay
+// (the floating card that follows the cursor while dragging).
+//
+// `units` powers the Move-to dropdown for cross-unit reassignment;
+// `onChangeUnit(deck, newUnitId)` persists the change.
+//
+// Drag visuals are driven by props so the wrapper can configure them:
+//   - isDragging: true on the source card while a drag is in flight (we
+//     fade it so the cursor's overlay is the focal point)
+//   - isOverlay: true when this is the floating preview, NOT a card in
+//     the grid (we add a soft shadow to feel "lifted")
+function DeckCard({
+  deck,
+  accent,
+  t,
+  units = [],
+  onChangeUnit,
+  onOpen,
+  isDragging = false,
+  isOverlay = false,
+  dragAttributes,
+  dragListeners,
+  setNodeRef,
+  style,
 }) {
   const qs = deck.questions || [];
   const deckAccent = resolveDeckColor(deck) || accent;
@@ -414,31 +444,37 @@ function DeckRow({
   };
   return (
     <div
-      onClick={onOpen}
-      draggable={draggable}
-      onDragStart={draggable ? onDragStart : undefined}
-      onDragOver={draggable ? onDragOver : undefined}
-      onDragLeave={draggable ? onDragLeave : undefined}
-      onDrop={draggable ? onDrop : undefined}
-      onDragEnd={draggable ? onDragEnd : undefined}
+      ref={setNodeRef}
+      // Drag attributes / listeners come from useSortable on the wrapper.
+      // We attach them to the outer card so the whole card is the drag
+      // surface, EXCEPT for the inner select — that one stops propagation
+      // so the dropdown still works without triggering a drag.
+      {...(dragAttributes || {})}
+      {...(dragListeners || {})}
+      onClick={isDragging || isOverlay ? undefined : onOpen}
       style={{
         background: C.bg,
-        border: `1px solid ${isDropTargetMe ? accent : C.border}`,
+        border: `1px solid ${C.border}`,
         borderLeft: `3px solid ${deckAccent}`,
         borderRadius: 10,
         padding: 12,
-        cursor: "pointer",
-        // Visual cues during drag: the source card fades (so the teacher
-        // sees what they're moving), the drop target gets an accent ring
-        // and slight lift (so they know where it'll land).
-        opacity: isDraggingMe ? 0.4 : 1,
-        boxShadow: isDropTargetMe ? `0 0 0 2px ${accent}, 0 4px 14px rgba(0,0,0,.08)` : undefined,
-        transform: isDropTargetMe ? "translateY(-1px)" : undefined,
-        transition: "transform .12s ease, box-shadow .12s ease, border-color .12s ease, opacity .12s ease",
+        cursor: isOverlay ? "grabbing" : (dragListeners ? "grab" : "pointer"),
+        // The source card fades while it's being dragged so the cursor's
+        // floating overlay is the focal point. The overlay itself is
+        // never the source, so it's always fully opaque and gets a
+        // shadow to feel detached from the grid.
+        opacity: isDragging ? 0.35 : 1,
+        boxShadow: isOverlay
+          ? "0 12px 28px rgba(0,0,0,.18), 0 4px 10px rgba(0,0,0,.10)"
+          : undefined,
+        transition: "opacity .12s ease",
         fontFamily: "'Outfit',sans-serif",
         display: "flex",
         flexDirection: "column",
         gap: 8,
+        // dnd-kit's transform/transition come from the sortable wrapper.
+        // We merge them into our own style so cards animate aside.
+        ...(style || {}),
       }}
       className="cl-deck-row"
     >
@@ -453,15 +489,16 @@ function DeckRow({
       <div style={{ fontSize: 11, color: C.textMuted, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
         <span style={{ flexShrink: 0 }}>{qs.length} {t.questions} · {activityLabel(deck, t)}</span>
         {/* Move-to-unit selector — only renders if there's at least one unit
-            in this section. Click events stop-propagation so opening the
-            dropdown doesn't trigger the card's onOpen. Native <select> for
-            a11y + free mobile picker. */}
-        {units.length > 0 && (
+            in this section. Stops propagation aggressively so neither the
+            dropdown click nor the pointer-down (which dnd-kit uses for
+            drag activation) triggers a drag. */}
+        {units.length > 0 && !isOverlay && (
           <select
             value={deck.unit_id || ""}
             onChange={handleUnitChange}
             onClick={(e) => e.stopPropagation()}
             onMouseDown={(e) => e.stopPropagation()}
+            onPointerDown={(e) => e.stopPropagation()}
             title={t.unitMoveTo}
             style={{
               fontSize: 10,
@@ -484,6 +521,44 @@ function DeckRow({
         )}
       </div>
     </div>
+  );
+}
+
+// ─── Sortable wrapper ───────────────────────────────────────────────────
+// Calls useSortable to register the card with the surrounding
+// SortableContext. The hook gives us a setNodeRef + listeners to attach
+// to the draggable element, plus a transform/transition pair we apply
+// inline so cards animate aside while a drag is in progress.
+//
+// We pass everything down to DeckCard so the actual visuals stay in one
+// place.
+function SortableDeckCard({ deck, accent, t, units, onChangeUnit, onOpen }) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: deck.id });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+  return (
+    <DeckCard
+      deck={deck}
+      accent={accent}
+      t={t}
+      units={units}
+      onChangeUnit={onChangeUnit}
+      onOpen={onOpen}
+      isDragging={isDragging}
+      dragAttributes={attributes}
+      dragListeners={listeners}
+      setNodeRef={setNodeRef}
+      style={style}
+    />
   );
 }
 
@@ -527,14 +602,22 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
   // this (no need to remember collapse state across sessions).
   const [collapsedUnits, setCollapsedUnits] = useState(() => new Set());
 
-  // Drag-and-drop state for reordering decks within their bucket. Two ids:
-  // the deck being dragged, and the deck currently being hovered over as a
-  // potential drop target. We set the drop target on dragover (with debounce
-  // built in by virtue of dragover firing repeatedly) and clear on drop or
-  // dragend. Disabled on mobile — HTML5 D&D on touch is unreliable; mobile
-  // users still see the existing newest-first order plus the Move-to dropdown.
-  const [draggingDeckId, setDraggingDeckId] = useState(null);
-  const [dropTargetDeckId, setDropTargetDeckId] = useState(null);
+  // Drag-and-drop state for reordering decks within their bucket. dnd-kit
+  // exposes the active drag id via DragOverlay; we track it ourselves so
+  // the overlay can render the right card. Touch is supported by default
+  // (PointerSensor + KeyboardSensor below) — works on mobile, no special
+  // codepath like the old HTML5 D&D needed.
+  const [activeDragDeckId, setActiveDragDeckId] = useState(null);
+
+  // Sensors. PointerSensor with a small activationConstraint distance
+  // ensures plain clicks (open the deck) and short clicks on the unit
+  // dropdown don't accidentally start a drag. KeyboardSensor gives full
+  // keyboard a11y: tab to a card, Space/Enter to grab, arrows to move,
+  // Space/Enter to drop, Esc to cancel.
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
 
   const toggleUnitCollapsed = (key) => {
     setCollapsedUnits(prev => {
@@ -750,86 +833,61 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
   // and insert at the target's index. Then re-number positions 1..N for the
   // affected bucket and persist. Optimistic local update first; on error
   // we re-fetch (rare path, simpler than rolling back N rows individually).
-  const handleDeckDragStart = (deck) => (e) => {
-    setDraggingDeckId(deck.id);
-    // dataTransfer is required for Firefox to actually fire drop events.
-    // The payload itself doesn't matter — we resolve the deck via state.
-    if (e.dataTransfer) {
-      e.dataTransfer.effectAllowed = "move";
-      try { e.dataTransfer.setData("text/plain", deck.id); } catch (_) {}
-    }
+  // dnd-kit handlers. handleDragStart records the active deck so the
+  // DragOverlay can render its preview. handleDragEnd is where we do the
+  // actual reorder + persist.
+  //
+  // Same-bucket policy as before: drag-reorder is only allowed within
+  // (section, unit_id). Cross-bucket moves stay on the Move-to dropdown
+  // (changes unit_id) or the section selector in the deck editor.
+  const handleDragStart = (event) => {
+    setActiveDragDeckId(event.active.id);
   };
 
-  const handleDeckDragOver = (targetDeck) => (e) => {
-    if (!draggingDeckId || draggingDeckId === targetDeck.id) return;
-    // Same-bucket guard: only valid drop target if section + unit_id match.
-    const dragging = decks.find(d => d.id === draggingDeckId);
-    if (!dragging) return;
-    const sameSection = dragging.section === targetDeck.section;
-    const sameUnit = (dragging.unit_id || null) === (targetDeck.unit_id || null);
-    if (!sameSection || !sameUnit) return;
-    // preventDefault is what tells the browser "this IS a valid drop target"
-    // — without it, drop never fires.
-    e.preventDefault();
-    if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
-    if (dropTargetDeckId !== targetDeck.id) setDropTargetDeckId(targetDeck.id);
-  };
+  const handleDragEnd = async (event) => {
+    const { active, over } = event;
+    setActiveDragDeckId(null);
+    if (!over || active.id === over.id) return;
 
-  const handleDeckDragLeave = (targetDeck) => () => {
-    // Only clear if we're leaving the current target. Other dragLeaves from
-    // siblings shouldn't flicker the highlight.
-    if (dropTargetDeckId === targetDeck.id) setDropTargetDeckId(null);
-  };
-
-  const handleDeckDragEnd = () => {
-    setDraggingDeckId(null);
-    setDropTargetDeckId(null);
-  };
-
-  const handleDeckDrop = (targetDeck) => async (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    const draggedId = draggingDeckId;
-    setDraggingDeckId(null);
-    setDropTargetDeckId(null);
-    if (!draggedId || draggedId === targetDeck.id) return;
+    const draggedId = active.id;
+    const targetId = over.id;
     const dragging = decks.find(d => d.id === draggedId);
-    if (!dragging) return;
-    if (dragging.section !== targetDeck.section) return;
-    if ((dragging.unit_id || null) !== (targetDeck.unit_id || null)) return;
+    const target = decks.find(d => d.id === targetId);
+    if (!dragging || !target) return;
 
-    // Build the bucket: all decks in the same section + unit, sorted by
-    // current position. Splice the dragged out, insert at target's index.
+    // Same-bucket guard. dnd-kit's collision detection won't normally let
+    // you drop on a card outside the SortableContext, but we ALSO check
+    // here in case multiple SortableContexts share an outer DndContext
+    // (e.g. when grouped by unit and the user accidentally drags between
+    // groups — the drop would be cross-bucket which we don't support yet).
+    if (dragging.section !== target.section) return;
+    if ((dragging.unit_id || null) !== (target.unit_id || null)) return;
+
+    // Build the bucket sorted by position, splice via arrayMove, then
+    // re-number 1..N. Same persistence strategy as before — bulk updates
+    // via Promise.all, refetch on error.
     const bucket = decks
       .filter(d => d.section === dragging.section && (d.unit_id || null) === (dragging.unit_id || null))
       .slice()
       .sort((a, b) => (a.position || 0) - (b.position || 0) || (b.created_at > a.created_at ? 1 : -1));
     const fromIdx = bucket.findIndex(d => d.id === draggedId);
-    const toIdx = bucket.findIndex(d => d.id === targetDeck.id);
+    const toIdx = bucket.findIndex(d => d.id === targetId);
     if (fromIdx < 0 || toIdx < 0) return;
-    const [removed] = bucket.splice(fromIdx, 1);
-    bucket.splice(toIdx, 0, removed);
-    // Re-number 1..N. Bulk update via Promise.all.
-    const updates = bucket.map((d, i) => ({ id: d.id, position: i + 1 }));
+    const reordered = arrayMove(bucket, fromIdx, toIdx);
+    const updates = reordered.map((d, i) => ({ id: d.id, position: i + 1 }));
 
-    // Optimistic local update — patch positions on the visible decks.
+    // Optimistic local update.
     setDecks(prev => prev.map(d => {
       const u = updates.find(x => x.id === d.id);
       return u ? { ...d, position: u.position } : d;
     }));
 
-    // Persist. We update only the rows whose position actually changed
-    // (skipping the rows above fromIdx/toIdx whose positions stayed the
-    // same is a micro-optimization we skip — N decks per unit will be
-    // small in practice).
+    // Persist. Refetch on any error rather than rolling back per-row.
     const results = await Promise.all(
       updates.map(u => supabase.from("decks").update({ position: u.position }).eq("id", u.id))
     );
     const anyError = results.find(r => r.error);
     if (anyError) {
-      // Re-fetch on failure rather than rolling back N rows manually. This
-      // is rare (write conflicts on a single teacher's own decks would be
-      // very unusual) so a refetch is fine.
       const { data: fresh } = await supabase
         .from("decks").select("*")
         .eq("class_id", classObj.id)
@@ -837,6 +895,10 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
         .order("created_at", { ascending: false });
       setDecks(fresh || []);
     }
+  };
+
+  const handleDragCancel = () => {
+    setActiveDragDeckId(null);
   };
 
   // ── Group decks by section ────────────────────────────────────────────
@@ -1109,6 +1171,19 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
           />
         ))}
       </div>
+
+      {/* DndContext wraps the entire listing zone (header + chips + groups
+          OR flat grid). Sensors include PointerSensor with a 6px activation
+          distance so plain clicks don't accidentally start a drag, plus
+          KeyboardSensor for full a11y. closestCenter is the standard
+          collision strategy for grid-shaped sortables. */}
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+        onDragCancel={handleDragCancel}
+      >
 
       {/* Section header: count + new button */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12, gap: 12 }}>
@@ -1384,32 +1459,25 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
                   <span style={{ fontWeight: 500, color: C.textMuted, marginLeft: 2 }}>· {groupDecks.length}</span>
                 </button>
                 {!isCollapsed && (
-                  <div style={{
-                    display: "grid",
-                    gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fill, minmax(220px, 1fr))",
-                    gap: 12,
-                  }}>
-                    {groupDecks.map(deck => (
-                      <DeckRow
-                        key={deck.id}
-                        deck={deck}
-                        accent={accent}
-                        t={t}
-                        units={unitsForSection}
-                        onChangeUnit={handleChangeDeckUnit}
-                        onOpen={() => navigate(buildRoute.deckEdit(deck.id))}
-                        onPractice={() => onLaunchPractice && onLaunchPractice(deck)}
-                        draggable={!isMobile}
-                        isDraggingMe={draggingDeckId === deck.id}
-                        isDropTargetMe={dropTargetDeckId === deck.id}
-                        onDragStart={handleDeckDragStart(deck)}
-                        onDragOver={handleDeckDragOver(deck)}
-                        onDragLeave={handleDeckDragLeave(deck)}
-                        onDrop={handleDeckDrop(deck)}
-                        onDragEnd={handleDeckDragEnd}
-                      />
-                    ))}
-                  </div>
+                  <SortableContext items={groupDecks.map(d => d.id)} strategy={rectSortingStrategy}>
+                    <div style={{
+                      display: "grid",
+                      gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fill, minmax(220px, 1fr))",
+                      gap: 12,
+                    }}>
+                      {groupDecks.map(deck => (
+                        <SortableDeckCard
+                          key={deck.id}
+                          deck={deck}
+                          accent={accent}
+                          t={t}
+                          units={unitsForSection}
+                          onChangeUnit={handleChangeDeckUnit}
+                          onOpen={() => navigate(buildRoute.deckEdit(deck.id))}
+                        />
+                      ))}
+                    </div>
+                  </SortableContext>
                 )}
               </div>
             );
@@ -1429,36 +1497,54 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
           —
         </div>
       ) : (
-        <div
-          className="ns-fade"
-          style={{
-            display: "grid",
-            gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fill, minmax(220px, 1fr))",
-            gap: 12,
-          }}
-        >
-          {filteredDecks.map(deck => (
-            <DeckRow
-              key={deck.id}
-              deck={deck}
+        <SortableContext items={filteredDecks.map(d => d.id)} strategy={rectSortingStrategy}>
+          <div
+            className="ns-fade"
+            style={{
+              display: "grid",
+              gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fill, minmax(220px, 1fr))",
+              gap: 12,
+            }}
+          >
+            {filteredDecks.map(deck => (
+              <SortableDeckCard
+                key={deck.id}
+                deck={deck}
+                accent={accent}
+                t={t}
+                units={unitsForSection}
+                onChangeUnit={handleChangeDeckUnit}
+                onOpen={() => navigate(buildRoute.deckEdit(deck.id))}
+              />
+            ))}
+          </div>
+        </SortableContext>
+      )}
+
+      {/* DragOverlay renders a floating preview of the active card while
+          a drag is in flight. We pass isOverlay so the card hides its unit
+          dropdown and gets a soft shadow. The original card stays in the
+          grid (faded via isDragging) so the layout doesn't reflow until
+          the drop happens — that's what gives the "cards animate aside"
+          feel. dropAnimation set to a snappy duration so the overlay
+          settles into its new slot quickly when released. */}
+      <DragOverlay dropAnimation={{ duration: 200, easing: "cubic-bezier(0.18, 0.67, 0.6, 1.22)" }}>
+        {activeDragDeckId ? (() => {
+          const activeDeck = decks.find(d => d.id === activeDragDeckId);
+          if (!activeDeck) return null;
+          return (
+            <DeckCard
+              deck={activeDeck}
               accent={accent}
               t={t}
               units={unitsForSection}
-              onChangeUnit={handleChangeDeckUnit}
-              onOpen={() => navigate(buildRoute.deckEdit(deck.id))}
-              onPractice={() => onLaunchPractice && onLaunchPractice(deck)}
-              draggable={!isMobile}
-              isDraggingMe={draggingDeckId === deck.id}
-              isDropTargetMe={dropTargetDeckId === deck.id}
-              onDragStart={handleDeckDragStart(deck)}
-              onDragOver={handleDeckDragOver(deck)}
-              onDragLeave={handleDeckDragLeave(deck)}
-              onDrop={handleDeckDrop(deck)}
-              onDragEnd={handleDeckDragEnd}
+              isOverlay
             />
-          ))}
-        </div>
-      )}
+          );
+        })() : null}
+      </DragOverlay>
+
+      </DndContext>
 
       {/* Edit class modal */}
       {showEditModal && classObj && (

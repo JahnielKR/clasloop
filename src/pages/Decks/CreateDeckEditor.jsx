@@ -2563,27 +2563,52 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
           </div>
         )}
 
-        {/* Add another button at the bottom — opens selector */}
-        {questions.length > 0 && !showTypeSelector && (
-          <button
-            className="dk-add-another"
-            onClick={openTypeSelector}
-            style={{
-              width: "100%",
-              marginTop: 12,
-              padding: "14px 16px",
-              borderRadius: 10,
-              fontSize: 14, fontWeight: 600,
-              background: C.bg, color: C.accent,
-              border: `1.5px dashed ${C.accent}66`,
-              cursor: "pointer",
-              fontFamily: "'Outfit',sans-serif",
-              display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-              transition: "all .15s ease",
-            }}
-          >
-            <CIcon name="plus" size={16} inline /> {t.addAnother}
-          </button>
+        {/* Add another row at the bottom — same pair of CTAs as the header
+            (Generate with AI + Add question), so a teacher mid-edit on a
+            big deck (e.g. 38 questions) doesn't have to scroll back up to
+            keep generating. Both buttons drive the same handlers as the
+            top row — just placed where the eye lands after the last
+            question. Hidden when the AI panel or type selector are open
+            so the inline form takes focus. */}
+        {questions.length > 0 && !showTypeSelector && !showAIPanel && (
+          <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+            <button
+              className="dk-add-another"
+              onClick={openAIPanel}
+              style={{
+                flex: 1,
+                padding: "14px 16px",
+                borderRadius: 10,
+                fontSize: 14, fontWeight: 600,
+                background: C.bg, color: C.accent,
+                border: `1.5px dashed ${C.accent}66`,
+                cursor: "pointer",
+                fontFamily: "'Outfit',sans-serif",
+                display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                transition: "all .15s ease",
+              }}
+            >
+              <span aria-hidden="true">✨</span> {t.aiGenerateButton}
+            </button>
+            <button
+              className="dk-add-another"
+              onClick={openTypeSelector}
+              style={{
+                flex: 1,
+                padding: "14px 16px",
+                borderRadius: 10,
+                fontSize: 14, fontWeight: 600,
+                background: C.bg, color: C.accent,
+                border: `1.5px dashed ${C.accent}66`,
+                cursor: "pointer",
+                fontFamily: "'Outfit',sans-serif",
+                display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                transition: "all .15s ease",
+              }}
+            >
+              <CIcon name="plus" size={16} inline /> {t.addAnother}
+            </button>
+          </div>
         )}
 
         {/* Empty state — full friendly call to action */}
