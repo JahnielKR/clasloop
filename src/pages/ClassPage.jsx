@@ -442,6 +442,36 @@ function DeckCard({
     if (newId === (deck.unit_id || null)) return;
     onChangeUnit && onChangeUnit(deck, newId);
   };
+
+  // Trello-style placeholder while this card is the drag source. We hide
+  // the actual content and render an empty rectangle that occupies the
+  // same slot — that way the surrounding grid doesn't reflow, the drop
+  // target is visually obvious (it's the gap), and the cursor's overlay
+  // is the only focal point. setNodeRef + listeners stay attached so
+  // dnd-kit can still detect collisions on this slot.
+  if (isDragging && !isOverlay) {
+    return (
+      <div
+        ref={setNodeRef}
+        {...(dragAttributes || {})}
+        {...(dragListeners || {})}
+        style={{
+          // Same shape as the real card so the grid stays calm. We can't
+          // know the rendered card's exact height (the title clamps at 2
+          // lines), but reserving min-height of a typical card is close
+          // enough for this transient state.
+          minHeight: 88,
+          borderRadius: 10,
+          background: C.bgSoft,
+          border: `1.5px dashed ${C.border}`,
+          fontFamily: "'Outfit',sans-serif",
+          ...(style || {}),
+        }}
+        aria-hidden="true"
+      />
+    );
+  }
+
   return (
     <div
       ref={setNodeRef}
@@ -451,7 +481,7 @@ function DeckCard({
       // so the dropdown still works without triggering a drag.
       {...(dragAttributes || {})}
       {...(dragListeners || {})}
-      onClick={isDragging || isOverlay ? undefined : onOpen}
+      onClick={isOverlay ? undefined : onOpen}
       style={{
         background: C.bg,
         border: `1px solid ${C.border}`,
@@ -459,11 +489,6 @@ function DeckCard({
         borderRadius: 10,
         padding: 12,
         cursor: isOverlay ? "grabbing" : (dragListeners ? "grab" : "pointer"),
-        // The source card fades while it's being dragged so the cursor's
-        // floating overlay is the focal point. The overlay itself is
-        // never the source, so it's always fully opaque and gets a
-        // shadow to feel detached from the grid.
-        opacity: isDragging ? 0.35 : 1,
         boxShadow: isOverlay
           ? "0 12px 28px rgba(0,0,0,.18), 0 4px 10px rgba(0,0,0,.10)"
           : undefined,
