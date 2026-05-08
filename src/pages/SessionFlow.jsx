@@ -1019,15 +1019,19 @@ export default function SessionFlow({ lang = "en", setLang, onNavigateToDecks, o
   // and giving it a URL would be misleading (the deck object only lives in
   // memory at that moment). It stays as a local-only state value.
   const navigate = useNavigate();
+  const optionsMatch = useMatch("/sessions/options/:deckId");
   const lobbyMatch = useMatch("/sessions/lobby/:sessionId");
   const liveMatch  = useMatch("/sessions/live/:sessionId");
   const urlSessionId = lobbyMatch?.params?.sessionId || liveMatch?.params?.sessionId || null;
-  // Local step state. The URL drives lobby/live; "options" only exists in
-  // state. The effect below keeps state in sync when the URL changes (back
-  // button, deep link, refresh).
+  const urlDeckId = optionsMatch?.params?.deckId || null;
+  // Local step state. The URL drives lobby/live AND options (the latter
+  // for deep links from ClassPage's deck cards — clicking a deck card
+  // takes the teacher straight to options). The effect below keeps
+  // state in sync when the URL changes (back button, deep link, refresh).
   const [step, setStep] = useState(() => {
     if (lobbyMatch) return "lobby";
     if (liveMatch) return "live";
+    if (optionsMatch) return "options";
     return "pickDeck";
   });
   const [selectedDeck, setSelectedDeck] = useState(null);
@@ -1041,13 +1045,16 @@ export default function SessionFlow({ lang = "en", setLang, onNavigateToDecks, o
   const focusClassId = searchParams.get(QUERY.CLASS) || "";
 
   // Sync URL → step. Fires on initial mount (deep link / refresh on
-  // /sessions/lobby/:id) and on browser back/forward.
+  // /sessions/lobby/:id, /sessions/options/:deckId, etc) and on browser
+  // back/forward.
   useEffect(() => {
     if (lobbyMatch) setStep(prev => prev === "live" ? prev : "lobby");
     else if (liveMatch) setStep("live");
-    else if (step === "lobby" || step === "live") {
-      // We were in lobby/live but the URL no longer says so (user pressed
-      // back). Reset to pickDeck and clear the in-memory session.
+    else if (optionsMatch) setStep("options");
+    else if (step === "lobby" || step === "live" || step === "options") {
+      // We were in lobby/live/options but the URL no longer says so
+      // (user pressed back). Reset to pickDeck and clear in-memory
+      // session/deck.
       setStep("pickDeck");
       setSession(null);
       setSelectedDeck(null);
@@ -1055,7 +1062,7 @@ export default function SessionFlow({ lang = "en", setLang, onNavigateToDecks, o
     // We don't include `step` in the deps — that's intentional. We only want
     // this effect to react to URL changes, not to its own setState calls.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lobbyMatch, liveMatch]);
+  }, [lobbyMatch, liveMatch, optionsMatch]);
 
   // Hydration: if we landed on /sessions/lobby/:id or /sessions/live/:id
   // directly (refresh, deep link, OAuth bounce-back), session and
@@ -1087,6 +1094,31 @@ export default function SessionFlow({ lang = "en", setLang, onNavigateToDecks, o
     })();
     return () => { cancelled = true; };
   }, [urlSessionId]);  // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Hydration for options deep link: /sessions/options/:deckId is reached
+  // when a teacher clicks a deck card from ClassPage. We need to load the
+  // deck so the SessionOptions step has something to render. RLS already
+  // restricts which decks the teacher can fetch — if the deck isn't in
+  // their reach, we bounce back to /sessions.
+  useEffect(() => {
+    if (!urlDeckId) return;
+    if (selectedDeck && selectedDeck.id === urlDeckId) return; // already hydrated
+    let cancelled = false;
+    (async () => {
+      const { data: dk, error: dErr } = await supabase
+        .from("decks")
+        .select("*")
+        .eq("id", urlDeckId)
+        .maybeSingle();
+      if (cancelled) return;
+      if (dErr || !dk) {
+        navigate(ROUTES.SESSIONS, { replace: true });
+        return;
+      }
+      setSelectedDeck(dk);
+    })();
+    return () => { cancelled = true; };
+  }, [urlDeckId]);  // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     (async () => {
@@ -1287,7 +1319,25 @@ export default function SessionFlow({ lang = "en", setLang, onNavigateToDecks, o
             t={t}
             lang={lang}
             onLaunch={handleLaunch}
-            onBack={() => { setSelectedDeck(null); setStep("pickDeck"); }}
+            onBack={() => {
+              // If we arrived via deep link (/sessions/options/:deckId from
+              // a ClassPage deck card), the natural "back" is the class
+              // page the deck belongs to — going to pickDeck would be
+              // a UX detour. Otherwise (came from the deck picker) we
+              // reset state and go back to it.
+              if (optionsMatch && selectedDeck.class_id) {
+                navigate(buildRoute.classDetail(selectedDeck.class_id));
+                return;
+              }
+              if (optionsMatch) {
+                // No class on the deck (favorited / orphan edge case) —
+                // fall back to the deck picker URL.
+                navigate(ROUTES.SESSIONS);
+                return;
+              }
+              setSelectedDeck(null);
+              setStep("pickDeck");
+            }}
           />
         )}
 

@@ -1524,7 +1524,7 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
                           t={t}
                           units={unitsForSection}
                           onChangeUnit={handleChangeDeckUnit}
-                          onOpen={() => navigate(buildRoute.deckEdit(deck.id))}
+                          onOpen={() => navigate(buildRoute.sessionsOptions(deck.id))}
                         />
                       ))}
                     </div>
@@ -1565,7 +1565,7 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
                 t={t}
                 units={unitsForSection}
                 onChangeUnit={handleChangeDeckUnit}
-                onOpen={() => navigate(buildRoute.deckEdit(deck.id))}
+                onOpen={() => navigate(buildRoute.sessionsOptions(deck.id))}
               />
             ))}
           </div>
