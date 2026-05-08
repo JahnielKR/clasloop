@@ -516,16 +516,6 @@ export default function Review({ profile, lang = "en", onOpenSidebar = null }) {
         </div>
       )}
 
-      {/* Shortcut hint — only when there's stuff to grade */}
-      {!loading && !error && pendingTotal > 0 && (
-        <div style={{
-          fontSize: 11, color: C.textMuted, marginBottom: 10,
-          fontStyle: "italic",
-        }}>
-          {t.shortcutHint}
-        </div>
-      )}
-
       {/* Cards */}
       {!loading && !error && filteredItems.map((item, idx) => {
         const expected = describeCorrectAnswer(item.question, item.questionType);
@@ -645,7 +635,10 @@ export default function Review({ profile, lang = "en", onOpenSidebar = null }) {
             />
 
             {/* Action buttons — 3 colored CTAs.
-                On mobile they wrap; on desktop they stay in a row. */}
+                On mobile they wrap; on desktop they stay in a row.
+                Keyboard shortcuts (1/2/3) still work but they're not
+                advertised in the UI — the colors and labels carry the
+                meaning, no need to clutter the buttons with kbd badges. */}
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               <button
                 onClick={() => gradeResponse(item, "correct")}
@@ -660,7 +653,6 @@ export default function Review({ profile, lang = "en", onOpenSidebar = null }) {
                 }}
               >
                 ✓ {t.btnCorrect}
-                <kbd style={kbdStyle}>1</kbd>
               </button>
               <button
                 onClick={() => gradeResponse(item, "partial")}
@@ -675,7 +667,6 @@ export default function Review({ profile, lang = "en", onOpenSidebar = null }) {
                 }}
               >
                 ~ {t.btnPartial}
-                <kbd style={kbdStyle}>2</kbd>
               </button>
               <button
                 onClick={() => gradeResponse(item, "incorrect")}
@@ -690,7 +681,6 @@ export default function Review({ profile, lang = "en", onOpenSidebar = null }) {
                 }}
               >
                 ✗ {t.btnIncorrect}
-                <kbd style={kbdStyle}>3</kbd>
               </button>
             </div>
           </div>
@@ -744,15 +734,6 @@ export default function Review({ profile, lang = "en", onOpenSidebar = null }) {
   );
 }
 
-// kbd badge styling — subtle hint that the number key is the shortcut.
-const kbdStyle = {
-  display: "inline-block",
-  padding: "1px 5px",
-  fontSize: 10,
-  fontFamily: "ui-monospace, 'SF Mono', Menlo, monospace",
-  background: "rgba(255,255,255,.2)",
-  color: "#fff",
-  borderRadius: 4,
-  fontWeight: 700,
-  letterSpacing: ".02em",
-};
+// (kbdStyle removed — keyboard shortcuts still work in the keydown
+// handler but are no longer advertised in the UI per design feedback.
+// Colors + ✓ ~ ✗ symbols carry enough meaning.)
