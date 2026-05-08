@@ -33,15 +33,18 @@ const SUBJECTS = ["Math", "Science", "History", "Language", "Geography", "Art", 
 // header to render the right icon + label. Same definition Decks.jsx had
 // before the split; duplicated here (rather than imported) because it's the
 // editor's domain and lives close to where it's used.
+// `short` is for compact button labels like "+ MCQ" / "+ T/F" — used by
+// the "duplicate same type" CTA pinned to the last question. Keep these
+// 4-6 chars so the button stays slim.
 const ACTIVITY_TYPES = [
-  { id: "mcq", icon: "mcq", label: { en: "Multiple Choice", es: "Opción Múltiple", ko: "객관식" } },
-  { id: "tf", icon: "truefalse", label: { en: "True / False", es: "Verdadero / Falso", ko: "참 / 거짓" } },
-  { id: "fill", icon: "fillblank", label: { en: "Fill in the Blank", es: "Completar", ko: "빈칸 채우기" } },
-  { id: "order", icon: "ordering", label: { en: "Put in Order", es: "Ordenar", ko: "순서 맞추기" } },
-  { id: "match", icon: "matching", label: { en: "Matching Pairs", es: "Emparejar", ko: "짝 맞추기" } },
-  { id: "free", icon: "study", label: { en: "Free Text", es: "Respuesta Libre", ko: "자유 응답" } },
-  { id: "sentence", icon: "language", label: { en: "Sentence Builder", es: "Crear Oración", ko: "문장 만들기" } },
-  { id: "slider", icon: "speed", label: { en: "Slider Estimate", es: "Estimar (Slider)", ko: "슬라이더 추정" } },
+  { id: "mcq", icon: "mcq", label: { en: "Multiple Choice", es: "Opción Múltiple", ko: "객관식" }, short: { en: "MCQ", es: "MCQ", ko: "객관식" } },
+  { id: "tf", icon: "truefalse", label: { en: "True / False", es: "Verdadero / Falso", ko: "참 / 거짓" }, short: { en: "T/F", es: "V/F", ko: "참/거짓" } },
+  { id: "fill", icon: "fillblank", label: { en: "Fill in the Blank", es: "Completar", ko: "빈칸 채우기" }, short: { en: "Fill", es: "Completar", ko: "빈칸" } },
+  { id: "order", icon: "ordering", label: { en: "Put in Order", es: "Ordenar", ko: "순서 맞추기" }, short: { en: "Order", es: "Ordenar", ko: "순서" } },
+  { id: "match", icon: "matching", label: { en: "Matching Pairs", es: "Emparejar", ko: "짝 맞추기" }, short: { en: "Match", es: "Emparejar", ko: "짝맞추기" } },
+  { id: "free", icon: "study", label: { en: "Free Text", es: "Respuesta Libre", ko: "자유 응답" }, short: { en: "Free", es: "Libre", ko: "자유" } },
+  { id: "sentence", icon: "language", label: { en: "Sentence Builder", es: "Crear Oración", ko: "문장 만들기" }, short: { en: "Sentence", es: "Oración", ko: "문장" } },
+  { id: "slider", icon: "speed", label: { en: "Slider Estimate", es: "Estimar (Slider)", ko: "슬라이더 추정" }, short: { en: "Slider", es: "Slider", ko: "슬라이더" } },
 ];
 
 // ── Editor-local style objects ─────────────────────────────────────────────
@@ -2435,6 +2438,59 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
               </div>
             );
           })}
+
+          {/* "+ same type" button — pinned right under the last question
+              of the deck. Saves a click for the common workflow "I'm
+              writing a sequence of MCQs and want another one just like
+              the last". Only renders when:
+                - there's at least one question
+                - the last question has a non-empty prompt (otherwise
+                  duplicating the type while the previous one is still
+                  blank doesn't help anyone)
+                - the type selector and AI panel aren't open (they take
+                  precedence as the active surface)
+              The full type picker stays available below as "+ Add
+              another", so this is purely a shortcut, not a replacement. */}
+          {(() => {
+            if (questions.length === 0) return null;
+            if (showTypeSelector || showAIPanel) return null;
+            const lastQ = questions[questions.length - 1];
+            const lastPrompt = (lastQ?.q || "").trim();
+            if (!lastPrompt) return null;
+            const lastType = lastQ?.type || "mcq";
+            const typeMeta = ACTIVITY_TYPES.find(a => a.id === lastType);
+            // Sentence has a different shape (required_word) but the AI
+            // generator and editor handle it the same way at the row level;
+            // duplicating the type still makes sense.
+            const shortLabel = typeMeta?.short?.[l] || typeMeta?.short?.en || lastType.toUpperCase();
+            return (
+              <button
+                onClick={() => addQuestion(lastType)}
+                title={typeMeta?.label?.[l] || lastType}
+                style={{
+                  alignSelf: "flex-start",
+                  marginTop: 2,
+                  padding: "6px 12px",
+                  borderRadius: 7,
+                  fontSize: 12,
+                  fontWeight: 600,
+                  background: "transparent",
+                  color: C.accent,
+                  border: `1px dashed ${C.accent}55`,
+                  cursor: "pointer",
+                  fontFamily: "'Outfit',sans-serif",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 5,
+                  transition: "background .12s ease, border-color .12s ease",
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = C.accentSoft; e.currentTarget.style.borderColor = C.accent; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.borderColor = `${C.accent}55`; }}
+              >
+                + {shortLabel}
+              </button>
+            );
+          })()}
         </div>
 
         {/* AI Generate Panel — appears below the list when triggered */}
@@ -2572,23 +2628,34 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
             so the inline form takes focus. */}
         {questions.length > 0 && !showTypeSelector && !showAIPanel && (
           <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+            {/* AI shortcut — compact sparkle-only square. The full
+                "Generate with AI" CTA lives in the header at the top of
+                the questions list, where context for first-time users
+                makes sense. Down here, after dozens of questions, the
+                affordance just needs to be reachable; the icon plus a
+                tooltip is enough. Tooltip uses the same i18n key as the
+                top button. */}
             <button
               className="dk-add-another"
               onClick={openAIPanel}
+              title={t.aiGenerateButton}
+              aria-label={t.aiGenerateButton}
               style={{
-                flex: 1,
-                padding: "14px 16px",
+                width: 52,
+                flexShrink: 0,
+                padding: "14px 0",
                 borderRadius: 10,
-                fontSize: 14, fontWeight: 600,
+                fontSize: 18,
+                fontWeight: 600,
                 background: C.bg, color: C.accent,
                 border: `1.5px dashed ${C.accent}66`,
                 cursor: "pointer",
                 fontFamily: "'Outfit',sans-serif",
-                display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                display: "flex", alignItems: "center", justifyContent: "center",
                 transition: "all .15s ease",
               }}
             >
-              <span aria-hidden="true">✨</span> {t.aiGenerateButton}
+              <span aria-hidden="true">✨</span>
             </button>
             <button
               className="dk-add-another"
