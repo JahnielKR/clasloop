@@ -8,6 +8,7 @@ import { generateGuestToken, saveGuestSession, validateGuestName, clearGuestSess
 import { C, MONO } from "../components/tokens";
 import { resolveTimeLimit } from "../lib/time-limits";
 import { getPracticeTimerPref, setPracticeTimerPref } from "../lib/practice-timer-pref";
+import { evaluateAnswer, describeCorrectAnswer, formatStudentAnswer } from "../lib/scoring";
 import { QUERY } from "../routes";
 
 // Quiz option colors — kahoot-style fixed palette. NOT theme-aware on purpose:
@@ -25,6 +26,16 @@ const i18n = {
     seeResults: "See results", next: "Next",
     sessionComplete: "Session Complete", greatJob: "Great job!",
     keepPracticing: "Keep practicing!", correctLabel: "correct", incorrectLabel: "incorrect",
+    // Review screen — student sees correct answers + their answers question by question.
+    seeAnswers: "See correct answers",
+    backToResults: "Back to results",
+    yourAnswer: "Your answer",
+    correctAnswer: "Correct answer",
+    pendingReview: "Waiting for teacher review",
+    pendingReviewHint: "Your answer was sent. Your teacher will review it.",
+    noAnswerSubmitted: "(no answer)",
+    reviewQuestion: "Question {n} of {total}",
+    pointsLabel: "{points}/{max} points",
     joinAnother: "Join another session", noQuestions: "No questions available",
     timerOnTip: "Timer on. Tap to study without time pressure.",
     timerOffTip: "Timer off. Tap to turn on the recommended timing.",
@@ -60,6 +71,15 @@ const i18n = {
     seeResults: "Ver resultados", next: "Siguiente",
     sessionComplete: "Sesión Completa", greatJob: "¡Buen trabajo!",
     keepPracticing: "¡Sigue practicando!", correctLabel: "correctas", incorrectLabel: "incorrectas",
+    seeAnswers: "Ver respuestas correctas",
+    backToResults: "Volver a resultados",
+    yourAnswer: "Tu respuesta",
+    correctAnswer: "Respuesta correcta",
+    pendingReview: "Pendiente de revisión",
+    pendingReviewHint: "Tu respuesta fue enviada. Tu profe la va a revisar.",
+    noAnswerSubmitted: "(sin respuesta)",
+    reviewQuestion: "Pregunta {n} de {total}",
+    pointsLabel: "{points}/{max} puntos",
     joinAnother: "Unirse a otra sesión", noQuestions: "No hay preguntas",
     timerOnTip: "Timer activo. Toca para estudiar sin presión.",
     timerOffTip: "Timer apagado. Toca para activar el tiempo recomendado.",
@@ -95,6 +115,15 @@ const i18n = {
     seeResults: "결과 보기", next: "다음",
     sessionComplete: "세션 완료", greatJob: "잘했어요!",
     keepPracticing: "계속 연습하세요!", correctLabel: "정답", incorrectLabel: "오답",
+    seeAnswers: "정답 보기",
+    backToResults: "결과로 돌아가기",
+    yourAnswer: "내 답변",
+    correctAnswer: "정답",
+    pendingReview: "선생님 검토 대기 중",
+    pendingReviewHint: "답변이 제출되었습니다. 선생님이 검토할 예정입니다.",
+    noAnswerSubmitted: "(답변 없음)",
+    reviewQuestion: "{total}문제 중 {n}번",
+    pointsLabel: "{points}/{max} 점",
     joinAnother: "다른 세션 참여", noQuestions: "문제가 없습니다",
     timerOnTip: "타이머 켜짐. 시간 압박 없이 학습하려면 탭하세요.",
     timerOffTip: "타이머 꺼짐. 권장 시간을 활성화하려면 탭하세요.",
@@ -191,69 +220,11 @@ const shuffle = (arr) => {
   return a;
 };
 
-// Loose comparison for fill-in-the-blank: trim, lowercase, collapse whitespace.
-const normFill = (s) => String(s ?? "").trim().toLowerCase().replace(/\s+/g, " ");
-
 // Evaluate correctness + return value to persist in responses.answer (jsonb).
-// isCorrect can be true/false for graded types, or null for free-text (ungraded).
-const evaluateAnswer = (q, type, raw) => {
-  if (raw === null || raw === undefined || (Array.isArray(raw) && raw.length === 0)) {
-    // Free text: empty submission is still considered submitted (ungraded).
-    if (type === "free") return { isCorrect: null, stored: "" };
-    return { isCorrect: false, stored: null };
-  }
-  switch (type) {
-    case "tf":
-      return { isCorrect: raw === q.correct, stored: raw };
-    case "fill": {
-      const candidates = [q.answer, ...(Array.isArray(q.alternatives) ? q.alternatives : [])]
-        .filter(Boolean)
-        .map(normFill);
-      const ok = candidates.includes(normFill(raw));
-      return { isCorrect: ok, stored: String(raw) };
-    }
-    case "order": {
-      const items = q.items || [];
-      const ok = Array.isArray(raw) && raw.length === items.length && raw.every((v, i) => v === items[i]);
-      return { isCorrect: ok, stored: raw };
-    }
-    case "match": {
-      const pairs = q.pairs || [];
-      const ok = pairs.length > 0 && pairs.every((p) => raw && raw[p.left] === p.right);
-      return { isCorrect: ok, stored: raw };
-    }
-    case "free":
-      return { isCorrect: null, stored: String(raw) };
-    case "sentence": {
-      const text = String(raw || "");
-      const required = String(q.required_word || "").trim().toLowerCase();
-      const minWords = Number.isFinite(q.min_words) ? q.min_words : 3;
-      const wordCount = (text.trim().match(/\S+/g) || []).length;
-      const containsRequired = required ? text.toLowerCase().includes(required) : true;
-      const ok = containsRequired && wordCount >= minWords;
-      return { isCorrect: ok, stored: text };
-    }
-    case "slider": {
-      const value = Number(raw);
-      if (!Number.isFinite(value)) return { isCorrect: false, stored: null };
-      const target = Number(q.correct);
-      const tol = Math.max(0, Number(q.tolerance) || 0);
-      const ok = Math.abs(value - target) <= tol;
-      return { isCorrect: ok, stored: value };
-    }
-    case "mcq":
-    default: {
-      // Multi-correct: q.correct is an array → require exact set match (no partial credit).
-      if (Array.isArray(q.correct)) {
-        const got = Array.isArray(raw) ? raw : [raw];
-        const need = q.correct;
-        const ok = got.length === need.length && got.every(v => need.includes(v));
-        return { isCorrect: ok, stored: got };
-      }
-      return { isCorrect: raw === q.correct, stored: raw };
-    }
-  }
-};
+// evaluateAnswer (and describeCorrectAnswer) live in src/lib/scoring.js
+// — single source of truth shared with the teacher's To Review page.
+// The local copy that used to live here has been removed; if you're
+// looking for the per-type grading logic, that's the place.
 
 export default function StudentJoin({ lang: pageLang = "en", profile = null, practiceDeck = null, onPracticeExit = null, guestMode = false, guestPin = "", guestName = "", guestToken = "", onGuestKicked = null }) {
   // Practice mode: start straight in the quiz with the deck's questions, no PIN, no live session.
@@ -280,7 +251,12 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
     : null);
   const [participant, setParticipant] = useState(null);
   const [current, setCurrent] = useState(0);
-  const [answers, setAnswers] = useState([]); // [{ isCorrect, raw }]
+  const [answers, setAnswers] = useState([]); // [{ isCorrect, raw, points, maxPoints, needsReview }]
+  // When the student opens the "see correct answers" review at the end
+  // of the session. Toggles between the results summary and the per-
+  // question detail view. Only available in graded sessions (live + the
+  // student is logged in or guest); always available in practice mode.
+  const [showReview, setShowReview] = useState(false);
   const [showResult, setShowResult] = useState(false);
   const [resultAnim, setResultAnim] = useState("");
   const [timeLeft, setTimeLeft] = useState(20);
@@ -665,13 +641,20 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
   // Single submit path used by every activity type (and timeout).
   const submitAnswer = async (raw) => {
     if (showResult) return;
-    const { isCorrect, stored } = evaluateAnswer(q, qType, raw);
+    // evaluateAnswer now returns the full scoring tuple. We persist points,
+    // maxPoints, needsReview alongside the legacy is_correct so existing
+    // code (spaced repetition, live UI) keeps working while new code can
+    // use the granular scoring for partial credit on Match/Order.
+    const { points, maxPoints, isCorrect, stored, needsReview } = evaluateAnswer(q, qType, raw);
     setLastIsCorrect(isCorrect);
     setShowResult(true);
     // Animation: bounce on correct OR ungraded-submitted (positive feedback either way),
     // shake only on actual incorrect.
     setResultAnim(isCorrect === false ? "shake" : "bounce");
-    setAnswers(prev => [...prev, { isCorrect, raw }]);
+    // Keep the full scoring tuple in local state so the end-of-session
+    // "see correct answers" view can show "3 / 4 pairs correct" without
+    // re-grading.
+    setAnswers(prev => [...prev, { isCorrect, raw, points, maxPoints, needsReview }]);
     if (participant) {
       try {
         const insertData = {
@@ -679,10 +662,15 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
           participant_id: participant.id,
           question_index: current,
           answer: stored,
-          // DB column is NOT NULL boolean; treat ungraded (null) as `true` so the
-          // submission still counts toward participation. The client distinguishes
-          // graded vs ungraded via the question type, not this column.
+          // is_correct stays NOT NULL for back-compat. Ungraded free-text
+          // counts as participation (true) for now; the teacher's review
+          // will flip it later if they mark it incorrect.
           is_correct: isCorrect === null ? true : isCorrect,
+          // New granular scoring. For free/open these start at 0/2; the
+          // teacher's review updates them via teacherGradeToPoints.
+          points,
+          max_points: maxPoints,
+          needs_review: needsReview,
           // Si no hay timer (modo total, practice apagado), no podemos medir
           // time_taken_ms — guardamos 0. La métrica se mantiene válida solo
           // cuando hay timer per-question.
@@ -1471,6 +1459,168 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
     // Percentage only over graded items.
     const pct = graded.length > 0 ? Math.round((correct / graded.length) * 100) : 0;
 
+    // ── Review branch: per-question detail view ─────────────────────────
+    // Renders when the student tapped "See correct answers". Shows each
+    // question with their submitted answer + the canonical correct
+    // answer (or "pending review" for free-text). One scrollable page
+    // — most quizzes are 5–15 questions, scrolling is fine. Cleaner than
+    // a paginated flow that adds clicks.
+    if (showReview) {
+      return (
+        <>
+          <style>{css}</style>
+          <div style={{ maxWidth: 480, margin: "0 auto", padding: "30px 16px 60px" }}>
+            <div style={{
+              display: "flex", alignItems: "center", justifyContent: "space-between",
+              marginBottom: 16,
+            }}>
+              <button
+                onClick={() => setShowReview(false)}
+                style={{
+                  padding: "8px 12px", borderRadius: 8, fontSize: 13, fontWeight: 500,
+                  background: "transparent", color: C.textSecondary,
+                  border: `1px solid ${C.border}`, cursor: "pointer",
+                  fontFamily: "'Outfit',sans-serif",
+                  display: "inline-flex", alignItems: "center", gap: 6,
+                }}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                  <path d="M15 18l-6-6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+                {t.backToResults}
+              </button>
+              <span style={{ fontSize: 12, color: C.textMuted, fontFamily: "'Outfit',sans-serif" }}>
+                {questions.length} · {pct}%
+              </span>
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              {questions.map((qq, i) => {
+                const a = answers[i];
+                const qqType = qq?.type || "mcq";
+                // Status: needs-review takes precedence; otherwise correct/incorrect.
+                const isPending = a?.needsReview || qqType === "free" || qqType === "open";
+                const isOk = !isPending && a?.isCorrect === true;
+                const accent = isPending ? C.accent : (isOk ? C.green : C.red);
+                const accentSoft = isPending ? C.accentSoft : (isOk ? C.greenSoft : C.redSoft);
+                const correctText = describeCorrectAnswer(qq, qqType);
+                const studentText = formatStudentAnswer(qq, qqType, a);
+                return (
+                  <div
+                    key={i}
+                    className="fade-up"
+                    style={{
+                      background: C.bg,
+                      border: `1px solid ${C.border}`,
+                      borderLeft: `3px solid ${accent}`,
+                      borderRadius: 12,
+                      padding: 14,
+                      fontFamily: "'Outfit',sans-serif",
+                    }}
+                  >
+                    {/* Header row: question number + status pill + points */}
+                    <div style={{
+                      display: "flex", alignItems: "center", justifyContent: "space-between",
+                      marginBottom: 8, gap: 8,
+                    }}>
+                      <span style={{ fontSize: 11, color: C.textMuted, fontWeight: 600, letterSpacing: ".03em" }}>
+                        {t.reviewQuestion.replace("{n}", String(i + 1)).replace("{total}", String(questions.length))}
+                      </span>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        {a && typeof a.points === "number" && typeof a.maxPoints === "number" && !isPending && (
+                          <span style={{
+                            fontSize: 11, fontWeight: 600,
+                            color: accent, background: accentSoft,
+                            padding: "2px 8px", borderRadius: 999,
+                          }}>
+                            {t.pointsLabel.replace("{points}", String(a.points)).replace("{max}", String(a.maxPoints))}
+                          </span>
+                        )}
+                        {isPending && (
+                          <span style={{
+                            fontSize: 11, fontWeight: 600,
+                            color: C.accent, background: C.accentSoft,
+                            padding: "2px 8px", borderRadius: 999,
+                          }}>
+                            ⏱ {t.pendingReview}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Question prompt */}
+                    <div style={{
+                      fontSize: 14, fontWeight: 600, color: C.text,
+                      lineHeight: 1.45, marginBottom: 10,
+                    }}>
+                      {qq?.q || qq?.prompt || ""}
+                    </div>
+
+                    {/* Your answer */}
+                    <div style={{ marginBottom: 8 }}>
+                      <div style={{ fontSize: 11, fontWeight: 600, color: C.textMuted, marginBottom: 3, textTransform: "uppercase", letterSpacing: ".05em" }}>
+                        {t.yourAnswer}
+                      </div>
+                      <div style={{
+                        fontSize: 13,
+                        color: studentText ? C.text : C.textMuted,
+                        fontStyle: studentText ? "normal" : "italic",
+                        lineHeight: 1.4,
+                        wordBreak: "break-word",
+                      }}>
+                        {studentText || t.noAnswerSubmitted}
+                      </div>
+                    </div>
+
+                    {/* Correct answer (or pending review hint for free-text) */}
+                    {isPending ? (
+                      <div style={{
+                        marginTop: 8, padding: "8px 12px",
+                        background: C.accentSoft,
+                        borderRadius: 8, fontSize: 12,
+                        color: C.text, lineHeight: 1.45,
+                      }}>
+                        {t.pendingReviewHint}
+                      </div>
+                    ) : (
+                      correctText && (
+                        <div>
+                          <div style={{ fontSize: 11, fontWeight: 600, color: C.textMuted, marginBottom: 3, textTransform: "uppercase", letterSpacing: ".05em" }}>
+                            {t.correctAnswer}
+                          </div>
+                          <div style={{
+                            fontSize: 13, color: C.green,
+                            fontWeight: 500,
+                            lineHeight: 1.4,
+                            wordBreak: "break-word",
+                          }}>
+                            {correctText}
+                          </div>
+                        </div>
+                      )
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            <button
+              onClick={() => setShowReview(false)}
+              style={{
+                marginTop: 24, width: "100%", padding: "12px 16px",
+                borderRadius: 10, fontSize: 14, fontWeight: 600,
+                background: C.bg, color: C.textSecondary,
+                border: `1px solid ${C.border}`, cursor: "pointer",
+                fontFamily: "'Outfit',sans-serif",
+              }}
+            >
+              {t.backToResults}
+            </button>
+          </div>
+        </>
+      );
+    }
+
     // Special case: teacher ended the session before the student answered
     // anything. Show a clean "session ended" screen instead of empty stats.
     if (endedByTeacher && answers.length === 0) {
@@ -1504,7 +1654,7 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
                 </div>
               ) : (
                 <button onClick={() => {
-                  setStep("join"); setPin(""); setName(profile?.full_name || ""); setAnswers([]); setCurrent(0); setSession(null); setParticipant(null); setEndedByTeacher(false);
+                  setStep("join"); setPin(""); setName(profile?.full_name || ""); setAnswers([]); setCurrent(0); setSession(null); setParticipant(null); setEndedByTeacher(false); setShowReview(false);
                 }} style={{
                   padding: "10px 20px", borderRadius: 10, fontSize: 14, fontWeight: 600,
                   background: C.accentSoft, color: C.accent, border: "none", cursor: "pointer",
@@ -1575,6 +1725,28 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
             </div>
           </div>
 
+          {/* See correct answers — opens the per-question detail view.
+              Always available when the session ran (graded or not). For
+              free-text questions the review marks them as pending teacher
+              review instead of showing a "correct answer", so even
+              ungraded sessions benefit from seeing the prompt + their
+              answer side by side. */}
+          {answers.length > 0 && (
+            <button
+              onClick={() => setShowReview(true)}
+              style={{
+                marginTop: 18, padding: "12px 20px", borderRadius: 10,
+                fontSize: 14, fontWeight: 600,
+                background: C.accentSoft, color: C.accent,
+                border: "none", cursor: "pointer",
+                fontFamily: "'Outfit',sans-serif",
+                width: "100%",
+              }}
+            >
+              {t.seeAnswers}
+            </button>
+          )}
+
           <button className="sj-btn sj-btn-secondary" onClick={() => {
             if (isPractice && onPracticeExit) {
               onPracticeExit();
@@ -1585,7 +1757,7 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
               try { clearGuestSession(guestPin); } catch (_) {}
               window.location.href = "/";
             } else {
-              setStep("join"); setPin(""); setName(profile?.full_name || ""); setAnswers([]); setCurrent(0); setSession(null);
+              setStep("join"); setPin(""); setName(profile?.full_name || ""); setAnswers([]); setCurrent(0); setSession(null); setShowReview(false);
             }
           }} style={{
             marginTop: 20, padding: "12px 24px", borderRadius: 10, fontSize: 14, fontWeight: 500,
