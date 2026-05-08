@@ -840,6 +840,7 @@ function SuggestedCard({ item, t, onPick }) {
 
   return (
     <div
+      className="ns-card"
       style={{
         background: C.bg, borderRadius: 12, border: `1px solid ${C.border}`,
         borderLeft: `4px solid ${retCol}`,
@@ -932,6 +933,7 @@ function RecentLaunchCard({ item, t, onPick }) {
 
   return (
     <div
+      className="ns-card"
       style={{
         background: C.bg, borderRadius: 12, border: `1px solid ${C.border}`,
         borderLeft: `4px solid ${accent}`,
