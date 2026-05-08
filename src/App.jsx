@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { useLocation, useNavigate, useMatch } from 'react-router-dom';
 import { ROUTES, PAGE_TO_ROUTE, pathToPage, defaultRouteForRole, buildRoute, buildPathWithOpts, isPageAllowedForRole } from './routes';
 import { supabase } from './lib/supabase';
-import Icon, { LogoMark, SessionsIcon, AIGenIcon, SchoolIcon, CommunityIcon, DecksIcon, NotificationsIcon, SettingsIcon, JoinSessionIcon, ProgressIcon, AchievementsIcon, ActivitiesIcon, TeacherInline, StudentInline, TeacherAvatar, StudentAvatar, BackArrow } from './components/Icons';
+import Icon, { LogoMark, SessionsIcon, AIGenIcon, SchoolIcon, CommunityIcon, DecksIcon, NotificationsIcon, SettingsIcon, JoinSessionIcon, ProgressIcon, AchievementsIcon, ActivitiesIcon, TeacherInline, StudentInline, TeacherAvatar, StudentAvatar, BackArrow, ReviewIcon } from './components/Icons';
 import { Avatar as ProfileAvatar } from './components/Avatars';
 // PublicHome and AvatarOnboarding are eagerly imported because they paint
 // before the authed shell — making them lazy would just add a Suspense
@@ -242,23 +242,28 @@ function Sidebar({ page, setPage, profile, lang, setLang, open, setOpen, onSignO
       </div>
       <div style={{ padding: "10px 12px", borderTop: `1px solid ${C.border}` }}>
         {showLabels ? <>
-          {isMobile && (
-            <div style={{ display: "flex", gap: 4, marginBottom: 10 }}>
-              {[["en", "EN"], ["es", "ES"], ["ko", "한"]].map(([code, label]) => (
-                <button
-                  key={code}
-                  onClick={() => setLang(code)}
-                  style={{
-                    flex: 1, padding: "6px 0", borderRadius: 6, fontSize: 11, fontWeight: 600,
-                    background: lang === code ? C.accentSoft : "transparent",
-                    color: lang === code ? C.accent : C.textMuted,
-                    border: `1px solid ${lang === code ? C.accent + "33" : C.border}`,
-                    cursor: "pointer", fontFamily: "'Outfit',sans-serif",
-                  }}
-                >{label}</button>
-              ))}
-            </div>
-          )}
+          {/* Language selector lives here for both mobile and desktop now.
+              Used to live in the page header (PageHeader.jsx) but moved
+              to the sidebar so every page has the same chrome and the
+              choice feels like a user preference, not page furniture.
+              When the sidebar is collapsed (showLabels=false) we hide
+              this — the user can expand the sidebar or open Settings
+              to change the language. */}
+          <div style={{ display: "flex", gap: 4, marginBottom: 10 }}>
+            {[["en", "EN"], ["es", "ES"], ["ko", "한"]].map(([code, label]) => (
+              <button
+                key={code}
+                onClick={() => setLang(code)}
+                style={{
+                  flex: 1, padding: "6px 0", borderRadius: 6, fontSize: 11, fontWeight: 600,
+                  background: lang === code ? C.accentSoft : "transparent",
+                  color: lang === code ? C.accent : C.textMuted,
+                  border: `1px solid ${lang === code ? C.accent + "33" : C.border}`,
+                  cursor: "pointer", fontFamily: "'Outfit',sans-serif",
+                }}
+              >{label}</button>
+            ))}
+          </div>
           <button
             className="cl-profile-chip"
             onClick={() => handleNav(() => setPage("settings"))}
@@ -347,22 +352,6 @@ function PageSuspenseFallback() {
         <p style={{ color: C.textMuted, fontSize: 13, fontFamily: "'Outfit',sans-serif" }}>Loading…</p>
       </div>
     </div>
-  );
-}
-
-// ReviewIcon — sidebar pictogram for /review. Inline SVG keeps App.jsx
-// self-contained. The shape: a clipboard with a checkmark — universally
-// reads as "to-do / approve". Active state matches the rest of the
-// sidebar icons (filled accent).
-function ReviewIcon({ size = 28, active = false }) {
-  const stroke = active ? C.accent : C.textSecondary;
-  const fill = active ? C.accentSoft : "none";
-  return (
-    <svg width={size} height={size} viewBox="0 0 32 32" fill="none">
-      <rect x="8" y="6" width="16" height="22" rx="3" fill={fill} stroke={stroke} strokeWidth="2"/>
-      <rect x="12" y="3" width="8" height="5" rx="1.5" fill={active ? C.accent : C.bg} stroke={stroke} strokeWidth="2"/>
-      <path d="M12 16 L15 19 L21 13" stroke={active ? C.accent : stroke} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
-    </svg>
   );
 }
 

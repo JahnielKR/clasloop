@@ -11,31 +11,14 @@ import { CIcon } from "./Icons";
 import MobileMenuButton, { useIsMobile } from "./MobileMenuButton";
 import { C } from "./tokens";
 
-// Inline language select styling. We keep this co-located rather than in
-// tokens.js because it's specific to the header — no other place uses it.
-const langSel = {
-  fontFamily: "'Outfit',sans-serif",
-  background: C.bg,
-  border: `1px solid ${C.border}`,
-  color: C.text,
-  borderRadius: 8,
-  outline: "none",
-  cursor: "pointer",
-  appearance: "none",
-  backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2 4l4 4 4-4' fill='none' stroke='%239B9B9B' stroke-width='1.5'/%3E%3C/svg%3E")`,
-  backgroundRepeat: "no-repeat",
-  backgroundPosition: "right 12px center",
-  padding: "6px 26px 6px 10px",
-  fontSize: 12,
-  width: "auto",
-  flexShrink: 0,
-};
-
 export default function PageHeader({
   title,
   icon,
-  lang,
-  setLang,
+  // lang and setLang are still accepted as props so existing call sites
+  // don't have to change, but they're no longer used inside the header.
+  // The language selector moved to the sidebar footer (App.jsx).
+  lang: _lang,
+  setLang: _setLang,
   maxWidth = 800,
   onOpenMobileMenu,
 }) {
@@ -70,17 +53,9 @@ export default function PageHeader({
           {title}
         </h1>
       </div>
-      {!isMobile && (
-        <select
-          value={lang}
-          onChange={(e) => setLang(e.target.value)}
-          style={langSel}
-        >
-          <option value="en">EN</option>
-          <option value="es">ES</option>
-          <option value="ko">한</option>
-        </select>
-      )}
+      {/* Language selector lives in the sidebar footer now (see App.jsx).
+          Removed from here so every page header has the same shape and
+          the lang choice is treated as a user preference, not page chrome. */}
     </div>
   );
 }
