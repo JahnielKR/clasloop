@@ -185,6 +185,24 @@ export function SettingsIcon({ size = 32, active = false }) {
   );
 }
 
+// ReviewIcon — clipboard + checkmark, used by /review (To Review queue).
+// Same IconBg + D palette pattern as the rest of the sidebar nav icons,
+// so the active/inactive transition matches (gray when inactive, accent
+// color tinted bg when active).
+export function ReviewIcon({ size = 32, active = false }) {
+  const c = active ? D.blue : D.muted;
+  return (
+    <IconBg bg={active ? D.bg : D.bg} border={active ? D.blue + "22" : "transparent"} size={size}>
+      {S(size * 0.55, "0 0 24 24", <>
+        <rect x="6" y="5" width="12" height="16" rx="2" fill={active ? D.blue + "10" : "none"} stroke={c} strokeWidth="1.8"/>
+        <rect x="9" y="3" width="6" height="3.5" rx="1" fill={active ? D.blue : "#fff"} stroke={c} strokeWidth="1.8"/>
+        <path d="M9,12 L11,14 L15,10" stroke={active ? D.blue : c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+        <line x1="9" y1="17" x2="13" y2="17" stroke={D.muted + "66"} strokeWidth="1.4" strokeLinecap="round"/>
+      </>)}
+    </IconBg>
+  );
+}
+
 export function JoinSessionIcon({ size = 32, active = false }) {
   const c = active ? D.green : D.muted;
   return (
