@@ -178,6 +178,7 @@ export default function ClassInsights({ profile, lang = "en", setLang, onOpenMob
         .ci-card { animation: ci-fadeUp .25s ease both; }
         @keyframes ci-grow { from { width: 0; } }
         .ci-bar { animation: ci-grow .55s cubic-bezier(0.18, 0.67, 0.6, 1.22) both; }
+        .ci-dot { animation: ci-grow .55s cubic-bezier(0.18, 0.67, 0.6, 1.22) both; }
         .ci-row { transition: background .12s ease, transform .12s ease; }
         .ci-row:hover { background: var(--c-bg-soft); }
         .ci-row:active { transform: scale(0.998); }
@@ -382,7 +383,12 @@ function DeckRow({ deck, accent, t, onClick }) {
         background: "transparent",
         border: "none",
         borderBottom: `1px solid ${C.border}`,
-        padding: "14px 16px",
+        // Left accent border tinted to the row's grade color. Subtle 2px
+        // version (the deck cards in /sessions use 4px). Matches the
+        // hover-card pattern across the app and gives each row an
+        // immediate at-a-glance signal even before the bar/% read.
+        borderLeft: `2px solid ${barColor}`,
+        padding: "14px 16px 14px 18px",
         cursor: "pointer",
         fontFamily: "'Outfit',sans-serif",
         display: "block",
@@ -408,18 +414,42 @@ function DeckRow({ deck, accent, t, onClick }) {
         </span>
       </div>
 
-      {/* Bar */}
-      <div style={{
-        height: 8, borderRadius: 4, background: C.bgSoft,
-        overflow: "hidden", marginBottom: 6,
-      }}>
+      {/* Bar — line + dot style. The track is a thin 2px rule across the
+          full row width (gray). The fill is the same 2px rule but only
+          extends to widthPct. A 10px circle sits at the end of the fill,
+          marking the current value with more visual presence than a flat
+          bar fill alone. The dot has a 2px white border so it punches out
+          cleanly against the track when the % is high (otherwise the dot
+          and the fill would visually merge at the edge). */}
+      <div style={{ position: "relative", height: 10, marginBottom: 6 }}>
+        {/* Background track */}
+        <div style={{
+          position: "absolute", top: 4, left: 0, right: 0,
+          height: 2, borderRadius: 1, background: C.bgSoft,
+        }} />
+        {/* Filled portion */}
         <div
           className="ci-bar"
           style={{
-            height: "100%",
-            width: `${widthPct}%`,
+            position: "absolute", top: 4, left: 0,
+            height: 2, width: `${widthPct}%`, borderRadius: 1,
             background: barColor,
-            borderRadius: 4,
+          }}
+        />
+        {/* Dot at end of fill */}
+        <div
+          className="ci-dot"
+          style={{
+            position: "absolute", top: 0,
+            // The dot is 10px wide; we offset by -5px from the fill end
+            // so the dot is centered on that point. clamp keeps it from
+            // poking out the right edge when pct is near 100, and from
+            // the left edge when pct is near 0.
+            left: `calc(${widthPct}% - 5px)`,
+            width: 10, height: 10, borderRadius: "50%",
+            background: barColor,
+            border: `2px solid ${C.bg}`,
+            boxSizing: "border-box",
           }}
         />
       </div>
