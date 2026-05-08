@@ -17,8 +17,8 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
-import { CIcon } from "../components/Icons";
 import { C, MONO } from "../components/tokens";
+import PageHeader from "../components/PageHeader";
 import { ROUTES, buildRoute } from "../routes";
 import {
   fetchDeckQuestionStats,
@@ -112,7 +112,7 @@ const i18n = {
   },
 };
 
-export default function DeckResults({ profile, lang = "en" }) {
+export default function DeckResults({ profile, lang = "en", setLang, onOpenMobileMenu }) {
   // App.jsx renders pages by mapping pathToPage(pathname) → component, but
   // it doesn't register react-router <Route>s, so useParams() returns
   // empty for nested patterns like /decks/:deckId/results. We extract
@@ -226,8 +226,7 @@ export default function DeckResults({ profile, lang = "en" }) {
 
   return (
     <div style={{
-      maxWidth: 820, margin: "0 auto",
-      padding: "24px 18px 80px",
+      padding: "28px 20px 80px",
       fontFamily: "'Outfit',sans-serif",
     }}>
       <style>{`
@@ -237,45 +236,46 @@ export default function DeckResults({ profile, lang = "en" }) {
         .ds-bar { animation: ds-grow .55s cubic-bezier(0.18, 0.67, 0.6, 1.22) both; }
       `}</style>
 
-      {/* Header: back + title + deck name */}
-      <button
-        onClick={() => navigate(ROUTES.DECKS)}
-        style={{
-          marginBottom: 14,
-          padding: "6px 10px",
-          borderRadius: 7,
-          fontSize: 12,
-          fontWeight: 500,
-          background: "transparent",
-          color: C.textSecondary,
-          border: `1px solid ${C.border}`,
-          cursor: "pointer",
-          fontFamily: "'Outfit',sans-serif",
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 5,
-        }}
-      >
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
-          <path d="M15 18l-6-6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-        </svg>
-        {t.backToDecks}
-      </button>
+      {/* Shared PageHeader — same chrome as the rest of the app. */}
+      <PageHeader
+        title={t.title}
+        lang={lang}
+        setLang={setLang}
+        maxWidth={820}
+        onOpenMobileMenu={onOpenMobileMenu}
+      />
 
-      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 4 }}>
-        <CIcon name="chart" size={32} />
-        <h1 style={{
-          fontSize: 24, fontWeight: 700, margin: 0, color: C.text,
-          letterSpacing: "-.01em",
-        }}>
-          {t.title}
-        </h1>
-      </div>
-      {deck && (
-        <p style={{ fontSize: 14, color: C.textSecondary, margin: "0 0 18px", lineHeight: 1.5 }}>
-          {deck.title}
-        </p>
-      )}
+      <div style={{ maxWidth: 820, margin: "0 auto" }}>
+        {/* Back to decks */}
+        <button
+          onClick={() => navigate(ROUTES.DECKS)}
+          style={{
+            marginBottom: 14,
+            padding: "6px 10px",
+            borderRadius: 7,
+            fontSize: 12,
+            fontWeight: 500,
+            background: "transparent",
+            color: C.textSecondary,
+            border: `1px solid ${C.border}`,
+            cursor: "pointer",
+            fontFamily: "'Outfit',sans-serif",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 5,
+          }}
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+            <path d="M15 18l-6-6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+          {t.backToDecks}
+        </button>
+
+        {deck && (
+          <p style={{ fontSize: 14, color: C.textSecondary, margin: "0 0 18px", lineHeight: 1.5 }}>
+            {deck.title}
+          </p>
+        )}
 
       {/* Loading / error */}
       {loading && (
@@ -526,8 +526,8 @@ export default function DeckResults({ profile, lang = "en" }) {
                             </div>
                             <div style={{
                               flex: 1, position: "relative",
-                              height: 18, background: C.bgSoft,
-                              borderRadius: 9, overflow: "hidden",
+                              height: 8, background: C.bgSoft,
+                              borderRadius: 4, overflow: "hidden",
                             }}>
                               <div
                                 className="ds-bar"
@@ -536,7 +536,7 @@ export default function DeckResults({ profile, lang = "en" }) {
                                   width: `${d.percent}%`,
                                   background: barColor,
                                   opacity: d.isCorrect === false ? 0.5 : 0.85,
-                                  borderRadius: 9,
+                                  borderRadius: 4,
                                 }}
                               />
                             </div>
@@ -560,6 +560,7 @@ export default function DeckResults({ profile, lang = "en" }) {
           </div>
         );
       })}
+      </div>
     </div>
   );
 }
