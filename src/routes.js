@@ -102,6 +102,8 @@ export const buildRoute = {
 
   // Class detail (Fase 3 — MyClasses.jsx tiene view=list|class)
   classDetail: (classId) => `/classes/${enc(classId)}`,
+  // Class insights — per-deck aggregated stats for a class
+  classInsights: (classId) => `/classes/${enc(classId)}/insights`,
 };
 
 // ── Patrones para <Route path=...> ─────────────────────────────────────────
@@ -129,6 +131,7 @@ export const ROUTE_PATTERNS = {
 
   CLASSES: "/classes",
   CLASSES_DETAIL: "/classes/:classId",
+  CLASSES_INSIGHTS: "/classes/:classId/insights",
   STUDENT_JOIN: "/join-session",
   PRACTICE: "/practice/:deckId",
   ACHIEVEMENTS: "/achievements",
@@ -200,6 +203,10 @@ export function pathToPage(pathname) {
   if (pathname === "/community")           return "community";
   if (pathname.startsWith("/teacher/"))    return "teacherProfile";
 
+  // /classes/:classId/insights → its own page. MUST come before the generic
+  // /classes startsWith, otherwise this is captured as "myClasses" and the
+  // user lands on the class list with the URL still saying /insights.
+  if (/^\/classes\/[^/]+\/insights\/?$/.test(pathname)) return "classInsights";
   if (pathname.startsWith("/classes"))     return "myClasses";
   if (pathname === "/join-session")        return "studentJoin";
   if (pathname.startsWith("/practice/"))   return "studentJoin"; // practice usa StudentJoin
@@ -249,6 +256,12 @@ const TEACHER_ONLY_PAGES = new Set([
   "director",       // /school — analytics dashboard, accessible from MyClasses header
   "adminAIStats",   // additionally requires is_admin, checked at the page level
 ]);
+
+// Note: review, deckResults and classInsights are *not* listed above —
+// matching the pre-existing pattern. They live behind RLS and aren't in
+// the sidebar/main nav for students; entering by URL just runs into a
+// "no rows" RLS view. If we ever surface a student-routable page that
+// shares a path prefix, we'd revisit.
 
 // Note: "myClasses" is intentionally NOT in either set. The /classes route is
 // shared — students see classes they joined (MyClasses.jsx), teachers see

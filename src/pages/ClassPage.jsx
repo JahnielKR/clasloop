@@ -62,6 +62,7 @@ const i18n = {
     autoColor: "Auto",
     auto: "auto",
     editClass: "Edit class",
+    insights: "Insights",
     classNotFound: "Class not found",
     classNotFoundSub: "It might have been deleted, or the link is wrong.",
     goBack: "Back to My Classes",
@@ -130,6 +131,7 @@ const i18n = {
     autoColor: "Auto",
     auto: "auto",
     editClass: "Editar clase",
+    insights: "Insights",
     classNotFound: "Clase no encontrada",
     classNotFoundSub: "Puede que haya sido eliminada, o el enlace está mal.",
     goBack: "Volver a Mis clases",
@@ -197,6 +199,7 @@ const i18n = {
     autoColor: "자동",
     auto: "자동",
     editClass: "수업 편집",
+    insights: "인사이트",
     classNotFound: "수업을 찾을 수 없음",
     classNotFoundSub: "삭제되었거나 링크가 잘못되었습니다.",
     goBack: "내 수업으로 돌아가기",
@@ -1116,6 +1119,29 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
           </div>
           {/* Action icons */}
           <div style={{ display: "flex", gap: 4, flexShrink: 0, position: "relative" }}>
+            {/* Insights — per-deck aggregate stats for this class. Shown
+                on mobile too (unlike Edit class) because checking class
+                progress is something a teacher does often, on any device. */}
+            <button
+              onClick={() => navigate(buildRoute.classInsights(classObj.id))}
+              aria-label={t.insights}
+              title={t.insights}
+              style={{
+                width: 32, height: 32, borderRadius: 8,
+                background: "transparent",
+                border: `1px solid ${C.border}`,
+                cursor: "pointer",
+                display: "inline-flex", alignItems: "center", justifyContent: "center",
+                color: C.textSecondary,
+                transition: "background .15s ease, color .15s ease, border-color .15s ease",
+              }}
+            >
+              {/* Bar chart icon — inline SVG, matches the visual weight
+                  of the palette/edit icons in this header. */}
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                <path d="M3 21V9M9 21V3M15 21v-8M21 21v-5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+              </svg>
+            </button>
             <button
               onClick={(e) => { e.stopPropagation(); setShowColorPicker(v => !v); }}
               aria-label={t.classColor}
