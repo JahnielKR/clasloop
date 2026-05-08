@@ -428,7 +428,7 @@ export default function Review({ profile, lang = "en", onOpenMobileMenu }) {
 
       <PageHeader
         title={t.title}
-        iconNode={<ReviewIcon size={28} active />}
+        iconNode={<ReviewIcon size={22} active bare />}
         lang={lang}
         maxWidth={760}
         onOpenMobileMenu={onOpenMobileMenu}

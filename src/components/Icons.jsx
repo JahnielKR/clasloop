@@ -41,7 +41,13 @@ export function LogoMark({ size = 28 }) {
 }
 
 // ─── Icon with Background Container ─────────────────
-function IconBg({ bg, border, size = 32, children }) {
+// `bare` skips the wrapping div entirely — used when an icon is reused
+// outside the sidebar (e.g. inside a PageHeader where the active-pill
+// background looks out of place). The SVG inside still gets sized via
+// the children's own viewBox, so no visual change beyond removing the
+// box and its background.
+function IconBg({ bg, border, size = 32, bare = false, children }) {
+  if (bare) return <>{children}</>;
   return (
     <div style={{ width: size, height: size, borderRadius: size * 0.28, background: bg, border: `1px solid ${border || "transparent"}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
       {children}
@@ -53,11 +59,11 @@ function IconBg({ bg, border, size = 32, children }) {
 // SIDEBAR NAV ICONS (with background)
 // ══════════════════════════════════════════════════════
 
-export function SessionsIcon({ size = 32, active = false }) {
+export function SessionsIcon({ size = 32, active = false, bare = false }) {
   const c = active ? D.blue : D.muted;
   return (
-    <IconBg bg={active ? "#E8F0FE" : D.bg} border={active ? D.blue + "33" : "transparent"} size={size}>
-      {S(size * 0.55, "0 0 24 24", <>
+    <IconBg bg={active ? "#E8F0FE" : D.bg} border={active ? D.blue + "33" : "transparent"} size={size} bare={bare}>
+      {S(bare ? size : size * 0.55, "0 0 24 24", <>
         <rect x="3" y="4" width="18" height="14" rx="3" fill={active ? D.blue + "18" : "none"} stroke={c} strokeWidth="2"/>
         <path d="M10,8 L10,14 L15,11 Z" fill={active ? D.blue + "33" : "none"} stroke={c} strokeWidth="1.8" strokeLinejoin="round"/>
         <path d="M16,18 C14,21 18,22 20,20" stroke={active ? D.orange : D.muted + "66"} strokeWidth="1.8" strokeLinecap="round" fill="none"/>
@@ -191,11 +197,11 @@ export function SettingsIcon({ size = 32, active = false }) {
 // color tinted bg when active). The optional `badge` prop overlays a red
 // counter pill (same look as NotificationsIcon) for pending free-text
 // reviews — drives urgency to grade.
-export function ReviewIcon({ size = 32, active = false, badge = 0 }) {
+export function ReviewIcon({ size = 32, active = false, badge = 0, bare = false }) {
   const c = active ? D.blue : D.muted;
   return (
-    <IconBg bg={active ? D.bg : D.bg} border={active ? D.blue + "22" : "transparent"} size={size}>
-      {S(size * 0.55, "0 0 24 24", <>
+    <IconBg bg={active ? D.bg : D.bg} border={active ? D.blue + "22" : "transparent"} size={size} bare={bare}>
+      {S(bare ? size : size * 0.55, "0 0 24 24", <>
         <rect x="6" y="5" width="12" height="16" rx="2" fill={active ? D.blue + "10" : "none"} stroke={c} strokeWidth="1.8"/>
         <rect x="9" y="3" width="6" height="3.5" rx="1" fill={active ? D.blue : "#fff"} stroke={c} strokeWidth="1.8"/>
         <path d="M9,12 L11,14 L15,10" stroke={active ? D.blue : c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>

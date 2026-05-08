@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, useMatch } from "react-router-dom";
 import { supabase } from "../lib/supabase";
-import { CIcon, LogoMark, SchoolIcon } from "../components/Icons";
+import { CIcon, LogoMark } from "../components/Icons";
 import { Avatar } from "../components/Avatars";
 import { DeckCover, colorTint } from "../lib/deck-cover";
 import { useIsMobile } from "../components/MobileMenuButton";
@@ -344,7 +344,7 @@ export default function MyClasses({ lang: pageLang = "en", setLang: pageSetLang,
   if (loading) return (
     <div style={{ padding: "28px 20px" }}>
       <style>{css}</style>
-      <PageHeader title={t.pageTitle} iconNode={<SchoolIcon size={28} active />} lang={l} setLang={setLang} maxWidth={720} onOpenMobileMenu={onOpenMobileMenu} />
+      <PageHeader title={t.pageTitle} icon="school" lang={l} setLang={setLang} maxWidth={720} onOpenMobileMenu={onOpenMobileMenu} />
       <div style={{ maxWidth: 720, margin: "0 auto", padding: 40, textAlign: "center", color: C.textMuted, fontFamily: "'Outfit',sans-serif" }}>{t.loading}</div>
     </div>
   );
@@ -362,7 +362,7 @@ export default function MyClasses({ lang: pageLang = "en", setLang: pageSetLang,
     return (
       <div style={{ padding: "28px 20px" }}>
         <style>{css}</style>
-        <PageHeader title={t.pageTitle} iconNode={<SchoolIcon size={28} active />} lang={l} setLang={setLang} maxWidth={720} onOpenMobileMenu={onOpenMobileMenu} />
+        <PageHeader title={t.pageTitle} icon="school" lang={l} setLang={setLang} maxWidth={720} onOpenMobileMenu={onOpenMobileMenu} />
         <ClassDetail
           cls={cls}
           profile={profile}
@@ -379,7 +379,7 @@ export default function MyClasses({ lang: pageLang = "en", setLang: pageSetLang,
   return (
     <div style={{ padding: "28px 20px" }}>
       <style>{css}</style>
-      <PageHeader title={t.pageTitle} iconNode={<SchoolIcon size={28} active />} lang={l} setLang={setLang} maxWidth={720} onOpenMobileMenu={onOpenMobileMenu} />
+      <PageHeader title={t.pageTitle} icon="school" lang={l} setLang={setLang} maxWidth={720} onOpenMobileMenu={onOpenMobileMenu} />
       <div style={{ maxWidth: 720, margin: "0 auto" }}>
         {/* Title + action row */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, gap: 12 }}>
