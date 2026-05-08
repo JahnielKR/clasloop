@@ -15,7 +15,7 @@
 // to their own sessions.
 
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { CIcon } from "../components/Icons";
 import { C, MONO } from "../components/tokens";
@@ -113,7 +113,16 @@ const i18n = {
 };
 
 export default function DeckResults({ profile, lang = "en" }) {
-  const { deckId } = useParams();
+  // App.jsx renders pages by mapping pathToPage(pathname) → component, but
+  // it doesn't register react-router <Route>s, so useParams() returns
+  // empty for nested patterns like /decks/:deckId/results. We extract
+  // the id from the pathname directly. Same trick the rest of the app
+  // uses for similar cases.
+  const location = useLocation();
+  const deckId = useMemo(() => {
+    const m = location.pathname.match(/^\/decks\/([^/]+)\/results\/?$/);
+    return m ? decodeURIComponent(m[1]) : null;
+  }, [location.pathname]);
   const navigate = useNavigate();
   const t = i18n[lang] || i18n.en;
 
