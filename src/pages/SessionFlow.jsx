@@ -356,6 +356,30 @@ function SessionOptions({ deck, classes, t, lang = "en", onLaunch, onBack }) {
 
   // Initial selection: bound → that class, open → empty (force pick).
   const [classId, setClassId] = useState(isBound ? deck.class_id : "");
+
+  // Race-condition guard: when this component mounts via a deep link to
+  // /sessions/options/:deckId (clicking a deck card from ClassPage), the
+  // deck hydrates from one fetch and classes hydrates from another. If
+  // classes arrives AFTER first render, the initial isBound check above
+  // returns false (classes was still []) and classId stays empty — the
+  // launch button stays disabled and the select shows the "pick a class"
+  // placeholder even though the deck has a class_id we could lock to.
+  // This effect re-evaluates once classes settles and corrects classId
+  // if the deck's home class is now in the list. We only auto-fill when
+  // the user hasn't picked anything yet (classId === "") so we don't
+  // override a manual choice on a re-render.
+  useEffect(() => {
+    if (classId) return; // user already picked or we already filled
+    if (isFav) return;
+    if (!deck.class_id) return;
+    if (classes.some(c => c.id === deck.class_id)) {
+      setClassId(deck.class_id);
+    }
+    // We intentionally only react to classes arriving (and the deck
+    // changing), not to classId — once filled, this effect is a noop
+    // until the deck/classes change again.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [classes, deck.class_id, deck._isFav]);
   // Modo del timer:
   //   - "per_question" (default): cada pregunta tiene su propio time_limit,
   //     sugerido por la AI o caído al default por tipo. El estudiante ve
