@@ -44,6 +44,10 @@ const i18n = {
     pendingLabel: "{n} pending",
     pendingLabelOne: "1 pending",
     noDataInSection: "—",
+    noUsageWarmup: "No warmups used yet.",
+    noUsageExit: "No exit tickets used yet.",
+    noUsageGeneral: "No general review decks used yet.",
+    noDecksInSection: "No decks in this section.",
   },
   es: {
     title: "Insights",
@@ -60,6 +64,10 @@ const i18n = {
     pendingLabel: "{n} pendientes",
     pendingLabelOne: "1 pendiente",
     noDataInSection: "—",
+    noUsageWarmup: "Ningún warmup usado todavía.",
+    noUsageExit: "Ningún exit ticket usado todavía.",
+    noUsageGeneral: "Ningún deck de repaso usado todavía.",
+    noDecksInSection: "Ningún deck en esta sección.",
   },
   ko: {
     title: "인사이트",
@@ -76,6 +84,10 @@ const i18n = {
     pendingLabel: "대기 {n}개",
     pendingLabelOne: "대기 1개",
     noDataInSection: "—",
+    noUsageWarmup: "아직 사용된 워밍업이 없습니다.",
+    noUsageExit: "아직 사용된 출구 티켓이 없습니다.",
+    noUsageGeneral: "아직 사용된 복습 덱이 없습니다.",
+    noDecksInSection: "이 섹션에 덱이 없습니다.",
   },
 };
 
@@ -149,7 +161,12 @@ export default function ClassInsights({ profile, lang = "en", setLang, onOpenMob
 
   const grouped = useMemo(() => groupRowsBySection(rows), [rows]);
   const accent = useMemo(() => resolveClassAccent(classObj), [classObj]);
-  const hasAnyData = !loading && !error && rows.length > 0;
+  // The class has decks at all (with or without data yet). Used for the
+  // global empty state — we only show "No data yet" if the class has
+  // literally zero decks. If it has decks but none have been launched,
+  // the section-level "No X used yet" messages cover it more
+  // informatively.
+  const hasAnyDeckInClass = !loading && !error && rows.length > 0;
 
   const toggleSection = (sectionId) => {
     setOpenSections((prev) => ({ ...prev, [sectionId]: !prev[sectionId] }));
@@ -231,7 +248,10 @@ export default function ClassInsights({ profile, lang = "en", setLang, onOpenMob
         </div>
       )}
 
-      {/* Empty state — no decks with data across the entire class */}
+      {/* Empty state — class has zero decks total. (If it has decks but
+          none have been used yet, the per-section "No X used yet"
+          messages cover it more informatively, so this only fires when
+          the class is completely empty of decks.) */}
       {!loading && !error && classObj && rows.length === 0 && (
         <div className="ci-card" style={{
           textAlign: "center", padding: "60px 20px",
@@ -248,14 +268,21 @@ export default function ClassInsights({ profile, lang = "en", setLang, onOpenMob
         </div>
       )}
 
-      {/* Sections — always render all 3 in canonical order. Sections
-          with zero decks are still shown but disabled (no toggle, dim
-          summary). This keeps the visual structure stable so the
-          teacher always knows where each section lives. */}
-      {hasAnyData && grouped.map(({ sectionId, decks }) => {
+      {/* Sections — always render all 3 in canonical order so the visual
+          structure is stable. Each section's body has 3 modes:
+            (a) decksWithData.length > 0 → list of deck rows
+            (b) totalDecksInSection > 0, no usage yet → "No X used yet"
+            (c) totalDecksInSection === 0 → "No decks in this section"
+          (b) and (c) sit inside the expanded body; the header is always
+          clickable so the teacher can peek inside without surprises. */}
+      {hasAnyDeckInClass && grouped.map(({ sectionId, decksWithData, totalDecksInSection }) => {
         const sectionLabel = sLabels[sectionId]?.name || sectionId;
-        const hasData = decks.length > 0;
         const isOpen = openSections[sectionId];
+        const noUsageString = (
+          sectionId === "warmup" ? t.noUsageWarmup
+          : sectionId === "exit_ticket" ? t.noUsageExit
+          : t.noUsageGeneral
+        );
 
         return (
           <details
@@ -275,7 +302,6 @@ export default function ClassInsights({ profile, lang = "en", setLang, onOpenMob
               borderRadius: 12,
               background: C.bg,
               overflow: "hidden",
-              opacity: hasData ? 1 : 0.55,
             }}
           >
             <summary
@@ -285,15 +311,8 @@ export default function ClassInsights({ profile, lang = "en", setLang, onOpenMob
                 display: "flex",
                 alignItems: "center",
                 gap: 10,
-                cursor: hasData ? "pointer" : "default",
+                cursor: "pointer",
                 userSelect: "none",
-              }}
-              onClick={(e) => {
-                if (!hasData) {
-                  e.preventDefault();
-                  return;
-                }
-                // Let the native toggle happen; we sync via onToggle above.
               }}
             >
               <svg
@@ -307,15 +326,16 @@ export default function ClassInsights({ profile, lang = "en", setLang, onOpenMob
                 {sectionLabel}
               </span>
               <span style={{ fontSize: 12, color: C.textMuted }}>
-                {decks.length === 1
+                {totalDecksInSection === 1
                   ? t.deckCountOne
-                  : t.decksCount.replace("{n}", String(decks.length))}
+                  : t.decksCount.replace("{n}", String(totalDecksInSection))}
               </span>
             </summary>
 
-            {hasData && (
-              <div style={{ borderTop: `1px solid ${C.border}` }}>
-                {decks.map((deck) => (
+            <div style={{ borderTop: `1px solid ${C.border}` }}>
+              {decksWithData.length > 0 ? (
+                // Mode (a): list of deck rows with bars
+                decksWithData.map((deck) => (
                   <DeckRow
                     key={deck.deckId}
                     deck={deck}
@@ -323,9 +343,21 @@ export default function ClassInsights({ profile, lang = "en", setLang, onOpenMob
                     t={t}
                     onClick={() => navigate(buildRoute.deckResults(deck.deckId))}
                   />
-                ))}
-              </div>
-            )}
+                ))
+              ) : (
+                // Mode (b)/(c): no rows, just an explanatory message
+                <div style={{
+                  padding: "20px 16px",
+                  fontSize: 13,
+                  color: C.textMuted,
+                  textAlign: "center",
+                  fontStyle: "italic",
+                  lineHeight: 1.5,
+                }}>
+                  {totalDecksInSection > 0 ? noUsageString : t.noDecksInSection}
+                </div>
+              )}
+            </div>
           </details>
         );
       })}

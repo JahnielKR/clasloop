@@ -1341,7 +1341,7 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
   // Which sub-mode of "Customize" is active.
   const coverMode = !coverImageUrl ? "color" : coverImageUrl.startsWith("preset:") ? "preset" : "image";
 
-  const canSave = title.trim() && subject && grade && questions.length > 0;
+  const canSave = title.trim() && subject && grade && questions.length > 0 && !!classId;
 
   const handleSave = async () => {
     if (!canSave) return;
@@ -1361,7 +1361,7 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
     setSaving(true);
     const tagArr = tags.split(",").map(t => t.trim()).filter(Boolean);
     const payload = {
-      author_id: userId, class_id: classId || null, title: title.trim(), description: desc.trim(),
+      author_id: userId, class_id: classId, title: title.trim(), description: desc.trim(),
       subject, grade, language: deckLang, questions, tags: tagArr,
       // Section is required by the schema (NOT NULL with check constraint).
       // Validate again right before INSERT in case it got mutated; default to
@@ -1506,7 +1506,7 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
             );
           })()}
           <div>
-            <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: C.textSecondary, marginBottom: 5 }}>{t.addToClass}</label>
+            <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: C.textSecondary, marginBottom: 5 }}>{t.addToClass} *</label>
             <select className="dk-input" value={classId} onChange={e => {
               const id = e.target.value;
               setClassId(id);
@@ -1515,7 +1515,11 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
                 if (cls) { setSubject(cls.subject); setGrade(cls.grade); }
               }
             }} style={sel}>
-              <option value="">{t.noClass}</option>
+              {/* Class is now required — no "no class" option. We start
+                  with a disabled placeholder so the teacher must pick. */}
+              <option value="" disabled>
+                {userClasses.length === 0 ? (t.noClassesYet || "No classes yet") : (t.classPickPrompt || "Pick a class…")}
+              </option>
               {userClasses.map(c => <option key={c.id} value={c.id}>{c.name} ({c.subject} · {c.grade})</option>)}
             </select>
           </div>

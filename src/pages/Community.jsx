@@ -149,9 +149,16 @@ export default function Community({ lang: pageLang = "en", setLang: pageSetLang,
 
   const handleSaveToMyDecks = async (deck, classId) => {
     if (!userId) return;
-    const cls = classId ? userClasses.find(c => c.id === classId) : null;
+    // Class is required now — DB constraint and UI both enforce it. This
+    // guard is just defensive in case some legacy call site still passes
+    // null.
+    if (!classId) {
+      console.warn("handleSaveToMyDecks called without classId — ignoring");
+      return;
+    }
+    const cls = userClasses.find(c => c.id === classId);
     const { error } = await supabase.from("decks").insert({
-      author_id: userId, class_id: classId || null,
+      author_id: userId, class_id: classId,
       title: deck.title, description: deck.description,
       subject: cls?.subject || deck.subject, grade: cls?.grade || deck.grade,
       language: deck.language, questions: deck.questions, tags: deck.tags, is_public: false,
@@ -290,7 +297,6 @@ export default function Community({ lang: pageLang = "en", setLang: pageSetLang,
                   ))}
                 </div>
               )}
-              <button onClick={() => handleSaveToMyDecks(savingDeck, null)} style={{ width: "100%", padding: 10, borderRadius: 8, fontSize: 13, fontWeight: 500, background: C.bgSoft, color: C.textSecondary, border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: "'Outfit',sans-serif", marginBottom: 8 }}>{t.noClass}</button>
               <button onClick={() => setSavingDeck(null)} style={{ width: "100%", padding: 10, borderRadius: 8, fontSize: 13, fontWeight: 500, background: "transparent", color: C.textMuted, border: "none", cursor: "pointer", fontFamily: "'Outfit',sans-serif" }}>{t.cancel}</button>
             </div>
           </div>

@@ -46,14 +46,22 @@ export async function fetchClassDecksSummary(classId) {
 // ─── Helpers for the UI ─────────────────────────────────────────────────
 
 // Group deck rows by section, in the canonical SECTIONS order. Returns
-// an array of { sectionId, decks } so the page can iterate it directly
-// in the order the rest of the app uses (warmup → exit_ticket →
-// general_review).
+// an array of { sectionId, decksWithData, totalDecksInSection } so the
+// page can iterate it directly in the order the rest of the app uses
+// (warmup → exit_ticket → general_review).
 //
-// Sections that end up with zero decks are still present in the result
-// — the page decides whether to render an empty section or skip it.
-// (Today: we render all 3 always; if all 3 are empty the page shows the
-// global empty state.)
+// Each section reports:
+//   - decksWithData: rows where totalResponses > 0 (the usable rows for
+//     the % bars)
+//   - totalDecksInSection: how many decks the class has in that section
+//     overall, regardless of whether they have responses yet. Used by
+//     the UI to decide between "show rows" vs "show 'no X used yet'
+//     message" inside an expanded section.
+//
+// Sections with zero decks (decksWithData=[] AND totalDecksInSection=0)
+// are still present in the result — the page can render the section
+// label without expanding it. We don't filter them out here so the
+// caller has full control over the layout.
 export function groupRowsBySection(rows) {
   const bySection = new Map(SECTIONS.map((s) => [s.id, []]));
   for (const row of rows) {
@@ -65,10 +73,15 @@ export function groupRowsBySection(rows) {
       bySection.get("general_review").push(row);
     }
   }
-  return SECTIONS.map((s) => ({
-    sectionId: s.id,
-    decks: bySection.get(s.id) || [],
-  }));
+  return SECTIONS.map((s) => {
+    const allDecks = bySection.get(s.id) || [];
+    const decksWithData = allDecks.filter((d) => d.totalResponses > 0);
+    return {
+      sectionId: s.id,
+      decksWithData,
+      totalDecksInSection: allDecks.length,
+    };
+  });
 }
 
 // Color the percentage bar by tier — same thresholds as deck-stats.js
