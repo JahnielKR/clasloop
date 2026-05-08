@@ -184,7 +184,7 @@ export default function Director({ lang: pageLang = "en", setLang: pageSetLang, 
     <div style={{ padding: "28px 20px" }}>
       <style>{css}</style>
       {backBar}
-      <PageHeader title={t.pageTitle} icon="school" lang={l} setLang={setLang} maxWidth={860} onOpenMobileMenu={onOpenMobileMenu} />
+      <PageHeader title={t.pageTitle} lang={l} setLang={setLang} maxWidth={860} onOpenMobileMenu={onOpenMobileMenu} />
       <p style={{ textAlign: "center", color: C.textMuted, padding: 40 }}>{t.loading}</p>
     </div>
   );
@@ -219,7 +219,7 @@ export default function Director({ lang: pageLang = "en", setLang: pageSetLang, 
     <div style={{ padding: "28px 20px" }}>
       <style>{css}</style>
       {backBar}
-      <PageHeader title={t.pageTitle} icon="school" lang={l} setLang={setLang} maxWidth={860} onOpenMobileMenu={onOpenMobileMenu} />
+      <PageHeader title={t.pageTitle} lang={l} setLang={setLang} maxWidth={860} onOpenMobileMenu={onOpenMobileMenu} />
 
       <div style={{ maxWidth: 860, margin: "0 auto" }}>
         <p style={{ fontSize: 14, color: C.textSecondary, marginBottom: 20 }}>{t.subtitle}</p>

@@ -1,26 +1,18 @@
 // ─── Shared PageHeader ──────────────────────────────────────────────────
-// Replaces the 9 duplicated PageHeader functions previously living in each
-// page. All variations boil down to: title text, optional icon, language
-// switcher, mobile menu button, and a configurable maxWidth for centering.
+// Title + mobile menu button + a configurable maxWidth for centering.
 //
-// Two ways to pass the icon:
-//   - `icon="rocket"` → renders <CIcon name="rocket" />, the legacy emoji-
-//     style icon set. Simple, but visually distinct from the sidebar nav
-//     icons.
-//   - `iconNode={<SessionsIcon size={22} active />}` → render a custom
-//     JSX node (typically the same SVG icon shown in the sidebar). Use
-//     this when you want the page header to match the sidebar nav icon
-//     so the user keeps the same visual anchor across the transition.
-// If both are provided, iconNode wins.
+// Note: page header icons were removed in favor of a cleaner layout —
+// the sidebar already shows a (distinct, designed) icon for each route,
+// so duplicating it next to the page title was visual noise. Pages no
+// longer pass an `icon` prop. If a page genuinely needs custom header
+// chrome (e.g. avatar in TeacherProfile), it builds its own header
+// instead of using PageHeader.
 
-import { CIcon } from "./Icons";
 import MobileMenuButton, { useIsMobile } from "./MobileMenuButton";
 import { C } from "./tokens";
 
 export default function PageHeader({
   title,
-  icon,
-  iconNode,
   // lang and setLang are still accepted as props so existing call sites
   // don't have to change, but they're no longer used inside the header.
   // The language selector moved to the sidebar footer (App.jsx).
@@ -51,20 +43,11 @@ export default function PageHeader({
             fontSize: isMobile ? 18 : 22,
             fontWeight: 700,
             color: C.text,
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
           }}
         >
-          {iconNode
-            ? iconNode
-            : (icon && <CIcon name={icon} size={isMobile ? 18 : 22} />)}
           {title}
         </h1>
       </div>
-      {/* Language selector lives in the sidebar footer now (see App.jsx).
-          Removed from here so every page header has the same shape and
-          the lang choice is treated as a user preference, not page chrome. */}
     </div>
   );
 }

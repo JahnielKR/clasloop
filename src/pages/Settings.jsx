@@ -331,7 +331,7 @@ export default function Settings({ lang: pageLang = "en", setLang: pageSetLang, 
   if (loading) return (
     <div style={{ padding: "28px 20px" }}>
       <style>{css}</style>
-      <PageHeader title={t.pageTitle} icon="settings" lang={l} setLang={setLang} maxWidth={700} onOpenMobileMenu={onOpenMobileMenu} />
+      <PageHeader title={t.pageTitle} lang={l} setLang={setLang} maxWidth={700} onOpenMobileMenu={onOpenMobileMenu} />
       <p style={{ textAlign: "center", color: C.textMuted, padding: 40 }}>Loading...</p>
     </div>
   );
@@ -343,7 +343,7 @@ export default function Settings({ lang: pageLang = "en", setLang: pageSetLang, 
   return (
     <div style={{ padding: "28px 20px" }}>
       <style>{css}</style>
-      <PageHeader title={t.pageTitle} icon="settings" lang={l} setLang={setLang} maxWidth={700} onOpenMobileMenu={onOpenMobileMenu} />
+      <PageHeader title={t.pageTitle} lang={l} setLang={setLang} maxWidth={700} onOpenMobileMenu={onOpenMobileMenu} />
 
       <div style={{ maxWidth: 700, margin: "0 auto" }}>
         {/* Tabs */}

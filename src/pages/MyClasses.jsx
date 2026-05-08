@@ -344,7 +344,7 @@ export default function MyClasses({ lang: pageLang = "en", setLang: pageSetLang,
   if (loading) return (
     <div style={{ padding: "28px 20px" }}>
       <style>{css}</style>
-      <PageHeader title={t.pageTitle} icon="school" lang={l} setLang={setLang} maxWidth={720} onOpenMobileMenu={onOpenMobileMenu} />
+      <PageHeader title={t.pageTitle} lang={l} setLang={setLang} maxWidth={720} onOpenMobileMenu={onOpenMobileMenu} />
       <div style={{ maxWidth: 720, margin: "0 auto", padding: 40, textAlign: "center", color: C.textMuted, fontFamily: "'Outfit',sans-serif" }}>{t.loading}</div>
     </div>
   );
@@ -362,7 +362,7 @@ export default function MyClasses({ lang: pageLang = "en", setLang: pageSetLang,
     return (
       <div style={{ padding: "28px 20px" }}>
         <style>{css}</style>
-        <PageHeader title={t.pageTitle} icon="school" lang={l} setLang={setLang} maxWidth={720} onOpenMobileMenu={onOpenMobileMenu} />
+        <PageHeader title={t.pageTitle} lang={l} setLang={setLang} maxWidth={720} onOpenMobileMenu={onOpenMobileMenu} />
         <ClassDetail
           cls={cls}
           profile={profile}
@@ -379,7 +379,7 @@ export default function MyClasses({ lang: pageLang = "en", setLang: pageSetLang,
   return (
     <div style={{ padding: "28px 20px" }}>
       <style>{css}</style>
-      <PageHeader title={t.pageTitle} icon="school" lang={l} setLang={setLang} maxWidth={720} onOpenMobileMenu={onOpenMobileMenu} />
+      <PageHeader title={t.pageTitle} lang={l} setLang={setLang} maxWidth={720} onOpenMobileMenu={onOpenMobileMenu} />
       <div style={{ maxWidth: 720, margin: "0 auto" }}>
         {/* Title + action row */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, gap: 12 }}>

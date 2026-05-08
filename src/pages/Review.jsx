@@ -25,7 +25,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
-import { CIcon, ReviewIcon } from "../components/Icons";
+import { CIcon } from "../components/Icons";
 import PageHeader from "../components/PageHeader";
 import { C } from "../components/tokens";
 import { ROUTES } from "../routes";
@@ -428,7 +428,6 @@ export default function Review({ profile, lang = "en", onOpenMobileMenu }) {
 
       <PageHeader
         title={t.title}
-        iconNode={<ReviewIcon size={22} active bare />}
         lang={lang}
         maxWidth={760}
         onOpenMobileMenu={onOpenMobileMenu}

@@ -368,7 +368,7 @@ export default function Achievements({ lang = "en", setLang, profile = null, onO
     return (
       <div style={{ padding: "28px 20px" }}>
         <style>{css}</style>
-        <PageHeader title={t.pageTitle} icon="trophy" lang={lang} setLang={setLang} onOpenMobileMenu={onOpenMobileMenu} />
+        <PageHeader title={t.pageTitle} lang={lang} setLang={setLang} onOpenMobileMenu={onOpenMobileMenu} />
         <div className="ach-fade" style={{ maxWidth: 480, margin: "60px auto", textAlign: "center", padding: "20px" }}>
           <div style={{
             width: 64, height: 64, borderRadius: "50%",
@@ -393,7 +393,7 @@ export default function Achievements({ lang = "en", setLang, profile = null, onO
     return (
       <div style={{ padding: "28px 20px" }}>
         <style>{css}</style>
-        <PageHeader title={t.pageTitle} icon="trophy" lang={lang} setLang={setLang} onOpenMobileMenu={onOpenMobileMenu} />
+        <PageHeader title={t.pageTitle} lang={lang} setLang={setLang} onOpenMobileMenu={onOpenMobileMenu} />
         <p style={{ textAlign: "center", color: C.textMuted, padding: 40 }}>{t.loading}</p>
       </div>
     );
@@ -402,7 +402,7 @@ export default function Achievements({ lang = "en", setLang, profile = null, onO
   return (
     <div style={{ padding: "28px 20px" }}>
       <style>{css}</style>
-      <PageHeader title={t.pageTitle} icon="trophy" lang={lang} setLang={setLang} onOpenMobileMenu={onOpenMobileMenu} />
+      <PageHeader title={t.pageTitle} lang={lang} setLang={setLang} onOpenMobileMenu={onOpenMobileMenu} />
       {selected && (
         <AchModal
           avatar={selected.avatar}

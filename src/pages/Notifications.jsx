@@ -299,7 +299,7 @@ export default function Notifications({ lang: pageLang = "en", setLang: pageSetL
   return (
     <div style={{ padding: "28px 20px" }}>
       <style>{css}</style>
-      <PageHeader title={t.pageTitle} icon="bell" lang={l} setLang={setLang} onOpenMobileMenu={onOpenMobileMenu} />
+      <PageHeader title={t.pageTitle} lang={l} setLang={setLang} onOpenMobileMenu={onOpenMobileMenu} />
 
       <div style={{ maxWidth: 600, margin: "0 auto" }}>
 

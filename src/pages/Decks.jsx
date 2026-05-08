@@ -608,7 +608,7 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
       return (
         <div style={{ padding: "28px 20px" }}>
           <style>{css}</style>
-          <PageHeader title={t.pageTitle} icon="book" lang={l} setLang={setLang} maxWidth={600} onOpenMobileMenu={onOpenMobileMenu} />
+          <PageHeader title={t.pageTitle} lang={l} setLang={setLang} maxWidth={600} onOpenMobileMenu={onOpenMobileMenu} />
           <div style={{ maxWidth: 600, margin: "0 auto", padding: 40, textAlign: "center", color: C.textMuted, fontFamily: "'Outfit',sans-serif" }}>{t.loading || "Loading…"}</div>
         </div>
       );
@@ -621,7 +621,7 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
       return (
         <div style={{ padding: "28px 20px" }}>
           <style>{css}</style>
-          <PageHeader title={t.pageTitle} icon="book" lang={l} setLang={setLang} maxWidth={600} onOpenMobileMenu={onOpenMobileMenu} />
+          <PageHeader title={t.pageTitle} lang={l} setLang={setLang} maxWidth={600} onOpenMobileMenu={onOpenMobileMenu} />
           <div style={{ maxWidth: 600, margin: "0 auto", padding: 40, textAlign: "center", color: C.textMuted, fontFamily: "'Outfit',sans-serif" }}>{t.loading || "Loading…"}</div>
         </div>
       );
@@ -636,7 +636,7 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
     return (
       <div style={{ padding: "28px 20px" }}>
         <style>{css}</style>
-        <PageHeader title={t.pageTitle} icon="book" lang={l} setLang={setLang} maxWidth={600} onOpenMobileMenu={onOpenMobileMenu} />
+        <PageHeader title={t.pageTitle} lang={l} setLang={setLang} maxWidth={600} onOpenMobileMenu={onOpenMobileMenu} />
         <CreateDeckEditor
           t={t} l={l}
           onBack={() => navigate(ROUTES.DECKS)}
@@ -864,7 +864,7 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
   return (
     <div style={{ padding: "28px 20px" }}>
       <style>{css}</style>
-      <PageHeader title={t.pageTitle} icon="book" lang={l} setLang={setLang} onOpenMobileMenu={onOpenMobileMenu} />
+      <PageHeader title={t.pageTitle} lang={l} setLang={setLang} onOpenMobileMenu={onOpenMobileMenu} />
 
       <div style={{ maxWidth: 800, margin: "0 auto" }}>
         <p style={{ fontSize: 14, color: C.textSecondary, marginBottom: 20 }}>{t.subtitle}</p>

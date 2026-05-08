@@ -20,7 +20,6 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
-import { CIcon } from "../components/Icons";
 import { C } from "../components/tokens";
 import { ROUTES, buildRoute } from "../routes";
 import PageHeader from "../components/PageHeader";
@@ -191,7 +190,6 @@ export default function ClassInsights({ profile, lang = "en", setLang, onOpenMob
       {/* Shared PageHeader — same chrome as Decks/Achievements/etc. */}
       <PageHeader
         title={t.title}
-        icon="chart"
         lang={lang}
         setLang={setLang}
         maxWidth={820}
