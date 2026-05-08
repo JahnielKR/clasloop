@@ -605,6 +605,7 @@ export default function MyClassesTeacher({ lang = "en", profile, onNavigateToSes
           </button>
           <button
             onClick={handleNewClass}
+            className="clp-lift"
             style={{
               padding: "9px 16px",
               borderRadius: 8,

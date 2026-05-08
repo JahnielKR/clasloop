@@ -1314,6 +1314,7 @@ export default function SessionFlow({ lang = "en", setLang, onNavigateToDecks, o
               </span>
               <button
                 onClick={() => navigate(ROUTES.CLASSES)}
+                className="clp-lift"
                 style={{
                   padding: "8px 14px",
                   borderRadius: 8,

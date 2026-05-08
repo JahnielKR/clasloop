@@ -39,7 +39,7 @@ const i18n = {
     backToHome: "Back",
     loading: "Loading…",
     emptyTitle: "All caught up",
-    emptyHint: "No free-text answers waiting. Enjoy a coffee ☕",
+    emptyHint: "Now go and enjoy the coffee you deserve.",
     filterAllClasses: "All classes",
     filterByClass: "Class",
     pendingCount: "{n} pending",
@@ -75,7 +75,7 @@ const i18n = {
     backToHome: "Atrás",
     loading: "Cargando…",
     emptyTitle: "Todo al día",
-    emptyHint: "No hay respuestas libres por revisar. Tomate un café ☕",
+    emptyHint: "Ahora ve y disfruta el café que te mereces.",
     filterAllClasses: "Todas las clases",
     filterByClass: "Clase",
     pendingCount: "{n} pendientes",
@@ -111,7 +111,7 @@ const i18n = {
     backToHome: "뒤로",
     loading: "불러오는 중…",
     emptyTitle: "모두 완료",
-    emptyHint: "검토할 자유 응답이 없습니다. 커피 한 잔 ☕",
+    emptyHint: "이제 누리세요 — 잘 받은 커피 한 잔의 여유를.",
     filterAllClasses: "모든 수업",
     filterByClass: "수업",
     pendingCount: "{n}개 대기",
@@ -505,7 +505,7 @@ export default function Review({ profile, lang = "en", onOpenMobileMenu }) {
           background: C.bg, border: `1px dashed ${C.border}`,
           borderRadius: 14,
         }}>
-          <div style={{ fontSize: 48, marginBottom: 12 }}>✨</div>
+          <div style={{ fontSize: 48, marginBottom: 12 }}>☕</div>
           <h2 style={{ fontSize: 18, fontWeight: 700, margin: "0 0 6px", color: C.text }}>
             {t.emptyTitle}
           </h2>

@@ -107,3 +107,11 @@ a {
 .f2 { animation: fadeIn 0.3s ease-out 0.1s both; }
 .f3 { animation: fadeIn 0.3s ease-out 0.15s both; }
 .f4 { animation: fadeIn 0.3s ease-out 0.2s both; }
+
+/* Lift-on-hover utility — match the .ns-card pattern used in /sessions
+   so action buttons (+ New class, + New deck, Go to my classes, etc.)
+   feel alive and consistent with the cards beside them. The translation
+   is small (-1px) so it's a subtle nudge, not a bounce. */
+.clp-lift { transition: transform .15s ease, box-shadow .15s ease; }
+.clp-lift:hover:not(:disabled) { transform: translateY(-1px); }
+.clp-lift:active:not(:disabled) { transform: translateY(0); }

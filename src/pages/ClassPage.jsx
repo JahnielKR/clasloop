@@ -1243,6 +1243,7 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
         </span>
         <button
           onClick={() => navigate(`${ROUTES.DECKS_NEW}?${QUERY.CLASS}=${encodeURIComponent(classObj.id)}&section=${encodeURIComponent(activeSection)}`)}
+          className="clp-lift"
           style={{
             padding: "7px 12px",
             borderRadius: 8,
