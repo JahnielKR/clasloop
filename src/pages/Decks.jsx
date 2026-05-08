@@ -63,7 +63,7 @@ const i18n = {
     gradePlaceholder: "e.g. 6th, 7th–9th, Mixed",
     lockedByClass: "Locked — this is set by the selected class.",
     back: "Back", noDecks: "No decks yet. Click Create to make your first one.",
-    private: "Private", public: "Public", delete: "Delete", edit: "Edit",
+    private: "Private", public: "Public", delete: "Delete", edit: "Edit", results: "Results",
     questionCount: "questions", launchSession: "Launch in class",
     deleteConfirm: "Delete this deck? This cannot be undone.",
     by: "by",
@@ -185,7 +185,7 @@ const i18n = {
     gradePlaceholder: "ej. 6to, 7mo–9no, Mixto",
     lockedByClass: "Bloqueado — lo define la clase seleccionada.",
     back: "Volver", noDecks: "Sin decks aún. Click Crear para hacer tu primero.",
-    private: "Privado", public: "Público", delete: "Eliminar", edit: "Editar",
+    private: "Privado", public: "Público", delete: "Eliminar", edit: "Editar", results: "Resultados",
     questionCount: "preguntas", launchSession: "Lanzar en clase",
     deleteConfirm: "¿Eliminar este deck? No se puede deshacer.",
     by: "por",
@@ -307,7 +307,7 @@ const i18n = {
     gradePlaceholder: "예: 6학년, 7-9학년, 혼합",
     lockedByClass: "잠김 — 선택된 수업이 정합니다.",
     back: "뒤로", noDecks: "아직 덱이 없습니다. 만들기를 클릭하세요.",
-    private: "비공개", public: "공개", delete: "삭제", edit: "편집",
+    private: "비공개", public: "공개", delete: "삭제", edit: "편집", results: "결과",
     questionCount: "문제", launchSession: "수업에서 시작",
     deleteConfirm: "이 덱을 삭제하시겠습니까?",
     by: "",
@@ -841,6 +841,13 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
             ) : (
               <>
                 <button className="dk-btn-secondary" onClick={() => handleTogglePublic(dk)} style={{ padding: "6px 12px", borderRadius: 6, fontSize: 12, fontWeight: 500, background: C.bgSoft, color: dk.is_public ? C.green : C.textMuted, border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: "'Outfit',sans-serif" }}>{dk.is_public ? t.public : t.private}</button>
+                {/* Per-deck aggregated stats. We render this even for
+                    decks with zero responses — the page itself surfaces
+                    "no data yet". The button is always discoverable so
+                    teachers learn the affordance exists. */}
+                <button className="dk-btn-secondary" onClick={() => navigate(buildRoute.deckResults(dk.id))} title={t.results || "Results"} style={{ padding: "6px 12px", borderRadius: 6, fontSize: 12, fontWeight: 500, background: C.bg, color: C.textSecondary, border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: "'Outfit',sans-serif", display: "inline-flex", alignItems: "center", gap: 4 }}>
+                  <CIcon name="chart" size={11} inline /> {t.results || "Results"}
+                </button>
                 <button className="dk-btn-secondary" onClick={() => navigate(buildRoute.deckEdit(dk.id))} style={{ padding: "6px 12px", borderRadius: 6, fontSize: 12, fontWeight: 500, background: C.bg, color: C.textSecondary, border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: "'Outfit',sans-serif" }}>{t.edit}</button>
                 <button className="dk-btn-danger" onClick={() => handleDelete(dk.id)} style={{ padding: "6px 12px", borderRadius: 6, fontSize: 12, fontWeight: 500, background: C.bg, color: C.red, border: `1px solid ${C.redSoft}`, cursor: "pointer", fontFamily: "'Outfit',sans-serif" }}>{t.delete}</button>
               </>

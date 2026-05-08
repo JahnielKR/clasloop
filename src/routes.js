@@ -91,6 +91,8 @@ export const buildRoute = {
 
   // Decks (subview view=edit hoy en Decks.jsx)
   deckEdit: (deckId) => `/decks/${enc(deckId)}/edit`,
+  // Per-deck aggregated results page
+  deckResults: (deckId) => `/decks/${enc(deckId)}/results`,
 
   // Practice mode (hoy es state practiceDeck en App.jsx)
   practice: (deckId) => `/practice/${enc(deckId)}`,
@@ -119,6 +121,7 @@ export const ROUTE_PATTERNS = {
   DECKS: "/decks",
   DECKS_NEW: "/decks/new",
   DECKS_EDIT: "/decks/:deckId/edit",
+  DECKS_RESULTS: "/decks/:deckId/results",
 
   SCHOOL: "/school",
   COMMUNITY: "/community",
@@ -188,6 +191,10 @@ export function pathToPage(pathname) {
   if (!pathname || pathname === "/") return null; // home: depende del rol, App.jsx decide
 
   if (pathname.startsWith("/sessions"))    return "sessions";
+  // /decks/:deckId/results → its own page. MUST come before the generic
+  // /decks startsWith, otherwise this is captured as "decks" and the
+  // user lands on the deck list with the URL still saying /results.
+  if (/^\/decks\/[^/]+\/results\/?$/.test(pathname)) return "deckResults";
   if (pathname.startsWith("/decks"))       return "decks";
   if (pathname === "/school")              return "director";
   if (pathname === "/community")           return "community";
