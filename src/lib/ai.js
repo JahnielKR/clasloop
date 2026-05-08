@@ -349,7 +349,7 @@ export async function generateQuestions({
         Authorization: `Bearer ${session.access_token}`,
       },
       body: JSON.stringify({
-        model: "primary",                       // Sonnet 4.5 — calidad pedagógica
+        model: "primary",                       // Sonnet 4.6 — calidad pedagógica
         system: promptParts.system,             // Identidad + reglas + negativos
         messages: [{ role: "user", content: messageContent }],
         max_tokens: dynamicMaxTokens,

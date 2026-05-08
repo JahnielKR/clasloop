@@ -23,7 +23,7 @@ const RATE_LIMIT_PER_DAY = 50;
 // Mapping de "rol" lógico a modelo concreto. El frontend manda `model: "primary"`
 // o `model: "validator"` y aquí lo traducimos.
 const MODELS = {
-  primary: 'claude-sonnet-4-5-20250929',   // generación de preguntas (calidad)
+  primary: 'claude-sonnet-4-6',             // generación de preguntas (calidad)
   validator: 'claude-haiku-4-5-20251001',  // validación semántica (Bloque 4)
 };
 const DEFAULT_MODEL_KEY = 'primary';
