@@ -323,6 +323,15 @@ export async function getReviewSuggestions(classId) {
 //   { class: {id,name,subject,grade}, deck: {...full deck row...},
 //     retention_score, days_since_review, days_overdue, urgency }
 // Only includes topics linked to a real, still-existing deck (deck_id != null).
+//
+// Filtering rules (added when /sessions was rebranded to a "today" dashboard):
+//   - Aging cap: decks with days_overdue > 14 are dropped. If the teacher
+//     hasn't launched it in two full weeks, surfacing it daily is noise —
+//     they can find it from /classes/<id> when they want it.
+//   - Distribution: at most 9 items returned (3×3 grid in the UI). Round 1
+//     gives every class with urgents at least 1 slot before any class gets a
+//     second one. Round 2+ fills remaining slots by raw urgency. Prevents a
+//     single class with low retention from monopolizing the screen.
 export async function getSuggestedDecksForToday(teacherId) {
   if (!teacherId) return [];
 
@@ -353,6 +362,7 @@ export async function getSuggestedDecksForToday(teacherId) {
   const deckMap = Object.fromEntries((decks || []).map(d => [d.id, d]));
 
   // 4. Compute current retention + urgency for each row, keep only urgent
+  //    AND not aged-out
   const now = new Date();
   const items = [];
   for (const r of rows) {
@@ -379,6 +389,12 @@ export async function getSuggestedDecksForToday(teacherId) {
     const isUrgent = isOverdue || currentRetention < 70;
     if (!isUrgent) continue;
 
+    // Aging cap: 14 days overdue is the cutoff. After that the teacher
+    // has clearly not been engaging with this deck — keeping it in
+    // suggestions every day is noise. They can still launch it from
+    // /classes/<id> any time.
+    if (daysOverdue > 14) continue;
+
     const urgency = (isOverdue ? (100 - currentRetention) + daysOverdue : (70 - currentRetention));
 
     items.push({
@@ -392,9 +408,102 @@ export async function getSuggestedDecksForToday(teacherId) {
     });
   }
 
-  // 5. Sort by urgency descending and return
+  // 5. Sort by urgency descending
   items.sort((a, b) => b.urgency - a.urgency);
-  return items;
+
+  // 6. Forced distribution: round-robin by class first, then fill by
+  //    urgency until cap. Within each class the items are already in
+  //    urgency order from step 5, so the per-class queue is correct.
+  const CAP = 9;
+  if (items.length <= CAP) return items;
+
+  const byClass = new Map();
+  for (const it of items) {
+    const cid = it.class?.id || "_";
+    if (!byClass.has(cid)) byClass.set(cid, []);
+    byClass.get(cid).push(it);
+  }
+
+  const result = [];
+  // Round-robin: keep popping from class queues until cap or queues empty.
+  // Iteration order of Map preserves insertion order, but the order doesn't
+  // matter much for the user — what matters is "every class with urgents
+  // gets a slot before any class gets a second slot". After all queues
+  // contribute one, we go around again until cap is reached.
+  while (result.length < CAP && byClass.size > 0) {
+    for (const [cid, queue] of Array.from(byClass.entries())) {
+      if (result.length >= CAP) break;
+      const next = queue.shift();
+      if (next) result.push(next);
+      if (queue.length === 0) byClass.delete(cid);
+    }
+  }
+  return result;
+}
+
+// ─── Get recently launched decks for a teacher ──────────────────────────────
+// Returns up to N (default 3) decks the teacher has recently launched as
+// sessions, most recent first, deduplicated by deck (so re-launching the
+// same deck 5 times in a week shows up as 1 card, not 5).
+//
+// Definition of "launched": session with status in ('lobby','active','completed').
+// We exclude 'cancelled' (those weren't real launches) and treat lobby+active
+// as "still alive" — they count for recency too.
+//
+// Used by the new /sessions dashboard to power the "Recently launched" row,
+// covering the weekly-routine case ("on Mondays I launch Verbos") without
+// re-introducing the old DeckPicker.
+export async function getRecentlyLaunchedDecks(teacherId, limit = 3) {
+  if (!teacherId) return [];
+
+  // Pull more rows than `limit` so dedupe-by-deck still leaves us with
+  // enough cards. Fetching 30 covers most cases without being heavy.
+  const { data: sessions } = await supabase
+    .from('sessions')
+    .select('id, deck_id, created_at, status, classes ( id, name )')
+    .eq('teacher_id', teacherId)
+    .in('status', ['lobby', 'active', 'completed'])
+    .not('deck_id', 'is', null)
+    .order('created_at', { ascending: false })
+    .limit(30);
+  if (!sessions || sessions.length === 0) return [];
+
+  // Dedupe by deck_id, keeping the most recent session per deck (sessions
+  // are already ordered desc, so first hit wins).
+  const seen = new Set();
+  const dedupedDeckIds = [];
+  const sessionByDeck = new Map();
+  for (const s of sessions) {
+    if (!s.deck_id || seen.has(s.deck_id)) continue;
+    seen.add(s.deck_id);
+    dedupedDeckIds.push(s.deck_id);
+    sessionByDeck.set(s.deck_id, s);
+    if (dedupedDeckIds.length >= limit) break;
+  }
+  if (dedupedDeckIds.length === 0) return [];
+
+  // Fetch the deck rows for those ids
+  const { data: decks } = await supabase
+    .from('decks')
+    .select('*')
+    .in('id', dedupedDeckIds);
+  if (!decks || decks.length === 0) return [];
+
+  // Preserve the recency order from `dedupedDeckIds` — `decks` may come
+  // back in arbitrary order from PG.
+  const deckMap = Object.fromEntries(decks.map(d => [d.id, d]));
+  const out = [];
+  for (const did of dedupedDeckIds) {
+    const deck = deckMap[did];
+    if (!deck) continue; // deck was deleted between the two queries
+    const s = sessionByDeck.get(did);
+    out.push({
+      deck,
+      class: s?.classes || null,
+      lastLaunchedAt: s?.created_at || null,
+    });
+  }
+  return out;
 }
 
 // ─── Get class retention overview ───────────────────

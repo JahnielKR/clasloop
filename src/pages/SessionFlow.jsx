@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useSearchParams, useNavigate, useMatch } from "react-router-dom";
 import { QRCodeSVG } from "qrcode.react";
 import { supabase } from "../lib/supabase";
-import { processSessionResults, getSuggestedDecksForToday } from "../lib/spaced-repetition";
+import { processSessionResults, getSuggestedDecksForToday, getRecentlyLaunchedDecks } from "../lib/spaced-repetition";
 import { CIcon } from "../components/Icons";
 import { DeckCover, resolveColor } from "../lib/deck-cover";
 import MobileMenuButton, { useIsMobile } from "../components/MobileMenuButton";
@@ -17,9 +17,13 @@ const SUBJECTS = ["Math", "Science", "History", "Language", "Geography", "Art", 
 // ─── i18n ──────────────────────────────────────────────────────────────────
 const i18n = {
   en: {
-    pageTitle: "New Session", subtitle: "Launch a deck live in class",
+    pageTitle: "Today", subtitle: "Decks ready to launch — ranked by what your students need most",
     suggestedToday: "Suggested for today", suggestedHint: "Decks your students should review now",
-    suggestedNone: "All your classes are up to date", showMore: "Show more", showLess: "Show less",
+    suggestedNone: "All your classes are up to date. Nothing urgent to launch — nice work.",
+    recentlyLaunched: "Recently launched",
+    recentlyLaunchedHint: "The last decks you ran. Tap to launch again.",
+    quickLinkToClasses: "Looking for a specific deck? Open it from your classes.",
+    quickLinkToClassesBtn: "Go to my classes",
     retentionLabel: "retention", overdueDays: "{n} days overdue", overdueDay: "1 day overdue",
     launchNow: "Launch", customize: "Customize",
     newClass: "+ New class",
@@ -27,11 +31,9 @@ const i18n = {
     classSubject: "Subject", classGrade: "Grade", classGradePlaceholder: "e.g. 6th, 7th–9th, Mixed",
     classCode: "Class code (auto-generated)", classCreate: "Create class", creating: "Creating...",
     classCreated: "Class created!",
-    pickDeck: "Pick a deck", search: "Search decks...", filterAllSubjects: "All subjects", filterAllClasses: "All classes",
-    filterUnassigned: "Unassigned", filterFavorites: "Favorites", noDecksYet: "You don't have any decks yet.",
-    noDecksHint: "Create a deck first in the Decks page.", goToDecks: "Go to Decks",
-    noResults: "No decks match your filters.",
-    by: "by", questions: "questions",
+    noClassesYet: "You don't have any classes yet.",
+    noClassesHint: "Create a class first to start launching sessions.",
+    goToClasses: "Go to my classes",
     sessionOptions: "Session options",
     classLabel: "Class", classNoneAvailable: "No classes yet",
     classPickPrompt: "Pick a class…",
@@ -63,9 +65,13 @@ const i18n = {
     sessionCreateFailed: "Could not create session. Please try again.",
   },
   es: {
-    pageTitle: "Nueva Sesión", subtitle: "Lanza un deck en vivo en clase",
+    pageTitle: "Hoy", subtitle: "Decks listos para lanzar — ordenados según lo que tus estudiantes más necesitan",
     suggestedToday: "Sugerencias para hoy", suggestedHint: "Decks que tus estudiantes deberían revisar ahora",
-    suggestedNone: "Todas tus clases están al día", showMore: "Ver más", showLess: "Ver menos",
+    suggestedNone: "Todas tus clases están al día. Nada urgente que lanzar — buen trabajo.",
+    recentlyLaunched: "Lanzados recientemente",
+    recentlyLaunchedHint: "Los últimos decks que lanzaste. Tócalos para volver a lanzar.",
+    quickLinkToClasses: "¿Buscas un deck específico? Ábrelo desde tus clases.",
+    quickLinkToClassesBtn: "Ir a mis clases",
     retentionLabel: "retención", overdueDays: "{n} días atrasado", overdueDay: "1 día atrasado",
     launchNow: "Lanzar", customize: "Personalizar",
     newClass: "+ Nueva clase",
@@ -73,11 +79,9 @@ const i18n = {
     classSubject: "Materia", classGrade: "Grado", classGradePlaceholder: "ej. 6to, 7mo–9no, Mixto",
     classCode: "Código de clase (autogenerado)", classCreate: "Crear clase", creating: "Creando...",
     classCreated: "¡Clase creada!",
-    pickDeck: "Elige un deck", search: "Buscar decks...", filterAllSubjects: "Todas las materias", filterAllClasses: "Todas las clases",
-    filterUnassigned: "Sin clase", filterFavorites: "Favoritos", noDecksYet: "Aún no tienes decks.",
-    noDecksHint: "Crea un deck primero en la página de Decks.", goToDecks: "Ir a Decks",
-    noResults: "Ningún deck coincide con tus filtros.",
-    by: "por", questions: "preguntas",
+    noClassesYet: "Aún no tienes clases.",
+    noClassesHint: "Crea una clase primero para empezar a lanzar sesiones.",
+    goToClasses: "Ir a mis clases",
     sessionOptions: "Opciones de la sesión",
     classLabel: "Clase", classNoneAvailable: "Aún no tienes clases",
     classPickPrompt: "Elige una clase…",
@@ -109,9 +113,13 @@ const i18n = {
     sessionCreateFailed: "No se pudo crear la sesión. Probá de nuevo.",
   },
   ko: {
-    pageTitle: "새 세션", subtitle: "수업에서 덱을 라이브로 실행하세요",
+    pageTitle: "오늘", subtitle: "실행 가능한 덱 — 학생들이 가장 필요로 하는 순서대로 정렬됨",
     suggestedToday: "오늘의 추천", suggestedHint: "지금 학생들이 복습해야 할 덱",
-    suggestedNone: "모든 수업이 최신 상태입니다", showMore: "더 보기", showLess: "접기",
+    suggestedNone: "모든 수업이 최신 상태입니다. 시급한 항목 없음 — 잘 하셨어요.",
+    recentlyLaunched: "최근 실행한 덱",
+    recentlyLaunchedHint: "마지막에 실행한 덱입니다. 다시 실행하려면 탭하세요.",
+    quickLinkToClasses: "특정 덱을 찾고 계신가요? 수업에서 열어보세요.",
+    quickLinkToClassesBtn: "내 수업으로 이동",
     retentionLabel: "보존율", overdueDays: "{n}일 지연", overdueDay: "1일 지연",
     launchNow: "시작", customize: "맞춤설정",
     newClass: "+ 새 수업",
@@ -119,11 +127,9 @@ const i18n = {
     classSubject: "과목", classGrade: "학년", classGradePlaceholder: "예: 6학년, 7-9학년, 혼합",
     classCode: "수업 코드 (자동 생성)", classCreate: "수업 만들기", creating: "만드는 중...",
     classCreated: "수업이 생성되었습니다!",
-    pickDeck: "덱 선택", search: "덱 검색...", filterAllSubjects: "모든 과목", filterAllClasses: "모든 수업",
-    filterUnassigned: "미지정", filterFavorites: "즐겨찾기", noDecksYet: "아직 덱이 없습니다.",
-    noDecksHint: "먼저 덱 페이지에서 덱을 만드세요.", goToDecks: "덱으로 이동",
-    noResults: "필터와 일치하는 덱이 없습니다.",
-    by: "", questions: "문제",
+    noClassesYet: "아직 수업이 없습니다.",
+    noClassesHint: "세션을 시작하려면 먼저 수업을 만드세요.",
+    goToClasses: "내 수업으로 이동",
     sessionOptions: "세션 옵션",
     classLabel: "수업", classNoneAvailable: "아직 수업이 없습니다",
     classPickPrompt: "수업을 선택하세요…",
@@ -174,168 +180,7 @@ const css = `
   }
 `;
 
-// ─── PageHeader ────────────────────────────────────────────────────────────
-// ─── Step 1: Deck Picker ───────────────────────────────────────────────────
-function DeckPicker({ userId, t, onPick, navigateToDecks, initialClassFilter = "" }) {
-  const [decks, setDecks] = useState([]);
-  const [classes, setClasses] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
-  const [filterSubject, setFilterSubject] = useState("");
-  const [filterClass, setFilterClass] = useState(initialClassFilter);
-
-  // If the prop changes after mount (e.g. user clicked a notif and we routed
-  // them here with a class focus), pick that up.
-  useEffect(() => {
-    if (initialClassFilter) setFilterClass(initialClassFilter);
-  }, [initialClassFilter]);
-
-  useEffect(() => {
-    (async () => {
-      // 1. Own decks (created by this teacher)
-      const { data: deckRows } = await supabase
-        .from("decks")
-        .select("*, profiles(full_name)")
-        .eq("author_id", userId)
-        .order("created_at", { ascending: false });
-
-      // 2. Favorites — decks the teacher saved from Community/profiles. They're
-      // read-only (we can't edit them) but launchable in a live session.
-      // We mark them with _isFav so the card shows a badge.
-      const { data: savedRows } = await supabase
-        .from("saved_decks")
-        .select("decks(*, profiles(full_name))")
-        .eq("student_id", userId);
-      const favs = (savedRows || [])
-        .map(r => r.decks)
-        .filter(Boolean)
-        .map(d => ({ ...d, _isFav: true }));
-
-      // De-dupe in case the teacher both authored and somehow favorited the same deck.
-      const ownIds = new Set((deckRows || []).map(d => d.id));
-      const dedupedFavs = favs.filter(d => !ownIds.has(d.id));
-
-      const { data: clsRows } = await supabase
-        .from("classes")
-        .select("*")
-        .eq("teacher_id", userId)
-        .order("created_at", { ascending: false });
-
-      setDecks([...(deckRows || []), ...dedupedFavs]);
-      setClasses(clsRows || []);
-      setLoading(false);
-    })();
-  }, [userId]);
-
-  const allSubjects = Array.from(new Set(decks.map(d => d.subject).filter(Boolean))).sort();
-
-  const filtered = decks.filter(d => {
-    if (search) {
-      const q = search.toLowerCase();
-      const hay = [d.title, d.description, ...(d.tags || [])].filter(Boolean).join(" ").toLowerCase();
-      if (!hay.includes(q)) return false;
-    }
-    if (filterSubject && d.subject !== filterSubject) return false;
-    if (filterClass) {
-      if (filterClass === "__unassigned__") {
-        if (d.class_id) return false;
-      } else if (filterClass === "__favorites__") {
-        if (!d._isFav) return false;
-      } else if (d.class_id !== filterClass) return false;
-    }
-    return true;
-  });
-
-  if (loading) return <p style={{ textAlign: "center", color: C.textMuted, padding: 40 }}>Loading...</p>;
-
-  if (decks.length === 0) {
-    return (
-      <div style={{ textAlign: "center", padding: 40 }}>
-        <CIcon name="book" size={36} />
-        <h3 style={{ fontSize: 16, fontWeight: 600, marginTop: 12, marginBottom: 4 }}>{t.noDecksYet}</h3>
-        <p style={{ fontSize: 13, color: C.textMuted, marginBottom: 16 }}>{t.noDecksHint}</p>
-        <button
-          onClick={navigateToDecks}
-          style={{
-            padding: "10px 18px", borderRadius: 8, fontSize: 13, fontWeight: 600,
-            background: `linear-gradient(135deg, ${C.accent}, ${C.purple})`, color: "#fff",
-            border: "none", cursor: "pointer", fontFamily: "'Outfit',sans-serif",
-          }}
-        >{t.goToDecks}</button>
-      </div>
-    );
-  }
-
-  return (
-    <div className="ns-fade">
-      <div style={{ marginBottom: 16, display: "flex", flexDirection: "column", gap: 8 }}>
-        <div style={{ position: "relative" }}>
-          <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)" }}><CIcon name="target" size={14} inline /></span>
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder={t.search} style={{ ...inp, paddingLeft: 38 }} />
-        </div>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <select value={filterSubject} onChange={e => setFilterSubject(e.target.value)} style={{ ...sel, flex: 1, minWidth: 140 }}>
-            <option value="">{t.filterAllSubjects}</option>
-            {allSubjects.map(s => <option key={s} value={s}>{s}</option>)}
-          </select>
-          {(classes.length > 0 || decks.some(d => d._isFav)) && (
-            <select value={filterClass} onChange={e => setFilterClass(e.target.value)} style={{ ...sel, flex: 1, minWidth: 140 }}>
-              <option value="">{t.filterAllClasses}</option>
-              {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-              <option value="__unassigned__">{t.filterUnassigned}</option>
-              {decks.some(d => d._isFav) && <option value="__favorites__">★ {t.filterFavorites}</option>}
-            </select>
-          )}
-        </div>
-      </div>
-
-      {filtered.length === 0 ? (
-        <p style={{ textAlign: "center", color: C.textMuted, padding: 40 }}>{t.noResults}</p>
-      ) : (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 14 }}>
-          {filtered.map(dk => {
-            const qs = dk.questions || [];
-            const cls = classes.find(c => c.id === dk.class_id);
-            const accent = resolveColor(dk);
-            return (
-              <button
-                key={dk.id}
-                className="ns-card"
-                onClick={() => onPick(dk)}
-                style={{
-                  background: C.bg, borderRadius: 12, border: `1px solid ${C.border}`,
-                  borderLeft: `4px solid ${accent}`,
-                  padding: 14, cursor: "pointer", textAlign: "left",
-                  fontFamily: "'Outfit',sans-serif",
-                }}
-              >
-                <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 8 }}>
-                  <DeckCover deck={dk} size={48} radius={10} />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 15, fontWeight: 600, lineHeight: 1.3, color: C.text, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{dk.title}</div>
-                    <div style={{ fontSize: 11, color: C.textMuted, marginTop: 2 }}>{dk.subject} · {dk.grade}</div>
-                  </div>
-                </div>
-                <div style={{ fontSize: 11, color: C.textMuted, paddingTop: 8, borderTop: `1px solid ${C.border}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <span>{qs.length} {t.questions}</span>
-                  {dk._isFav ? (
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: 3, padding: "1px 6px", borderRadius: 5, fontSize: 10, fontWeight: 600, background: C.accentSoft, color: C.accent }}>
-                      ★ {dk.profiles?.full_name || t.filterFavorites}
-                    </span>
-                  ) : cls ? (
-                    <span style={{ color: accent, fontWeight: 600 }}>{cls.name}</span>
-                  ) : null}
-                </div>
-              </button>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ─── Step 2: Session Options ───────────────────────────────────────────────
+// ─── Session Options (configuring before launch) ──────────────────────────
 function SessionOptions({ deck, classes, t, lang = "en", onLaunch, onBack }) {
   // Favorited decks reference a class_id that belongs to the *original* author,
   // not to the current teacher. We can't pre-pick that — fall through and
@@ -918,11 +763,9 @@ function LiveResults({ session, t, onEnd }) {
 }
 
 // ─── Suggested for Today ───────────────────────────────────────────────────
-function SuggestedToday({ teacherId, t, onPickSuggestion }) {
+function SuggestedToday({ teacherId, t, onPickSuggestion, onLoaded }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [showAll, setShowAll] = useState(false);
-  const VISIBLE = 2;
 
   useEffect(() => {
     if (!teacherId) return;
@@ -930,19 +773,44 @@ function SuggestedToday({ teacherId, t, onPickSuggestion }) {
       try {
         const list = await getSuggestedDecksForToday(teacherId);
         setItems(list);
+        if (onLoaded) onLoaded({ count: list.length });
       } catch (e) {
         console.error("Suggested fetch failed:", e);
+        if (onLoaded) onLoaded({ count: 0 });
       } finally {
         setLoading(false);
       }
     })();
+    // onLoaded is intentionally not in deps — it's a stable callback from
+    // the parent and including it would re-run the fetch every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [teacherId]);
 
-  if (loading) return null; // silently load
-  if (items.length === 0) return null; // nothing urgent → hide section entirely
-
-  const visible = showAll ? items : items.slice(0, VISIBLE);
-  const hiddenCount = items.length - VISIBLE;
+  if (loading) return null; // silently load — the parent shows nothing while loading
+  // Empty state: show a calm "all caught up" message instead of hiding the
+  // section entirely. Without something here the page can feel broken when
+  // the suggestions are the main content.
+  if (items.length === 0) {
+    return (
+      <div className="ns-fade" style={{ marginBottom: 24 }}>
+        <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 4, color: C.textSecondary, display: "flex", alignItems: "center", gap: 8 }}>
+          <CIcon name="fire" size={14} inline /> {t.suggestedToday}
+        </h3>
+        <div style={{
+          padding: "20px 18px",
+          background: C.bgSoft,
+          border: `1px dashed ${C.border}`,
+          borderRadius: 12,
+          fontSize: 13,
+          color: C.textSecondary,
+          lineHeight: 1.5,
+          textAlign: "center",
+        }}>
+          {t.suggestedNone}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="ns-fade" style={{ marginBottom: 24 }}>
@@ -951,28 +819,12 @@ function SuggestedToday({ teacherId, t, onPickSuggestion }) {
       </h3>
       <p style={{ fontSize: 12, color: C.textMuted, marginBottom: 12 }}>{t.suggestedHint}</p>
 
+      {/* The cap (9, 3×3) is enforced server-side in getSuggestedDecksForToday.
+          The grid uses 3 columns at desktop widths and collapses to 1 on mobile
+          via auto-fill — looks tidy whatever the count. */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 10 }}>
-        {visible.map(item => <SuggestedCard key={`${item.class.id}-${item.deck.id}`} item={item} t={t} onPick={onPickSuggestion} />)}
+        {items.map(item => <SuggestedCard key={`${item.class.id}-${item.deck.id}`} item={item} t={t} onPick={onPickSuggestion} />)}
       </div>
-
-      {hiddenCount > 0 && (
-        <button
-          onClick={() => setShowAll(s => !s)}
-          style={{
-            marginTop: 10,
-            padding: "8px 14px", borderRadius: 8, fontSize: 12, fontWeight: 500,
-            background: "transparent", color: C.textSecondary,
-            border: `1px dashed ${C.border}`, cursor: "pointer",
-            fontFamily: "'Outfit',sans-serif",
-            display: "inline-flex", alignItems: "center", gap: 6,
-          }}
-        >
-          {showAll ? t.showLess : `${t.showMore} (+${hiddenCount})`}
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" style={{ transform: showAll ? "rotate(180deg)" : "rotate(0deg)", transition: "transform .2s" }}>
-            <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
-        </button>
-      )}
     </div>
   );
 }
@@ -1016,6 +868,89 @@ function SuggestedCard({ item, t, onPick }) {
 
       <button
         onClick={() => onPick(item)}
+        style={{
+          width: "100%", padding: "8px 12px", borderRadius: 7, fontSize: 12, fontWeight: 600,
+          background: `linear-gradient(135deg, ${C.accent}, ${C.purple})`, color: "#fff",
+          border: "none", cursor: "pointer", fontFamily: "'Outfit',sans-serif",
+          display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6,
+        }}
+      >
+        <CIcon name="rocket" size={11} inline /> {t.launchNow}
+      </button>
+    </div>
+  );
+}
+
+// ─── Recently Launched (the "rerun" row) ───────────────────────────────────
+// Shows up to 3 decks the teacher has launched as sessions recently, dedup'd
+// by deck (most recent per deck). Click → /sessions/options/<deckId>, same
+// deep link as a ClassPage deck card, so the existing options-step
+// hydration handles it. Hidden when there's nothing recent.
+function RecentlyLaunched({ teacherId, t, onPickDeck }) {
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!teacherId) return;
+    (async () => {
+      try {
+        const list = await getRecentlyLaunchedDecks(teacherId, 3);
+        setItems(list);
+      } catch (e) {
+        console.error("Recent launches fetch failed:", e);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [teacherId]);
+
+  if (loading) return null;
+  if (items.length === 0) return null; // never launched anything yet → hide section
+
+  return (
+    <div className="ns-fade" style={{ marginBottom: 24 }}>
+      <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 4, color: C.textSecondary, display: "flex", alignItems: "center", gap: 8 }}>
+        <CIcon name="rocket" size={14} inline /> {t.recentlyLaunched}
+      </h3>
+      <p style={{ fontSize: 12, color: C.textMuted, marginBottom: 12 }}>{t.recentlyLaunchedHint}</p>
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 10 }}>
+        {items.map(item => (
+          <RecentLaunchCard key={item.deck.id} item={item} t={t} onPick={onPickDeck} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// Compact card for the recently-launched row. No retention info — these
+// aren't "you should review this" cards, they're "you ran this lately"
+// cards. Layout mirrors SuggestedCard so the two rows visually match.
+function RecentLaunchCard({ item, t, onPick }) {
+  const { deck, class: cls } = item;
+  const accent = resolveColor(deck);
+
+  return (
+    <div
+      style={{
+        background: C.bg, borderRadius: 12, border: `1px solid ${C.border}`,
+        borderLeft: `4px solid ${accent}`,
+        padding: 12,
+        display: "flex", flexDirection: "column",
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+        <DeckCover deck={deck} size={40} radius={9} />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 13, fontWeight: 600, lineHeight: 1.3, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{deck.title}</div>
+          {cls?.name && (
+            <div style={{ fontSize: 10, color: accent, fontWeight: 600 }}>{cls.name}</div>
+          )}
+        </div>
+      </div>
+
+      <button
+        onClick={() => onPick(deck)}
         style={{
           width: "100%", padding: "8px 12px", borderRadius: 7, fontSize: 12, fontWeight: 600,
           background: `linear-gradient(135deg, ${C.accent}, ${C.purple})`, color: "#fff",
@@ -1168,10 +1103,9 @@ export default function SessionFlow({ lang = "en", setLang, onNavigateToDecks, o
     }
   }, [searchParams, navigate]);
 
-  // ?class=<id> is consumed by DeckPicker via initialClassFilter (the param
-  // is read directly from the URL on render). We clear it on the next tick
-  // so DeckPicker's mount effect sees it before it disappears, but a refresh
-  // on the same page doesn't re-apply it.
+  // ?class=<id> is a leftover query param from the old DeckPicker flow.
+  // We clear it on next tick so a stale URL doesn't keep it indefinitely.
+  // The new dashboard doesn't read it; this exists purely to clean the URL.
   useEffect(() => {
     if (!focusClassId) return;
     const t = setTimeout(() => {
@@ -1314,25 +1248,89 @@ export default function SessionFlow({ lang = "en", setLang, onNavigateToDecks, o
       )}
 
       <div style={{ maxWidth: 800, margin: "0 auto" }}>
+        {/* Deep-link hydration placeholder. When refreshing /sessions/options/:deckId
+            we land with step="options" already (set from optionsMatch) but
+            selectedDeck is still null until the deck fetch resolves. Without
+            this guard, NONE of the step blocks below render — the page goes
+            blank for a frame, then SessionOptions mounts with an ns-fade
+            animation, producing a visible flash. Showing a quiet Loading
+            state here keeps the screen stable until the deck arrives, then
+            SessionOptions slides in cleanly. Same idea for /sessions/lobby/:id
+            and /sessions/live/:id when session/deck haven't hydrated yet. */}
+        {(
+          (optionsMatch && !selectedDeck) ||
+          (lobbyMatch && (!session || !selectedDeck)) ||
+          (liveMatch && (!session || !selectedDeck))
+        ) && (
+          <p style={{ textAlign: "center", color: C.textMuted, padding: 40 }}>Loading...</p>
+        )}
+
         {step === "pickDeck" && (
           <>
             <p style={{ fontSize: 14, color: C.textSecondary, marginBottom: 20 }}>{t.subtitle}</p>
 
-            {/* Suggested for Today (only shows if there are urgent decks) */}
-            <SuggestedToday teacherId={user.id} t={t} onPickSuggestion={handlePickSuggestion} />
-
-            {/* "Pick a deck" header. Class creation no longer lives here —
-                it moved to My Classes (the teacher's home). Sessions is
-                strictly about launching an existing deck live. */}
-            <h3 style={{ fontSize: 14, fontWeight: 600, color: C.textSecondary, margin: "0 0 14px" }}>{t.pickDeck}</h3>
-
-            <DeckPicker
-              userId={user.id}
+            {/* The "today" dashboard. Three blocks, all optional:
+                  1. Suggested for today (always rendered — shows empty
+                     state when nothing's urgent)
+                  2. Recently launched (hidden if the teacher has never
+                     launched anything)
+                  3. Quick link to /classes (always visible — covers the
+                     "I want a deck not in either row" case)
+                Class creation lives in My Classes; the deck list lives
+                in /decks; this page is just "what should I run today". */}
+            <SuggestedToday
+              teacherId={user.id}
               t={t}
-              onPick={(dk) => { setSelectedDeck(dk); setStep("options"); }}
-              navigateToDecks={onNavigateToDecks || (() => {})}
-              initialClassFilter={focusClassId}
+              onPickSuggestion={handlePickSuggestion}
             />
+
+            <RecentlyLaunched
+              teacherId={user.id}
+              t={t}
+              onPickDeck={(deck) => navigate(buildRoute.sessionsOptions(deck.id))}
+            />
+
+            {/* Quick link to classes — always visible. The teacher might
+                want a deck that's neither suggested nor recently launched
+                (looking up an old deck, browsing what's organized in a
+                particular class). This is the explicit out for that case
+                so the page never feels like a dead end. */}
+            <div style={{
+              marginTop: 8,
+              padding: "16px 18px",
+              background: C.bgSoft,
+              border: `1px solid ${C.border}`,
+              borderRadius: 12,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 14,
+              flexWrap: "wrap",
+            }}>
+              <span style={{ fontSize: 13, color: C.textSecondary, flex: 1, minWidth: 200 }}>
+                {t.quickLinkToClasses}
+              </span>
+              <button
+                onClick={() => navigate(ROUTES.CLASSES)}
+                style={{
+                  padding: "8px 14px",
+                  borderRadius: 8,
+                  fontSize: 12,
+                  fontWeight: 600,
+                  background: C.accent,
+                  color: "#fff",
+                  border: "none",
+                  cursor: "pointer",
+                  fontFamily: "'Outfit',sans-serif",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {t.quickLinkToClassesBtn} →
+              </button>
+            </div>
           </>
         )}
 
