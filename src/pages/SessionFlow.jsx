@@ -33,9 +33,9 @@ const i18n = {
     noResults: "No decks match your filters.",
     by: "by", questions: "questions",
     sessionOptions: "Session options",
-    classLabel: "Class (optional)", classNone: "No class — guest session only",
-    classHelp: "Pick a class to track student progress and retention",
-    classBoundHelp: "This deck is linked to a class. Only that class or guest-only is available.",
+    classLabel: "Class", classNoneAvailable: "No classes yet",
+    classHelp: "Sessions are tied to a class so progress and retention can be tracked",
+    classBoundHelp: "This deck belongs to this class. Sessions launched from it report to the class.",
     timeLimit: "Time per question", timeLimitNone: "No limit", seconds: "s",
     timerLabel: "Timer",
     timerModePerQuestion: "Per question",
@@ -78,9 +78,9 @@ const i18n = {
     noResults: "Ningún deck coincide con tus filtros.",
     by: "por", questions: "preguntas",
     sessionOptions: "Opciones de la sesión",
-    classLabel: "Clase (opcional)", classNone: "Sin clase — solo sesión invitada",
-    classHelp: "Elige una clase para rastrear progreso y retención",
-    classBoundHelp: "Este deck está ligado a una clase. Solo esa clase o solo-invitados están disponibles.",
+    classLabel: "Clase", classNoneAvailable: "Aún no tienes clases",
+    classHelp: "Las sesiones se asocian a una clase para rastrear progreso y retención",
+    classBoundHelp: "Este deck pertenece a esta clase. Las sesiones lanzadas desde él reportan a la clase.",
     timeLimit: "Tiempo por pregunta", timeLimitNone: "Sin límite", seconds: "s",
     timerLabel: "Tiempo",
     timerModePerQuestion: "Por pregunta",
@@ -123,9 +123,9 @@ const i18n = {
     noResults: "필터와 일치하는 덱이 없습니다.",
     by: "", questions: "문제",
     sessionOptions: "세션 옵션",
-    classLabel: "수업 (선택)", classNone: "수업 없음 — 게스트 세션",
-    classHelp: "학생 진행도와 보존을 추적하려면 수업을 선택하세요",
-    classBoundHelp: "이 덱은 수업에 연결되어 있습니다. 해당 수업 또는 게스트 전용만 사용 가능합니다.",
+    classLabel: "수업", classNoneAvailable: "아직 수업이 없습니다",
+    classHelp: "세션은 수업에 연결되어 학생 진행도와 보존을 추적합니다",
+    classBoundHelp: "이 덱은 이 수업에 속해 있습니다. 시작된 세션은 이 수업에 기록됩니다.",
     timeLimit: "문제당 시간", timeLimitNone: "제한 없음", seconds: "초",
     timerLabel: "타이머",
     timerModePerQuestion: "문제별",
@@ -335,10 +335,25 @@ function DeckPicker({ userId, t, onPick, navigateToDecks, initialClassFilter = "
 // ─── Step 2: Session Options ───────────────────────────────────────────────
 function SessionOptions({ deck, classes, t, lang = "en", onLaunch, onBack }) {
   // Favorited decks reference a class_id that belongs to the *original* author,
-  // not to the current teacher. Don't try to pre-select that — the picker
-  // should default to "no class" for favorites.
+  // not to the current teacher. Don't try to pre-select that — fall through
+  // to the "first class of this teacher" default below.
   const isFav = !!deck._isFav;
-  const [classId, setClassId] = useState(isFav ? "" : (deck.class_id || ""));
+  // Class pre-selection priority:
+  //   1. Deck's own class_id (if it's bound and the teacher owns that class)
+  //   2. First class of this teacher (so the launcher always has a value)
+  //   3. Empty string only if the teacher has zero classes (edge case)
+  //
+  // Sessions REQUIRE a class_id (NOT NULL on the table). Letting the user
+  // launch with no class causes the create-session call to fail and leaves
+  // the button stuck on "starting…". So we always pre-pick something
+  // sensible and only let the launcher proceed when classId is set.
+  const initialClassId = (() => {
+    if (!isFav && deck.class_id && classes.some(c => c.id === deck.class_id)) {
+      return deck.class_id;
+    }
+    return classes.length > 0 ? classes[0].id : "";
+  })();
+  const [classId, setClassId] = useState(initialClassId);
   // Modo del timer:
   //   - "per_question" (default): cada pregunta tiene su propio time_limit,
   //     sugerido por la AI o caído al default por tipo. El estudiante ve
@@ -362,18 +377,35 @@ function SessionOptions({ deck, classes, t, lang = "en", onLaunch, onBack }) {
   const accent = resolveColor(deck);
   const qs = deck.questions || [];
 
-  const handleLaunch = () => {
+  const handleLaunch = async () => {
+    if (!classId) return; // safety net — button is disabled in this state
     setLaunching(true);
     // El campo `timeLimit` legacy queda como segundos para compatibilidad
     // con SessionFlow's onLaunch handler que ya espera ese shape. En modo
     // per_question lo dejamos en 0 (StudentJoin lee q.time_limit). En modo
     // total le pasamos el total en segundos para que el runtime lo lea.
     const timeLimit = timeMode === "total" ? totalMinutes * 60 : 0;
-    onLaunch({
-      deck, classId: classId || null,
-      timeLimit, timeMode,
-      showLeaderboard, showAnswers, allowGuests,
-    });
+    try {
+      // onLaunch may navigate away on success (lobby) or surface an alert
+      // on failure. If it fails (returns falsy or throws) we reset the
+      // launching state so the button isn't stuck on "Starting…". Pre-fix
+      // behavior: any error left the button stuck and the teacher had to
+      // back out and re-enter to retry.
+      const result = await onLaunch({
+        deck, classId: classId || null,
+        timeLimit, timeMode,
+        showLeaderboard, showAnswers, allowGuests,
+      });
+      if (result === false) {
+        setLaunching(false);
+      }
+      // Note: on success we leave launching=true since the parent navigates
+      // away (this component unmounts) and resetting state in an unmounted
+      // component is a noop / warning. The implicit unmount handles it.
+    } catch (e) {
+      console.error("Launch failed:", e);
+      setLaunching(false);
+    }
   };
 
   return (
@@ -404,17 +436,25 @@ function SessionOptions({ deck, classes, t, lang = "en", onLaunch, onBack }) {
         <div>
           <label style={{ display: "block", fontSize: 12, fontWeight: 500, color: C.textSecondary, marginBottom: 6 }}>{t.classLabel}</label>
           <select value={classId} onChange={e => setClassId(e.target.value)} style={sel}>
-            <option value="">{t.classNone}</option>
-            {/* If deck is bound to a class, show only that class. Otherwise show all classes. */}
+            {/* Sessions require a class (NOT NULL on the table). We don't
+                offer a "no class" option — instead, the launcher pre-selects
+                the deck's home class (or the teacher's first class as a
+                fallback). If the teacher has zero classes the placeholder
+                option below is the only one and the button is disabled. */}
+            {classes.length === 0 && (
+              <option value="">{t.classNoneAvailable || "No classes yet"}</option>
+            )}
+            {/* If deck is bound to a class, show only that class. Otherwise
+                show all classes the teacher owns. */}
             {(() => {
-              const eligible = deck.class_id
+              const eligible = (!isFav && deck.class_id)
                 ? classes.filter(c => c.id === deck.class_id)
                 : classes;
               return eligible.map(c => <option key={c.id} value={c.id}>{c.name} · {c.subject} · {c.grade}</option>);
             })()}
           </select>
           <p style={{ fontSize: 11, color: C.textMuted, marginTop: 6, lineHeight: 1.4 }}>
-            {deck.class_id ? t.classBoundHelp : t.classHelp}
+            {(!isFav && deck.class_id) ? t.classBoundHelp : t.classHelp}
           </p>
         </div>
 
@@ -487,13 +527,13 @@ function SessionOptions({ deck, classes, t, lang = "en", onLaunch, onBack }) {
 
       <button
         onClick={handleLaunch}
-        disabled={launching}
+        disabled={launching || !classId}
         style={{
           width: "100%", marginTop: 24, padding: 14, borderRadius: 10,
           fontSize: 15, fontWeight: 600,
-          background: launching ? C.bgSoft : `linear-gradient(135deg, ${C.accent}, ${C.purple})`,
-          color: launching ? C.textMuted : "#fff",
-          border: "none", cursor: launching ? "default" : "pointer",
+          background: (launching || !classId) ? C.bgSoft : `linear-gradient(135deg, ${C.accent}, ${C.purple})`,
+          color: (launching || !classId) ? C.textMuted : "#fff",
+          border: "none", cursor: (launching || !classId) ? "default" : "pointer",
           fontFamily: "'Outfit',sans-serif",
           display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
         }}
@@ -1091,7 +1131,7 @@ export default function SessionFlow({ lang = "en", setLang, onNavigateToDecks, o
     // prefilled).
     if (!classId) {
       alert(t.sessionNeedsClass || "This deck isn't linked to a class yet. Open the deck and add it to a class to start a session.");
-      return;
+      return false; // tell the child to reset its launching state
     }
 
     const pin = String(Math.floor(100000 + Math.random() * 900000));
@@ -1128,12 +1168,13 @@ export default function SessionFlow({ lang = "en", setLang, onNavigateToDecks, o
       alert(isClassError
         ? (t.sessionNeedsClass || "This deck isn't linked to a class yet. Open the deck and add it to a class to start a session.")
         : (t.sessionCreateFailed || "Could not create session. Please try again."));
-      return;
+      return false; // tell the child to reset its launching state
     }
 
     setSession(data);
     setStep("lobby");
     navigate(buildRoute.sessionsLobby(data.id));
+    return true;
   };
 
   // Suggested-card handler: pre-fill selected deck + class, then go to options.

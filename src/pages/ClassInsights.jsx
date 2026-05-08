@@ -23,6 +23,7 @@ import { supabase } from "../lib/supabase";
 import { CIcon } from "../components/Icons";
 import { C } from "../components/tokens";
 import { ROUTES, buildRoute } from "../routes";
+import PageHeader from "../components/PageHeader";
 import { fetchClassDecksSummary, groupRowsBySection, pctColor } from "../lib/class-insights";
 import { sectionLabels, resolveClassAccent } from "../lib/class-hierarchy";
 
@@ -78,7 +79,7 @@ const i18n = {
   },
 };
 
-export default function ClassInsights({ profile, lang = "en" }) {
+export default function ClassInsights({ profile, lang = "en", setLang, onOpenMobileMenu }) {
   // Same trick as DeckResults / Review: useParams() doesn't work in this
   // app (App.jsx maps page via pathToPage, no real <Routes>). Parse the
   // classId from the pathname directly.
@@ -155,11 +156,7 @@ export default function ClassInsights({ profile, lang = "en" }) {
   };
 
   return (
-    <div style={{
-      maxWidth: 820, margin: "0 auto",
-      padding: "24px 18px 80px",
-      fontFamily: "'Outfit',sans-serif",
-    }}>
+    <div style={{ padding: "28px 20px 80px", fontFamily: "'Outfit',sans-serif" }}>
       <style>{`
         @keyframes ci-fadeUp { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
         .ci-card { animation: ci-fadeUp .25s ease both; }
@@ -174,45 +171,50 @@ export default function ClassInsights({ profile, lang = "en" }) {
         .ci-chevron { transition: transform .18s ease; }
       `}</style>
 
-      {/* Header: back to class */}
-      <button
-        onClick={() => navigate(classId ? buildRoute.classDetail(classId) : ROUTES.CLASSES)}
-        style={{
-          marginBottom: 14,
-          padding: "6px 10px",
-          borderRadius: 7,
-          fontSize: 12,
-          fontWeight: 500,
-          background: "transparent",
-          color: C.textSecondary,
-          border: `1px solid ${C.border}`,
-          cursor: "pointer",
-          fontFamily: "'Outfit',sans-serif",
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 5,
-        }}
-      >
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
-          <path d="M15 18l-6-6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-        </svg>
-        {t.backToClass}
-      </button>
+      {/* Shared PageHeader — same chrome as Decks/Achievements/etc. */}
+      <PageHeader
+        title={t.title}
+        icon="chart"
+        lang={lang}
+        setLang={setLang}
+        maxWidth={820}
+        onOpenMobileMenu={onOpenMobileMenu}
+      />
 
-      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 4 }}>
-        <CIcon name="chart" size={32} />
-        <h1 style={{
-          fontSize: 24, fontWeight: 700, margin: 0, color: C.text,
-          letterSpacing: "-.01em",
-        }}>
-          {t.title}
-        </h1>
-      </div>
-      {classObj && (
-        <p style={{ fontSize: 14, color: C.textSecondary, margin: "0 0 20px", lineHeight: 1.5 }}>
-          {classObj.name}
-        </p>
-      )}
+      {/* Body container: matches header maxWidth so back button + content
+          are aligned with the title. */}
+      <div style={{ maxWidth: 820, margin: "0 auto" }}>
+        {/* Back to class */}
+        <button
+          onClick={() => navigate(classId ? buildRoute.classDetail(classId) : ROUTES.CLASSES)}
+          style={{
+            marginBottom: 14,
+            padding: "6px 10px",
+            borderRadius: 7,
+            fontSize: 12,
+            fontWeight: 500,
+            background: "transparent",
+            color: C.textSecondary,
+            border: `1px solid ${C.border}`,
+            cursor: "pointer",
+            fontFamily: "'Outfit',sans-serif",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 5,
+          }}
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+            <path d="M15 18l-6-6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+          {t.backToClass}
+        </button>
+
+        {/* Class name as subtitle (no big duplicated icon — that's in the header now) */}
+        {classObj && (
+          <p style={{ fontSize: 14, color: C.textSecondary, margin: "0 0 20px", lineHeight: 1.5 }}>
+            {classObj.name}
+          </p>
+        )}
 
       {/* Loading / error */}
       {loading && (
@@ -327,6 +329,7 @@ export default function ClassInsights({ profile, lang = "en" }) {
           </details>
         );
       })}
+      </div>
     </div>
   );
 }

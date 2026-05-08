@@ -133,6 +133,10 @@ export default function DeckResults({ profile, lang = "en" }) {
   const [stats, setStats] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  // Track whether we've already pre-selected the deck's home class on
+  // first mount. We pre-select once (not on every fetch) so if the
+  // teacher manually picks "All classes" it stays that way.
+  const [didPreselect, setDidPreselect] = useState(false);
 
   // ── Fetch deck + the classes it was used in ──────────────────────────
   // We need the deck's questions array to render prompts; we need the
@@ -186,6 +190,19 @@ export default function DeckResults({ profile, lang = "en" }) {
   }, [deckId, classFilter, t.error, t.deckNotFound]);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
+
+  // Pre-select the deck's home class (deck.class_id) the first time we
+  // load the deck. This is a UX choice: when a teacher opens a deck
+  // that lives in a class, they almost always want that class's results
+  // first — not an aggregate across all classes the deck has been used
+  // in. They can still pick "All classes" from the dropdown to see the
+  // wider view; we only pre-select once so manual changes stick.
+  useEffect(() => {
+    if (didPreselect) return;
+    if (!deck || !deck.class_id) return;
+    setClassFilter(deck.class_id);
+    setDidPreselect(true);
+  }, [deck, didPreselect]);
 
   // Map stats by questionIndex for quick lookup when iterating questions.
   const statsByIndex = useMemo(() => {
