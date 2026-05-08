@@ -41,6 +41,7 @@ const importAdminAIStats   = () => import('./pages/AdminAIStats');
 const importReview         = () => import('./pages/Review');
 const importDeckResults    = () => import('./pages/DeckResults');
 const importClassInsights  = () => import('./pages/ClassInsights');
+const importMyResults      = () => import('./pages/MyResults');
 
 const SessionFlow      = lazy(importSessionFlow);
 const StudentJoin      = lazy(importStudentJoin);
@@ -58,8 +59,9 @@ const AdminAIStats     = lazy(importAdminAIStats);
 const Review           = lazy(importReview);
 const DeckResults      = lazy(importDeckResults);
 const ClassInsights    = lazy(importClassInsights);
+const MyResults        = lazy(importMyResults);
 import { useIsMobile } from './components/MobileMenuButton';
-import { countVisibleNotifications } from './lib/notifications';
+import { countVisibleNotifications, countPendingReviewsForTeacher } from './lib/notifications';
 import { C } from './components/tokens';
 
 // MyClasses wrapper — /classes is shared between roles and now has a
@@ -87,7 +89,7 @@ function MyClassesByRole(props) {
   return <MyClasses {...props} />;
 }
 
-const COMPONENTS = { sessions: SessionFlow, studentJoin: StudentJoin, community: Community, achievements: Achievements, settings: Settings, director: Director, notifications: Notifications, decks: Decks, myClasses: MyClassesByRole, teacherProfile: TeacherProfile, adminAIStats: AdminAIStats, review: Review, deckResults: DeckResults, classInsights: ClassInsights };
+const COMPONENTS = { sessions: SessionFlow, studentJoin: StudentJoin, community: Community, achievements: Achievements, settings: Settings, director: Director, notifications: Notifications, decks: Decks, myClasses: MyClassesByRole, teacherProfile: TeacherProfile, adminAIStats: AdminAIStats, review: Review, deckResults: DeckResults, classInsights: ClassInsights, myResults: MyResults };
 
 function AuthScreen({ initialMode = "select", initialRole = "teacher", onBack }) {
   const [mode, setMode] = useState(initialMode);
@@ -176,7 +178,7 @@ function AuthScreen({ initialMode = "select", initialRole = "teacher", onBack })
   );
 }
 
-function Sidebar({ page, setPage, profile, lang, setLang, open, setOpen, onSignOut, onNavClick, isMobile, mobileDrawerOpen, setMobileDrawerOpen, notifsCount = 0 }) {
+function Sidebar({ page, setPage, profile, lang, setLang, open, setOpen, onSignOut, onNavClick, isMobile, mobileDrawerOpen, setMobileDrawerOpen, notifsCount = 0, reviewBadgeCount = 0 }) {
   // Default to teacher unless we know for sure they're a student
   // This prevents the sidebar from flipping during token refresh
   const isT = profile ? profile.role === "teacher" : (page === "sessions" || page === "decks" || page === "director");
@@ -185,7 +187,7 @@ function Sidebar({ page, setPage, profile, lang, setLang, open, setOpen, onSignO
   // se renderizan si profile.is_admin === true. La protección real está en
   // la página + RLS de Supabase; ocultar en sidebar es solo UX.
   const baseNav = isT
-    ? [{ id:"sessions",icon:(a)=><SessionsIcon size={28} active={a}/>,l:"Sessions" },{ id:"decks",icon:(a)=><DecksIcon size={28} active={a}/>,l:"Decks" },{ id:"myClasses",icon:(a)=><SchoolIcon size={28} active={a}/>,l:"My Classes" },{ id:"review",icon:(a)=><ReviewIcon size={28} active={a}/>,l:"To review" },{ id:"community",icon:(a)=><CommunityIcon size={28} active={a}/>,l:"Community" },{ id:"notifications",icon:(a)=><NotificationsIcon size={28} active={a} badge={notifsCount}/>,l:"Notifications" },{ id:"settings",icon:(a)=><SettingsIcon size={28} active={a}/>,l:"Settings" }]
+    ? [{ id:"sessions",icon:(a)=><SessionsIcon size={28} active={a}/>,l:"Sessions" },{ id:"decks",icon:(a)=><DecksIcon size={28} active={a}/>,l:"Decks" },{ id:"myClasses",icon:(a)=><SchoolIcon size={28} active={a}/>,l:"My Classes" },{ id:"review",icon:(a)=><ReviewIcon size={28} active={a} badge={reviewBadgeCount}/>,l:"To review" },{ id:"community",icon:(a)=><CommunityIcon size={28} active={a}/>,l:"Community" },{ id:"notifications",icon:(a)=><NotificationsIcon size={28} active={a} badge={notifsCount}/>,l:"Notifications" },{ id:"settings",icon:(a)=><SettingsIcon size={28} active={a}/>,l:"Settings" }]
     : [{ id:"myClasses",icon:(a)=><SchoolIcon size={28} active={a}/>,l:"My Classes" },{ id:"studentJoin",icon:(a)=><JoinSessionIcon size={28} active={a}/>,l:"Join Session" },{ id:"achievements",icon:(a)=><AchievementsIcon size={28} active={a}/>,l:"Achievements" },{ id:"community",icon:(a)=><CommunityIcon size={28} active={a}/>,l:"Community" },{ id:"notifications",icon:(a)=><NotificationsIcon size={28} active={a} badge={notifsCount}/>,l:"Notifications" },{ id:"settings",icon:(a)=><SettingsIcon size={28} active={a}/>,l:"Settings" }];
   const nav = isAdmin
     ? [...baseNav, { id:"adminAIStats", icon:(a)=><AIGenIcon size={28} active={a}/>, l:"AI Stats" }]
@@ -414,6 +416,12 @@ export default function App() {
   // sidebar icon. Source of truth lives in Notifications.jsx — App just
   // mirrors the number for display.
   const [notifsCount, setNotifsCount] = useState(0);
+  // Count of free-text responses pending the current teacher's review.
+  // Drives the red badge on the "To review" sidebar item. Same pattern
+  // as notifsCount: count on profile load, refresh whenever `page`
+  // changes (so navigating into /review and out updates the number after
+  // the teacher grades a few). Teacher-only — students never see this.
+  const [reviewBadgeCount, setReviewBadgeCount] = useState(0);
   // sessionsOpts/decksOpts/studentJoinOpts used to be state here. As of
   // Phase 2 they live in the URL as search params:
   //   sessions: ?createClass=1, ?class=<id>
@@ -659,6 +667,23 @@ export default function App() {
     return () => { cancelled = true; };
   }, [profile, page]);
 
+  // Count pending teacher reviews for the sidebar badge. Only fetch for
+  // teachers; students don't have the /review item. Re-counts on profile
+  // load and on every page change (so leaving /review with grades just
+  // applied updates the badge to its new lower number).
+  useEffect(() => {
+    if (!profile) return;
+    if (profile.role !== "teacher") {
+      setReviewBadgeCount(0);
+      return;
+    }
+    let cancelled = false;
+    countPendingReviewsForTeacher(profile.id).then(n => {
+      if (!cancelled) setReviewBadgeCount(n);
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [profile, page]);
+
   const fetchProfile = async (id, isInitial = true) => {
     try {
       let { data, error } = await supabase.from("profiles").select("*").eq("id", id).single();
@@ -842,6 +867,7 @@ export default function App() {
         mobileDrawerOpen={mobileDrawerOpen}
         setMobileDrawerOpen={setMobileDrawerOpen}
         notifsCount={notifsCount}
+        reviewBadgeCount={reviewBadgeCount}
       />
       <div style={{ marginLeft: isMobile ? 0 : (open ? 210 : 56), flex: 1, transition: "margin-left .2s", minHeight: "100vh", background: C.bgSoft }}>
         <Suspense fallback={<PageSuspenseFallback />}>

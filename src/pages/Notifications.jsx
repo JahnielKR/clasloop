@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { getReviewSuggestions } from "../lib/spaced-repetition";
-import { loadDismissed, saveDismissed } from "../lib/notifications";
+import { loadDismissed, saveDismissed, fetchGradedSessionsForStudent } from "../lib/notifications";
 import { CIcon } from "../components/Icons";
 import PageHeader from "../components/PageHeader";
 import { C } from "../components/tokens";
@@ -16,6 +17,10 @@ const i18n = {
     welcomeBack: "Welcome to Clasloop!", welcomeDesc: "Start by creating a class and running your first session.",
     newSession: "New session available", joinNow: "Join now",
     reviewNow: "Review now", viewResults: "View results",
+    feedbackTitle: "Feedback from your teacher",
+    feedbackDescOne: "1 answer was reviewed in {topic}",
+    feedbackDescMany: "{n} answers were reviewed in {topic}",
+    seeFeedback: "See feedback",
     justNow: "Just now", minsAgo: "m ago", hoursAgo: "h ago", daysAgo: "d ago",
     markAllRead: "Mark all as read",
   },
@@ -28,6 +33,10 @@ const i18n = {
     welcomeBack: "¡Bienvenido a Clasloop!", welcomeDesc: "Empieza creando una clase y tu primera sesión.",
     newSession: "Nueva sesión disponible", joinNow: "Unirse ahora",
     reviewNow: "Repasar ahora", viewResults: "Ver resultados",
+    feedbackTitle: "Feedback de tu profe",
+    feedbackDescOne: "1 respuesta fue revisada en {topic}",
+    feedbackDescMany: "{n} respuestas fueron revisadas en {topic}",
+    seeFeedback: "Ver feedback",
     justNow: "Ahora", minsAgo: "min", hoursAgo: "h", daysAgo: "d",
     markAllRead: "Marcar todas como leídas",
   },
@@ -40,6 +49,10 @@ const i18n = {
     welcomeBack: "Clasloop에 오신 것을 환영합니다!", welcomeDesc: "수업을 만들고 첫 세션을 시작하세요.",
     newSession: "새 세션 가능", joinNow: "참여하기",
     reviewNow: "복습 시작", viewResults: "결과 보기",
+    feedbackTitle: "선생님의 피드백",
+    feedbackDescOne: "{topic}에서 답변 1개가 검토되었습니다",
+    feedbackDescMany: "{topic}에서 답변 {n}개가 검토되었습니다",
+    seeFeedback: "피드백 보기",
     justNow: "방금", minsAgo: "분 전", hoursAgo: "시간 전", daysAgo: "일 전",
     markAllRead: "모두 읽음으로 표시",
   },
@@ -78,6 +91,7 @@ export default function Notifications({ lang: pageLang = "en", setLang: pageSetL
   const [lang, setLangLocal] = useState(pageLang);
   const setLang = pageSetLang || setLangLocal;
   const l = pageLang || lang;
+  const navigate = useNavigate();
   const [filter, setFilter] = useState("all");
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -96,8 +110,16 @@ export default function Notifications({ lang: pageLang = "en", setLang: pageSetL
   // user clicks it (or the inline action button). We map that to a page +
   // opts and let the parent (App.jsx) handle the actual navigation.
   const handleAction = (n) => {
-    if (!n || !n._action || !onNavigate) return;
+    if (!n || !n._action) return;
     const a = n._action;
+    if (a.kind === "openMyResults") {
+      // Direct navigation via react-router (the URL pattern doesn't have
+      // a legacy `page` id we can pass through onNavigate). The page
+      // itself parses sessionId from the pathname.
+      navigate(`/sessions/${encodeURIComponent(a.sessionId)}/my-results`);
+      return;
+    }
+    if (!onNavigate) return;
     if (a.kind === "openCreateSession") {
       onNavigate("sessions", { focusClassId: a.classId, openCreateSession: true });
     } else if (a.kind === "openCreateClass") {
@@ -225,6 +247,31 @@ export default function Notifications({ lang: pageLang = "en", setLang: pageSetL
         });
       }
 
+      // Sessions where the teacher has graded at least one of this student's
+      // free-text answers. We surface one notif per session — clicking opens
+      // the per-session results page where the student can see their answers
+      // alongside the teacher's feedback. Ids match what countVisibleNotifications
+      // generates so dismissal stays in sync between the badge and the list.
+      const gradedSessions = await fetchGradedSessionsForStudent(profile.id);
+      for (const g of gradedSessions) {
+        const desc = g.gradedCount === 1
+          ? t.feedbackDescOne.replace("{topic}", g.sessionTopic || g.className || "")
+          : t.feedbackDescMany
+              .replace("{n}", String(g.gradedCount))
+              .replace("{topic}", g.sessionTopic || g.className || "");
+        notifs.push({
+          id: `graded-${g.sessionId}`,
+          type: "review",
+          icon: "check",
+          color: C.green,
+          title: t.feedbackTitle,
+          desc,
+          time: g.latestGradedAt ? new Date(g.latestGradedAt) : new Date(),
+          action: t.seeFeedback,
+          _action: { kind: "openMyResults", sessionId: g.sessionId },
+        });
+      }
+
       // Welcome if no data
       if (notifs.length === 0) {
         notifs.push({
@@ -303,7 +350,12 @@ export default function Notifications({ lang: pageLang = "en", setLang: pageSetL
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {visibleNotifs.map((n, i) => {
-              const clickable = Boolean(n._action && onNavigate);
+              const clickable = Boolean(
+                n._action && (
+                  // openMyResults uses react-router directly, doesn't need onNavigate
+                  n._action.kind === "openMyResults" || onNavigate
+                )
+              );
               return (
                 <div
                   key={n.id}

@@ -104,6 +104,9 @@ export const buildRoute = {
   classDetail: (classId) => `/classes/${enc(classId)}`,
   // Class insights — per-deck aggregated stats for a class
   classInsights: (classId) => `/classes/${enc(classId)}/insights`,
+  // Student-facing per-session results page — landed from a "graded"
+  // notification. Shows the student's own answers + teacher feedback.
+  myResults: (sessionId) => `/sessions/${enc(sessionId)}/my-results`,
 };
 
 // ── Patrones para <Route path=...> ─────────────────────────────────────────
@@ -119,6 +122,7 @@ export const ROUTE_PATTERNS = {
   SESSIONS_OPTIONS: "/sessions/options/:deckId",
   SESSIONS_LOBBY:   "/sessions/lobby/:sessionId",
   SESSIONS_LIVE:    "/sessions/live/:sessionId",
+  SESSIONS_MY_RESULTS: "/sessions/:sessionId/my-results",
 
   DECKS: "/decks",
   DECKS_NEW: "/decks/new",
@@ -193,6 +197,10 @@ export const PAGE_TO_ROUTE = {
 export function pathToPage(pathname) {
   if (!pathname || pathname === "/") return null; // home: depende del rol, App.jsx decide
 
+  // /sessions/:sessionId/my-results → its own page. MUST come before the
+  // generic /sessions startsWith, otherwise this is captured as "sessions"
+  // and the student lands on the teacher SessionFlow page (which would 403).
+  if (/^\/sessions\/[^/]+\/my-results\/?$/.test(pathname)) return "myResults";
   if (pathname.startsWith("/sessions"))    return "sessions";
   // /decks/:deckId/results → its own page. MUST come before the generic
   // /decks startsWith, otherwise this is captured as "decks" and the
