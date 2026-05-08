@@ -3,9 +3,15 @@
 // page. All variations boil down to: title text, optional icon, language
 // switcher, mobile menu button, and a configurable maxWidth for centering.
 //
-// Pages that hardcoded their icon (e.g. Achievements showing a trophy,
-// TeacherProfile showing a teacher avatar) now pass `icon="trophy"` etc.
-// as a regular prop — no behavior change.
+// Two ways to pass the icon:
+//   - `icon="rocket"` → renders <CIcon name="rocket" />, the legacy emoji-
+//     style icon set. Simple, but visually distinct from the sidebar nav
+//     icons.
+//   - `iconNode={<SessionsIcon size={22} active />}` → render a custom
+//     JSX node (typically the same SVG icon shown in the sidebar). Use
+//     this when you want the page header to match the sidebar nav icon
+//     so the user keeps the same visual anchor across the transition.
+// If both are provided, iconNode wins.
 
 import { CIcon } from "./Icons";
 import MobileMenuButton, { useIsMobile } from "./MobileMenuButton";
@@ -14,6 +20,7 @@ import { C } from "./tokens";
 export default function PageHeader({
   title,
   icon,
+  iconNode,
   // lang and setLang are still accepted as props so existing call sites
   // don't have to change, but they're no longer used inside the header.
   // The language selector moved to the sidebar footer (App.jsx).
@@ -49,7 +56,9 @@ export default function PageHeader({
             gap: 10,
           }}
         >
-          {icon && <CIcon name={icon} size={isMobile ? 18 : 22} />}
+          {iconNode
+            ? iconNode
+            : (icon && <CIcon name={icon} size={isMobile ? 18 : 22} />)}
           {title}
         </h1>
       </div>

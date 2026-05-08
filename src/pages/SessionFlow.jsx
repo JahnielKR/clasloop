@@ -3,7 +3,7 @@ import { useSearchParams, useNavigate, useMatch } from "react-router-dom";
 import { QRCodeSVG } from "qrcode.react";
 import { supabase } from "../lib/supabase";
 import { processSessionResults, getSuggestedDecksForToday, getRecentlyLaunchedDecks } from "../lib/spaced-repetition";
-import { CIcon } from "../components/Icons";
+import { CIcon, SessionsIcon } from "../components/Icons";
 import { DeckCover, resolveColor } from "../lib/deck-cover";
 import MobileMenuButton, { useIsMobile } from "../components/MobileMenuButton";
 import PageHeader from "../components/PageHeader";
@@ -1239,7 +1239,7 @@ export default function SessionFlow({ lang = "en", setLang, onNavigateToDecks, o
     <div style={{ padding: "28px 20px" }}>
       <style>{css}</style>
       {step !== "lobby" && step !== "live" && (
-        <PageHeader title={t.pageTitle} icon="rocket" lang={lang} setLang={setLang} onOpenMobileMenu={onOpenMobileMenu} />
+        <PageHeader title={t.pageTitle} iconNode={<SessionsIcon size={28} active />} lang={lang} setLang={setLang} onOpenMobileMenu={onOpenMobileMenu} />
       )}
       {/* In lobby/live there's no PageHeader, so render the hamburger on its
           own so the user can still open the drawer on mobile. */}

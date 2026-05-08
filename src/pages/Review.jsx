@@ -25,7 +25,8 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
-import { CIcon } from "../components/Icons";
+import { CIcon, ReviewIcon } from "../components/Icons";
+import PageHeader from "../components/PageHeader";
 import { C } from "../components/tokens";
 import { ROUTES } from "../routes";
 import { teacherGradeToPoints, describeCorrectAnswer } from "../lib/scoring";
@@ -174,7 +175,7 @@ function pickQuestion(deckQuestions, index) {
   return deckQuestions[index] || null;
 }
 
-export default function Review({ profile, lang = "en", onOpenSidebar = null }) {
+export default function Review({ profile, lang = "en", onOpenMobileMenu }) {
   const navigate = useNavigate();
   const t = i18n[lang] || i18n.en;
 
@@ -417,7 +418,7 @@ export default function Review({ profile, lang = "en", onOpenSidebar = null }) {
   const pendingTotal = filteredItems.length;
 
   return (
-    <div style={{ maxWidth: 760, margin: "0 auto", padding: "24px 18px 80px", fontFamily: "'Outfit',sans-serif" }}>
+    <div style={{ padding: "28px 20px 80px", fontFamily: "'Outfit',sans-serif" }}>
       <style>{`
         @keyframes rv-fadeUp { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes rv-slideUp { from { opacity: 1; transform: translateY(0); max-height: 600px; } to { opacity: 0; transform: translateY(-12px); max-height: 0; padding: 0; margin: 0; } }
@@ -425,22 +426,21 @@ export default function Review({ profile, lang = "en", onOpenSidebar = null }) {
         .rv-leaving { animation: rv-slideUp .22s ease forwards; overflow: hidden; }
       `}</style>
 
-      {/* Header */}
-      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 4 }}>
-        <CIcon name="ticket" size={32} />
-        <h1 style={{
-          fontSize: 24, fontWeight: 700, margin: 0, color: C.text,
-          letterSpacing: "-.01em",
-        }}>
-          {t.title}
-        </h1>
-      </div>
-      <p style={{ fontSize: 14, color: C.textSecondary, margin: "0 0 18px", lineHeight: 1.5 }}>
-        {t.subtitle}
-      </p>
+      <PageHeader
+        title={t.title}
+        iconNode={<ReviewIcon size={28} active />}
+        lang={lang}
+        maxWidth={760}
+        onOpenMobileMenu={onOpenMobileMenu}
+      />
 
-      {/* Filter row + count */}
-      <div style={{
+      <div style={{ maxWidth: 760, margin: "0 auto" }}>
+        <p style={{ fontSize: 14, color: C.textSecondary, margin: "0 0 18px", lineHeight: 1.5 }}>
+          {t.subtitle}
+        </p>
+
+        {/* Filter row + count */}
+        <div style={{
         display: "flex", alignItems: "center", justifyContent: "space-between",
         gap: 12, marginBottom: 18, flexWrap: "wrap",
       }}>
@@ -730,6 +730,7 @@ export default function Review({ profile, lang = "en", onOpenSidebar = null }) {
           </button>
         </div>
       )}
+      </div>
     </div>
   );
 }
