@@ -127,6 +127,11 @@ export default async function handler(req, res) {
       // Bloque 4: si validate=true y el modelo es "primary", corremos un
       // segundo call a Haiku para filtrar.
       validate = false,
+      // Shadow mode: corre el validador y loggea los rejects, pero NO
+      // filtra el output. Se usa para juntar data sobre qué rechaza Haiku
+      // sin disrumpir a los profes. Cuando tengamos suficientes reasons,
+      // ajustamos el prompt del validador y volvemos a validate:true.
+      validateShadow = false,
       // Metadata opcional para logging / contexto del judge.
       activity_type = 'unknown',
       num_questions = 0,
@@ -180,12 +185,14 @@ export default async function handler(req, res) {
     //   - tenemos un array de preguntas parseable (sin él Haiku no tiene
     //     nada que evaluar)
     let validationResult = null;
-    if (
-      validate &&
+    // Run the validator if either flag is on. validateShadow gives us the
+    // logs without applying the filter (used while we re-tune Haiku for
+    // Sonnet 4.6).
+    const shouldRunValidator = (validate || validateShadow) &&
       model === 'primary' &&
       Array.isArray(outputRaw) &&
-      outputRaw.length > 0
-    ) {
+      outputRaw.length > 0;
+    if (shouldRunValidator) {
       try {
         validationResult = await validateWithHaiku({
           questions: outputRaw,
@@ -194,6 +201,19 @@ export default async function handler(req, res) {
           lessonContext: lesson_context,
           apiKey: ANTHROPIC_API_KEY,
         });
+        // Shadow mode logging: dump the WHOLE drop report at once, prefixed,
+        // so it's easy to grep in Vercel logs. Includes the prompt + reason
+        // for each rejected question so we can spot patterns.
+        if (validateShadow && validationResult && Array.isArray(validationResult.dropReasons)) {
+          const dropped = validationResult.dropReasons;
+          const total = outputRaw.length;
+          console.log(`[validator-shadow] ${dropped.length}/${total} would be dropped (subject=${subject || 'n/a'} grade=${grade || 'n/a'} ctx=${lesson_context || 'n/a'} type=${activity_type})`);
+          for (const dr of dropped) {
+            const q = outputRaw[dr.i];
+            const promptText = (q?.q || q?.prompt || '').toString().slice(0, 120);
+            console.log(`[validator-shadow]   #${dr.i} reason="${dr.reason}" q="${promptText}"`);
+          }
+        }
       } catch (err) {
         // Si Haiku falla por cualquier motivo, NO bloqueamos al profe.
         // Mejor preguntas sin validar que ninguna pregunta.
@@ -205,11 +225,13 @@ export default async function handler(req, res) {
     // Si la validación corrió y filtró algo, reemplazamos el content del
     // response con las preguntas filtradas. Si falló o no se pidió, dejamos
     // todo como vino del modelo principal.
+    // CRITICAL: in shadow mode we DO NOT replace the content. The validator
+    // output exists only as logs; the teacher gets the unfiltered raw set.
     let responseData = data;
     let outputFiltered = null;
     let validationDroppedCount = 0;
 
-    if (validationResult && Array.isArray(validationResult.kept) && Array.isArray(validationResult.dropReasons)) {
+    if (validate && validationResult && Array.isArray(validationResult.kept) && Array.isArray(validationResult.dropReasons)) {
       outputFiltered = validationResult.kept;
       validationDroppedCount = validationResult.dropReasons.length;
 
@@ -221,10 +243,15 @@ export default async function handler(req, res) {
           ...(data.content || []).filter((b) => b.type !== 'text'),
           { type: 'text', text: JSON.stringify(outputFiltered) },
         ],
-        // Metadata extra para el cliente.
+        // Metadata extra para el cliente. `reasons` es un array de strings
+        // (no índices) — el frontend los agrupa por frecuencia para mostrar
+        // al profe el motivo más común si Haiku descarta todas las
+        // preguntas (ej. "Spanish lesson content, not history" cuando el
+        // subject del deck no coincide con el topic pedido).
         validation: {
           kept: outputFiltered.length,
           dropped: validationDroppedCount,
+          reasons: validationResult.dropReasons.map(d => d.reason).filter(Boolean),
         },
       };
     } else if (validationResult && validationResult.error) {

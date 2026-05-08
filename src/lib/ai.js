@@ -208,6 +208,25 @@ function parseQuestionsArray(text) {
   return null;
 }
 
+// Most common string in an array. Used to pick the dominant reason from
+// Haiku's drop list — when all 15 questions are dropped for the same
+// reason ("Spanish content, not history"), we want to surface that one
+// instead of any of the others or just the first.
+function mostCommon(arr) {
+  if (!Array.isArray(arr) || arr.length === 0) return null;
+  const counts = new Map();
+  for (const s of arr) {
+    if (typeof s !== "string" || !s.trim()) continue;
+    counts.set(s, (counts.get(s) || 0) + 1);
+  }
+  let top = null;
+  let topCount = 0;
+  for (const [k, v] of counts.entries()) {
+    if (v > topCount) { top = k; topCount = v; }
+  }
+  return top;
+}
+
 // ─── Generate questions ─────────────────────────────
 export async function generateQuestions({
   topic,
@@ -353,16 +372,14 @@ export async function generateQuestions({
         system: promptParts.system,             // Identidad + reglas + negativos
         messages: [{ role: "user", content: messageContent }],
         max_tokens: dynamicMaxTokens,
-        // TEMPORARY BYPASS: Haiku 4.5's validator prompt is calibrated to
-        // Sonnet 4.5's output style and rejects ~100% of Sonnet 4.6's
-        // questions even though the questions themselves are fine. We
-        // disable the second-pass filter while we re-tune the validator
-        // prompt for 4.6 in a follow-up. The questions still go through
-        // the schema-level validation in handleAIGenerated, which
-        // catches the actual structural issues (missing fields, wrong
-        // types). Quality dip is small — Haiku was catching subtle
-        // pedagogical issues, not structural breakage.
-        validate: false,
+        // Bloque 4: pedimos validación semántica con Haiku tras la generación.
+        // El endpoint corre el segundo pase y devuelve solo las aprobadas.
+        // Si Haiku falla, el endpoint devuelve sin filtrar (no bloqueante).
+        // Cuando Haiku descarta TODAS las preguntas (subject mismatch), el
+        // frontend lanza un AIError "all_rejected" con el reason más común
+        // — eso le dice al profe exactamente qué pasó (ej. "Tu deck es
+        // History pero pediste contenido de Spanish").
+        validate: true,
         // Contexto que el judge usa para evaluar.
         grade,
         subject,
@@ -431,15 +448,43 @@ export async function generateQuestions({
       throw new AIError("The model didn't return a valid question array. Try again.", { code: "bad_output" });
     }
 
-    // Bloque 4: el endpoint puede haber filtrado preguntas con Haiku. Si
-    // descartó algunas, agregamos un warning para que el panel se lo
-    // muestre al profe. Si la validación falló, no decimos nada (no
-    // queremos confundir al profe con detalles internos).
-    if (data.validation && typeof data.validation.dropped === "number" && data.validation.dropped > 0) {
+    // Bloque 4: el endpoint puede haber filtrado preguntas con Haiku.
+    //
+    // Three cases to handle:
+    //   1) parsed.length > 0, dropped === 0 → all good, no warning needed
+    //   2) parsed.length > 0, dropped > 0  → warning "X dropped, Y kept"
+    //      with the most common reason so the teacher learns from it
+    //   3) parsed.length === 0, dropped > 0 → ALL questions rejected.
+    //      This means the deck's subject and the requested content
+    //      don't match (most common: deck is "History" but topic was
+    //      Spanish vocabulary). Throw a specific AIError with the top
+    //      reason so the panel can surface it instead of the generic
+    //      "AI didn't return any questions".
+    const v = data.validation;
+    const droppedCount = (v && typeof v.dropped === "number") ? v.dropped : 0;
+    const reasons = (v && Array.isArray(v.reasons)) ? v.reasons : [];
+
+    if (parsed.length === 0 && droppedCount > 0) {
+      // Pick the most common reason — Haiku tends to repeat itself when
+      // the issue is the same root cause (e.g. all 15 say
+      // "Spanish lesson content, not history").
+      const topReason = mostCommon(reasons) || "quality check rejected all questions";
+      throw new AIError(
+        `All ${droppedCount} questions were rejected by the quality check. Reason: "${topReason}". This usually means your deck's subject doesn't match what you asked the AI to generate. Adjust the deck's subject or your topic and try again.`,
+        {
+          code: "all_rejected",
+          dropped: droppedCount,
+          reason: topReason,
+        }
+      );
+    }
+
+    if (droppedCount > 0) {
       warnings.push({
         code: "validation_dropped",
-        kept: data.validation.kept,
-        dropped: data.validation.dropped,
+        kept: v.kept,
+        dropped: droppedCount,
+        topReason: mostCommon(reasons) || null,
       });
     }
 

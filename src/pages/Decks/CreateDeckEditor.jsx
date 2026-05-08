@@ -280,6 +280,11 @@ function AIGeneratePanel({
         else if (err.code === "file_too_big") setError(err.message || t.aiFileTooBigGeneric);
         else if (err.code === "prompt_too_long") setError(err.message || t.aiPromptTooLong);
         else if (err.code === "doc_legacy") setError(err.message || t.aiDocLegacy);
+        // all_rejected: Haiku descartó las N preguntas. El message del error
+        // ya viene compuesto en lib/ai.js con el reason más común y guía al
+        // profe ("usually means the deck's subject doesn't match..."). Lo
+        // mostramos tal cual — más informativo que cualquier copy genérico.
+        else if (err.code === "all_rejected") setError(err.message);
         else setError(err.message || t.aiError);
       } else {
         setError(err?.message || t.aiError);
@@ -808,6 +813,11 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
     const incomingWarnings = Array.isArray(warnings) ? warnings : [];
     const validationWarning = incomingWarnings.find(w => w.code === "validation_dropped");
     const semanticDropped = validationWarning?.dropped || 0;
+    // The most-common reason from Haiku's drops. We forward it to the UI
+    // so the warning copy can be specific (e.g. "5 questions were dropped:
+    // mostly because 'Spanish content, not history'") instead of just
+    // generic "5 dropped". Helps the teacher learn what to fix next time.
+    const semanticTopReason = validationWarning?.topReason || null;
     const totalDropped = structuralDropped + semanticDropped;
 
     // 4. Caso: TODAS fueron descartadas. No hay nada que insertar; dejamos
@@ -833,6 +843,7 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
         // requested = lo que el profe pidió originalmente. Si no lo sabemos
         // (porque estamos en cliente), aproximamos con delivered + dropped.
         requested: validated.length + totalDropped,
+        topReason: semanticTopReason,
       });
     }
     setAiGenerationWarnings(unifiedWarnings);
@@ -2543,12 +2554,23 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
                   const template = isSoft
                     ? (t.aiQualityFilteredSoft || "{delivered} of {requested} ready to use ({dropped} filtered for quality).")
                     : (t.aiQualityFilteredHard || "Only {delivered} of {requested} passed the quality check. Try a richer source or a single question type.");
+                  const baseMsg = template
+                    .replace("{delivered}", String(w.delivered))
+                    .replace("{requested}", String(requested))
+                    .replace("{dropped}", String(w.dropped));
                   return (
                     <div key={i}>
-                      {template
-                        .replace("{delivered}", String(w.delivered))
-                        .replace("{requested}", String(requested))
-                        .replace("{dropped}", String(w.dropped))}
+                      {baseMsg}
+                      {/* Surface Haiku's most-common reason when we have
+                          one — turns "5 dropped" into "5 dropped: mostly
+                          'Spanish content, not history'", which is what
+                          the teacher needs to know. */}
+                      {w.topReason && (
+                        <div style={{ marginTop: 4, fontSize: 12, opacity: 0.9 }}>
+                          {(t.aiQualityReason || "Most common reason: \"{reason}\"")
+                            .replace("{reason}", w.topReason)}
+                        </div>
+                      )}
                     </div>
                   );
                 }
