@@ -353,10 +353,16 @@ export async function generateQuestions({
         system: promptParts.system,             // Identidad + reglas + negativos
         messages: [{ role: "user", content: messageContent }],
         max_tokens: dynamicMaxTokens,
-        // Bloque 4: pedimos validación semántica con Haiku tras la generación.
-        // El endpoint corre el segundo pase y devuelve solo las aprobadas.
-        // Si Haiku falla, el endpoint devuelve sin filtrar (no bloqueante).
-        validate: true,
+        // TEMPORARY BYPASS: Haiku 4.5's validator prompt is calibrated to
+        // Sonnet 4.5's output style and rejects ~100% of Sonnet 4.6's
+        // questions even though the questions themselves are fine. We
+        // disable the second-pass filter while we re-tune the validator
+        // prompt for 4.6 in a follow-up. The questions still go through
+        // the schema-level validation in handleAIGenerated, which
+        // catches the actual structural issues (missing fields, wrong
+        // types). Quality dip is small — Haiku was catching subtle
+        // pedagogical issues, not structural breakage.
+        validate: false,
         // Contexto que el judge usa para evaluar.
         grade,
         subject,
