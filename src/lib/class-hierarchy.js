@@ -113,3 +113,74 @@ export function resolveClassAccent(cls) {
   const subjId = SUBJ_COLOR[cls.subject] || "blue";
   return HEX_BY_ID[subjId] || HEX_BY_ID.blue;
 }
+
+// ─── Unit status (Phase 5) ───────────────────────────────────────────────
+//
+// Units gained a `status` column in phase5_units_status.sql:
+//   'planned' → created, not actively taught yet (the teacher set it
+//               up ahead but it's still in the future)
+//   'active'  → currently being taught
+//   'closed'  → finished, decks remain searchable but it doesn't crowd
+//               the active views
+//
+// Helpers:
+//   UNIT_STATUSES         → list of valid status ids
+//   isValidUnitStatus(s)  → guard before writing to the DB
+//   pickActiveUnit(units) → from a list of class units, return the one
+//                           that should be shown in Plan view
+//
+// pickActiveUnit selection rules (in order):
+//   1. If exactly one unit is status='active', return it.
+//   2. If multiple are 'active', the one with the highest `position`
+//      wins (manual ordering — teachers create newer units further down).
+//   3. If none are 'active', the most-recently-created 'planned' wins
+//      (a teacher about to start the next one).
+//   4. If only 'closed' units exist, return null — the class has past
+//      content but nothing being taught now.
+//
+// This replaces the heuristic in spaced-repetition.js#getTodayPlan
+// (sessions-activity-based). Once Phase 5 is deployed everywhere this
+// helper is the canonical answer.
+
+export const UNIT_STATUSES = ["planned", "active", "closed"];
+
+export function isValidUnitStatus(status) {
+  return UNIT_STATUSES.includes(status);
+}
+
+export function pickActiveUnit(units) {
+  if (!Array.isArray(units) || units.length === 0) return null;
+
+  const active = units.filter(u => u.status === "active");
+  if (active.length === 1) return active[0];
+  if (active.length > 1) {
+    // Highest position wins. Tie-break by most-recently-created.
+    return [...active].sort((a, b) => {
+      const pos = (b.position || 0) - (a.position || 0);
+      if (pos !== 0) return pos;
+      return new Date(b.created_at || 0) - new Date(a.created_at || 0);
+    })[0];
+  }
+
+  const planned = units.filter(u => u.status === "planned");
+  if (planned.length > 0) {
+    // Most-recently-created planned. The teacher's next thing.
+    return [...planned].sort(
+      (a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0)
+    )[0];
+  }
+
+  return null;
+}
+
+// ─── Unit status labels (i18n) ───────────────────────────────────────────
+// Short readable labels per status, matching the visual chips used in
+// ClassPage Plan view header.
+export function unitStatusLabel(status, lang = "en") {
+  const labels = {
+    en: { planned: "Planned", active: "Active", closed: "Closed" },
+    es: { planned: "Planeada", active: "Activa", closed: "Cerrada" },
+    ko: { planned: "예정", active: "진행 중", closed: "종료됨" },
+  };
+  return labels[lang]?.[status] || labels.en[status] || status;
+}

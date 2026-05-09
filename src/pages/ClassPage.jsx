@@ -19,6 +19,7 @@ import { DeckCover, resolveColor as resolveDeckColor } from "../lib/deck-cover";
 import { useIsMobile } from "../components/MobileMenuButton";
 import EditClassModal from "../components/EditClassModal";
 import SectionBadge from "../components/SectionBadge";
+import PlanView from "../components/PlanView";
 import { C, MONO } from "../components/tokens";
 import { ROUTES, QUERY, buildRoute } from "../routes";
 import {
@@ -28,6 +29,7 @@ import {
   sectionLabels,
   CLASS_COLORS,
   resolveClassAccent,
+  pickActiveUnit,
 } from "../lib/class-hierarchy";
 // dnd-kit drives the drag-reorder UX. Replaces the previous HTML5 D&D
 // implementation, which suffered from the browser-generated translucent
@@ -647,6 +649,13 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
   // (PointerSensor + KeyboardSensor below) — works on mobile, no special
   // codepath like the old HTML5 D&D needed.
   const [activeDragDeckId, setActiveDragDeckId] = useState(null);
+  // PR4: view toggle. "plan" → unit-as-protagonist (PlanView), "all" → the
+  // existing 3-tabs-by-section grid. Default is decided after data loads:
+  // if there's an active unit, default to "plan"; otherwise "all". The
+  // teacher can flip with the tabs at the top of the page. We start at
+  // null and the data-loaded effect sets the initial value once it knows
+  // whether an active unit exists — this avoids a flash of the wrong view.
+  const [viewMode, setViewMode] = useState(null);
 
   // Sensors. PointerSensor with a small activationConstraint distance
   // ensures plain clicks (open the deck) and short clicks on the unit
@@ -704,6 +713,15 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
       setClassObj(classRes.data);
       setDecks(decksRes.data || []);
       setUnits(unitsRes.data || []);
+      // PR4: pick initial view mode based on whether there's an active
+      // unit. We only set viewMode here on the first load (when it's
+      // still null) so subsequent re-fetches don't override the
+      // teacher's manual choice. If they explicitly switched to "all
+      // decks" we respect that.
+      if (viewMode === null) {
+        const initialActiveUnit = pickActiveUnit(unitsRes.data || []);
+        setViewMode(initialActiveUnit ? "plan" : "all");
+      }
       setLoading(false);
     })();
     return () => { cancelled = true; };
@@ -1212,6 +1230,82 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
         </div>
       </div>
 
+      {/* PR4: View toggle — Plan vs All decks. Only shown if the class has
+          at least one unit (otherwise "Plan" has nothing to show, and the
+          class falls into the legacy 3-tabs-by-section view exclusively).
+          The toggle sits ABOVE the section tabs because it's the higher-
+          level decision: "am I planning or am I browsing my whole library?"
+          Each view has its own internal navigation. */}
+      {units.length > 0 && (
+        <div style={{
+          display: "flex",
+          gap: 4,
+          marginBottom: 14,
+          background: C.bgSoft,
+          padding: 3,
+          borderRadius: 8,
+          width: "fit-content",
+        }}>
+          <button
+            onClick={() => setViewMode("plan")}
+            style={{
+              padding: "6px 14px",
+              borderRadius: 6,
+              fontSize: 12.5,
+              fontWeight: 500,
+              fontFamily: "'Outfit', sans-serif",
+              background: viewMode === "plan" ? C.bg : "transparent",
+              color: viewMode === "plan" ? C.text : C.textSecondary,
+              border: "none",
+              cursor: "pointer",
+              boxShadow: viewMode === "plan" ? "0 1px 2px rgba(0,0,0,0.04)" : "none",
+              transition: "background .12s ease, color .12s ease",
+            }}
+          >
+            ▦ Plan
+          </button>
+          <button
+            onClick={() => setViewMode("all")}
+            style={{
+              padding: "6px 14px",
+              borderRadius: 6,
+              fontSize: 12.5,
+              fontWeight: 500,
+              fontFamily: "'Outfit', sans-serif",
+              background: viewMode === "all" ? C.bg : "transparent",
+              color: viewMode === "all" ? C.text : C.textSecondary,
+              border: "none",
+              cursor: "pointer",
+              boxShadow: viewMode === "all" ? "0 1px 2px rgba(0,0,0,0.04)" : "none",
+              transition: "background .12s ease, color .12s ease",
+            }}
+          >
+            ▥ All decks
+          </button>
+        </div>
+      )}
+
+      {/* Plan view path: render PlanView and skip the section tabs / dnd
+          grid below. PlanView is its own self-contained component. */}
+      {viewMode === "plan" && units.length > 0 && (() => {
+        const activeUnit = pickActiveUnit(units);
+        if (!activeUnit) return null;
+        return (
+          <PlanView
+            classId={classId}
+            decks={decks}
+            activeUnit={activeUnit}
+            lang={lang}
+          />
+        );
+      })()}
+
+      {/* All-decks view path: the existing 3-tabs-by-section grid with
+          dnd-kit reorder. Kept exactly as it was — the Plan view is purely
+          additive. Wrapped in a conditional so when viewMode==='plan' the
+          tabs and grid disappear. */}
+      {viewMode !== "plan" && (
+      <>
       {/* Tabs */}
       <div style={{
         display: "flex",
@@ -1611,6 +1705,8 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
       </DragOverlay>
 
       </DndContext>
+      </>
+      )}
 
       {/* Edit class modal */}
       {showEditModal && classObj && (

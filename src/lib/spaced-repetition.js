@@ -9,6 +9,7 @@
 // - Works at both class-level and individual student level
 
 import { supabase } from './supabase';
+import { pickActiveUnit } from './class-hierarchy';
 
 // ─── SM-2 Core Algorithm ────────────────────────────
 // quality: 0-5 rating of how well the topic was recalled
@@ -649,11 +650,16 @@ export async function getTodayPlan(teacherId) {
   todayStart.setHours(0, 0, 0, 0);
   const fourteenDaysAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
 
-  // 2. Pull all units for these classes in one query
+  // 2. Pull all units for these classes in one query.
+  // Phase 5 added units.status — we read it directly via pickActiveUnit
+  // instead of deriving "active" from session activity (the old heuristic
+  // pre-Phase 5 needed 3 chained queries; this is one). For backward
+  // safety pickActiveUnit handles units that don't have a status column
+  // yet (returns the most recently created — same as the old fallback).
   const classIds = classes.map(c => c.id);
   const { data: allUnits } = await supabase
     .from('units')
-    .select('id, class_id, section, name, position, created_at')
+    .select('id, class_id, section, name, position, status, created_at')
     .in('class_id', classIds);
   const unitsByClass = {};
   (allUnits || []).forEach(u => {
@@ -661,9 +667,8 @@ export async function getTodayPlan(teacherId) {
     unitsByClass[u.class_id].push(u);
   });
 
-  // 3. Pull recent sessions for these classes (for activity-based unit
-  //    selection AND for "launched today" status). Last 14d is enough
-  //    for the active-unit heuristic; today-only check is a subset.
+  // 3. Pull recent sessions for these classes — used for "launched today"
+  //    status on each deck. Last 14d range is generous and harmless.
   const { data: recentSessions } = await supabase
     .from('sessions')
     .select('id, deck_id, class_id, created_at, status')
@@ -681,37 +686,17 @@ export async function getTodayPlan(teacherId) {
     }
   });
 
-  // 4. For each class, determine the active unit (or null)
+  // 4. For each class, determine the active unit using the new column.
+  //    pickActiveUnit prefers status='active', falls back to 'planned',
+  //    and returns null if only 'closed' units exist or there are no
+  //    units at all. The classes-without-units fallback path below
+  //    handles the null case.
   const activeUnitByClass = {};
   for (const cls of classes) {
     const classUnits = unitsByClass[cls.id] || [];
-    if (classUnits.length === 0) continue; // no units at all → fallback path
-
-    // Find unit with most recent session in this class
-    const sessionsInClass = (recentSessions || []).filter(s => s.class_id === cls.id);
-    let activeUnitId = null;
-    if (sessionsInClass.length > 0) {
-      // Get the deck rows for these sessions to find their unit_ids
-      const deckIds = Array.from(new Set(sessionsInClass.map(s => s.deck_id)));
-      const { data: sessionDecks } = await supabase
-        .from('decks')
-        .select('id, unit_id')
-        .in('id', deckIds);
-      const unitIdByDeck = Object.fromEntries((sessionDecks || []).map(d => [d.id, d.unit_id]));
-      // Walk sessions in time order (already desc) and grab the first
-      // deck whose unit_id is non-null — that unit is the active one
-      for (const s of sessionsInClass) {
-        const uid = unitIdByDeck[s.deck_id];
-        if (uid) { activeUnitId = uid; break; }
-      }
-    }
-    // Fallback: highest position
-    if (!activeUnitId) {
-      const sortedByPos = [...classUnits].sort((a, b) => (b.position || 0) - (a.position || 0));
-      activeUnitId = sortedByPos[0]?.id || null;
-    }
-    if (activeUnitId) {
-      activeUnitByClass[cls.id] = classUnits.find(u => u.id === activeUnitId);
+    const active = pickActiveUnit(classUnits);
+    if (active) {
+      activeUnitByClass[cls.id] = active;
     }
   }
 

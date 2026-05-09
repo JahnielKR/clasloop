@@ -601,6 +601,10 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
     // teacher clicks "+ New warmup" / "+ New exit ticket" / "+ New review"
     // from inside ClassPage. On edit, existing deck's section wins.
     const prefilledSection = view === "create" ? (searchParams.get("section") || null) : null;
+    // PR4: ?unit= on /decks/new pre-fills which unit the deck belongs to.
+    // Used when the teacher clicks an empty slot in PlanView — the new
+    // deck should land in the active unit at the right (next) position.
+    const prefilledUnitId = view === "create" ? (searchParams.get("unit") || null) : null;
 
     // Edge case: deep-link refresh on /decks/:id/edit before myDecks finished
     // loading. Show the page-level loader and let the next render resolve
@@ -646,6 +650,7 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
           existingDeck={editing}
           prefilledClassId={prefilledClassId}
           prefilledSection={prefilledSection}
+          prefilledUnitId={prefilledUnitId}
           onCreated={(d) => {
             if (editing) setMyDecks(prev => prev.map(dk => dk.id === d.id ? d : dk));
             else setMyDecks(prev => [d, ...prev]);

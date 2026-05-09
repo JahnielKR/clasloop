@@ -553,7 +553,7 @@ function AIGeneratePanel({
   );
 }
 
-function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existingDeck, prefilledClassId = null, prefilledSection = null }) {
+function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existingDeck, prefilledClassId = null, prefilledSection = null, prefilledUnitId = null }) {
   const isMobile = useIsMobile();
   const [title, setTitle] = useState(existingDeck?.title || "");
   const [desc, setDesc] = useState(existingDeck?.description || "");
@@ -1372,6 +1372,14 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
       cover_color: coverColor, cover_icon: coverIcon,
       cover_image_url: coverImageUrl || null,
     };
+    // PR4: when creating from a PlanView empty slot, the editor receives
+    // prefilledUnitId via ?unit=<id>. We attach it on insert (not on
+    // update — editing an existing deck shouldn't blow away its unit
+    // assignment). FK constraint on the DB will reject invalid uuids,
+    // so no extra validation needed here.
+    if (!existingDeck && prefilledUnitId) {
+      payload.unit_id = prefilledUnitId;
+    }
     if (existingDeck) {
       await supabase.from("decks").update(payload).eq("id", existingDeck.id);
       onCreated({ ...existingDeck, ...payload });
