@@ -260,6 +260,316 @@ function EditableUnitName({ unit, lang = "en", onChanged }) {
 }
 
 
+// ─── UnitSwitcher — dropdown para cambiar/crear unidades ────────────────
+//
+// Sits next to the unit header in PlanView. Click → dropdown listing all
+// units of the class with their status, click one → it becomes the
+// active unit. Bottom of the dropdown has a "+ New unit" affordance
+// that opens an inline name input.
+//
+// Status switching contract:
+//   When the teacher picks a different unit, the picked one becomes
+//   active. The previously-active one becomes 'planned' (not 'closed' —
+//   "closed" is a deliberate teacher action, not a side-effect of
+//   switching). This means:
+//     - Old active unit is still listed (with 'planned' chip)
+//     - Teacher can switch back any time
+//     - Closing a unit remains a separate, intentional action (PR 6)
+//
+// New unit creation:
+//   Inserts with status='active' and bumps any other 'active' unit in
+//   the same class to 'planned'. This keeps the Plan-view invariant that
+//   exactly one unit is the protagonist at a time.
+//   Section: copied from the currently-active unit, since Plan view
+//   treats units as section-agnostic but the schema requires the column.
+//
+// This component does NOT close units — closing belongs to PR 6, where
+// it gets its own dedicated flow with the "narrative" summary.
+function UnitSwitcher({ allUnits, activeUnit, classId, lang = "en", onSwitched }) {
+  const [open, setOpen] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+
+  // i18n inline since this component is small and self-contained
+  const labels = {
+    en: { switchUnit: "Switch unit", newUnit: "+ New unit",
+          createPlaceholder: "Unit name…", create: "Create",
+          cancel: "Cancel", emptyName: "Name required",
+          tooLong: "Name too long (max 60)" },
+    es: { switchUnit: "Cambiar unidad", newUnit: "+ Nueva unidad",
+          createPlaceholder: "Nombre de unidad…", create: "Crear",
+          cancel: "Cancelar", emptyName: "El nombre es requerido",
+          tooLong: "Nombre muy largo (máx 60)" },
+    ko: { switchUnit: "단원 전환", newUnit: "+ 새 단원",
+          createPlaceholder: "단원 이름…", create: "만들기",
+          cancel: "취소", emptyName: "이름이 필요합니다",
+          tooLong: "이름이 너무 깁니다 (최대 60)" },
+  };
+  const L = labels[lang] || labels.en;
+
+  // Sort units: active first, then by position
+  const sortedUnits = [...(allUnits || [])].sort((a, b) => {
+    if (a.id === activeUnit.id) return -1;
+    if (b.id === activeUnit.id) return 1;
+    if (a.status !== b.status) {
+      const rank = { active: 0, planned: 1, closed: 2 };
+      return (rank[a.status] ?? 9) - (rank[b.status] ?? 9);
+    }
+    return (a.position || 0) - (b.position || 0);
+  });
+
+  const handlePick = async (unit) => {
+    if (busy || unit.id === activeUnit.id) {
+      setOpen(false);
+      return;
+    }
+    setBusy(true);
+    setErr("");
+    // Two updates in parallel:
+    //   1. Demote the current active unit to 'planned'
+    //   2. Promote the picked unit to 'active'
+    // We don't try to make this a transaction — the worst-case race
+    // (both end up active for a moment) is harmless because pickActiveUnit
+    // resolves multi-active gracefully on next load.
+    const [r1, r2] = await Promise.all([
+      supabase.from("units").update({ status: "planned" }).eq("id", activeUnit.id),
+      supabase.from("units").update({ status: "active" }).eq("id", unit.id),
+    ]);
+    setBusy(false);
+    setOpen(false);
+    if (r1.error || r2.error) {
+      setErr(r1.error?.message || r2.error?.message || "Switch failed");
+      return;
+    }
+    onSwitched && onSwitched();
+  };
+
+  const handleCreate = async () => {
+    if (busy) return;
+    const trimmed = newName.trim();
+    if (!trimmed) { setErr(L.emptyName); return; }
+    if (trimmed.length > 60) { setErr(L.tooLong); return; }
+    setErr("");
+    setBusy(true);
+    // Position = max within this class + 1, so the new unit lands at
+    // the end ordering-wise. We use ALL units (across sections) since
+    // Plan view treats units as section-agnostic.
+    const nextPos = sortedUnits.length === 0
+      ? 0
+      : Math.max(...sortedUnits.map(u => u.position || 0)) + 1;
+    // Section: inherit from the current active unit. The schema requires
+    // a section, but Plan view doesn't care — All-decks view will show
+    // the new unit grouped under whatever section we picked. Inheriting
+    // from active is the least-surprising default.
+    const inheritedSection = activeUnit.section || "general_review";
+    // Demote current active in parallel with creating the new one,
+    // also marked active. Same race-tolerance as handlePick above.
+    const [r1, r2] = await Promise.all([
+      supabase.from("units").update({ status: "planned" }).eq("id", activeUnit.id),
+      supabase.from("units").insert({
+        class_id: classId,
+        section: inheritedSection,
+        name: trimmed,
+        position: nextPos,
+        status: "active",
+      }).select().single(),
+    ]);
+    setBusy(false);
+    if (r1.error || r2.error) {
+      setErr(r1.error?.message || r2.error?.message || "Create failed");
+      return;
+    }
+    setNewName("");
+    setCreating(false);
+    setOpen(false);
+    onSwitched && onSwitched();
+  };
+
+  return (
+    <div style={{ position: "relative", flexShrink: 0 }}>
+      <button
+        onClick={() => setOpen(!open)}
+        style={{
+          padding: "6px 12px",
+          borderRadius: 7,
+          background: open ? C.bgSoft : C.bg,
+          color: C.text,
+          border: `1px solid ${C.border}`,
+          fontFamily: "'Outfit', sans-serif",
+          fontSize: 12.5, fontWeight: 500,
+          cursor: "pointer",
+          display: "inline-flex", alignItems: "center", gap: 6,
+          transition: "background .12s ease",
+        }}
+      >
+        ▾ {L.switchUnit}
+      </button>
+
+      {open && (
+        <>
+          {/* Backdrop to close on outside click */}
+          <div
+            onClick={() => { setOpen(false); setCreating(false); setErr(""); }}
+            style={{ position: "fixed", inset: 0, zIndex: 50 }}
+          />
+          {/* Dropdown panel */}
+          <div style={{
+            position: "absolute",
+            top: "calc(100% + 4px)",
+            right: 0,
+            minWidth: 240,
+            maxWidth: 320,
+            background: C.bg,
+            border: `1px solid ${C.border}`,
+            borderRadius: 8,
+            boxShadow: "0 6px 24px rgba(0,0,0,0.12)",
+            zIndex: 51,
+            overflow: "hidden",
+          }}>
+            {sortedUnits.map(u => {
+              const isActive = u.id === activeUnit.id;
+              const statusColor = u.status === "active" ? C.green
+                : u.status === "closed" ? C.textMuted
+                : C.textSecondary;
+              return (
+                <button
+                  key={u.id}
+                  onClick={() => handlePick(u)}
+                  disabled={busy}
+                  style={{
+                    width: "100%",
+                    padding: "10px 14px",
+                    background: isActive ? C.accentSoft : "transparent",
+                    border: "none",
+                    borderBottom: `1px solid ${C.border}`,
+                    cursor: busy ? "wait" : "pointer",
+                    display: "flex", alignItems: "center", gap: 8,
+                    textAlign: "left",
+                    fontFamily: "'Outfit', sans-serif",
+                    transition: "background .1s ease",
+                  }}
+                  onMouseEnter={e => { if (!isActive && !busy) e.currentTarget.style.background = C.bgSoft; }}
+                  onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = "transparent"; }}
+                >
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{
+                      fontSize: 13, fontWeight: isActive ? 600 : 500,
+                      color: C.text,
+                      overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                    }}>
+                      {u.name}
+                    </div>
+                  </div>
+                  <span style={{
+                    fontSize: 9.5, fontWeight: 600,
+                    textTransform: "uppercase", letterSpacing: "0.05em",
+                    padding: "2px 6px", borderRadius: 3,
+                    background: statusColor + "1A",
+                    color: statusColor,
+                    flexShrink: 0,
+                  }}>
+                    {unitStatusLabel(u.status, lang)}
+                  </span>
+                </button>
+              );
+            })}
+
+            {/* Create-new section */}
+            {creating ? (
+              <div style={{ padding: 12, background: C.bgSoft }}>
+                <input
+                  type="text"
+                  value={newName}
+                  autoFocus
+                  onChange={e => setNewName(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === "Enter" && !busy) { e.preventDefault(); handleCreate(); }
+                    else if (e.key === "Escape") { setCreating(false); setNewName(""); setErr(""); }
+                  }}
+                  placeholder={L.createPlaceholder}
+                  maxLength={60}
+                  disabled={busy}
+                  style={{
+                    width: "100%",
+                    padding: "8px 10px",
+                    borderRadius: 6,
+                    border: `1px solid ${err ? C.red : C.border}`,
+                    fontSize: 13,
+                    fontFamily: "'Inter', sans-serif",
+                    color: C.text,
+                    background: C.bg,
+                    outline: "none",
+                    marginBottom: err ? 4 : 8,
+                  }}
+                />
+                {err && (
+                  <div style={{ fontSize: 11, color: C.red, marginBottom: 8 }}>{err}</div>
+                )}
+                <div style={{ display: "flex", gap: 6 }}>
+                  <button
+                    onClick={() => { setCreating(false); setNewName(""); setErr(""); }}
+                    disabled={busy}
+                    style={{
+                      flex: 1,
+                      padding: "6px 10px",
+                      borderRadius: 6,
+                      background: "transparent",
+                      color: C.textSecondary,
+                      border: `1px solid ${C.border}`,
+                      fontFamily: "'Outfit', sans-serif",
+                      fontSize: 12, fontWeight: 500,
+                      cursor: "pointer",
+                    }}
+                  >{L.cancel}</button>
+                  <button
+                    onClick={handleCreate}
+                    disabled={busy}
+                    style={{
+                      flex: 1,
+                      padding: "6px 10px",
+                      borderRadius: 6,
+                      background: C.accent,
+                      color: "#fff",
+                      border: "none",
+                      fontFamily: "'Outfit', sans-serif",
+                      fontSize: 12, fontWeight: 600,
+                      cursor: busy ? "wait" : "pointer",
+                      opacity: busy ? 0.6 : 1,
+                    }}
+                  >{L.create}</button>
+                </div>
+              </div>
+            ) : (
+              <button
+                onClick={() => { setCreating(true); setErr(""); }}
+                disabled={busy}
+                style={{
+                  width: "100%",
+                  padding: "10px 14px",
+                  background: "transparent",
+                  border: "none",
+                  cursor: "pointer",
+                  fontFamily: "'Outfit', sans-serif",
+                  fontSize: 13, fontWeight: 600,
+                  color: C.accent,
+                  textAlign: "left",
+                  transition: "background .1s ease",
+                }}
+                onMouseEnter={e => { e.currentTarget.style.background = C.accentSoft; }}
+                onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}
+              >
+                {L.newUnit}
+              </button>
+            )}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 function Slot({ deck, slotKind, t, lang, onLaunch, onSlotClick }) {
   // slotKind: "warmup" | "exit" — used for the empty-slot label and
   // for routing the new-deck flow (so the deck editor pre-fills the
@@ -410,12 +720,14 @@ export default function PlanView({
   classId,
   classes = [],
   decks,
+  units = [],          // all units of the class (PR4.2: needed by UnitSwitcher)
   activeUnit,
   userId,
   lang = "en",
   onRefresh,           // called after a successful pick-from-library so
                        // ClassPage re-fetches its data
   onUnitChanged,       // called after the unit name is renamed inline
+                       // OR after the active unit was switched/created
 }) {
   const t = i18n[lang] || i18n.en;
   const navigate = useNavigate();
@@ -501,6 +813,17 @@ export default function PlanView({
             </span>
           </div>
         </div>
+        {/* Unit switcher — picks a different unit OR creates a new one.
+            Sits at the right of the header so the unit name stays the
+            visual anchor. Only shown if there's at least one other unit
+            OR the teacher might want to create more (always, basically). */}
+        <UnitSwitcher
+          allUnits={units}
+          activeUnit={activeUnit}
+          classId={classId}
+          lang={lang}
+          onSwitched={() => onUnitChanged && onUnitChanged()}
+        />
       </div>
 
       {/* Empty unit state */}
@@ -578,26 +901,34 @@ export default function PlanView({
           <button
             onClick={handleAddNewDay}
             style={{
+              // PR4.2: more visual presence than v1. The previous styling
+              // (transparent + dashed border + muted text) was too quiet —
+              // the empty slots above actually competed with it because
+              // they had the same dashed treatment but with the slot's
+              // section accent. Now: solid soft background + accent
+              // dashed border + accent text + more padding. Clearly the
+              // "next thing the teacher should do" without being noisy.
               width: "100%",
-              padding: "16px",
-              background: "transparent",
-              border: `1.5px dashed ${C.border}`,
+              padding: "22px 16px",
+              marginTop: 6,
+              background: C.accentSoft,
+              border: `1.5px dashed ${C.accent}66`,
               borderRadius: 10,
-              color: C.textMuted,
+              color: C.accent,
               fontFamily: "'Outfit', sans-serif",
-              fontSize: 13, fontWeight: 500,
+              fontSize: 14, fontWeight: 600,
               cursor: "pointer",
-              transition: "border-color .12s ease, color .12s ease, background .12s ease",
+              transition: "border-color .12s ease, background .12s ease, transform .12s ease",
             }}
             onMouseEnter={(e) => {
               e.currentTarget.style.borderColor = C.accent;
-              e.currentTarget.style.color = C.accent;
               e.currentTarget.style.background = C.accentSoft;
+              e.currentTarget.style.transform = "translateY(-1px)";
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.borderColor = C.border;
-              e.currentTarget.style.color = C.textMuted;
-              e.currentTarget.style.background = "transparent";
+              e.currentTarget.style.borderColor = `${C.accent}66`;
+              e.currentTarget.style.background = C.accentSoft;
+              e.currentTarget.style.transform = "translateY(0)";
             }}
           >
             {t.addDay.replace("{n}", dayCount + 1)}

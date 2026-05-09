@@ -1305,6 +1305,9 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
             // those rows showing class names.
             classes={classObj ? [classObj] : []}
             decks={decks}
+            // PR4.2: pass all units so UnitSwitcher can let the teacher
+            // pick any of them or create new ones.
+            units={units}
             activeUnit={activeUnit}
             userId={profile?.id}
             lang={lang}

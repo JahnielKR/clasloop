@@ -644,13 +644,36 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
       return null;
     }
 
+    // After-create / after-edit destination + back-button destination.
+    // PR4.2: when the editor was opened from a class context (the
+    // teacher clicked an empty slot in Plan view, or the modal "Create
+    // a new one" path), we should return TO THAT CLASS, not to the
+    // Library. Library was the editor's only entry point in v1, so a
+    // hard-coded ROUTES.DECKS made sense; with Plan view as a primary
+    // entry it doesn't anymore.
+    //
+    // Decision rule: if prefilledClassId is set on a CREATE flow, the
+    // teacher came from a class — return there. Otherwise (Library
+    // create or any edit flow), return to the Library.
+    const returnTo = (view === "create" && prefilledClassId)
+      ? buildRoute.classDetail(prefilledClassId)
+      : ROUTES.DECKS;
+
+    // Page title — when in the editor, "Library" doesn't make sense
+    // (you're not in the library, you're editing a deck). Use a
+    // context-appropriate title instead. Falls back to the editor
+    // strings already in i18n if defined; else uses sensible defaults.
+    const editorTitle = view === "edit"
+      ? (t.editDeck || (l === "es" ? "Editar deck" : l === "ko" ? "덱 편집" : "Edit deck"))
+      : (t.newDeck  || (l === "es" ? "Nuevo deck"   : l === "ko" ? "새 덱"     : "New deck"));
+
     return (
       <div style={{ padding: "28px 20px" }}>
         <style>{css}</style>
-        <PageHeader title={t.pageTitle} lang={l} setLang={setLang} maxWidth={600} onOpenMobileMenu={onOpenMobileMenu} />
+        <PageHeader title={editorTitle} lang={l} setLang={setLang} maxWidth={600} onOpenMobileMenu={onOpenMobileMenu} />
         <CreateDeckEditor
           t={t} l={l}
-          onBack={() => navigate(ROUTES.DECKS)}
+          onBack={() => navigate(returnTo)}
           userId={userId}
           userClasses={userClasses}
           existingDeck={editing}
@@ -660,7 +683,7 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
           onCreated={(d) => {
             if (editing) setMyDecks(prev => prev.map(dk => dk.id === d.id ? d : dk));
             else setMyDecks(prev => [d, ...prev]);
-            navigate(ROUTES.DECKS);
+            navigate(returnTo);
           }}
         />
       </div>
