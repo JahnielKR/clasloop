@@ -24,6 +24,7 @@ import { uploadDeckCover, deleteDeckCover } from "../../lib/deck-image-upload";
 import { analyzeDerivation } from "../../lib/deck-derivation";
 import { useIsMobile } from "../../components/MobileMenuButton";
 import { MONO } from "../../components/tokens";
+import AIIcon from "../../components/AIIcon";
 import { C, css } from "./styles";
 import { SECTIONS, DEFAULT_SECTION, isValidSection, sectionLabels, resolveClassAccent, sectionToLessonContext } from "../../lib/class-hierarchy";
 
@@ -304,7 +305,7 @@ function AIGeneratePanel({
     }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
         <h4 style={{ fontSize: 14, fontWeight: 700, margin: 0, color: C.text, display: "flex", alignItems: "center", gap: 6 }}>
-          <span aria-hidden="true">✨</span> {t.aiPanelTitle}
+          <AIIcon size={14} /> {t.aiPanelTitle}
         </h4>
         <button
           onClick={onCancel}
@@ -589,7 +590,7 @@ function AIGeneratePanel({
             {t.aiGenerating}
           </>
         ) : (
-          <>✨ {t.aiGenerateCta}</>
+          <><AIIcon size={13} style={{ marginRight: 6 }} />{t.aiGenerateCta}</>
         )}
       </button>
     </div>
@@ -1935,7 +1936,7 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
                 display: "inline-flex", alignItems: "center", gap: 6,
               }}
             >
-              <span aria-hidden="true">✨</span> {t.aiGenerateButton}
+              <AIIcon size={13} /> {t.aiGenerateButton}
             </button>
             <button className="dk-btn" onClick={openTypeSelector} disabled={showTypeSelector || showAIPanel} style={{ padding: "8px 16px", borderRadius: 8, fontSize: 13, fontWeight: 600, background: (showTypeSelector || showAIPanel) ? C.bgSoft : C.accentSoft, color: (showTypeSelector || showAIPanel) ? C.textMuted : C.accent, opacity: (showTypeSelector || showAIPanel) ? 0.6 : 1 }}>{t.addQuestion}</button>
           </div>
@@ -2744,7 +2745,7 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
                 transition: "all .15s ease",
               }}
             >
-              <span aria-hidden="true">✨</span>
+              <AIIcon size={16} />
             </button>
             <button
               className="dk-add-another"

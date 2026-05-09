@@ -6,11 +6,33 @@ import { DeckCover, SUBJ_ICON, SUBJ_COLOR, resolveColor, colorTint, DECK_COLORS 
 import { analyzeDerivation } from "../lib/deck-derivation";
 import { useIsMobile } from "../components/MobileMenuButton";
 import PageHeader from "../components/PageHeader";
-import SectionBadge from "../components/SectionBadge";
+import SectionBadge, { sectionAccent } from "../components/SectionBadge";
 import { MONO } from "../components/tokens";
 import { C, css } from "./Decks/styles";
 import CreateDeckEditor from "./Decks/CreateDeckEditor";
 import { ROUTES, QUERY, buildRoute } from "../routes";
+// PR 7: drag-to-reorder decks within a unit. Same dnd-kit setup as the
+// old All-decks view in ClassPage (which is still in the file as dead
+// code from PR 5). We re-implement here rather than extracting into a
+// shared component because the wiring is small and the contexts differ
+// (Library reorders within unit-section pairs across multiple classes).
+import {
+  DndContext,
+  PointerSensor,
+  KeyboardSensor,
+  useSensor,
+  useSensors,
+  closestCenter,
+  DragOverlay,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  arrayMove,
+  rectSortingStrategy,
+  useSortable,
+  sortableKeyboardCoordinates,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 const SUBJECTS = ["Math", "Science", "History", "Language", "Geography", "Art", "Music", "Other"];
 const GRADES = ["6th-7th", "7th-8th", "8th-9th", "9th-10th", "10th-11th", "11th-12th"];
@@ -145,6 +167,26 @@ const i18n = {
     aiError: "Something went wrong. Try again.",
     aiDroppedSomeMsg: "{kept} questions added · {dropped} skipped (incomplete)",
     aiAllDroppedMsg: "All {dropped} questions came back incomplete. Try generating again, change the source, or pick a single type.",
+    // PR 7: new Library layout (class tabs + drag-reorder grid)
+    libraryEmptyTitle: "No classes yet",
+    libraryEmptyHint: "Create a class first to start building decks. Library shows everything once your classes have content.",
+    searchPlaceholder: "Search this class…",
+    favoritesTab: "Favorites",
+    noSearchMatch: "No matches in this class.",
+    noDecksInClass: "No decks in this class yet. Open the class to start building.",
+    generalReviewsTitle: "General reviews",
+    unassignedTitle: "Unassigned",
+    unassignedHint: "Decks not yet attached to a unit.",
+    deckSingular: "deck",
+    deckPlural: "decks",
+    publicLabel: "Public",
+    edit: "Edit",
+    delete: "Delete",
+    confirmDelete: "Delete this deck? This cannot be undone.",
+    makePublic: "Make public",
+    makePrivate: "Make private",
+    confirmRemoveFav: "Remove from favorites?",
+    removeFav: "Remove",
   },
   es: {
     pageTitle: "Biblioteca", subtitle: "Explora, busca y gestiona todos tus decks — los tuyos y los favoritos guardados",
@@ -269,6 +311,25 @@ const i18n = {
     aiError: "Algo salió mal. Intenta de nuevo.",
     aiDroppedSomeMsg: "{kept} preguntas agregadas · {dropped} descartadas (incompletas)",
     aiAllDroppedMsg: "Las {dropped} preguntas vinieron incompletas. Intenta generar de nuevo, cambia el material, o elige un solo tipo.",
+    libraryEmptyTitle: "Aún no hay clases",
+    libraryEmptyHint: "Crea una clase primero para empezar a construir decks. La biblioteca muestra todo una vez que tus clases tienen contenido.",
+    searchPlaceholder: "Buscar en esta clase…",
+    favoritesTab: "Favoritos",
+    noSearchMatch: "Sin resultados en esta clase.",
+    noDecksInClass: "Aún no hay decks en esta clase. Abre la clase para empezar.",
+    generalReviewsTitle: "Repasos generales",
+    unassignedTitle: "Sin asignar",
+    unassignedHint: "Decks que aún no están asociados a ninguna unidad.",
+    deckSingular: "deck",
+    deckPlural: "decks",
+    publicLabel: "Público",
+    edit: "Editar",
+    delete: "Eliminar",
+    confirmDelete: "¿Eliminar este deck? No se puede deshacer.",
+    makePublic: "Hacer público",
+    makePrivate: "Hacer privado",
+    confirmRemoveFav: "¿Quitar de favoritos?",
+    removeFav: "Quitar",
   },
   ko: {
     pageTitle: "라이브러리", subtitle: "내 덱과 저장한 즐겨찾기 — 모두 검색하고 관리하세요",
@@ -393,6 +454,25 @@ const i18n = {
     aiError: "문제가 발생했습니다. 다시 시도하세요.",
     aiDroppedSomeMsg: "{kept}개 추가됨 · {dropped}개 건너뜀 (불완전함)",
     aiAllDroppedMsg: "{dropped}개 문제가 모두 불완전했습니다. 다시 생성하거나, 자료를 변경하거나, 단일 유형을 선택하세요.",
+    libraryEmptyTitle: "아직 수업이 없습니다",
+    libraryEmptyHint: "먼저 수업을 만들어 덱을 구성하세요. 라이브러리는 수업에 콘텐츠가 있으면 여기에 모두 표시됩니다.",
+    searchPlaceholder: "이 수업 검색…",
+    favoritesTab: "즐겨찾기",
+    noSearchMatch: "이 수업에서 결과 없음.",
+    noDecksInClass: "이 수업에 아직 덱이 없습니다. 수업을 열어 시작하세요.",
+    generalReviewsTitle: "일반 복습",
+    unassignedTitle: "미분류",
+    unassignedHint: "아직 단원에 연결되지 않은 덱.",
+    deckSingular: "덱",
+    deckPlural: "덱",
+    publicLabel: "공개",
+    edit: "편집",
+    delete: "삭제",
+    confirmDelete: "이 덱을 삭제할까요? 되돌릴 수 없습니다.",
+    makePublic: "공개로 전환",
+    makePrivate: "비공개로 전환",
+    confirmRemoveFav: "즐겨찾기에서 제거할까요?",
+    removeFav: "제거",
   },
 };
 
@@ -423,6 +503,9 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
   const [tab, setTab] = useState("myDecks"); // myDecks | favorites
   const [myDecks, setMyDecks] = useState([]);
   const [favoriteDecks, setFavoriteDecks] = useState([]);
+  // PR 7: all units across the teacher's classes, used to group decks
+  // in the new Library layout (Class → Unit → Section row of decks).
+  const [allUnits, setAllUnits] = useState([]);
   const [userId, setUserId] = useState(null);
   const [userClasses, setUserClasses] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -442,6 +525,15 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
   const [filterClass, setFilterClass] = useState("");     // "" = all
   const [groupBy, setGroupBy] = useState("class");        // class | subject | none
   const [expandedGroups, setExpandedGroups] = useState({}); // { groupKey: true } — collapsed by default
+  // PR 7: active class tab in the new Library layout. null = no class
+  // selected yet; once classes load, the first one is auto-selected.
+  // Special value "favorites" shows the favorites tab.
+  const [activeClassTab, setActiveClassTab] = useState(null);
+  // PR 7: search input for the new Library top bar. Filters across all
+  // visible decks of the active class (title, tags, subject).
+  const [librarySearch, setLibrarySearch] = useState("");
+  // PR 7: dragging deck id (for DragOverlay rendering during drag)
+  const [activeDragDeckId, setActiveDragDeckId] = useState(null);
   const t = i18n[l] || i18n.en;
 
   useEffect(() => { loadData(); }, []);
@@ -488,10 +580,31 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
 
     const { data: cls } = await supabase.from("classes").select("*").eq("teacher_id", user.id).order("created_at", { ascending: false });
     setUserClasses(cls || []);
+    // PR 7: auto-select the first class as the active tab when Library
+    // first loads. If the teacher has zero classes, leave activeClassTab
+    // null and the empty-state shows. Once they create a class, this
+    // effect won't re-run (it's part of loadData which runs once on
+    // mount), but the empty state has a "+ New class" link as escape.
+    if (cls && cls.length > 0 && activeClassTab === null) {
+      setActiveClassTab(cls[0].id);
+    }
 
     // My decks: created by user (not from community)
     const { data: mine } = await supabase.from("decks").select("*, originals:copied_from_id(id, author_id, profiles(full_name))").eq("author_id", user.id).order("created_at", { ascending: false });
     setMyDecks(mine || []);
+
+    // PR 7: all units across the teacher's classes — used to group decks
+    // in the new Library layout. Sorted by position so units appear in
+    // their canonical order within each class.
+    if (cls && cls.length > 0) {
+      const classIds = cls.map(c => c.id);
+      const { data: us } = await supabase
+        .from("units")
+        .select("*")
+        .in("class_id", classIds)
+        .order("position", { ascending: true });
+      setAllUnits(us || []);
+    }
 
     // Favorites: decks the user (as teacher) saved from Community via saved_decks table.
     // Pull saved_decks rows + join the actual deck data + author profile for "by X" labels.
@@ -596,6 +709,29 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
 
     await supabase.from("decks").update({ is_public: true, is_adapted: isAdapted }).eq("id", deck.id);
     setMyDecks(prev => prev.map(d => d.id === deck.id ? { ...d, is_public: true, is_adapted: isAdapted } : d));
+  };
+
+  // PR 7: drag-to-reorder within (class, unit, section). The teacher can
+  // reshuffle decks in a row to change their order. Updates `position`
+  // on each affected deck. Reorder happens optimistically — local state
+  // updates instantly, server catches up. If the supabase call fails the
+  // local change stands (last-write-wins is acceptable here; a deck's
+  // position is a UI hint, not a strong invariant).
+  const handleReorderDeck = async (decksInRow, fromIndex, toIndex) => {
+    if (fromIndex === toIndex) return;
+    const reordered = arrayMove(decksInRow, fromIndex, toIndex);
+    // Apply new positions: position = index in the reordered list.
+    const updates = reordered.map((d, i) => ({ id: d.id, position: i }));
+    // Optimistic local update first.
+    setMyDecks(prev => prev.map(d => {
+      const u = updates.find(x => x.id === d.id);
+      return u ? { ...d, position: u.position } : d;
+    }));
+    // Server update — one row at a time. For typical row size (5-15
+    // decks) this is fast enough and avoids needing a stored procedure.
+    for (const u of updates) {
+      await supabase.from("decks").update({ position: u.position }).eq("id", u.id);
+    }
   };
 
   if (view === "create" || view === "edit") {
@@ -907,200 +1043,179 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
       <style>{css}</style>
       <PageHeader title={t.pageTitle} lang={l} setLang={setLang} onOpenMobileMenu={onOpenMobileMenu} />
 
-      <div style={{ maxWidth: 800, margin: "0 auto" }}>
-        <p style={{ fontSize: 14, color: C.textSecondary, marginBottom: 20 }}>{t.subtitle}</p>
+      <div style={{ maxWidth: 900, margin: "0 auto" }}>
+        {/* PR 7: Library — class tabs + drag-reorder grid by unit
+            Top bar mirrors ClassPage's structure (Current/Past/Upcoming)
+            but at one level up: it's a tab per class. The teacher picks
+            which class they're browsing; the rest of the screen shows
+            that class's units with their decks (warmups + exits mixed,
+            general reviews kept separate, drag to reorder within a row).
 
-        {/* Tabs + Create button */}
-        <div style={{
-          display: "flex",
-          flexDirection: isMobile ? "column" : "row",
-          alignItems: isMobile ? "stretch" : "center",
-          justifyContent: "space-between",
-          marginBottom: 16,
-          gap: isMobile ? 10 : 8,
-        }}>
-          <div className={isMobile ? "dk-scroll-x" : ""} style={{
-            display: "flex",
-            gap: 4,
-            ...(isMobile ? { flexWrap: "nowrap", margin: "0 -20px", padding: "0 20px" } : {}),
+            Top bar layout, left to right:
+              [Spanish 1] [Spanish 3] [Math 10] [Favorites]  |  [Search...]
+            With "Favorites" as the rightmost class tab (it isn't a
+            class but it lives at the same nav level conceptually:
+            another bucket of decks). Search input on the far right
+            filters whatever class tab is active. */}
+
+        {userClasses.length === 0 && favoriteDecks.length === 0 ? (
+          // Hard empty state — no classes AND no favorites. Surface a
+          // primary action to nudge the teacher to create their first
+          // class (which is where decks come from).
+          <div style={{
+            padding: "60px 24px",
+            background: C.bg,
+            border: `1px dashed ${C.border}`,
+            borderRadius: 12,
+            textAlign: "center",
+            maxWidth: 480,
+            margin: "20px auto 0",
           }}>
-            {[["myDecks", t.myDecks, myDecks.length], ["favorites", t.favorites, favoriteDecks.length]].map(([id, label, count]) => (
-              <button key={id} className="dk-tab" onClick={() => setTab(id)} style={{
-                padding: "8px 16px", borderRadius: 8, fontSize: 13, fontWeight: 500,
-                background: tab === id ? C.accentSoft : C.bg,
-                color: tab === id ? C.accent : C.textSecondary,
-                border: `1px solid ${tab === id ? C.accent + "33" : C.border}`,
-                display: "flex", alignItems: "center", gap: 6, cursor: "pointer",
-                whiteSpace: "nowrap", flexShrink: 0,
-              }}>{label} {count > 0 && <span style={{ fontSize: 11, padding: "1px 6px", borderRadius: 8, background: tab === id ? C.accent : C.bgSoft, color: tab === id ? "#fff" : C.textMuted, fontWeight: 700 }}>{count}</span>}</button>
-            ))}
-          </div>
-          {/* PR4 follow-up: removed "+ Create deck" and "+ New class"
-              buttons from the Library header. The Library is the
-              search/browse view; deck creation now lives in My Classes
-              (Plan view → empty slot → modal → "Create a new one").
-              The teacher who wants to create something from scratch
-              opens a class first; the Library is for finding what
-              already exists. */}
-        </div>
-
-        {/* Search + Filters bar */}
-        {sourceDecks.length > 0 && (
-          <div style={{ marginBottom: 16, display: "flex", flexDirection: "column", gap: 8 }}>
-            <div style={{ position: "relative" }}>
-              <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)" }}><CIcon name="target" size={14} inline /></span>
-              <input
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                placeholder={t.search}
-                style={{ ...inp, paddingLeft: 38, width: "100%" }}
-              />
+            <div style={{
+              fontFamily: "'Outfit', sans-serif",
+              fontSize: 16, fontWeight: 700,
+              color: C.text, marginBottom: 6,
+            }}>
+              {t.libraryEmptyTitle}
             </div>
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              <select value={filterSubject} onChange={e => setFilterSubject(e.target.value)} style={{ ...sel, flex: 1, minWidth: 140 }}>
-                <option value="">{t.filterAllSubjects}</option>
-                {allSubjects.map(s => <option key={s} value={s}>{s}</option>)}
-              </select>
-              {tab === "myDecks" && (
-                <div style={{ flex: 1, minWidth: 140, display: "flex", gap: 4 }}>
-                  {userClasses.length > 0 ? (
-                    <select value={filterClass} onChange={e => setFilterClass(e.target.value)} style={{ ...sel, flex: 1, minWidth: 0 }}>
-                      <option value="">{t.filterAllClasses}</option>
-                      {userClasses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                      <option value="__unassigned__">{t.filterUnassigned}</option>
-                    </select>
-                  ) : null}
-                  {/* PR4 follow-up: removed "+ New class" button from
-                      Library. Class creation lives in My Classes (the
-                      sole place where creation happens). Library is
-                      browse-only. */}
-                </div>
-              )}
-              <select value={groupBy} onChange={e => setGroupBy(e.target.value)} style={{ ...sel, flex: 1, minWidth: 140 }}>
-                <option value="class">{t.groupBy}: {t.groupByClass}</option>
-                <option value="subject">{t.groupBy}: {t.groupBySubject}</option>
-                <option value="none">{t.groupBy}: {t.groupByNone}</option>
-              </select>
-            </div>
-          </div>
-        )}
-
-        {loading ? (
-          <p style={{ textAlign: "center", color: C.textMuted, padding: 40 }}>Loading...</p>
-        ) : sourceDecks.length === 0 ? (
-          <div className="fade-up" style={{ textAlign: "center", padding: 48 }}>
-            <CIcon name={tab === "myDecks" ? "book" : "star"} size={36} />
-            <p style={{ fontSize: 15, color: C.textMuted, marginTop: 12 }}>{tab === "myDecks" ? t.noDecks : t.noFavorites}</p>
-          </div>
-        ) : filteredDecks.length === 0 ? (
-          <div className="fade-up" style={{ textAlign: "center", padding: 32 }}>
-            <p style={{ fontSize: 14, color: C.textMuted }}>No matches</p>
+            <p style={{
+              fontSize: 13, color: C.textSecondary,
+              marginBottom: 18, lineHeight: 1.5,
+            }}>
+              {t.libraryEmptyHint}
+            </p>
           </div>
         ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-            {groups.map(group => {
-              const collapsed = !expandedGroups[group.key];
-              // Tint header by the class's subject color (when grouped by class
-              // and the group corresponds to a real class — even if empty), or
-              // by the first deck's color, or fall back to the accent.
-              const firstDeck = group.decks[0];
-              // SUBJ_COLOR returns a color id like "blue" — resolve to hex via DECK_COLORS.
-              // We need a hex (not CSS var) because the styles below use hex+alpha
-              // suffixes (groupAccent + "10" etc.) for soft tints, which don't work with var(--c-xxx).
-              const ACCENT_HEX = "#2383E2";
-              const subjId = group.classObj ? SUBJ_COLOR?.[group.classObj.subject] : null;
-              const subjAccent = subjId ? (DECK_COLORS.find(c => c.id === subjId)?.value || ACCENT_HEX) : null;
-              const groupAccent = subjAccent || (firstDeck ? resolveColor(firstDeck) : ACCENT_HEX);
-              return (
-                <div key={group.key} data-group-id={group.key}>
-                  {group.label && (
-                    <button
-                      onClick={() => toggleGroup(group.key)}
-                      className="dk-group-header"
-                      style={{
-                        width: "100%",
-                        display: "flex", alignItems: "center", gap: 12,
-                        padding: "12px 14px", marginBottom: 10,
-                        background: groupAccent + "10",
-                        border: `1px solid ${groupAccent}26`,
-                        borderRadius: 10,
-                        fontFamily: "'Outfit',sans-serif", textAlign: "left",
-                      }}
-                    >
-                      <div style={{
-                        width: 32, height: 32, borderRadius: 8,
-                        background: groupAccent,
-                        display: "flex", alignItems: "center", justifyContent: "center",
-                        flexShrink: 0,
-                        boxShadow: `0 1px 3px ${groupAccent}33`,
-                      }}>
-                        <CIcon name={group.icon} size={16} inline />
-                      </div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 14, fontWeight: 700, color: C.text, lineHeight: 1.2 }}>{group.label}</div>
-                        {group.sublabel && <div style={{ fontSize: 11, color: C.textMuted, marginTop: 2 }}>{group.sublabel}</div>}
-                      </div>
-                      <span style={{
-                        fontSize: 11, color: groupAccent,
-                        padding: "2px 9px", borderRadius: 10,
-                        background: C.bg, border: `1px solid ${groupAccent}40`,
-                        fontWeight: 700, flexShrink: 0,
-                      }}>{group.decks.length}</span>
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0, transform: collapsed ? "rotate(-90deg)" : "rotate(0deg)", transition: "transform .15s ease" }}>
-                        <path d="M6 9l6 6 6-6" stroke={C.textSecondary} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                      </svg>
-                    </button>
-                  )}
-                  {!collapsed && (
-                    group.isEmpty ? (
-                      // Empty class — minimal tile that links to the class
-                      // page where the teacher will see Plan view and the
-                      // create-from-slot flow. Library is browse-only;
-                      // creation happens inside My Classes.
-                      <div style={{ marginLeft: group.label ? 8 : 0 }}>
-                        <button
-                          onClick={() => navigate(buildRoute.classDetail(group.classObj.id))}
-                          aria-label={t.addDeckToClass}
-                          title={t.addDeckToClass}
-                          style={{
-                            width: "100%",
-                            padding: "24px 20px",
-                            background: C.bgSoft,
-                            border: `1px dashed ${C.border}`,
-                            borderRadius: 12,
-                            cursor: "pointer",
-                            display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-                            gap: 6,
-                            color: C.textMuted,
-                            fontFamily: "'Outfit',sans-serif",
-                            fontSize: 13,
-                            transition: "border-color .15s ease, color .15s ease",
-                          }}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.borderColor = groupAccent;
-                            e.currentTarget.style.color = groupAccent;
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.borderColor = C.border;
-                            e.currentTarget.style.color = C.textMuted;
-                          }}
-                        >
-                          <span style={{ fontWeight: 500 }}>
-                            {t.openClassToCreate || "Open this class to create decks"}
-                          </span>
-                          <span style={{ fontSize: 11, opacity: 0.7 }}>→ {group.classObj.name}</span>
-                        </button>
-                      </div>
-                    ) : (
-                      <div style={{ display: "flex", flexDirection: "column", gap: 10, paddingLeft: group.label ? 8 : 0 }}>
-                        {group.decks.map((dk, i) => renderDeckRow(dk, i, { isFav: tab === "favorites" }))}
-                      </div>
-                    )
-                  )}
-                </div>
-              );
-            })}
-          </div>
+          <>
+            {/* Top tabs bar — class tabs + Favorites + Search input */}
+            <div style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              marginBottom: 18,
+              background: C.bgSoft,
+              padding: 4,
+              borderRadius: 9,
+              flexWrap: "wrap",
+            }}>
+              {userClasses.map(c => {
+                const active = activeClassTab === c.id;
+                return (
+                  <button
+                    key={c.id}
+                    onClick={() => { setActiveClassTab(c.id); setLibrarySearch(""); }}
+                    style={{
+                      padding: "7px 13px",
+                      borderRadius: 7,
+                      background: active ? C.bg : "transparent",
+                      color: active ? C.text : C.textSecondary,
+                      border: "none",
+                      fontFamily: "'Outfit', sans-serif",
+                      fontSize: 13, fontWeight: active ? 600 : 500,
+                      cursor: "pointer",
+                      boxShadow: active ? "0 1px 2px rgba(0,0,0,0.04)" : "none",
+                      transition: "background .12s ease, color .12s ease",
+                    }}
+                  >
+                    {c.name}
+                  </button>
+                );
+              })}
+              {/* Favorites tab — only shown if the teacher has any favorites */}
+              {favoriteDecks.length > 0 && (
+                <>
+                  <div style={{
+                    width: 1, height: 22,
+                    background: C.border,
+                    margin: "0 4px",
+                  }} />
+                  <button
+                    onClick={() => { setActiveClassTab("favorites"); setLibrarySearch(""); }}
+                    style={{
+                      padding: "7px 13px",
+                      borderRadius: 7,
+                      background: activeClassTab === "favorites" ? C.bg : "transparent",
+                      color: activeClassTab === "favorites" ? C.text : C.textSecondary,
+                      border: "none",
+                      fontFamily: "'Outfit', sans-serif",
+                      fontSize: 13, fontWeight: activeClassTab === "favorites" ? 600 : 500,
+                      cursor: "pointer",
+                      boxShadow: activeClassTab === "favorites" ? "0 1px 2px rgba(0,0,0,0.04)" : "none",
+                      transition: "background .12s ease, color .12s ease",
+                      display: "inline-flex", alignItems: "center", gap: 5,
+                    }}
+                  >
+                    ★ {t.favoritesTab}
+                    <span style={{
+                      fontSize: 10.5, fontFamily: MONO,
+                      padding: "1px 6px", borderRadius: 9,
+                      color: C.textMuted,
+                      fontWeight: 600,
+                    }}>{favoriteDecks.length}</span>
+                  </button>
+                </>
+              )}
+              {/* Search input on the far right of the bar */}
+              <div style={{
+                flex: 1,
+                minWidth: 180,
+                maxWidth: 260,
+                marginLeft: "auto",
+              }}>
+                <input
+                  type="text"
+                  value={librarySearch}
+                  onChange={e => setLibrarySearch(e.target.value)}
+                  placeholder={t.searchPlaceholder}
+                  style={{
+                    width: "100%",
+                    padding: "7px 11px",
+                    borderRadius: 7,
+                    border: `1px solid ${librarySearch ? C.accent : C.border}`,
+                    background: C.bg,
+                    fontSize: 12.5,
+                    fontFamily: "'Inter', sans-serif",
+                    color: C.text,
+                    outline: "none",
+                    transition: "border-color .12s ease",
+                    boxSizing: "border-box",
+                  }}
+                  onFocus={e => { e.currentTarget.style.borderColor = C.accent; }}
+                  onBlur={e => { if (!librarySearch) e.currentTarget.style.borderColor = C.border; }}
+                />
+              </div>
+            </div>
+
+            {/* Active class content */}
+            {activeClassTab === "favorites" ? (
+              <FavoritesGrid
+                decks={favoriteDecks}
+                search={librarySearch}
+                t={t}
+                lang={l}
+                onCustomize={(d) => setCustomizingFav(d)}
+                onRemove={handleRemoveFavorite}
+              />
+            ) : activeClassTab ? (
+              <ClassDecksView
+                classId={activeClassTab}
+                classObj={userClasses.find(c => c.id === activeClassTab)}
+                allUnits={allUnits}
+                allDecks={myDecks}
+                search={librarySearch}
+                t={t}
+                lang={l}
+                isMobile={isMobile}
+                navigate={navigate}
+                onEdit={(d) => navigate(buildRoute.deckEdit(d.id))}
+                onDelete={handleDelete}
+                onTogglePublic={handleTogglePublic}
+                onReorder={handleReorderDeck}
+                activeDragDeckId={activeDragDeckId}
+                setActiveDragDeckId={setActiveDragDeckId}
+              />
+            ) : null}
+          </>
         )}
       </div>
 
@@ -1181,6 +1296,562 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// ─── ClassDecksView ────────────────────────────────────────────────────
+//
+// Shows all decks for a single class, grouped by unit, with section
+// rows inside each unit. Drag within a row reorders. Click on a deck
+// opens edit. Decks have inline action buttons (edit, delete, publish).
+//
+// Layout:
+//   Unit 1 — Verbo hacer    [Active]  5 decks
+//     warmup ▸ ⊙ ⊙ ⊙ ⊙
+//     exit ▸    ⊙ ⊙ ⊙
+//
+//   Unit 2 — Pretérito      [Planned]  3 decks
+//     warmup ▸ ⊙ ⊙
+//     exit ▸    ⊙
+//
+//   General reviews (no unit)
+//     ⊙ ⊙ ⊙
+//
+//   Unassigned decks (if any have unit_id=null and section ≠ general_review)
+//     warmup ▸ ⊙
+//     exit ▸    ⊙
+function ClassDecksView({
+  classId, classObj, allUnits, allDecks, search,
+  t, lang, isMobile, navigate,
+  onEdit, onDelete, onTogglePublic, onReorder,
+  activeDragDeckId, setActiveDragDeckId,
+}) {
+  // Filter to this class
+  const classDecks = allDecks.filter(d => d.class_id === classId);
+  const classUnits = allUnits.filter(u => u.class_id === classId);
+
+  // Apply search filter (title / tags / subject)
+  const q = (search || "").trim().toLowerCase();
+  const filteredDecks = q
+    ? classDecks.filter(d => {
+        const title = (d.title || "").toLowerCase();
+        const tags = (d.tags || []).join(" ").toLowerCase();
+        const subject = (d.subject || "").toLowerCase();
+        return title.includes(q) || tags.includes(q) || subject.includes(q);
+      })
+    : classDecks;
+
+  // Group by unit
+  const generalReviews = filteredDecks
+    .filter(d => d.section === "general_review")
+    .sort((a, b) => (a.position || 0) - (b.position || 0));
+  const unitGroups = classUnits.map(u => ({
+    unit: u,
+    warmups: filteredDecks
+      .filter(d => d.unit_id === u.id && d.section === "warmup")
+      .sort((a, b) => (a.position || 0) - (b.position || 0)),
+    exits: filteredDecks
+      .filter(d => d.unit_id === u.id && d.section === "exit_ticket")
+      .sort((a, b) => (a.position || 0) - (b.position || 0)),
+  }));
+  // Unassigned: decks with no unit_id and section ≠ general_review
+  const unassignedWarmups = filteredDecks
+    .filter(d => !d.unit_id && d.section === "warmup")
+    .sort((a, b) => (a.position || 0) - (b.position || 0));
+  const unassignedExits = filteredDecks
+    .filter(d => !d.unit_id && d.section === "exit_ticket")
+    .sort((a, b) => (a.position || 0) - (b.position || 0));
+
+  const totalDecks = filteredDecks.length;
+
+  if (totalDecks === 0) {
+    return (
+      <div style={{
+        padding: "32px 20px",
+        background: C.bgSoft,
+        border: `1px dashed ${C.border}`,
+        borderRadius: 10,
+        textAlign: "center",
+        color: C.textMuted,
+        fontSize: 13,
+        lineHeight: 1.5,
+      }}>
+        {q ? t.noSearchMatch : t.noDecksInClass}
+      </div>
+    );
+  }
+
+  const handleDragEnd = (rowDecks) => (event) => {
+    const { active, over } = event;
+    setActiveDragDeckId(null);
+    if (!over || active.id === over.id) return;
+    const fromIndex = rowDecks.findIndex(d => d.id === active.id);
+    const toIndex = rowDecks.findIndex(d => d.id === over.id);
+    if (fromIndex === -1 || toIndex === -1) return;
+    onReorder(rowDecks, fromIndex, toIndex);
+  };
+
+  return (
+    <>
+      {/* Unit groups */}
+      {unitGroups.map(({ unit, warmups, exits }) => {
+        if (warmups.length === 0 && exits.length === 0) return null;
+        const totalInUnit = warmups.length + exits.length;
+        return (
+          <div key={unit.id} style={{ marginBottom: 28 }}>
+            {/* Unit header */}
+            <div style={{
+              display: "flex", alignItems: "baseline",
+              gap: 10, marginBottom: 10,
+              flexWrap: "wrap",
+            }}>
+              <h3 style={{
+                fontFamily: "'Outfit', sans-serif",
+                fontSize: 15, fontWeight: 700,
+                color: C.text,
+                letterSpacing: "-0.005em",
+                margin: 0,
+              }}>
+                {unit.name}
+              </h3>
+              <span style={{
+                fontSize: 10.5, fontWeight: 600,
+                textTransform: "uppercase", letterSpacing: "0.06em",
+                padding: "2px 7px", borderRadius: 4,
+                background: unit.status === "active" ? C.greenSoft : unit.status === "closed" ? C.bgSoft : C.bgSoft,
+                color: unit.status === "active" ? C.green : unit.status === "closed" ? C.textMuted : C.textSecondary,
+              }}>
+                {unit.status === "active" ? (lang === "es" ? "Activa" : lang === "ko" ? "활성" : "Active")
+                  : unit.status === "closed" ? (lang === "es" ? "Cerrada" : lang === "ko" ? "종료" : "Closed")
+                  : (lang === "es" ? "Planeada" : lang === "ko" ? "예정" : "Planned")}
+              </span>
+              <span style={{ fontSize: 12, color: C.textMuted, fontFamily: MONO }}>
+                {totalInUnit} {totalInUnit === 1 ? t.deckSingular : t.deckPlural}
+              </span>
+            </div>
+
+            {/* Warmups row */}
+            {warmups.length > 0 && (
+              <DeckRow
+                decks={warmups}
+                section="warmup"
+                t={t} lang={lang} isMobile={isMobile} navigate={navigate}
+                onEdit={onEdit} onDelete={onDelete} onTogglePublic={onTogglePublic}
+                onDragEnd={handleDragEnd(warmups)}
+              />
+            )}
+            {/* Exit tickets row */}
+            {exits.length > 0 && (
+              <DeckRow
+                decks={exits}
+                section="exit_ticket"
+                t={t} lang={lang} isMobile={isMobile} navigate={navigate}
+                onEdit={onEdit} onDelete={onDelete} onTogglePublic={onTogglePublic}
+                onDragEnd={handleDragEnd(exits)}
+              />
+            )}
+          </div>
+        );
+      })}
+
+      {/* General reviews — outside the unit-day plan */}
+      {generalReviews.length > 0 && (
+        <div style={{ marginBottom: 28 }}>
+          <div style={{
+            display: "flex", alignItems: "baseline",
+            gap: 10, marginBottom: 10,
+          }}>
+            <h3 style={{
+              fontFamily: "'Outfit', sans-serif",
+              fontSize: 15, fontWeight: 700,
+              color: C.text,
+              margin: 0,
+            }}>
+              {t.generalReviewsTitle}
+            </h3>
+            <span style={{ fontSize: 12, color: C.textMuted, fontFamily: MONO }}>
+              {generalReviews.length} {generalReviews.length === 1 ? t.deckSingular : t.deckPlural}
+            </span>
+          </div>
+          <DeckRow
+            decks={generalReviews}
+            section="general_review"
+            t={t} lang={lang} isMobile={isMobile} navigate={navigate}
+            onEdit={onEdit} onDelete={onDelete} onTogglePublic={onTogglePublic}
+            onDragEnd={handleDragEnd(generalReviews)}
+          />
+        </div>
+      )}
+
+      {/* Unassigned (decks with no unit) */}
+      {(unassignedWarmups.length > 0 || unassignedExits.length > 0) && (
+        <div style={{ marginBottom: 28 }}>
+          <div style={{ marginBottom: 10 }}>
+            <h3 style={{
+              fontFamily: "'Outfit', sans-serif",
+              fontSize: 15, fontWeight: 700,
+              color: C.text,
+              margin: "0 0 2px",
+            }}>
+              {t.unassignedTitle}
+            </h3>
+            <p style={{ fontSize: 12, color: C.textMuted, margin: 0 }}>
+              {t.unassignedHint}
+            </p>
+          </div>
+          {unassignedWarmups.length > 0 && (
+            <DeckRow
+              decks={unassignedWarmups}
+              section="warmup"
+              t={t} lang={lang} isMobile={isMobile} navigate={navigate}
+              onEdit={onEdit} onDelete={onDelete} onTogglePublic={onTogglePublic}
+              onDragEnd={handleDragEnd(unassignedWarmups)}
+            />
+          )}
+          {unassignedExits.length > 0 && (
+            <DeckRow
+              decks={unassignedExits}
+              section="exit_ticket"
+              t={t} lang={lang} isMobile={isMobile} navigate={navigate}
+              onEdit={onEdit} onDelete={onDelete} onTogglePublic={onTogglePublic}
+              onDragEnd={handleDragEnd(unassignedExits)}
+            />
+          )}
+        </div>
+      )}
+    </>
+  );
+}
+
+// ─── DeckRow — single horizontal row of sortable deck tiles ───────────
+function DeckRow({ decks, section, t, lang, isMobile, navigate, onEdit, onDelete, onTogglePublic, onDragEnd }) {
+  const stripe = sectionAccent(section);
+  return (
+    <div style={{
+      display: "flex",
+      alignItems: "stretch",
+      gap: 10,
+      marginBottom: 10,
+    }}>
+      {/* Section label on the left */}
+      <div style={{
+        flexShrink: 0,
+        width: 90,
+        padding: "8px 10px",
+        background: "transparent",
+        borderLeft: `3px solid ${stripe}`,
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "center",
+      }}>
+        <SectionBadge section={section} lang={lang} variant="compact" />
+        <div style={{
+          fontSize: 11, color: C.textMuted, marginTop: 4,
+          fontFamily: MONO,
+        }}>
+          {decks.length}
+        </div>
+      </div>
+      {/* Sortable tiles */}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <DndContext
+          // Each row is its own DndContext so drags stay within row.
+          // The outer DndContext in ClassDecksView handles the overlay
+          // rendering but each row's onDragEnd handles its own data.
+          collisionDetection={closestCenter}
+          onDragEnd={onDragEnd}
+        >
+          <SortableContext items={decks.map(d => d.id)} strategy={rectSortingStrategy}>
+            <div style={{
+              display: "grid",
+              gridTemplateColumns: `repeat(auto-fill, minmax(${isMobile ? 140 : 170}px, 1fr))`,
+              gap: 8,
+            }}>
+              {decks.map(d => (
+                <SortableDeckTile
+                  key={d.id}
+                  deck={d}
+                  t={t} lang={lang}
+                  onEdit={onEdit}
+                  onDelete={onDelete}
+                  onTogglePublic={onTogglePublic}
+                />
+              ))}
+            </div>
+          </SortableContext>
+        </DndContext>
+      </div>
+    </div>
+  );
+}
+
+// ─── SortableDeckTile — single deck card, draggable ────────────────────
+function SortableDeckTile({ deck, t, lang, onEdit, onDelete, onTogglePublic }) {
+  const {
+    attributes, listeners, setNodeRef, transform, transition, isDragging,
+  } = useSortable({ id: deck.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.4 : 1,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style}>
+      <DeckTile
+        deck={deck}
+        t={t} lang={lang}
+        onEdit={onEdit}
+        onDelete={onDelete}
+        onTogglePublic={onTogglePublic}
+        dragHandleProps={{ ...attributes, ...listeners }}
+      />
+    </div>
+  );
+}
+
+// ─── DeckTile — visual presentation of a single deck card ─────────────
+function DeckTile({ deck, t, lang, onEdit, onDelete, onTogglePublic, dragHandleProps, isOverlay }) {
+  const stripe = sectionAccent(deck.section);
+  const qs = deck.questions || [];
+  return (
+    <div style={{
+      background: C.bg,
+      border: `1px solid ${C.border}`,
+      borderTop: `3px solid ${stripe}`,
+      borderRadius: 8,
+      padding: "10px 12px 12px",
+      position: "relative",
+      cursor: "default",
+      transition: isOverlay ? "none" : "box-shadow .12s ease, transform .12s ease",
+      boxShadow: isOverlay ? "0 8px 20px rgba(0,0,0,0.12)" : "none",
+    }}>
+      {/* Drag handle area on top — grabable everywhere except the buttons */}
+      <div
+        {...(dragHandleProps || {})}
+        style={{
+          cursor: dragHandleProps ? "grab" : "default",
+          marginBottom: 8,
+        }}
+      >
+        <div style={{
+          fontFamily: "'Outfit', sans-serif",
+          fontSize: 13, fontWeight: 600,
+          color: C.text,
+          lineHeight: 1.3,
+          marginBottom: 4,
+          // 2-line clamp
+          display: "-webkit-box",
+          WebkitLineClamp: 2,
+          WebkitBoxOrient: "vertical",
+          overflow: "hidden",
+          minHeight: 32,
+        }}>
+          {deck.title}
+        </div>
+        <div style={{
+          fontSize: 11, color: C.textMuted,
+          display: "flex", alignItems: "center", gap: 6,
+        }}>
+          <span style={{ fontFamily: MONO }}>{qs.length}q</span>
+          {deck.is_public && (
+            <>
+              <span>·</span>
+              <span style={{ color: C.green }}>● {t.publicLabel}</span>
+            </>
+          )}
+        </div>
+      </div>
+      {/* Actions */}
+      {!isOverlay && (
+        <div style={{
+          display: "flex", gap: 4,
+          paddingTop: 8,
+          borderTop: `1px solid ${C.border}`,
+        }}>
+          <button
+            onClick={() => onEdit(deck)}
+            title={t.edit}
+            style={{
+              flex: 1,
+              padding: "5px 6px",
+              borderRadius: 5,
+              background: "transparent",
+              color: C.textSecondary,
+              border: `1px solid ${C.border}`,
+              fontSize: 11,
+              fontWeight: 500,
+              cursor: "pointer",
+              fontFamily: "'Outfit', sans-serif",
+            }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = C.accent; e.currentTarget.style.color = C.accent; }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = C.border; e.currentTarget.style.color = C.textSecondary; }}
+          >
+            {t.edit}
+          </button>
+          <button
+            onClick={() => onTogglePublic(deck)}
+            title={deck.is_public ? t.makePrivate : t.makePublic}
+            style={{
+              padding: "5px 8px",
+              borderRadius: 5,
+              background: deck.is_public ? C.greenSoft : "transparent",
+              color: deck.is_public ? C.green : C.textSecondary,
+              border: `1px solid ${deck.is_public ? C.green : C.border}`,
+              fontSize: 11,
+              fontWeight: 500,
+              cursor: "pointer",
+              fontFamily: "'Outfit', sans-serif",
+            }}
+          >
+            {deck.is_public ? "●" : "○"}
+          </button>
+          <button
+            onClick={() => {
+              if (confirm(t.confirmDelete)) onDelete(deck.id);
+            }}
+            title={t.delete}
+            style={{
+              padding: "5px 8px",
+              borderRadius: 5,
+              background: "transparent",
+              color: C.textMuted,
+              border: `1px solid ${C.border}`,
+              fontSize: 11,
+              fontWeight: 500,
+              cursor: "pointer",
+              fontFamily: "'Outfit', sans-serif",
+            }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = C.red; e.currentTarget.style.color = C.red; }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = C.border; e.currentTarget.style.color = C.textMuted; }}
+          >
+            ×
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── FavoritesGrid ─────────────────────────────────────────────────────
+//
+// Simple grid of favorite decks (the ones the teacher saved from
+// Community). No drag (favorites don't have unit/position assignment),
+// no inline edit (you can't edit someone else's deck — you "customize"
+// which copies it to your own decks).
+function FavoritesGrid({ decks, search, t, lang, onCustomize, onRemove }) {
+  const q = (search || "").trim().toLowerCase();
+  const filtered = q
+    ? decks.filter(d => {
+        const title = (d.title || "").toLowerCase();
+        const tags = (d.tags || []).join(" ").toLowerCase();
+        const subject = (d.subject || "").toLowerCase();
+        return title.includes(q) || tags.includes(q) || subject.includes(q);
+      })
+    : decks;
+
+  if (filtered.length === 0) {
+    return (
+      <div style={{
+        padding: "32px 20px",
+        background: C.bgSoft,
+        border: `1px dashed ${C.border}`,
+        borderRadius: 10,
+        textAlign: "center",
+        color: C.textMuted,
+        fontSize: 13,
+      }}>
+        {q ? t.noSearchMatch : t.noFavorites}
+      </div>
+    );
+  }
+
+  return (
+    <div style={{
+      display: "grid",
+      gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))",
+      gap: 10,
+    }}>
+      {filtered.map(deck => {
+        const stripe = sectionAccent(deck.section);
+        const qs = deck.questions || [];
+        const author = deck.profiles?.full_name;
+        return (
+          <div key={deck.id} style={{
+            background: C.bg,
+            border: `1px solid ${C.border}`,
+            borderTop: `3px solid ${stripe}`,
+            borderRadius: 8,
+            padding: "10px 12px 12px",
+          }}>
+            <div style={{
+              fontFamily: "'Outfit', sans-serif",
+              fontSize: 13, fontWeight: 600,
+              color: C.text,
+              lineHeight: 1.3,
+              marginBottom: 4,
+              display: "-webkit-box",
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: "vertical",
+              overflow: "hidden",
+              minHeight: 32,
+            }}>
+              {deck.title}
+            </div>
+            <div style={{
+              fontSize: 11, color: C.textMuted,
+              marginBottom: 8,
+            }}>
+              <span style={{ fontFamily: MONO }}>{qs.length}q</span>
+              {author && <> · by {author}</>}
+            </div>
+            <div style={{
+              display: "flex", gap: 4,
+              paddingTop: 8,
+              borderTop: `1px solid ${C.border}`,
+            }}>
+              <button
+                onClick={() => onCustomize(deck)}
+                title={t.customizeFavHint}
+                style={{
+                  flex: 1,
+                  padding: "5px 6px",
+                  borderRadius: 5,
+                  background: C.accentSoft,
+                  color: C.accent,
+                  border: "none",
+                  fontSize: 11,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  fontFamily: "'Outfit', sans-serif",
+                }}
+              >
+                {t.customizeFav}
+              </button>
+              <button
+                onClick={() => {
+                  if (confirm(t.confirmRemoveFav)) onRemove(deck.id);
+                }}
+                title={t.removeFav}
+                style={{
+                  padding: "5px 8px",
+                  borderRadius: 5,
+                  background: "transparent",
+                  color: C.textMuted,
+                  border: `1px solid ${C.border}`,
+                  fontSize: 11,
+                  cursor: "pointer",
+                  fontFamily: "'Outfit', sans-serif",
+                }}
+              >
+                ×
+              </button>
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
