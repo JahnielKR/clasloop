@@ -69,6 +69,16 @@ const i18n = {
     daysCountZero: "No days planned yet",
     emptyTitle: "This unit has no decks yet",
     emptyHint: "Add a warmup or exit ticket to start building Day 1.",
+    // Phase 6: general reviews live aside the unit plan
+    generalReviewsTitle: "General reviews",
+    generalReviewsHint: "Standalone content outside the daily plan — pre-exam recaps, monthly reviews.",
+    generalReviewsEmpty: "No general reviews yet. Use these for content that doesn't fit a warmup or exit ticket.",
+    addReview: "+ Add review",
+    // Phase 6: class-wide search
+    searchPlaceholder: "Search this class — warmups, exits, reviews…",
+    searchEmpty: "No matches in this class.",
+    searchOneResult: "1 match",
+    searchResults: "{n} matches",
   },
   es: {
     dayLabel: "Día {n}",
@@ -82,6 +92,14 @@ const i18n = {
     daysCountZero: "Aún no hay días planeados",
     emptyTitle: "Esta unidad aún no tiene decks",
     emptyHint: "Añade un warmup o exit ticket para empezar el Día 1.",
+    generalReviewsTitle: "Repasos generales",
+    generalReviewsHint: "Contenido aparte del plan diario — repasos previos a examen, repasos mensuales.",
+    generalReviewsEmpty: "Aún no hay repasos. Úsalos para contenido que no encaja como warmup o exit ticket.",
+    addReview: "+ Añadir repaso",
+    searchPlaceholder: "Buscar en esta clase — warmups, exits, repasos…",
+    searchEmpty: "Sin resultados en esta clase.",
+    searchOneResult: "1 resultado",
+    searchResults: "{n} resultados",
   },
   ko: {
     dayLabel: "{n}일차",
@@ -95,6 +113,14 @@ const i18n = {
     daysCountZero: "아직 계획된 날 없음",
     emptyTitle: "이 단원에는 아직 덱이 없습니다",
     emptyHint: "워밍업이나 종료 티켓을 추가하여 1일차를 시작하세요.",
+    generalReviewsTitle: "일반 복습",
+    generalReviewsHint: "일일 계획과 별도의 자료 — 시험 전 정리, 월간 복습 등.",
+    generalReviewsEmpty: "아직 일반 복습이 없습니다. 워밍업이나 종료 티켓에 맞지 않는 자료에 사용하세요.",
+    addReview: "+ 복습 추가",
+    searchPlaceholder: "이 수업 검색 — 워밍업, 종료, 복습…",
+    searchEmpty: "이 수업에서 일치 항목 없음.",
+    searchOneResult: "1개 일치",
+    searchResults: "{n}개 일치",
   },
 };
 
@@ -359,18 +385,15 @@ function UnitSwitcher({ allUnits, activeUnit, classId, lang = "en", onSwitched }
     const nextPos = sortedUnits.length === 0
       ? 0
       : Math.max(...sortedUnits.map(u => u.position || 0)) + 1;
-    // Section: inherit from the current active unit. The schema requires
-    // a section, but Plan view doesn't care — All-decks view will show
-    // the new unit grouped under whatever section we picked. Inheriting
-    // from active is the least-surprising default.
-    const inheritedSection = activeUnit.section || "general_review";
+    // Phase 6: units no longer have a section — they're themes that
+    // contain warmups + exit tickets together. Insert with section=null.
     // Demote current active in parallel with creating the new one,
     // also marked active. Same race-tolerance as handlePick above.
     const [r1, r2] = await Promise.all([
       supabase.from("units").update({ status: "planned" }).eq("id", activeUnit.id),
       supabase.from("units").insert({
         class_id: classId,
-        section: inheritedSection,
+        section: null,
         name: trimmed,
         position: nextPos,
         status: "active",
@@ -715,6 +738,291 @@ function DayBlock({ row, t, lang, onLaunch, onSlotClick }) {
   );
 }
 
+// ─── GeneralReviewCard — compact row for a general_review deck ──────────
+//
+// Visually mirrors a filled Slot but slightly more compact since these
+// decks live "outside" the day plan. No "Day N" label, no slotted
+// position — just the deck info and a Launch button.
+function GeneralReviewCard({ deck, t, lang, onLaunch }) {
+  const stripe = sectionAccent("general_review");
+  const qs = deck.questions || [];
+  return (
+    <div
+      onClick={() => onLaunch(deck)}
+      style={{
+        background: C.bg,
+        border: `1px solid ${C.border}`,
+        borderLeft: `3px solid ${stripe}`,
+        borderRadius: 10,
+        padding: "10px 14px",
+        display: "flex",
+        alignItems: "center",
+        gap: 14,
+        cursor: "pointer",
+        transition: "transform .12s ease, box-shadow .12s ease",
+        boxShadow: "none",
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.transform = "translateY(-1px)";
+        e.currentTarget.style.boxShadow = "0 2px 8px rgba(0,0,0,0.06)";
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.transform = "translateY(0)";
+        e.currentTarget.style.boxShadow = "none";
+      }}
+    >
+      <SectionBadge section="general_review" lang={lang} />
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{
+          fontFamily: "'Outfit', sans-serif",
+          fontSize: 14, fontWeight: 600, color: C.text,
+          lineHeight: 1.3,
+          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+        }}>
+          {deck.title}
+        </div>
+        <div style={{
+          fontSize: 11.5, color: C.textSecondary,
+          marginTop: 2,
+        }}>
+          {qs.length} {t.questions}
+        </div>
+      </div>
+      <button
+        onClick={(e) => { e.stopPropagation(); onLaunch(deck); }}
+        style={{
+          padding: "6px 12px",
+          borderRadius: 7,
+          background: C.accent,
+          color: "#fff",
+          border: "none",
+          fontFamily: "'Outfit', sans-serif",
+          fontSize: 12.5, fontWeight: 600,
+          cursor: "pointer",
+          flexShrink: 0,
+        }}
+      >
+        {t.launch} →
+      </button>
+    </div>
+  );
+}
+
+// ─── GeneralReviewsBlock — separate section below the day stack ─────────
+//
+// General reviews live OUTSIDE the unit-day plan (per Jota's feedback:
+// "general no, ellos si deben estar aparte"). This block renders all
+// general_review decks of the class with a header + a small "+ Create
+// review" affordance. They don't compete visually with the day plan
+// because the day plan is the protagonist; this block is supporting
+// material the teacher reaches for occasionally (15-min mid-quarter
+// review, pre-exam recap, etc.).
+function GeneralReviewsBlock({ decks, t, lang, onLaunch, onCreate }) {
+  const reviews = decks.filter(d => d.section === "general_review");
+  return (
+    <div style={{ marginTop: 32, marginBottom: 20 }}>
+      <div style={{
+        display: "flex", alignItems: "baseline",
+        justifyContent: "space-between", gap: 10,
+        marginBottom: 12,
+      }}>
+        <div>
+          <h3 style={{
+            fontFamily: "'Outfit', sans-serif",
+            fontSize: 15, fontWeight: 700, color: C.text,
+            letterSpacing: "-0.01em",
+            marginBottom: 2,
+          }}>
+            {t.generalReviewsTitle}
+          </h3>
+          <p style={{ fontSize: 12, color: C.textMuted }}>
+            {t.generalReviewsHint}
+          </p>
+        </div>
+        <button
+          onClick={onCreate}
+          style={{
+            padding: "6px 12px",
+            borderRadius: 7,
+            background: C.bg,
+            color: C.textSecondary,
+            border: `1px dashed ${C.border}`,
+            fontFamily: "'Outfit', sans-serif",
+            fontSize: 12.5, fontWeight: 500,
+            cursor: "pointer",
+            flexShrink: 0,
+            transition: "border-color .12s ease, color .12s ease",
+          }}
+          onMouseEnter={e => {
+            e.currentTarget.style.borderColor = C.accent;
+            e.currentTarget.style.color = C.accent;
+          }}
+          onMouseLeave={e => {
+            e.currentTarget.style.borderColor = C.border;
+            e.currentTarget.style.color = C.textSecondary;
+          }}
+        >
+          {t.addReview}
+        </button>
+      </div>
+      {reviews.length === 0 ? (
+        <div style={{
+          padding: "20px 16px",
+          background: C.bgSoft,
+          border: `1px dashed ${C.border}`,
+          borderRadius: 10,
+          textAlign: "center",
+          fontSize: 12.5,
+          color: C.textMuted,
+          lineHeight: 1.5,
+        }}>
+          {t.generalReviewsEmpty}
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          {reviews.map(deck => (
+            <GeneralReviewCard
+              key={deck.id}
+              deck={deck}
+              t={t} lang={lang}
+              onLaunch={onLaunch}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── ClassSearch — global search across all decks of the class ──────────
+//
+// Searches warmups, exit tickets, and general reviews — anything in this
+// class. Results show with section badge so the teacher knows what kind
+// of deck each match is. Click a result → Launch (same as elsewhere).
+//
+// Why a search and not a filter: the teacher already sees their content
+// organized by day in Plan view. Search is for "where the heck did I put
+// the verb-irregular deck" cases — find by title/content, not browse.
+function ClassSearch({ decks, t, lang, onLaunch }) {
+  const [query, setQuery] = useState("");
+  const trimmed = query.trim().toLowerCase();
+
+  // Don't show anything until the teacher actually types — we don't want
+  // a giant unfiltered list of all decks taking up the page by default.
+  // The search is a tool, not a primary view.
+  if (!trimmed) {
+    return (
+      <div style={{ marginTop: 24, marginBottom: 20 }}>
+        <input
+          type="text"
+          value={query}
+          onChange={e => setQuery(e.target.value)}
+          placeholder={t.searchPlaceholder}
+          style={{
+            width: "100%",
+            padding: "10px 14px",
+            borderRadius: 8,
+            border: `1px solid ${C.border}`,
+            background: C.bg,
+            fontSize: 13,
+            fontFamily: "'Inter', sans-serif",
+            color: C.text,
+            outline: "none",
+            transition: "border-color .12s ease",
+          }}
+          onFocus={e => { e.currentTarget.style.borderColor = C.accent; }}
+          onBlur={e => { e.currentTarget.style.borderColor = C.border; }}
+        />
+      </div>
+    );
+  }
+
+  const matches = decks.filter(d => {
+    const title = (d.title || "").toLowerCase();
+    const tags = (d.tags || []).join(" ").toLowerCase();
+    const subject = (d.subject || "").toLowerCase();
+    return title.includes(trimmed) || tags.includes(trimmed) || subject.includes(trimmed);
+  });
+
+  return (
+    <div style={{ marginTop: 24, marginBottom: 20 }}>
+      <input
+        type="text"
+        value={query}
+        autoFocus
+        onChange={e => setQuery(e.target.value)}
+        placeholder={t.searchPlaceholder}
+        style={{
+          width: "100%",
+          padding: "10px 14px",
+          borderRadius: 8,
+          border: `1px solid ${C.accent}`,
+          background: C.bg,
+          fontSize: 13,
+          fontFamily: "'Inter', sans-serif",
+          color: C.text,
+          outline: "none",
+          marginBottom: 12,
+        }}
+      />
+      <div style={{
+        fontSize: 11, color: C.textMuted, marginBottom: 8,
+        fontFamily: MONO,
+      }}>
+        {matches.length === 0
+          ? t.searchEmpty
+          : matches.length === 1
+            ? t.searchOneResult
+            : t.searchResults.replace("{n}", matches.length)
+        }
+      </div>
+      {matches.length > 0 && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          {matches.map(deck => {
+            const stripe = sectionAccent(deck.section);
+            const qs = deck.questions || [];
+            return (
+              <div
+                key={deck.id}
+                onClick={() => onLaunch(deck)}
+                style={{
+                  background: C.bg,
+                  border: `1px solid ${C.border}`,
+                  borderLeft: `3px solid ${stripe}`,
+                  borderRadius: 8,
+                  padding: "10px 14px",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 12,
+                  cursor: "pointer",
+                  transition: "background .1s ease",
+                }}
+                onMouseEnter={e => { e.currentTarget.style.background = C.bgSoft; }}
+                onMouseLeave={e => { e.currentTarget.style.background = C.bg; }}
+              >
+                <SectionBadge section={deck.section} lang={lang} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{
+                    fontFamily: "'Outfit', sans-serif",
+                    fontSize: 13.5, fontWeight: 600, color: C.text,
+                    lineHeight: 1.3,
+                    overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                  }}>
+                    {deck.title}
+                  </div>
+                  <div style={{ fontSize: 11, color: C.textMuted, marginTop: 2 }}>
+                    {qs.length} {t.questions}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Main export ───────────────────────────────────────────────────────
 export default function PlanView({
   classId,
@@ -771,6 +1079,14 @@ export default function PlanView({
   // the matching exit ticket comes after.
   const handleAddNewDay = () => {
     setModalSlot({ slotKind: "warmup", dayNumber: dayCount + 1 });
+  };
+  // "+ Add review" in the General Reviews block — bypasses the modal
+  // (general reviews aren't slotted into a day, so the "pick from
+  // library" framing doesn't apply). Goes straight to the editor with
+  // section=general_review pre-filled. Note: NO unit_id — Phase 6
+  // detached general reviews from units permanently.
+  const handleCreateReview = () => {
+    navigate(`${ROUTES.DECKS_NEW}?${QUERY.CLASS}=${encodeURIComponent(classId)}&section=general_review`);
   };
 
   return (
@@ -901,40 +1217,59 @@ export default function PlanView({
           <button
             onClick={handleAddNewDay}
             style={{
-              // PR4.2: more visual presence than v1. The previous styling
-              // (transparent + dashed border + muted text) was too quiet —
-              // the empty slots above actually competed with it because
-              // they had the same dashed treatment but with the slot's
-              // section accent. Now: solid soft background + accent
-              // dashed border + accent text + more padding. Clearly the
-              // "next thing the teacher should do" without being noisy.
+              // Restored to the original PR4 style after the user said
+              // the PR4.2 version (accent background) didn't work as
+              // well visually. Original: transparent bg + muted dashed
+              // border + muted text. Hover lifts to accent. Reads as
+              // "available action" without being loud.
               width: "100%",
-              padding: "22px 16px",
-              marginTop: 6,
-              background: C.accentSoft,
-              border: `1.5px dashed ${C.accent}66`,
+              padding: "16px",
+              background: "transparent",
+              border: `1.5px dashed ${C.border}`,
               borderRadius: 10,
-              color: C.accent,
+              color: C.textMuted,
               fontFamily: "'Outfit', sans-serif",
-              fontSize: 14, fontWeight: 600,
+              fontSize: 13, fontWeight: 500,
               cursor: "pointer",
-              transition: "border-color .12s ease, background .12s ease, transform .12s ease",
+              transition: "border-color .12s ease, color .12s ease, background .12s ease",
             }}
             onMouseEnter={(e) => {
               e.currentTarget.style.borderColor = C.accent;
+              e.currentTarget.style.color = C.accent;
               e.currentTarget.style.background = C.accentSoft;
-              e.currentTarget.style.transform = "translateY(-1px)";
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.borderColor = `${C.accent}66`;
-              e.currentTarget.style.background = C.accentSoft;
-              e.currentTarget.style.transform = "translateY(0)";
+              e.currentTarget.style.borderColor = C.border;
+              e.currentTarget.style.color = C.textMuted;
+              e.currentTarget.style.background = "transparent";
             }}
           >
             {t.addDay.replace("{n}", dayCount + 1)}
           </button>
         </>
       )}
+
+      {/* General Reviews block — separate from the unit-day plan.
+          Phase 6: general reviews live alongside units, not inside them.
+          The teacher reaches for these when they need standalone content
+          (pre-exam recap, monthly review) that doesn't fit a warmup or
+          exit ticket slot. */}
+      <GeneralReviewsBlock
+        decks={decks}
+        t={t} lang={lang}
+        onLaunch={handleLaunch}
+        onCreate={handleCreateReview}
+      />
+
+      {/* Class-wide search — finds decks by title/tag/subject across
+          warmups, exits, and general reviews. Hidden until the teacher
+          types something so the page isn't dominated by an unfiltered
+          list. */}
+      <ClassSearch
+        decks={decks}
+        t={t} lang={lang}
+        onLaunch={handleLaunch}
+      />
 
       {/* Add-to-slot modal — opens whenever the teacher clicks an empty
           slot. Tabs let them pick from their library OR create a new one.

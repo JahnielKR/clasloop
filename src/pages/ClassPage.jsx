@@ -649,13 +649,6 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
   // (PointerSensor + KeyboardSensor below) — works on mobile, no special
   // codepath like the old HTML5 D&D needed.
   const [activeDragDeckId, setActiveDragDeckId] = useState(null);
-  // PR4: view toggle. "plan" → unit-as-protagonist (PlanView), "all" → the
-  // existing 3-tabs-by-section grid. Default is decided after data loads:
-  // if there's an active unit, default to "plan"; otherwise "all". The
-  // teacher can flip with the tabs at the top of the page. We start at
-  // null and the data-loaded effect sets the initial value once it knows
-  // whether an active unit exists — this avoids a flash of the wrong view.
-  const [viewMode, setViewMode] = useState(null);
   // PR4 follow-up: bump this to force a re-fetch of decks/units. Used
   // when AddToSlotModal updates a deck's unit_id and we need ClassPage
   // to reflect the change without a full page reload.
@@ -717,15 +710,6 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
       setClassObj(classRes.data);
       setDecks(decksRes.data || []);
       setUnits(unitsRes.data || []);
-      // PR4: pick initial view mode based on whether there's an active
-      // unit. We only set viewMode here on the first load (when it's
-      // still null) so subsequent re-fetches don't override the
-      // teacher's manual choice. If they explicitly switched to "all
-      // decks" we respect that.
-      if (viewMode === null) {
-        const initialActiveUnit = pickActiveUnit(unitsRes.data || []);
-        setViewMode(initialActiveUnit ? "plan" : "all");
-      }
       setLoading(false);
     })();
     return () => { cancelled = true; };
@@ -839,20 +823,24 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
     if (trimmed.length > 60) { setNewUnitError(t.unitErrorTooLong); return; }
     setNewUnitError("");
     setCreatingUnit(true);
-    // Position = max + 1 within (class, section) so it lands at the end of
-    // the chip row. Computing client-side is fine for the small N we expect
-    // per section; under serious load we'd switch to a DB trigger.
-    const sectionUnits = units.filter(u => u.section === activeSection);
-    const nextPos = sectionUnits.length === 0
+    // Phase 6: units no longer belong to a section — they're themes.
+    // Position is across ALL units in the class (not per-section).
+    const nextPos = units.length === 0
       ? 0
-      : Math.max(...sectionUnits.map(u => u.position || 0)) + 1;
+      : Math.max(...units.map(u => u.position || 0)) + 1;
+    // First unit in a class becomes 'active' so PlanView has something
+    // to show. If the class already had units (shouldn't happen here
+    // since this handler runs from the empty-state, but defensive),
+    // any subsequent one goes 'planned' to preserve the existing active.
+    const newStatus = units.length === 0 ? "active" : "planned";
     const { data, error } = await supabase
       .from("units")
       .insert({
         class_id: classObj.id,
-        section: activeSection,
+        section: null,
         name: trimmed,
         position: nextPos,
+        status: newStatus,
       })
       .select()
       .single();
@@ -1234,64 +1222,9 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
         </div>
       </div>
 
-      {/* PR4: View toggle — Plan vs All decks. Only shown if the class has
-          at least one unit (otherwise "Plan" has nothing to show, and the
-          class falls into the legacy 3-tabs-by-section view exclusively).
-          The toggle sits ABOVE the section tabs because it's the higher-
-          level decision: "am I planning or am I browsing my whole library?"
-          Each view has its own internal navigation. */}
-      {units.length > 0 && (
-        <div style={{
-          display: "flex",
-          gap: 4,
-          marginBottom: 14,
-          background: C.bgSoft,
-          padding: 3,
-          borderRadius: 8,
-          width: "fit-content",
-        }}>
-          <button
-            onClick={() => setViewMode("plan")}
-            style={{
-              padding: "6px 14px",
-              borderRadius: 6,
-              fontSize: 12.5,
-              fontWeight: 500,
-              fontFamily: "'Outfit', sans-serif",
-              background: viewMode === "plan" ? C.bg : "transparent",
-              color: viewMode === "plan" ? C.text : C.textSecondary,
-              border: "none",
-              cursor: "pointer",
-              boxShadow: viewMode === "plan" ? "0 1px 2px rgba(0,0,0,0.04)" : "none",
-              transition: "background .12s ease, color .12s ease",
-            }}
-          >
-            ▦ Plan
-          </button>
-          <button
-            onClick={() => setViewMode("all")}
-            style={{
-              padding: "6px 14px",
-              borderRadius: 6,
-              fontSize: 12.5,
-              fontWeight: 500,
-              fontFamily: "'Outfit', sans-serif",
-              background: viewMode === "all" ? C.bg : "transparent",
-              color: viewMode === "all" ? C.text : C.textSecondary,
-              border: "none",
-              cursor: "pointer",
-              boxShadow: viewMode === "all" ? "0 1px 2px rgba(0,0,0,0.04)" : "none",
-              transition: "background .12s ease, color .12s ease",
-            }}
-          >
-            ▥ All decks
-          </button>
-        </div>
-      )}
-
       {/* Plan view path: render PlanView and skip the section tabs / dnd
           grid below. PlanView is its own self-contained component. */}
-      {viewMode === "plan" && units.length > 0 && (() => {
+      {units.length > 0 && (() => {
         const activeUnit = pickActiveUnit(units);
         if (!activeUnit) return null;
         return (
@@ -1322,412 +1255,121 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
         );
       })()}
 
-      {/* All-decks view path: the existing 3-tabs-by-section grid with
-          dnd-kit reorder. Kept exactly as it was — the Plan view is purely
-          additive. Wrapped in a conditional so when viewMode==='plan' the
-          tabs and grid disappear. */}
-      {viewMode !== "plan" && (
-      <>
-      {/* Tabs */}
-      <div style={{
-        display: "flex",
-        gap: 4,
-        marginBottom: 16,
-        borderBottom: `1px solid ${C.border}`,
-        overflowX: "auto",
-        WebkitOverflowScrolling: "touch",
-      }}>
-        {SECTIONS.map(s => (
-          <SectionTab
-            key={s.id}
-            section={s}
-            label={sLabels[s.id]?.name || s.id}
-            count={(decksBySection[s.id] || []).length}
-            active={s.id === activeSection}
-            accent={accent}
-            onClick={() => setActiveSection(s.id)}
-          />
-        ))}
-      </div>
-
-      {/* DndContext wraps the entire listing zone (header + chips + groups
-          OR flat grid). Sensors include PointerSensor with a 6px activation
-          distance so plain clicks don't accidentally start a drag, plus
-          KeyboardSensor for full a11y. closestCenter is the standard
-          collision strategy for grid-shaped sortables. */}
-      <DndContext
-        sensors={sensors}
-        collisionDetection={closestCenter}
-        onDragStart={handleDragStart}
-        onDragEnd={handleDragEnd}
-        onDragCancel={handleDragCancel}
-      >
-
-      {/* Section header: count + new button */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12, gap: 12 }}>
-        <span style={{ fontSize: 12, color: C.textSecondary, fontFamily: "'Outfit',sans-serif" }}>
-          {t.countWithSection.replace("{count}", String(activeDecks.length)).replace("{label}", activeLabel.toLowerCase())}
-        </span>
-        <button
-          onClick={() => navigate(`${ROUTES.DECKS_NEW}?${QUERY.CLASS}=${encodeURIComponent(classObj.id)}&section=${encodeURIComponent(activeSection)}`)}
-          className="clp-lift"
-          style={{
-            padding: "7px 12px",
-            borderRadius: 8,
-            background: accent,
-            color: "#fff",
-            border: "none",
-            fontSize: 12,
-            fontWeight: 600,
-            cursor: "pointer",
-            fontFamily: "'Outfit',sans-serif",
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 5,
-            whiteSpace: "nowrap",
-            boxShadow: `0 1px 3px ${accent}33`,
-          }}
-        >
-          <span style={{ fontSize: 14, lineHeight: 1, fontWeight: 700 }}>+</span>
-          {activeNewLabel}
-        </button>
-      </div>
-
-      {/* Unit filter chips + create-unit button. Shown whenever there's at
-          least one unit in the section, OR the teacher hasn't created any
-          yet but there are decks (to expose the "+ Unit" affordance). When
-          the section is empty AND has no units, hide entirely so the
-          empty state of decks is the only message. */}
-      {(unitsForSection.length > 0 || activeDecks.length > 0) && (
-        <div style={{ marginBottom: 14 }}>
+      {/* Empty state — class has no units yet. Phase 6: with All-decks
+          view removed, this is the entry point for new teachers. We show
+          a simple call to action that creates the first unit.
+          Inline-create UI: input + button. State for this lives in
+          ClassPage already (newUnitName, handleCreateUnit etc.) since
+          the All-decks view used it; with All-decks gone we still keep
+          the handler and just trigger it from this empty state instead. */}
+      {units.length === 0 && !loading && classObj && (
+        <div style={{
+          padding: "48px 24px",
+          background: C.bg,
+          border: `1px dashed ${C.border}`,
+          borderRadius: 12,
+          textAlign: "center",
+          maxWidth: 480,
+          margin: "0 auto",
+        }}>
           <div style={{
-            display: "flex",
-            flexWrap: "wrap",
-            gap: 6,
-            alignItems: "center",
+            fontFamily: "'Outfit', sans-serif",
+            fontSize: 16, fontWeight: 700,
+            color: C.text,
+            marginBottom: 6,
           }}>
-            {/* "All" chip */}
+            {lang === "es" ? "Crea tu primera unidad"
+              : lang === "ko" ? "첫 단원 만들기"
+              : "Create your first unit"}
+          </div>
+          <div style={{
+            fontSize: 13, color: C.textSecondary,
+            marginBottom: 18, lineHeight: 1.5,
+          }}>
+            {lang === "es"
+              ? "Una unidad es un tema — \"Verbo hacer\", \"Subjuntivo\". Los warmups y exit tickets de cada día viven dentro de la unidad."
+              : lang === "ko"
+              ? "단원은 주제입니다 — \"동사 hacer\", \"가정법\". 매일의 워밍업과 종료 티켓이 단원 안에 들어갑니다."
+              : "A unit is a theme — \"Verb hacer\", \"Subjunctive\". The warmups and exit tickets of each day live inside it."
+            }
+          </div>
+          {!showNewUnit ? (
             <button
-              onClick={() => setUnitFilter(null)}
-              className="cl-unit-chip"
+              onClick={() => { setShowNewUnit(true); setNewUnitError(""); }}
               style={{
-                padding: "5px 11px",
-                borderRadius: 999,
-                fontSize: 12,
-                fontWeight: 600,
-                fontFamily: "'Outfit',sans-serif",
-                background: unitFilter === null ? accent : C.bgSoft,
-                color: unitFilter === null ? "#fff" : C.textSecondary,
-                border: `1px solid ${unitFilter === null ? accent : C.border}`,
+                padding: "10px 20px",
+                borderRadius: 8,
+                background: C.accent,
+                color: "#fff",
+                border: "none",
+                fontFamily: "'Outfit', sans-serif",
+                fontSize: 13.5, fontWeight: 600,
                 cursor: "pointer",
-                whiteSpace: "nowrap",
               }}
             >
-              {t.unitsAll} <span style={{ opacity: .8, marginLeft: 2 }}>({activeDecks.length})</span>
+              {lang === "es" ? "+ Nueva unidad"
+                : lang === "ko" ? "+ 새 단원"
+                : "+ New unit"}
             </button>
-            {/* One chip per unit */}
-            {unitsForSection.map(u => {
-              const count = activeDecks.filter(d => d.unit_id === u.id).length;
-              const isActive = unitFilter === u.id;
-              return (
-                <button
-                  key={u.id}
-                  onClick={() => setUnitFilter(u.id)}
-                  className="cl-unit-chip"
-                  style={{
-                    padding: "5px 11px",
-                    borderRadius: 999,
-                    fontSize: 12,
-                    fontWeight: 600,
-                    fontFamily: "'Outfit',sans-serif",
-                    background: isActive ? accent : C.bgSoft,
-                    color: isActive ? "#fff" : C.textSecondary,
-                    border: `1px solid ${isActive ? accent : C.border}`,
-                    cursor: "pointer",
-                    whiteSpace: "nowrap",
-                    maxWidth: 200,
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                  }}
-                  title={u.name}
-                >
-                  {u.name} <span style={{ opacity: .8, marginLeft: 2 }}>({count})</span>
-                </button>
-              );
-            })}
-            {/* "+ Unit" button — opens the inline create form. */}
-            {!showNewUnit && (
-              <button
-                onClick={() => { setShowNewUnit(true); setNewUnitError(""); }}
-                style={{
-                  padding: "5px 11px",
-                  borderRadius: 999,
-                  fontSize: 12,
-                  fontWeight: 600,
-                  fontFamily: "'Outfit',sans-serif",
-                  background: "transparent",
-                  color: accent,
-                  border: `1px dashed ${accent}66`,
-                  cursor: "pointer",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {t.unitNew}
-              </button>
-            )}
-          </div>
-
-          {/* Inline create-unit form. Inputs autofocus so the teacher can
-              just type → Enter without grabbing the mouse. */}
-          {showNewUnit && (
-            <div className="ns-fade" style={{
-              marginTop: 8,
-              display: "flex",
-              gap: 6,
-              alignItems: "center",
-              flexWrap: "wrap",
+          ) : (
+            <div style={{
+              display: "flex", gap: 6, justifyContent: "center",
+              alignItems: "flex-start", flexWrap: "wrap",
             }}>
               <input
                 type="text"
                 value={newUnitName}
-                onChange={(e) => { setNewUnitName(e.target.value); if (newUnitError) setNewUnitError(""); }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !creatingUnit) handleCreateUnit();
-                  if (e.key === "Escape") { setShowNewUnit(false); setNewUnitName(""); setNewUnitError(""); }
-                }}
-                placeholder={t.unitNamePlaceholder}
                 autoFocus
-                disabled={creatingUnit}
+                placeholder={lang === "es" ? "Nombre de unidad…"
+                  : lang === "ko" ? "단원 이름…"
+                  : "Unit name…"}
+                onChange={e => setNewUnitName(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === "Enter" && !creatingUnit) handleCreateUnit();
+                  else if (e.key === "Escape") { setShowNewUnit(false); setNewUnitName(""); }
+                }}
                 maxLength={60}
                 style={{
-                  flex: "1 1 220px",
-                  minWidth: 0,
-                  fontFamily: "'Outfit',sans-serif",
+                  padding: "9px 12px",
+                  borderRadius: 7,
+                  border: `1px solid ${newUnitError ? C.red : C.border}`,
                   fontSize: 13,
-                  padding: "7px 11px",
-                  border: `1px solid ${C.border}`,
-                  borderRadius: 8,
+                  fontFamily: "'Inter', sans-serif",
                   background: C.bg,
-                  color: C.text,
                   outline: "none",
+                  width: 220,
                 }}
               />
               <button
                 onClick={handleCreateUnit}
-                disabled={creatingUnit || !newUnitName.trim()}
-                style={{
-                  padding: "7px 14px",
-                  borderRadius: 8,
-                  fontSize: 12,
-                  fontWeight: 600,
-                  fontFamily: "'Outfit',sans-serif",
-                  background: (creatingUnit || !newUnitName.trim()) ? C.bgSoft : accent,
-                  color: (creatingUnit || !newUnitName.trim()) ? C.textMuted : "#fff",
-                  border: "none",
-                  cursor: (creatingUnit || !newUnitName.trim()) ? "default" : "pointer",
-                }}
-              >
-                {creatingUnit ? "…" : t.unitCreate}
-              </button>
-              <button
-                onClick={() => { setShowNewUnit(false); setNewUnitName(""); setNewUnitError(""); }}
                 disabled={creatingUnit}
                 style={{
-                  padding: "7px 12px",
-                  borderRadius: 8,
-                  fontSize: 12,
-                  fontWeight: 500,
-                  fontFamily: "'Outfit',sans-serif",
-                  background: "transparent",
-                  color: C.textMuted,
-                  border: `1px solid ${C.border}`,
-                  cursor: creatingUnit ? "default" : "pointer",
+                  padding: "9px 16px",
+                  borderRadius: 7,
+                  background: C.accent,
+                  color: "#fff",
+                  border: "none",
+                  fontFamily: "'Outfit', sans-serif",
+                  fontSize: 13, fontWeight: 600,
+                  cursor: creatingUnit ? "wait" : "pointer",
+                  opacity: creatingUnit ? 0.6 : 1,
                 }}
               >
-                {t.unitCancel}
+                {lang === "es" ? "Crear" : lang === "ko" ? "만들기" : "Create"}
               </button>
               {newUnitError && (
-                <div style={{ flexBasis: "100%", fontSize: 11, color: C.red, fontFamily: "'Outfit',sans-serif" }}>
+                <div style={{
+                  width: "100%",
+                  fontSize: 11,
+                  color: C.red,
+                  marginTop: 4,
+                }}>
                   {newUnitError}
                 </div>
               )}
             </div>
           )}
-
-          {/* Hint when there are decks but no units yet — soft nudge,
-              not a blocker. Disappears as soon as the teacher creates
-              their first unit. */}
-          {unitsForSection.length === 0 && activeDecks.length > 0 && !showNewUnit && (
-            <div style={{
-              marginTop: 8,
-              fontSize: 11,
-              color: C.textMuted,
-              fontFamily: "'Outfit',sans-serif",
-              fontStyle: "italic",
-            }}>
-              {t.unitNoUnitsHint}
-            </div>
-          )}
         </div>
-      )}
-
-      {/* Deck list (or empty state) — three modes:
-            1. activeDecks empty                      → empty state
-            2. unitFilter set or no units exist        → flat grid (filteredDecks)
-            3. unitFilter null AND units exist         → grouped by unit */}
-      {activeDecks.length === 0 ? (
-        <div style={{
-          background: C.bg,
-          border: `1px dashed ${C.border}`,
-          borderRadius: 12,
-          padding: "40px 20px",
-          textAlign: "center",
-          color: C.textMuted,
-          fontSize: 13,
-          fontFamily: "'Outfit',sans-serif",
-        }}>
-          {activeEmptyLabel}
-        </div>
-      ) : groupedByUnit ? (
-        <div className="ns-fade" style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-          {groupedByUnit.map(({ unit, decks: groupDecks }) => {
-            // Key for the collapse state — real id for units, sentinel for unsorted.
-            const groupKey = unit ? unit.id : "__unsorted__";
-            const isCollapsed = collapsedUnits.has(groupKey);
-            return (
-              <div key={groupKey}>
-                {/* Group header is now a button so the whole row is clickable
-                    (chevron + name + count). Caret rotates 90° to signal
-                    state. Headers default to expanded — collapse is opt-in. */}
-                <button
-                  onClick={() => toggleUnitCollapsed(groupKey)}
-                  aria-expanded={!isCollapsed}
-                  className="cl-unit-group-toggle"
-                  style={{
-                    width: "100%",
-                    background: "transparent",
-                    border: "none",
-                    padding: "4px 2px",
-                    margin: "0 0 8px",
-                    cursor: "pointer",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 6,
-                    textAlign: "left",
-                    fontFamily: "'Outfit',sans-serif",
-                    fontSize: 12,
-                    fontWeight: 700,
-                    color: unit ? C.text : C.textMuted,
-                    fontStyle: unit ? "normal" : "italic",
-                    borderRadius: 6,
-                    transition: "background .12s ease",
-                  }}
-                >
-                  <svg
-                    width="12" height="12" viewBox="0 0 24 24" fill="none"
-                    style={{
-                      transition: "transform .15s ease",
-                      transform: isCollapsed ? "rotate(0deg)" : "rotate(90deg)",
-                      flexShrink: 0,
-                      color: C.textMuted,
-                    }}
-                  >
-                    <path d="M9 6l6 6-6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                  <span>{unit ? unit.name : t.unitsUnsorted}</span>
-                  <span style={{ fontWeight: 500, color: C.textMuted, marginLeft: 2 }}>· {groupDecks.length}</span>
-                </button>
-                {!isCollapsed && (
-                  <SortableContext items={groupDecks.map(d => d.id)} strategy={rectSortingStrategy}>
-                    <div style={{
-                      display: "grid",
-                      gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fill, minmax(220px, 1fr))",
-                      gap: 12,
-                    }}>
-                      {groupDecks.map(deck => (
-                        <SortableDeckCard
-                          key={deck.id}
-                          deck={deck}
-                          accent={accent}
-                          t={t}
-                          lang={lang}
-                          units={unitsForSection}
-                          onChangeUnit={handleChangeDeckUnit}
-                          onOpen={() => navigate(buildRoute.sessionsOptions(deck.id))}
-                        />
-                      ))}
-                    </div>
-                  </SortableContext>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      ) : filteredDecks.length === 0 ? (
-        <div style={{
-          background: C.bg,
-          border: `1px dashed ${C.border}`,
-          borderRadius: 12,
-          padding: "30px 20px",
-          textAlign: "center",
-          color: C.textMuted,
-          fontSize: 12,
-          fontFamily: "'Outfit',sans-serif",
-        }}>
-          —
-        </div>
-      ) : (
-        <SortableContext items={filteredDecks.map(d => d.id)} strategy={rectSortingStrategy}>
-          <div
-            className="ns-fade"
-            style={{
-              display: "grid",
-              gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fill, minmax(220px, 1fr))",
-              gap: 12,
-            }}
-          >
-            {filteredDecks.map(deck => (
-              <SortableDeckCard
-                key={deck.id}
-                deck={deck}
-                accent={accent}
-                t={t}
-                lang={lang}
-                units={unitsForSection}
-                onChangeUnit={handleChangeDeckUnit}
-                onOpen={() => navigate(buildRoute.sessionsOptions(deck.id))}
-              />
-            ))}
-          </div>
-        </SortableContext>
-      )}
-
-      {/* DragOverlay renders a floating preview of the active card while
-          a drag is in flight. We pass isOverlay so the card hides its unit
-          dropdown and gets a soft shadow. The original card stays in the
-          grid (faded via isDragging) so the layout doesn't reflow until
-          the drop happens — that's what gives the "cards animate aside"
-          feel. dropAnimation set to a snappy duration so the overlay
-          settles into its new slot quickly when released. */}
-      <DragOverlay dropAnimation={{ duration: 200, easing: "cubic-bezier(0.18, 0.67, 0.6, 1.22)" }}>
-        {activeDragDeckId ? (() => {
-          const activeDeck = decks.find(d => d.id === activeDragDeckId);
-          if (!activeDeck) return null;
-          return (
-            <DeckCard
-              deck={activeDeck}
-              accent={accent}
-              t={t}
-              lang={lang}
-              units={unitsForSection}
-              isOverlay
-            />
-          );
-        })() : null}
-      </DragOverlay>
-
-      </DndContext>
-      </>
       )}
 
       {/* Edit class modal */}
