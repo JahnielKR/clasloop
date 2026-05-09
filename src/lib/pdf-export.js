@@ -193,6 +193,15 @@ export async function exportAnswerKeyPDF(deck, classObj, lang = "en") {
       doc.addPage();
       y = PAGE.marginY;
     }
+    // Match questions get a special block layout instead of one
+    // long line — a comma-separated list of pairs is unreadable when
+    // there are 4-5 pairs. Each pair on its own bulleted line, all
+    // wrapped in a soft gray box so the teacher can scan match
+    // answers separately from the rest.
+    if (questions[i].type === "match") {
+      y = drawMatchAnswerBlock(doc, questions[i], i + 1, y, fontFamily);
+      continue;
+    }
     const answerText = formatAnswerForKey(questions[i], labels);
     // Wrap in case the answer is long (e.g. sentence answer)
     const wrapped = doc.splitTextToSize(`${i + 1}. ${answerText}`, PAGE.contentWidth);
@@ -518,6 +527,119 @@ function estimateQuestionHeight(q) {
   return base + promptLines * 5 + response + SPACING.betweenQuestions;
 }
 
+// Draw a match question's answer as a bulleted block with a soft gray
+// outline. Used in the answer key PDF only — match has too many pairs
+// (typically 4-5) to fit comfortably on one comma-separated line.
+//
+// Layout:
+//   ┌─────────────────────────────────┐
+//   │ 3. Match                        │  ← question number + label
+//   │   • hacer  →  to do             │  ← one pair per row
+//   │   • ser    →  to be             │
+//   │   • estar  →  to be (location)  │
+//   └─────────────────────────────────┘
+//
+// The box auto-page-breaks if there isn't enough room for at least
+// the header + 1 pair; otherwise it carries onto the next page.
+function drawMatchAnswerBlock(doc, q, num, startY, fontFamily) {
+  const pairs = Array.isArray(q.pairs) ? q.pairs : [];
+  if (pairs.length === 0) {
+    // Defensive: malformed match → fallback to plain "{num}. —"
+    doc.text(`${num}. —`, PAGE.marginX, startY);
+    return startY + 7;
+  }
+
+  const headerHeight = 7;
+  const rowHeight = 5.5;
+  const padTop = 4;
+  const padBottom = 4;
+  const padX = 5;
+  const arrowGap = 6;
+
+  // Estimate total block height. If header + at least one row doesn't
+  // fit, page-break before drawing.
+  const minNeeded = headerHeight + padTop + rowHeight + padBottom;
+  if (startY + minNeeded > PAGE.height - PAGE.marginY) {
+    doc.addPage();
+    startY = PAGE.marginY;
+  }
+
+  let y = startY;
+
+  // Compute width of the longest left-side text so we can align the
+  // arrows in a column. This is the only reason match needs its own
+  // renderer — alignment makes the block scannable.
+  doc.setFont(fontFamily, "normal");
+  doc.setFontSize(FONT.questionText);
+  let maxLeftWidth = 0;
+  for (const p of pairs) {
+    const w = doc.getTextWidth(String(p.left || ""));
+    if (w > maxLeftWidth) maxLeftWidth = w;
+  }
+  // Cap the left column so very long lefts don't push rights off-page.
+  const maxLeftAllowed = PAGE.contentWidth * 0.45;
+  if (maxLeftWidth > maxLeftAllowed) maxLeftWidth = maxLeftAllowed;
+
+  // Total block height (after wrapping):
+  const totalRows = pairs.length;
+  const blockHeight = padTop + headerHeight + (totalRows * rowHeight) + padBottom;
+
+  // Draw box outline first — so text overlays cleanly.
+  doc.setDrawColor(220, 220, 220);
+  doc.setFillColor(250, 250, 248);
+  doc.setLineWidth(0.3);
+  doc.roundedRect(
+    PAGE.marginX,
+    y,
+    PAGE.contentWidth,
+    blockHeight,
+    1.5, 1.5,
+    "FD"   // Fill + Draw
+  );
+
+  // Header inside the box
+  y += padTop + 4;
+  doc.setFont(fontFamily, "bold");
+  doc.setTextColor(40, 40, 40);
+  doc.text(`${num}.`, PAGE.marginX + padX, y);
+  doc.setFont(fontFamily, "normal");
+  doc.setTextColor(110, 110, 110);
+  doc.setFontSize(FONT.meta);
+  doc.text("(match)", PAGE.marginX + padX + 8, y);
+  y += 4;
+
+  // Pair rows — bullet, left text, arrow, right text
+  doc.setFontSize(FONT.questionText);
+  doc.setTextColor(40, 40, 40);
+  for (const p of pairs) {
+    if (y + rowHeight > PAGE.height - PAGE.marginY - padBottom) {
+      // Edge case: very long match runs off-page. Page-break and
+      // continue without a new box (good enough for rare cases).
+      doc.addPage();
+      y = PAGE.marginY;
+    }
+    // Bullet
+    doc.setFillColor(140, 140, 140);
+    doc.circle(PAGE.marginX + padX + 2, y - 1.4, 0.7, "F");
+    // Left
+    const leftText = doc.splitTextToSize(String(p.left || ""), maxLeftAllowed)[0];
+    doc.text(leftText, PAGE.marginX + padX + 6, y);
+    // Arrow column at fixed X (after maxLeftWidth + gap)
+    const arrowX = PAGE.marginX + padX + 6 + maxLeftWidth + arrowGap;
+    doc.setTextColor(140, 140, 140);
+    doc.text("→", arrowX, y);
+    // Right
+    doc.setTextColor(40, 40, 40);
+    const rightStartX = arrowX + 5;
+    const rightMaxWidth = PAGE.marginX + PAGE.contentWidth - rightStartX - padX;
+    const rightText = doc.splitTextToSize(String(p.right || ""), rightMaxWidth)[0];
+    doc.text(rightText, rightStartX, y);
+    y += rowHeight;
+  }
+  y += padBottom;
+  return y;
+}
+
 // Format a single question's answer for the answer-key PDF.
 // The output is one short string regardless of question type.
 //
@@ -528,8 +650,8 @@ function estimateQuestionHeight(q) {
 //   order:  q.items in correct order (the question presents them shuffled
 //           but stores the canonical order)
 //   match:  q.pairs = [{ left, right }] — pairs are stored matched.
-//           The exam shuffles them visually but the answer key just
-//           lists them as left → right.
+//           Renders as a bulleted block via drawMatchAnswerBlock, NOT
+//           through this function.
 //   slider: q.correct = number, q.tolerance optional
 //   sentence/free/open: free-form, no canonical answer
 //
