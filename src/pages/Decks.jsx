@@ -179,6 +179,7 @@ const i18n = {
     unassignedHint: "Decks not yet attached to a unit.",
     deckSingular: "deck",
     deckPlural: "decks",
+    questionSingular: "question", questionPlural: "questions",
     publicLabel: "Public",
     edit: "Edit",
     delete: "Delete",
@@ -322,6 +323,7 @@ const i18n = {
     unassignedHint: "Decks que aún no están asociados a ninguna unidad.",
     deckSingular: "deck",
     deckPlural: "decks",
+    questionSingular: "pregunta", questionPlural: "preguntas",
     publicLabel: "Público",
     edit: "Editar",
     delete: "Eliminar",
@@ -465,6 +467,7 @@ const i18n = {
     unassignedHint: "아직 단원에 연결되지 않은 덱.",
     deckSingular: "덱",
     deckPlural: "덱",
+    questionSingular: "문제", questionPlural: "문제",
     publicLabel: "공개",
     edit: "편집",
     delete: "삭제",
@@ -534,6 +537,22 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
   const [librarySearch, setLibrarySearch] = useState("");
   // PR 7: dragging deck id (for DragOverlay rendering during drag)
   const [activeDragDeckId, setActiveDragDeckId] = useState(null);
+  // PR 7.1: which unit groups are collapsed in Library. Default empty
+  // (all expanded on entry). Lives in memory only — on next visit to
+  // Library everything is expanded again. Per teacher feedback: "when
+  // you go to library [units] are open like now, [but] you can hide if
+  // you want". The set is keyed by a string: unit.id for normal units,
+  // "__general__" for the general-reviews group, "__unassigned__" for
+  // the orphan group.
+  const [collapsedUnits, setCollapsedUnits] = useState(new Set());
+  const toggleCollapsed = (key) => {
+    setCollapsedUnits(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
   const t = i18n[l] || i18n.en;
 
   useEffect(() => { loadData(); }, []);
@@ -1213,6 +1232,8 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
                 onReorder={handleReorderDeck}
                 activeDragDeckId={activeDragDeckId}
                 setActiveDragDeckId={setActiveDragDeckId}
+                collapsedUnits={collapsedUnits}
+                toggleCollapsed={toggleCollapsed}
               />
             ) : null}
           </>
@@ -1326,6 +1347,7 @@ function ClassDecksView({
   t, lang, isMobile, navigate,
   onEdit, onDelete, onTogglePublic, onReorder,
   activeDragDeckId, setActiveDragDeckId,
+  collapsedUnits, toggleCollapsed,
 }) {
   // Filter to this class
   const classDecks = allDecks.filter(d => d.class_id === classId);
@@ -1398,14 +1420,40 @@ function ClassDecksView({
       {unitGroups.map(({ unit, warmups, exits }) => {
         if (warmups.length === 0 && exits.length === 0) return null;
         const totalInUnit = warmups.length + exits.length;
+        const isCollapsed = collapsedUnits.has(unit.id);
         return (
           <div key={unit.id} style={{ marginBottom: 28 }}>
-            {/* Unit header */}
-            <div style={{
-              display: "flex", alignItems: "baseline",
-              gap: 10, marginBottom: 10,
-              flexWrap: "wrap",
-            }}>
+            {/* Unit header — clickable to toggle collapse */}
+            <button
+              onClick={() => toggleCollapsed(unit.id)}
+              style={{
+                width: "100%",
+                background: "transparent",
+                border: "none",
+                padding: "4px 0",
+                marginBottom: 10,
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "baseline",
+                gap: 10,
+                flexWrap: "wrap",
+                textAlign: "left",
+                fontFamily: "inherit",
+              }}
+            >
+              {/* Chevron — rotates 90° when collapsed.
+                  CSS transform animates the rotation. */}
+              <span style={{
+                display: "inline-block",
+                width: 14,
+                fontSize: 11,
+                color: C.textMuted,
+                transform: isCollapsed ? "rotate(-90deg)" : "rotate(0)",
+                transition: "transform .15s ease",
+                lineHeight: 1,
+                flexShrink: 0,
+                alignSelf: "center",
+              }}>▾</span>
               <h3 style={{
                 fontFamily: "'Outfit', sans-serif",
                 fontSize: 15, fontWeight: 700,
@@ -1429,39 +1477,69 @@ function ClassDecksView({
               <span style={{ fontSize: 12, color: C.textMuted, fontFamily: MONO }}>
                 {totalInUnit} {totalInUnit === 1 ? t.deckSingular : t.deckPlural}
               </span>
-            </div>
+            </button>
 
-            {/* Warmups row */}
-            {warmups.length > 0 && (
-              <DeckRow
-                decks={warmups}
-                section="warmup"
-                t={t} lang={lang} isMobile={isMobile} navigate={navigate}
-                onEdit={onEdit} onDelete={onDelete} onTogglePublic={onTogglePublic}
-                onDragEnd={handleDragEnd(warmups)}
-              />
-            )}
-            {/* Exit tickets row */}
-            {exits.length > 0 && (
-              <DeckRow
-                decks={exits}
-                section="exit_ticket"
-                t={t} lang={lang} isMobile={isMobile} navigate={navigate}
-                onEdit={onEdit} onDelete={onDelete} onTogglePublic={onTogglePublic}
-                onDragEnd={handleDragEnd(exits)}
-              />
+            {/* Collapsible content */}
+            {!isCollapsed && (
+              <>
+                {/* Warmups row */}
+                {warmups.length > 0 && (
+                  <DeckRow
+                    decks={warmups}
+                    section="warmup"
+                    t={t} lang={lang} isMobile={isMobile} navigate={navigate}
+                    onEdit={onEdit} onDelete={onDelete} onTogglePublic={onTogglePublic}
+                    onDragEnd={handleDragEnd(warmups)}
+                  />
+                )}
+                {/* Exit tickets row */}
+                {exits.length > 0 && (
+                  <DeckRow
+                    decks={exits}
+                    section="exit_ticket"
+                    t={t} lang={lang} isMobile={isMobile} navigate={navigate}
+                    onEdit={onEdit} onDelete={onDelete} onTogglePublic={onTogglePublic}
+                    onDragEnd={handleDragEnd(exits)}
+                  />
+                )}
+              </>
             )}
           </div>
         );
       })}
 
       {/* General reviews — outside the unit-day plan */}
-      {generalReviews.length > 0 && (
+      {generalReviews.length > 0 && (() => {
+        const isCollapsed = collapsedUnits.has("__general__");
+        return (
         <div style={{ marginBottom: 28 }}>
-          <div style={{
-            display: "flex", alignItems: "baseline",
-            gap: 10, marginBottom: 10,
-          }}>
+          <button
+            onClick={() => toggleCollapsed("__general__")}
+            style={{
+              width: "100%",
+              background: "transparent",
+              border: "none",
+              padding: "4px 0",
+              marginBottom: 10,
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "baseline",
+              gap: 10,
+              textAlign: "left",
+              fontFamily: "inherit",
+            }}
+          >
+            <span style={{
+              display: "inline-block",
+              width: 14,
+              fontSize: 11,
+              color: C.textMuted,
+              transform: isCollapsed ? "rotate(-90deg)" : "rotate(0)",
+              transition: "transform .15s ease",
+              lineHeight: 1,
+              flexShrink: 0,
+              alignSelf: "center",
+            }}>▾</span>
             <h3 style={{
               fontFamily: "'Outfit', sans-serif",
               fontSize: 15, fontWeight: 700,
@@ -1473,53 +1551,99 @@ function ClassDecksView({
             <span style={{ fontSize: 12, color: C.textMuted, fontFamily: MONO }}>
               {generalReviews.length} {generalReviews.length === 1 ? t.deckSingular : t.deckPlural}
             </span>
-          </div>
-          <DeckRow
-            decks={generalReviews}
-            section="general_review"
-            t={t} lang={lang} isMobile={isMobile} navigate={navigate}
-            onEdit={onEdit} onDelete={onDelete} onTogglePublic={onTogglePublic}
-            onDragEnd={handleDragEnd(generalReviews)}
-          />
+          </button>
+          {!isCollapsed && (
+            <DeckRow
+              decks={generalReviews}
+              section="general_review"
+              t={t} lang={lang} isMobile={isMobile} navigate={navigate}
+              onEdit={onEdit} onDelete={onDelete} onTogglePublic={onTogglePublic}
+              onDragEnd={handleDragEnd(generalReviews)}
+            />
+          )}
         </div>
-      )}
+        );
+      })()}
 
       {/* Unassigned (decks with no unit) */}
-      {(unassignedWarmups.length > 0 || unassignedExits.length > 0) && (
+      {(unassignedWarmups.length > 0 || unassignedExits.length > 0) && (() => {
+        const isCollapsed = collapsedUnits.has("__unassigned__");
+        const total = unassignedWarmups.length + unassignedExits.length;
+        return (
         <div style={{ marginBottom: 28 }}>
-          <div style={{ marginBottom: 10 }}>
-            <h3 style={{
-              fontFamily: "'Outfit', sans-serif",
-              fontSize: 15, fontWeight: 700,
-              color: C.text,
-              margin: "0 0 2px",
-            }}>
-              {t.unassignedTitle}
-            </h3>
-            <p style={{ fontSize: 12, color: C.textMuted, margin: 0 }}>
-              {t.unassignedHint}
-            </p>
-          </div>
-          {unassignedWarmups.length > 0 && (
-            <DeckRow
-              decks={unassignedWarmups}
-              section="warmup"
-              t={t} lang={lang} isMobile={isMobile} navigate={navigate}
-              onEdit={onEdit} onDelete={onDelete} onTogglePublic={onTogglePublic}
-              onDragEnd={handleDragEnd(unassignedWarmups)}
-            />
-          )}
-          {unassignedExits.length > 0 && (
-            <DeckRow
-              decks={unassignedExits}
-              section="exit_ticket"
-              t={t} lang={lang} isMobile={isMobile} navigate={navigate}
-              onEdit={onEdit} onDelete={onDelete} onTogglePublic={onTogglePublic}
-              onDragEnd={handleDragEnd(unassignedExits)}
-            />
+          <button
+            onClick={() => toggleCollapsed("__unassigned__")}
+            style={{
+              width: "100%",
+              background: "transparent",
+              border: "none",
+              padding: "4px 0",
+              marginBottom: 10,
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "flex-start",
+              gap: 10,
+              textAlign: "left",
+              fontFamily: "inherit",
+            }}
+          >
+            <span style={{
+              display: "inline-block",
+              width: 14,
+              fontSize: 11,
+              color: C.textMuted,
+              transform: isCollapsed ? "rotate(-90deg)" : "rotate(0)",
+              transition: "transform .15s ease",
+              lineHeight: 1,
+              flexShrink: 0,
+              marginTop: 4,
+            }}>▾</span>
+            <div style={{ flex: 1 }}>
+              <div style={{
+                display: "flex", alignItems: "baseline", gap: 10,
+              }}>
+                <h3 style={{
+                  fontFamily: "'Outfit', sans-serif",
+                  fontSize: 15, fontWeight: 700,
+                  color: C.text,
+                  margin: 0,
+                }}>
+                  {t.unassignedTitle}
+                </h3>
+                <span style={{ fontSize: 12, color: C.textMuted, fontFamily: MONO }}>
+                  {total} {total === 1 ? t.deckSingular : t.deckPlural}
+                </span>
+              </div>
+              <p style={{ fontSize: 12, color: C.textMuted, margin: "2px 0 0" }}>
+                {t.unassignedHint}
+              </p>
+            </div>
+          </button>
+          {!isCollapsed && (
+            <>
+              {unassignedWarmups.length > 0 && (
+                <DeckRow
+                  decks={unassignedWarmups}
+                  section="warmup"
+                  t={t} lang={lang} isMobile={isMobile} navigate={navigate}
+                  onEdit={onEdit} onDelete={onDelete} onTogglePublic={onTogglePublic}
+                  onDragEnd={handleDragEnd(unassignedWarmups)}
+                />
+              )}
+              {unassignedExits.length > 0 && (
+                <DeckRow
+                  decks={unassignedExits}
+                  section="exit_ticket"
+                  t={t} lang={lang} isMobile={isMobile} navigate={navigate}
+                  onEdit={onEdit} onDelete={onDelete} onTogglePublic={onTogglePublic}
+                  onDragEnd={handleDragEnd(unassignedExits)}
+                />
+              )}
+            </>
           )}
         </div>
-      )}
+        );
+      })()}
     </>
   );
 }
@@ -1616,24 +1740,34 @@ function SortableDeckTile({ deck, t, lang, onEdit, onDelete, onTogglePublic }) {
 function DeckTile({ deck, t, lang, onEdit, onDelete, onTogglePublic, dragHandleProps, isOverlay }) {
   const stripe = sectionAccent(deck.section);
   const qs = deck.questions || [];
+  // Description: deck.description, falls back to nothing. We trim to
+  // avoid showing a single space as if it were a value.
+  const description = (deck.description || "").trim();
+  // Language: deck.language is the deck's content language ("en"/"es"/"ko").
+  // Show as uppercase 2-letter code so it's compact (EN / ES / KO).
+  // If null/missing, hide the chip entirely.
+  const deckLang = deck.language ? deck.language.toUpperCase() : null;
   return (
     <div style={{
       background: C.bg,
       border: `1px solid ${C.border}`,
       borderTop: `3px solid ${stripe}`,
       borderRadius: 8,
-      padding: "10px 12px 12px",
+      padding: "10px 12px 10px",
       position: "relative",
       cursor: "default",
       transition: isOverlay ? "none" : "box-shadow .12s ease, transform .12s ease",
       boxShadow: isOverlay ? "0 8px 20px rgba(0,0,0,0.12)" : "none",
+      display: "flex",
+      flexDirection: "column",
+      gap: 8,
     }}>
-      {/* Drag handle area on top — grabable everywhere except the buttons */}
+      {/* Drag handle area — title + description.
+          Everything except the action buttons is grabable. */}
       <div
         {...(dragHandleProps || {})}
         style={{
           cursor: dragHandleProps ? "grab" : "default",
-          marginBottom: 8,
         }}
       >
         <div style={{
@@ -1641,8 +1775,7 @@ function DeckTile({ deck, t, lang, onEdit, onDelete, onTogglePublic, dragHandleP
           fontSize: 13, fontWeight: 600,
           color: C.text,
           lineHeight: 1.3,
-          marginBottom: 4,
-          // 2-line clamp
+          marginBottom: description ? 4 : 0,
           display: "-webkit-box",
           WebkitLineClamp: 2,
           WebkitBoxOrient: "vertical",
@@ -1651,20 +1784,65 @@ function DeckTile({ deck, t, lang, onEdit, onDelete, onTogglePublic, dragHandleP
         }}>
           {deck.title}
         </div>
-        <div style={{
-          fontSize: 11, color: C.textMuted,
-          display: "flex", alignItems: "center", gap: 6,
-        }}>
-          <span style={{ fontFamily: MONO }}>{qs.length}q</span>
-          {deck.is_public && (
-            <>
-              <span>·</span>
-              <span style={{ color: C.green }}>● {t.publicLabel}</span>
-            </>
-          )}
-        </div>
+        {/* PR 7.1: description, single line with ellipsis. Only renders
+            when there's an actual description to show — no empty rows. */}
+        {description && (
+          <div style={{
+            fontSize: 11.5, color: C.textSecondary,
+            lineHeight: 1.4,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}>
+            {description}
+          </div>
+        )}
       </div>
-      {/* Actions */}
+
+      {/* Meta line — question count + language code + public dot.
+          The count is the most prominent piece (mono font, slightly
+          larger) because it's what teachers scan for first. Language
+          and public status are secondary. */}
+      <div style={{
+        display: "flex", alignItems: "center",
+        gap: 8, flexWrap: "wrap",
+        fontSize: 11,
+        color: C.textMuted,
+      }}>
+        <span style={{
+          fontFamily: MONO,
+          fontWeight: 600,
+          color: C.textSecondary,
+        }}>
+          {qs.length} {qs.length === 1 ? t.questionSingular : t.questionPlural}
+        </span>
+        {deckLang && (
+          <>
+            <span>·</span>
+            <span style={{
+              fontFamily: MONO,
+              padding: "1px 5px",
+              borderRadius: 3,
+              background: C.bgSoft,
+              color: C.textSecondary,
+              fontSize: 10,
+              fontWeight: 600,
+              letterSpacing: "0.04em",
+            }}>{deckLang}</span>
+          </>
+        )}
+        {deck.is_public && (
+          <>
+            <span>·</span>
+            <span style={{ color: C.green, fontSize: 10.5 }}>●</span>
+          </>
+        )}
+      </div>
+
+      {/* Actions — Edit large (primary), Public + Delete medium.
+          Edit is the everyday action ("I want to tweak this deck"),
+          public/delete are occasional. So Edit takes 2/3 of the row,
+          the two icon buttons share the remaining 1/3. */}
       {!isOverlay && (
         <div style={{
           display: "flex", gap: 4,
@@ -1675,19 +1853,28 @@ function DeckTile({ deck, t, lang, onEdit, onDelete, onTogglePublic, dragHandleP
             onClick={() => onEdit(deck)}
             title={t.edit}
             style={{
-              flex: 1,
-              padding: "5px 6px",
+              flex: 2,
+              padding: "6px 8px",
               borderRadius: 5,
-              background: "transparent",
-              color: C.textSecondary,
+              background: C.bgSoft,
+              color: C.text,
               border: `1px solid ${C.border}`,
-              fontSize: 11,
-              fontWeight: 500,
+              fontSize: 12,
+              fontWeight: 600,
               cursor: "pointer",
               fontFamily: "'Outfit', sans-serif",
+              transition: "background .12s ease, border-color .12s ease, color .12s ease",
             }}
-            onMouseEnter={e => { e.currentTarget.style.borderColor = C.accent; e.currentTarget.style.color = C.accent; }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = C.border; e.currentTarget.style.color = C.textSecondary; }}
+            onMouseEnter={e => {
+              e.currentTarget.style.background = C.accentSoft;
+              e.currentTarget.style.borderColor = C.accent;
+              e.currentTarget.style.color = C.accent;
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.background = C.bgSoft;
+              e.currentTarget.style.borderColor = C.border;
+              e.currentTarget.style.color = C.text;
+            }}
           >
             {t.edit}
           </button>
@@ -1695,7 +1882,9 @@ function DeckTile({ deck, t, lang, onEdit, onDelete, onTogglePublic, dragHandleP
             onClick={() => onTogglePublic(deck)}
             title={deck.is_public ? t.makePrivate : t.makePublic}
             style={{
-              padding: "5px 8px",
+              flex: "0 0 auto",
+              minWidth: 30,
+              padding: "6px 8px",
               borderRadius: 5,
               background: deck.is_public ? C.greenSoft : "transparent",
               color: deck.is_public ? C.green : C.textSecondary,
@@ -1714,15 +1903,18 @@ function DeckTile({ deck, t, lang, onEdit, onDelete, onTogglePublic, dragHandleP
             }}
             title={t.delete}
             style={{
-              padding: "5px 8px",
+              flex: "0 0 auto",
+              minWidth: 30,
+              padding: "6px 8px",
               borderRadius: 5,
               background: "transparent",
               color: C.textMuted,
               border: `1px solid ${C.border}`,
-              fontSize: 11,
+              fontSize: 13,
               fontWeight: 500,
               cursor: "pointer",
               fontFamily: "'Outfit', sans-serif",
+              lineHeight: 1,
             }}
             onMouseEnter={e => { e.currentTarget.style.borderColor = C.red; e.currentTarget.style.color = C.red; }}
             onMouseLeave={e => { e.currentTarget.style.borderColor = C.border; e.currentTarget.style.color = C.textMuted; }}
