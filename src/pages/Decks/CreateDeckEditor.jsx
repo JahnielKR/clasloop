@@ -571,11 +571,14 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
   const [classId, setClassId] = useState(existingDeck?.class_id || prefilledClassId || "");
   // Section (warmup / exit_ticket / general_review). Comes from existing deck
   // if editing, from URL ?section= when creating from a section tab in
-  // ClassPage, or defaults to general_review otherwise. Validated against the
-  // schema's enum so an invalid query string never reaches the DB.
+  // ClassPage, or starts EMPTY otherwise — the teacher must explicitly
+  // choose. Defaulting silently to general_review (the v1 behavior) was
+  // confusing: teachers would land on the editor not knowing they were
+  // committing to a section. Forcing the choice is one extra click that
+  // makes the deck's role explicit.
   const initialSection = existingDeck?.section
     || (isValidSection(prefilledSection) ? prefilledSection : null)
-    || DEFAULT_SECTION;
+    || "";
   const [section, setSection] = useState(initialSection);
   const [makePublic, setMakePublic] = useState(existingDeck?.is_public || false);
   const [activityType, setActivityType] = useState(existingDeck?.questions?.[0]?.type || "mcq");
@@ -1341,7 +1344,11 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
   // Which sub-mode of "Customize" is active.
   const coverMode = !coverImageUrl ? "color" : coverImageUrl.startsWith("preset:") ? "preset" : "image";
 
-  const canSave = title.trim() && subject && grade && questions.length > 0 && !!classId;
+  // Save guard: title, subject, grade, at least one question, a class,
+  // AND now an explicit section. Section was previously not in this
+  // check because the field defaulted to general_review — with the
+  // forced-choice behavior, an empty section must block submission.
+  const canSave = title.trim() && subject && grade && questions.length > 0 && !!classId && isValidSection(section);
 
   const handleSave = async () => {
     if (!canSave) return;
@@ -1546,6 +1553,11 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
               style={{ ...sel, opacity: classId ? 1 : 0.55, cursor: classId ? "pointer" : "not-allowed" }}
               title={classId ? t.sectionHelp : t.sectionLockedHelp}
             >
+              {/* Empty placeholder option — forces an explicit choice
+                  rather than silently defaulting to general_review. */}
+              <option value="" disabled>
+                {t.sectionPlaceholder || "Choose a session type…"}
+              </option>
               {SECTIONS.map(s => {
                 const labels = sectionLabels(l);
                 return <option key={s.id} value={s.id}>{labels[s.id]?.name || s.id}</option>;

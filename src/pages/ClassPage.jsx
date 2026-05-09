@@ -656,6 +656,10 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
   // null and the data-loaded effect sets the initial value once it knows
   // whether an active unit exists — this avoids a flash of the wrong view.
   const [viewMode, setViewMode] = useState(null);
+  // PR4 follow-up: bump this to force a re-fetch of decks/units. Used
+  // when AddToSlotModal updates a deck's unit_id and we need ClassPage
+  // to reflect the change without a full page reload.
+  const [refreshTick, setRefreshTick] = useState(0);
 
   // Sensors. PointerSensor with a small activationConstraint distance
   // ensures plain clicks (open the deck) and short clicks on the unit
@@ -725,7 +729,7 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
       setLoading(false);
     })();
     return () => { cancelled = true; };
-  }, [classId, profile?.id]);
+  }, [classId, profile?.id, refreshTick]);
 
   // When the section changes, reset the unit filter — filters are scoped
   // to one section at a time. Also close any open unit-creation form so
@@ -1293,9 +1297,24 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
         return (
           <PlanView
             classId={classId}
+            // The teacher's classes — we pass this class only because
+            // ClassPage doesn't fetch others. AddToSlotModal uses it
+            // for the "from {className}" hint on library results.
+            // Future iteration: fetch all teacher classes for cross-class
+            // library reuse. For now the modal still works without
+            // those rows showing class names.
+            classes={classObj ? [classObj] : []}
             decks={decks}
             activeUnit={activeUnit}
+            userId={profile?.id}
             lang={lang}
+            // Triggered after the modal successfully attaches a deck
+            // to the slot (UPDATE unit_id+position). Bumps the tick
+            // to re-fetch decks so the new slot fills in instantly.
+            onRefresh={() => setRefreshTick(n => n + 1)}
+            // Triggered when the unit is renamed inline (PlanView's
+            // editable unit name). Same re-fetch path.
+            onUnitChanged={() => setRefreshTick(n => n + 1)}
           />
         );
       })()}

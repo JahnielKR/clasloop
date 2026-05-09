@@ -23,7 +23,7 @@ const sel = { ...inp, cursor: "pointer", appearance: "none", backgroundImage: `u
 
 const i18n = {
   en: {
-    pageTitle: "Decks", subtitle: "Create and manage your question collections",
+    pageTitle: "Library", subtitle: "Browse, search, and manage all your decks — yours and saved favorites",
     myDecks: "My Decks", favorites: "Favorites", create: "+ Create deck",
     search: "Search decks...", filterAll: "All", filterSubject: "Subject", filterClass: "Class", filterAllSubjects: "All subjects", filterAllClasses: "All classes", filterUnassigned: "Unassigned",
     newClass: "+ New class", newClassHint: "You can create a new class from Sessions",
@@ -32,7 +32,8 @@ const i18n = {
     badgeCopy: "Copy",
     fromTeacher: "from",
     emptyClassHint: "This class has no decks yet.",
-    addDeckToClass: "Create deck for this class",
+    addDeckToClass: "Open this class to create decks",
+    openClassToCreate: "Open this class to create decks",
     favoriteRemove: "Remove from favorites", favoriteAdd: "Add to favorites",
     customizeFav: "Customize", customizeFavHint: "Make a copy you can edit and assign to a class",
     addToWhichFav: "Add to which class?", noClassFav: "No class — keep as personal deck",
@@ -42,9 +43,10 @@ const i18n = {
     description: "Description", descPlaceholder: "What this deck covers...",
     addToClass: "Class", classPickPrompt: "Pick a class…", noClassesYet: "No classes yet — create one first",
     addingToClass: "Adding to",
-    sectionLabel: "Section",
+    sectionLabel: "Session type",
     sectionHelp: "Where this deck lives in the class.",
-    sectionLockedHelp: "Pick a class first to choose a section.",
+    sectionLockedHelp: "Pick a class first to choose a session type.",
+    sectionPlaceholder: "Choose a session type…",
     subject: "Subject", grade: "Grade", language: "Language", tags: "Tags (comma-separated)",
     tagsPlaceholder: "revolution, europe, history",
     activityType: "Activity type", questions: "Questions", addQuestion: "+ Add question",
@@ -145,7 +147,7 @@ const i18n = {
     aiAllDroppedMsg: "All {dropped} questions came back incomplete. Try generating again, change the source, or pick a single type.",
   },
   es: {
-    pageTitle: "Decks", subtitle: "Crea y gestiona tus colecciones de preguntas",
+    pageTitle: "Biblioteca", subtitle: "Explora, busca y gestiona todos tus decks — los tuyos y los favoritos guardados",
     myDecks: "Mis Decks", favorites: "Favoritos", create: "+ Crear deck",
     search: "Buscar decks...", filterAll: "Todos", filterSubject: "Materia", filterClass: "Clase", filterAllSubjects: "Todas las materias", filterAllClasses: "Todas las clases", filterUnassigned: "Sin clase",
     newClass: "+ Nueva clase", newClassHint: "Puedes crear una clase nueva desde Sesiones",
@@ -154,7 +156,8 @@ const i18n = {
     badgeCopy: "Copia",
     fromTeacher: "de",
     emptyClassHint: "Esta clase aún no tiene decks.",
-    addDeckToClass: "Crear deck para esta clase",
+    addDeckToClass: "Abre esta clase para crear decks",
+    openClassToCreate: "Abre esta clase para crear decks",
     favoriteRemove: "Quitar de favoritos", favoriteAdd: "Agregar a favoritos",
     customizeFav: "Personalizar", customizeFavHint: "Crea una copia que puedes editar y asignar a una clase",
     addToWhichFav: "¿A qué clase agregarlo?", noClassFav: "Sin clase — mantener como deck personal",
@@ -164,9 +167,10 @@ const i18n = {
     description: "Descripción", descPlaceholder: "Qué cubre este deck...",
     addToClass: "Clase", classPickPrompt: "Elige una clase…", noClassesYet: "Aún no tienes clases — crea una primero",
     addingToClass: "Agregando a",
-    sectionLabel: "Sección",
+    sectionLabel: "Tipo de sesión",
     sectionHelp: "Dónde vive este deck en la clase.",
-    sectionLockedHelp: "Elige una clase primero para escoger sección.",
+    sectionLockedHelp: "Elige una clase primero para escoger el tipo de sesión.",
+    sectionPlaceholder: "Elige un tipo de sesión…",
     subject: "Materia", grade: "Grado", language: "Idioma", tags: "Etiquetas (separadas por coma)",
     tagsPlaceholder: "revolución, europa, historia",
     activityType: "Tipo de actividad", questions: "Preguntas", addQuestion: "+ Agregar pregunta",
@@ -267,7 +271,7 @@ const i18n = {
     aiAllDroppedMsg: "Las {dropped} preguntas vinieron incompletas. Intenta generar de nuevo, cambia el material, o elige un solo tipo.",
   },
   ko: {
-    pageTitle: "덱", subtitle: "문제 모음을 만들고 관리하세요",
+    pageTitle: "라이브러리", subtitle: "내 덱과 저장한 즐겨찾기 — 모두 검색하고 관리하세요",
     myDecks: "내 덱", favorites: "즐겨찾기", create: "+ 덱 만들기",
     search: "덱 검색...", filterAll: "전체", filterSubject: "과목", filterClass: "수업", filterAllSubjects: "모든 과목", filterAllClasses: "모든 수업", filterUnassigned: "미지정",
     newClass: "+ 새 수업", newClassHint: "세션에서 새 수업을 만들 수 있습니다",
@@ -276,7 +280,8 @@ const i18n = {
     badgeCopy: "복사",
     fromTeacher: "—",
     emptyClassHint: "이 수업에는 아직 덱이 없습니다.",
-    addDeckToClass: "이 수업을 위한 덱 만들기",
+    addDeckToClass: "이 수업을 열어서 덱을 만드세요",
+    openClassToCreate: "이 수업을 열어서 덱을 만드세요",
     favoriteRemove: "즐겨찾기에서 제거", favoriteAdd: "즐겨찾기에 추가",
     customizeFav: "커스터마이즈", customizeFavHint: "편집하고 수업에 배정할 수 있는 복사본 만들기",
     addToWhichFav: "어느 수업에 추가하시겠습니까?", noClassFav: "수업 없음 — 개인 덱으로 유지",
@@ -286,9 +291,10 @@ const i18n = {
     description: "설명", descPlaceholder: "이 덱의 내용...",
     addToClass: "수업", classPickPrompt: "수업을 선택하세요…", noClassesYet: "아직 수업이 없습니다 — 먼저 수업을 만드세요",
     addingToClass: "추가 대상",
-    sectionLabel: "섹션",
+    sectionLabel: "세션 유형",
     sectionHelp: "이 덱이 수업에서 위치할 곳입니다.",
     sectionLockedHelp: "먼저 수업을 선택하세요.",
+    sectionPlaceholder: "세션 유형을 선택하세요…",
     subject: "과목", grade: "학년", language: "언어", tags: "태그 (쉼표 구분)",
     tagsPlaceholder: "혁명, 유럽, 역사",
     activityType: "활동 유형", questions: "문제", addQuestion: "+ 문제 추가",
@@ -906,15 +912,13 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
               }}>{label} {count > 0 && <span style={{ fontSize: 11, padding: "1px 6px", borderRadius: 8, background: tab === id ? C.accent : C.bgSoft, color: tab === id ? "#fff" : C.textMuted, fontWeight: 700 }}>{count}</span>}</button>
             ))}
           </div>
-          {tab === "myDecks" && (
-            <button className="dk-btn" onClick={() => navigate(ROUTES.DECKS_NEW)} style={{
-              padding: "8px 16px", borderRadius: 8, fontSize: 13, fontWeight: 600,
-              background: `linear-gradient(135deg, ${C.accent}, ${C.purple})`,
-              color: "#fff", border: "none", cursor: "pointer",
-              fontFamily: "'Outfit',sans-serif",
-              width: isMobile ? "100%" : "auto",
-            }}>{t.create}</button>
-          )}
+          {/* PR4 follow-up: removed "+ Create deck" and "+ New class"
+              buttons from the Library header. The Library is the
+              search/browse view; deck creation now lives in My Classes
+              (Plan view → empty slot → modal → "Create a new one").
+              The teacher who wants to create something from scratch
+              opens a class first; the Library is for finding what
+              already exists. */}
         </div>
 
         {/* Search + Filters bar */}
@@ -943,17 +947,10 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
                       <option value="__unassigned__">{t.filterUnassigned}</option>
                     </select>
                   ) : null}
-                  <button
-                    onClick={() => onNavigateToSessions && onNavigateToSessions({ openCreateClass: true })}
-                    title={t.newClassHint}
-                    style={{
-                      padding: "10px 12px", borderRadius: 8, fontSize: 12, fontWeight: 600,
-                      background: C.bg, color: C.accent, border: `1px dashed ${C.accent}66`,
-                      cursor: "pointer", fontFamily: "'Outfit',sans-serif",
-                      whiteSpace: "nowrap",
-                      flexShrink: 0,
-                    }}
-                  >{t.newClass}</button>
+                  {/* PR4 follow-up: removed "+ New class" button from
+                      Library. Class creation lives in My Classes (the
+                      sole place where creation happens). Library is
+                      browse-only. */}
                 </div>
               )}
               <select value={groupBy} onChange={e => setGroupBy(e.target.value)} style={{ ...sel, flex: 1, minWidth: 140 }}>
@@ -1033,34 +1030,42 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
                   )}
                   {!collapsed && (
                     group.isEmpty ? (
-                      // Empty class — minimal "+" tile that rotates on hover
+                      // Empty class — minimal tile that links to the class
+                      // page where the teacher will see Plan view and the
+                      // create-from-slot flow. Library is browse-only;
+                      // creation happens inside My Classes.
                       <div style={{ marginLeft: group.label ? 8 : 0 }}>
                         <button
-                          onClick={() => navigate(`${ROUTES.DECKS_NEW}?${QUERY.CLASS}=${encodeURIComponent(group.classObj.id)}`)}
-                          className="dk-plus-tile"
+                          onClick={() => navigate(buildRoute.classDetail(group.classObj.id))}
                           aria-label={t.addDeckToClass}
                           title={t.addDeckToClass}
                           style={{
                             width: "100%",
-                            padding: "32px 20px",
-                            background: groupAccent + "08",
-                            border: `1.5px dashed ${groupAccent}55`,
+                            padding: "24px 20px",
+                            background: C.bgSoft,
+                            border: `1px dashed ${C.border}`,
                             borderRadius: 12,
                             cursor: "pointer",
-                            display: "flex", alignItems: "center", justifyContent: "center",
-                            color: groupAccent,
+                            display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+                            gap: 6,
+                            color: C.textMuted,
                             fontFamily: "'Outfit',sans-serif",
-                            transition: "background .2s ease, border-color .2s ease",
-                            "--accent": groupAccent,
+                            fontSize: 13,
+                            transition: "border-color .15s ease, color .15s ease",
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.borderColor = groupAccent;
+                            e.currentTarget.style.color = groupAccent;
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.borderColor = C.border;
+                            e.currentTarget.style.color = C.textMuted;
                           }}
                         >
-                          <span className="dk-plus-icon" style={{
-                            display: "inline-flex", alignItems: "center", justifyContent: "center",
-                            width: 44, height: 44, borderRadius: "50%",
-                            background: groupAccent + "1A",
-                            transition: "transform .35s cubic-bezier(.4,1.6,.5,1), background .2s ease, box-shadow .2s ease",
-                            fontSize: 26, fontWeight: 300, lineHeight: 1,
-                          }}>+</span>
+                          <span style={{ fontWeight: 500 }}>
+                            {t.openClassToCreate || "Open this class to create decks"}
+                          </span>
+                          <span style={{ fontSize: 11, opacity: 0.7 }}>→ {group.classObj.name}</span>
                         </button>
                       </div>
                     ) : (

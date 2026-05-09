@@ -85,7 +85,7 @@ const TEACHER_NAV_GROUPS = [
     title: "Teach",
     items: [
       { id: "myClasses", glyph: "▤", label: "My Classes" },
-      { id: "decks",     glyph: "▥", label: "Decks" },
+      { id: "decks",     glyph: "▥", label: "Library" },
     ],
   },
   {
