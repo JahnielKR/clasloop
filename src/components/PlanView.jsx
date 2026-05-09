@@ -69,6 +69,8 @@ const i18n = {
     daysCountZero: "No days planned yet",
     emptyTitle: "This unit has no decks yet",
     emptyHint: "Add a warmup or exit ticket to start building Day 1.",
+    prevUnit: "Previous unit",
+    nextUnit: "Next unit",
     // Phase 6: general reviews live aside the unit plan
     generalReviewsTitle: "General reviews",
     generalReviewsHint: "Standalone content outside the daily plan — pre-exam recaps, monthly reviews.",
@@ -92,6 +94,8 @@ const i18n = {
     daysCountZero: "Aún no hay días planeados",
     emptyTitle: "Esta unidad aún no tiene decks",
     emptyHint: "Añade un warmup o exit ticket para empezar el Día 1.",
+    prevUnit: "Unidad anterior",
+    nextUnit: "Siguiente unidad",
     generalReviewsTitle: "Repasos generales",
     generalReviewsHint: "Contenido aparte del plan diario — repasos previos a examen, repasos mensuales.",
     generalReviewsEmpty: "Aún no hay repasos. Úsalos para contenido que no encaja como warmup o exit ticket.",
@@ -113,6 +117,8 @@ const i18n = {
     daysCountZero: "아직 계획된 날 없음",
     emptyTitle: "이 단원에는 아직 덱이 없습니다",
     emptyHint: "워밍업이나 종료 티켓을 추가하여 1일차를 시작하세요.",
+    prevUnit: "이전 단원",
+    nextUnit: "다음 단원",
     generalReviewsTitle: "일반 복습",
     generalReviewsHint: "일일 계획과 별도의 자료 — 시험 전 정리, 월간 복습 등.",
     generalReviewsEmpty: "아직 일반 복습이 없습니다. 워밍업이나 종료 티켓에 맞지 않는 자료에 사용하세요.",
@@ -1028,14 +1034,17 @@ export default function PlanView({
   classId,
   classes = [],
   decks,
-  units = [],          // all units of the class (PR4.2: needed by UnitSwitcher)
+  units = [],          // all units of the class
   activeUnit,
   userId,
   lang = "en",
-  onRefresh,           // called after a successful pick-from-library so
-                       // ClassPage re-fetches its data
+  onRefresh,           // called after the modal attaches a deck to a slot
   onUnitChanged,       // called after the unit name is renamed inline
-                       // OR after the active unit was switched/created
+  // PR5.1: arrow navigation between units. ClassPage decides what
+  // "previous" and "next" mean (by position within current/active group)
+  // and passes null when there's nothing to navigate to.
+  onPrevUnit,
+  onNextUnit,
 }) {
   const t = i18n[lang] || i18n.en;
   const navigate = useNavigate();
@@ -1091,18 +1100,50 @@ export default function PlanView({
 
   return (
     <div style={{ paddingBottom: 20 }}>
-      {/* Unit header — name + status + day count */}
+      {/* Unit header — flex row with three groups:
+          [← prev] [editable name + meta]                  [next →] [close unit]
+          Arrows let the teacher flip between units like pages. The
+          activeUnit's name is editable inline (click to rename). The
+          "Close unit" action lives at the far right — irreversible
+          enough to warrant the visual distance from primary actions.
+          When there's no prev/next, the arrow renders disabled. */}
       <div style={{
         background: C.bg,
         border: `1px solid ${C.border}`,
         borderRadius: 10,
-        padding: "14px 18px",
+        padding: "12px 14px",
         marginBottom: 18,
         display: "flex",
         alignItems: "center",
-        gap: 14,
+        gap: 10,
         flexWrap: "wrap",
       }}>
+        {/* Prev arrow */}
+        <button
+          onClick={onPrevUnit || undefined}
+          disabled={!onPrevUnit}
+          aria-label={t.prevUnit}
+          style={{
+            width: 32, height: 32,
+            borderRadius: 7,
+            background: "transparent",
+            border: `1px solid ${C.border}`,
+            color: onPrevUnit ? C.text : C.textMuted,
+            cursor: onPrevUnit ? "pointer" : "default",
+            opacity: onPrevUnit ? 1 : 0.4,
+            fontSize: 14,
+            fontFamily: "'Outfit', sans-serif",
+            display: "inline-flex", alignItems: "center", justifyContent: "center",
+            flexShrink: 0,
+            transition: "background .12s ease, border-color .12s ease",
+          }}
+          onMouseEnter={e => { if (onPrevUnit) e.currentTarget.style.background = C.bgSoft; }}
+          onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}
+        >
+          ←
+        </button>
+
+        {/* Name + meta */}
         <div style={{ flex: 1, minWidth: 200 }}>
           <EditableUnitName
             unit={activeUnit}
@@ -1129,17 +1170,31 @@ export default function PlanView({
             </span>
           </div>
         </div>
-        {/* Unit switcher — picks a different unit OR creates a new one.
-            Sits at the right of the header so the unit name stays the
-            visual anchor. Only shown if there's at least one other unit
-            OR the teacher might want to create more (always, basically). */}
-        <UnitSwitcher
-          allUnits={units}
-          activeUnit={activeUnit}
-          classId={classId}
-          lang={lang}
-          onSwitched={() => onUnitChanged && onUnitChanged()}
-        />
+
+        {/* Next arrow */}
+        <button
+          onClick={onNextUnit || undefined}
+          disabled={!onNextUnit}
+          aria-label={t.nextUnit}
+          style={{
+            width: 32, height: 32,
+            borderRadius: 7,
+            background: "transparent",
+            border: `1px solid ${C.border}`,
+            color: onNextUnit ? C.text : C.textMuted,
+            cursor: onNextUnit ? "pointer" : "default",
+            opacity: onNextUnit ? 1 : 0.4,
+            fontSize: 14,
+            fontFamily: "'Outfit', sans-serif",
+            display: "inline-flex", alignItems: "center", justifyContent: "center",
+            flexShrink: 0,
+            transition: "background .12s ease, border-color .12s ease",
+          }}
+          onMouseEnter={e => { if (onNextUnit) e.currentTarget.style.background = C.bgSoft; }}
+          onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}
+        >
+          →
+        </button>
       </div>
 
       {/* Empty unit state */}
@@ -1248,28 +1303,6 @@ export default function PlanView({
           </button>
         </>
       )}
-
-      {/* General Reviews block — separate from the unit-day plan.
-          Phase 6: general reviews live alongside units, not inside them.
-          The teacher reaches for these when they need standalone content
-          (pre-exam recap, monthly review) that doesn't fit a warmup or
-          exit ticket slot. */}
-      <GeneralReviewsBlock
-        decks={decks}
-        t={t} lang={lang}
-        onLaunch={handleLaunch}
-        onCreate={handleCreateReview}
-      />
-
-      {/* Class-wide search — finds decks by title/tag/subject across
-          warmups, exits, and general reviews. Hidden until the teacher
-          types something so the page isn't dominated by an unfiltered
-          list. */}
-      <ClassSearch
-        decks={decks}
-        t={t} lang={lang}
-        onLaunch={handleLaunch}
-      />
 
       {/* Add-to-slot modal — opens whenever the teacher clicks an empty
           slot. Tabs let them pick from their library OR create a new one.

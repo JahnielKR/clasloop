@@ -30,6 +30,7 @@ import {
   CLASS_COLORS,
   resolveClassAccent,
   pickActiveUnit,
+  unitStatusLabel,
 } from "../lib/class-hierarchy";
 // dnd-kit drives the drag-reorder UX. Replaces the previous HTML5 D&D
 // implementation, which suffered from the browser-generated translucent
@@ -653,6 +654,21 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
   // when AddToSlotModal updates a deck's unit_id and we need ClassPage
   // to reflect the change without a full page reload.
   const [refreshTick, setRefreshTick] = useState(0);
+  // PR5.1: top tab in ClassPage. One of:
+  //   "current"  → the active unit, with prev/next arrows in PlanView
+  //   "past"     → list of closed units (read mode)
+  //   "upcoming" → list of planned units
+  //   "general"  → general_review decks of the class
+  //   "search"   → search input with results below
+  // Default is "current"; switching is instant (no fetch — same data).
+  const [topTab, setTopTab] = useState("current");
+  // PR5.1: which unit the teacher is viewing inside "current". Lets the
+  // arrows in PlanView page through ALL active+planned+closed units in
+  // the class (in order) rather than only through "active" ones. We seed
+  // it from pickActiveUnit on first load.
+  const [currentUnitIdx, setCurrentUnitIdx] = useState(0);
+  // PR5.1: search query (used by the "search" tab)
+  const [searchQuery, setSearchQuery] = useState("");
 
   // Sensors. PointerSensor with a small activationConstraint distance
   // ensures plain clicks (open the deck) and short clicks on the unit
@@ -709,7 +725,24 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
       }
       setClassObj(classRes.data);
       setDecks(decksRes.data || []);
-      setUnits(unitsRes.data || []);
+      const newUnits = unitsRes.data || [];
+      setUnits(newUnits);
+      // PR5.1: when units (re)load, point currentUnitIdx at the active
+      // one so the teacher lands on "the unit I'm teaching now". On
+      // refreshTick bumps from internal actions (rename, etc.) we
+      // preserve their current page if it still points to a valid index.
+      const activeOne = pickActiveUnit(newUnits);
+      if (activeOne) {
+        const idx = newUnits.findIndex(u => u.id === activeOne.id);
+        if (idx >= 0 && idx !== currentUnitIdx) {
+          // Only override if the current index is invalid OR we're on
+          // first load (refreshTick is 0). On manual refreshes we
+          // preserve whatever page the teacher was on.
+          if (refreshTick === 0 || currentUnitIdx >= newUnits.length) {
+            setCurrentUnitIdx(idx);
+          }
+        }
+      }
       setLoading(false);
     })();
     return () => { cancelled = true; };
@@ -1222,36 +1255,533 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
         </div>
       </div>
 
-      {/* Plan view path: render PlanView and skip the section tabs / dnd
-          grid below. PlanView is its own self-contained component. */}
-      {units.length > 0 && (() => {
-        const activeUnit = pickActiveUnit(units);
-        if (!activeUnit) return null;
+      {/* PR5.1 — Top tabs bar. Five tabs:
+          [Current unit] [Past] [Upcoming] | [General review] [Search]
+          The vertical bar ('|') visually separates "unit-related navigation"
+          from "stuff that lives outside units" (general reviews + search).
+          Tabs only appear when classObj is loaded; for empty-class state
+          the page falls into a different empty UX below. */}
+      {classObj && !loading && (() => {
+        // Compute counts for badge display in tabs
+        const pastUnits = units.filter(u => u.status === "closed");
+        const upcomingUnits = units.filter(u => u.status === "planned");
+        const reviewDecks = decks.filter(d => d.section === "general_review");
+
+        // Tab pill style — accent-soft when active, transparent when not
+        const tabStyle = (active) => ({
+          padding: "7px 13px",
+          borderRadius: 7,
+          background: active ? C.bg : "transparent",
+          color: active ? C.text : C.textSecondary,
+          border: "none",
+          fontFamily: "'Outfit', sans-serif",
+          fontSize: 13, fontWeight: active ? 600 : 500,
+          cursor: "pointer",
+          boxShadow: active ? "0 1px 2px rgba(0,0,0,0.04)" : "none",
+          display: "inline-flex", alignItems: "center", gap: 5,
+          transition: "background .12s ease, color .12s ease",
+        });
+        const countBadge = (n) => n > 0 ? (
+          <span style={{
+            fontSize: 10.5, fontFamily: MONO,
+            padding: "1px 6px", borderRadius: 9,
+            background: topTab === "current" ? C.bgSoft : "transparent",
+            color: C.textMuted,
+            fontWeight: 600,
+          }}>{n}</span>
+        ) : null;
+
+        return (
+          <div style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            marginBottom: 16,
+            background: C.bgSoft,
+            padding: 4,
+            borderRadius: 9,
+            flexWrap: "wrap",
+          }}>
+            <button onClick={() => setTopTab("current")}  style={tabStyle(topTab === "current")}>
+              {lang === "es" ? "Unidad actual" : lang === "ko" ? "현재 단원" : "Current unit"}
+            </button>
+            <button onClick={() => setTopTab("past")}     style={tabStyle(topTab === "past")}>
+              {lang === "es" ? "Pasadas" : lang === "ko" ? "지난" : "Past"}
+              {countBadge(pastUnits.length)}
+            </button>
+            <button onClick={() => setTopTab("upcoming")} style={tabStyle(topTab === "upcoming")}>
+              {lang === "es" ? "Próximas" : lang === "ko" ? "예정" : "Upcoming"}
+              {countBadge(upcomingUnits.length)}
+            </button>
+
+            {/* Vertical divider — separates unit-tabs from
+                general+search which live outside units */}
+            <div style={{
+              width: 1, height: 22,
+              background: C.border,
+              margin: "0 4px",
+            }} />
+
+            <button onClick={() => setTopTab("general")}  style={tabStyle(topTab === "general")}>
+              {lang === "es" ? "Repaso general" : lang === "ko" ? "일반 복습" : "General review"}
+              {countBadge(reviewDecks.length)}
+            </button>
+
+            {/* Search — input that lives in the bar itself, not a button.
+                When the teacher types something, results appear below in
+                whatever tab they're on (overrides current view). */}
+            <div style={{
+              flex: 1,
+              minWidth: 180,
+              maxWidth: 320,
+              marginLeft: "auto",
+            }}>
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={e => {
+                  setSearchQuery(e.target.value);
+                  if (e.target.value.trim()) setTopTab("search");
+                  else if (topTab === "search") setTopTab("current");
+                }}
+                placeholder={lang === "es" ? "Buscar en esta clase…"
+                  : lang === "ko" ? "이 수업 검색…"
+                  : "Search this class…"}
+                style={{
+                  width: "100%",
+                  padding: "7px 11px",
+                  borderRadius: 7,
+                  border: `1px solid ${topTab === "search" ? C.accent : C.border}`,
+                  background: C.bg,
+                  fontSize: 12.5,
+                  fontFamily: "'Inter', sans-serif",
+                  color: C.text,
+                  outline: "none",
+                  transition: "border-color .12s ease",
+                }}
+                onFocus={e => { e.currentTarget.style.borderColor = C.accent; }}
+                onBlur={e => { if (!searchQuery.trim()) e.currentTarget.style.borderColor = C.border; }}
+              />
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ─── TAB: Current unit ─────────────────────────────────────────
+          Plan view + arrows to flip between units like pages. The
+          `currentUnitIdx` points at the unit being shown (any status).
+          Arrows bump the index ±1 within the units array, wrapping
+          disabled at the boundaries. */}
+      {topTab === "current" && units.length > 0 && (() => {
+        const safeIdx = Math.min(Math.max(0, currentUnitIdx), units.length - 1);
+        const shownUnit = units[safeIdx];
+        if (!shownUnit) return null;
         return (
           <PlanView
             classId={classId}
-            // The teacher's classes — we pass this class only because
-            // ClassPage doesn't fetch others. AddToSlotModal uses it
-            // for the "from {className}" hint on library results.
-            // Future iteration: fetch all teacher classes for cross-class
-            // library reuse. For now the modal still works without
-            // those rows showing class names.
             classes={classObj ? [classObj] : []}
             decks={decks}
-            // PR4.2: pass all units so UnitSwitcher can let the teacher
-            // pick any of them or create new ones.
             units={units}
-            activeUnit={activeUnit}
+            activeUnit={shownUnit}
             userId={profile?.id}
             lang={lang}
-            // Triggered after the modal successfully attaches a deck
-            // to the slot (UPDATE unit_id+position). Bumps the tick
-            // to re-fetch decks so the new slot fills in instantly.
             onRefresh={() => setRefreshTick(n => n + 1)}
-            // Triggered when the unit is renamed inline (PlanView's
-            // editable unit name). Same re-fetch path.
             onUnitChanged={() => setRefreshTick(n => n + 1)}
+            onPrevUnit={safeIdx > 0 ? () => setCurrentUnitIdx(safeIdx - 1) : null}
+            onNextUnit={safeIdx < units.length - 1 ? () => setCurrentUnitIdx(safeIdx + 1) : null}
           />
+        );
+      })()}
+
+      {/* ─── TAB: Past units ───────────────────────────────────────────
+          Read-mostly list of closed units. Click on one → jump to it
+          in Current tab (the carrousel) so the teacher can review the
+          plan that was. */}
+      {topTab === "past" && (() => {
+        const past = units.filter(u => u.status === "closed");
+        if (past.length === 0) {
+          return (
+            <div style={{
+              padding: "32px 20px",
+              background: C.bgSoft,
+              border: `1px dashed ${C.border}`,
+              borderRadius: 10,
+              textAlign: "center",
+              color: C.textMuted,
+              fontSize: 13,
+            }}>
+              {lang === "es" ? "No hay unidades cerradas todavía."
+                : lang === "ko" ? "닫힌 단원이 없습니다."
+                : "No closed units yet."}
+            </div>
+          );
+        }
+        return (
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {past.map(u => {
+              const decksInUnit = decks.filter(d => d.unit_id === u.id);
+              return (
+                <button
+                  key={u.id}
+                  onClick={() => {
+                    const idx = units.findIndex(x => x.id === u.id);
+                    if (idx >= 0) {
+                      setCurrentUnitIdx(idx);
+                      setTopTab("current");
+                    }
+                  }}
+                  style={{
+                    background: C.bg,
+                    border: `1px solid ${C.border}`,
+                    borderLeft: `3px solid ${C.textMuted}`,
+                    borderRadius: 10,
+                    padding: "12px 16px",
+                    textAlign: "left",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 12,
+                    transition: "background .12s ease, transform .12s ease",
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.background = C.bgSoft; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = C.bg; }}
+                >
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{
+                      fontFamily: "'Outfit', sans-serif",
+                      fontSize: 14, fontWeight: 600, color: C.text,
+                      marginBottom: 2,
+                    }}>{u.name}</div>
+                    <div style={{ fontSize: 11.5, color: C.textMuted }}>
+                      {decksInUnit.length} {lang === "es" ? "decks" : lang === "ko" ? "덱" : "decks"}
+                      {u.closed_at && (
+                        <> · {lang === "es" ? "cerrada" : lang === "ko" ? "종료" : "closed"} {new Date(u.closed_at).toLocaleDateString(lang)}</>
+                      )}
+                    </div>
+                  </div>
+                  <span style={{ color: C.textMuted, fontSize: 14 }}>→</span>
+                </button>
+              );
+            })}
+          </div>
+        );
+      })()}
+
+      {/* ─── TAB: Upcoming units ───────────────────────────────────────
+          Planned units that haven't been activated yet. Click → jump to
+          that unit in Current. */}
+      {topTab === "upcoming" && (() => {
+        const upcoming = units.filter(u => u.status === "planned");
+        if (upcoming.length === 0) {
+          return (
+            <div style={{
+              padding: "32px 20px",
+              background: C.bgSoft,
+              border: `1px dashed ${C.border}`,
+              borderRadius: 10,
+              textAlign: "center",
+              color: C.textMuted,
+              fontSize: 13,
+            }}>
+              {lang === "es" ? "No hay unidades planeadas."
+                : lang === "ko" ? "예정된 단원이 없습니다."
+                : "No upcoming units."}
+            </div>
+          );
+        }
+        return (
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {upcoming.map(u => {
+              const decksInUnit = decks.filter(d => d.unit_id === u.id);
+              return (
+                <button
+                  key={u.id}
+                  onClick={() => {
+                    const idx = units.findIndex(x => x.id === u.id);
+                    if (idx >= 0) {
+                      setCurrentUnitIdx(idx);
+                      setTopTab("current");
+                    }
+                  }}
+                  style={{
+                    background: C.bg,
+                    border: `1px solid ${C.border}`,
+                    borderLeft: `3px solid ${C.textSecondary}`,
+                    borderRadius: 10,
+                    padding: "12px 16px",
+                    textAlign: "left",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 12,
+                    transition: "background .12s ease",
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.background = C.bgSoft; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = C.bg; }}
+                >
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{
+                      fontFamily: "'Outfit', sans-serif",
+                      fontSize: 14, fontWeight: 600, color: C.text,
+                      marginBottom: 2,
+                    }}>{u.name}</div>
+                    <div style={{ fontSize: 11.5, color: C.textMuted }}>
+                      {decksInUnit.length} {lang === "es" ? "decks" : lang === "ko" ? "덱" : "decks"}
+                    </div>
+                  </div>
+                  <span style={{ color: C.textMuted, fontSize: 14 }}>→</span>
+                </button>
+              );
+            })}
+          </div>
+        );
+      })()}
+
+      {/* ─── TAB: General review ───────────────────────────────────────
+          Standalone decks that don't belong to any unit. The teacher's
+          place for "extra" content (pre-exam recap, monthly review,
+          15-min wrap). */}
+      {topTab === "general" && (() => {
+        const reviews = decks.filter(d => d.section === "general_review");
+        return (
+          <div>
+            <div style={{
+              display: "flex", justifyContent: "space-between",
+              alignItems: "baseline", marginBottom: 12,
+            }}>
+              <div>
+                <h3 style={{
+                  fontFamily: "'Outfit', sans-serif",
+                  fontSize: 15, fontWeight: 700, color: C.text,
+                  marginBottom: 2,
+                }}>
+                  {lang === "es" ? "Repasos generales"
+                    : lang === "ko" ? "일반 복습"
+                    : "General reviews"}
+                </h3>
+                <p style={{ fontSize: 12, color: C.textMuted }}>
+                  {lang === "es" ? "Contenido aparte del plan diario."
+                    : lang === "ko" ? "일일 계획과 별도의 자료."
+                    : "Standalone content outside the daily plan."}
+                </p>
+              </div>
+              <button
+                onClick={() => navigate(`${ROUTES.DECKS_NEW}?${QUERY.CLASS}=${encodeURIComponent(classId)}&section=general_review`)}
+                style={{
+                  padding: "7px 13px",
+                  borderRadius: 7,
+                  background: C.bg,
+                  color: C.textSecondary,
+                  border: `1px dashed ${C.border}`,
+                  fontFamily: "'Outfit', sans-serif",
+                  fontSize: 12.5, fontWeight: 500,
+                  cursor: "pointer",
+                  flexShrink: 0,
+                }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = C.accent; e.currentTarget.style.color = C.accent; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = C.border; e.currentTarget.style.color = C.textSecondary; }}
+              >
+                {lang === "es" ? "+ Añadir repaso" : lang === "ko" ? "+ 복습 추가" : "+ Add review"}
+              </button>
+            </div>
+            {reviews.length === 0 ? (
+              <div style={{
+                padding: "32px 20px",
+                background: C.bgSoft,
+                border: `1px dashed ${C.border}`,
+                borderRadius: 10,
+                textAlign: "center",
+                color: C.textMuted,
+                fontSize: 13,
+              }}>
+                {lang === "es" ? "No hay repasos generales todavía."
+                  : lang === "ko" ? "아직 일반 복습이 없습니다."
+                  : "No general reviews yet."}
+              </div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {reviews.map(deck => {
+                  const qs = deck.questions || [];
+                  return (
+                    <div
+                      key={deck.id}
+                      onClick={() => navigate(buildRoute.sessionsOptions(deck.id))}
+                      style={{
+                        background: C.bg,
+                        border: `1px solid ${C.border}`,
+                        borderLeft: `3px solid ${C.textMuted}`,
+                        borderRadius: 10,
+                        padding: "12px 16px",
+                        cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 12,
+                        transition: "background .12s ease",
+                      }}
+                      onMouseEnter={e => { e.currentTarget.style.background = C.bgSoft; }}
+                      onMouseLeave={e => { e.currentTarget.style.background = C.bg; }}
+                    >
+                      <SectionBadge section="general_review" lang={lang} />
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{
+                          fontFamily: "'Outfit', sans-serif",
+                          fontSize: 14, fontWeight: 600, color: C.text,
+                          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                        }}>{deck.title}</div>
+                        <div style={{ fontSize: 11.5, color: C.textMuted, marginTop: 2 }}>
+                          {qs.length} {lang === "es" ? "preguntas" : lang === "ko" ? "문제" : "questions"}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        );
+      })()}
+
+      {/* ─── TAB: Search ───────────────────────────────────────────────
+          Active when the teacher typed something. Searches:
+          - Unit names (matched units → cards showing all their decks)
+          - Deck titles, tags, subject
+          Results are grouped: matched units first, then individual decks. */}
+      {topTab === "search" && (() => {
+        const q = searchQuery.trim().toLowerCase();
+        if (!q) {
+          return (
+            <div style={{
+              padding: "32px 20px", textAlign: "center",
+              color: C.textMuted, fontSize: 13,
+            }}>
+              {lang === "es" ? "Empieza a escribir para buscar."
+                : lang === "ko" ? "검색하려면 입력하세요."
+                : "Start typing to search."}
+            </div>
+          );
+        }
+        const matchedUnits = units.filter(u => (u.name || "").toLowerCase().includes(q));
+        const matchedDecks = decks.filter(d => {
+          const title = (d.title || "").toLowerCase();
+          const tags = (d.tags || []).join(" ").toLowerCase();
+          const subject = (d.subject || "").toLowerCase();
+          return title.includes(q) || tags.includes(q) || subject.includes(q);
+        });
+        const totalMatches = matchedUnits.length + matchedDecks.length;
+        if (totalMatches === 0) {
+          return (
+            <div style={{
+              padding: "32px 20px", textAlign: "center",
+              color: C.textMuted, fontSize: 13,
+            }}>
+              {lang === "es" ? "Sin resultados en esta clase."
+                : lang === "ko" ? "이 수업에서 결과 없음."
+                : "No matches in this class."}
+            </div>
+          );
+        }
+        return (
+          <div>
+            {matchedUnits.length > 0 && (
+              <div style={{ marginBottom: 18 }}>
+                <h4 style={{
+                  fontSize: 11, fontWeight: 600,
+                  textTransform: "uppercase", letterSpacing: "0.07em",
+                  color: C.textMuted, marginBottom: 8,
+                  fontFamily: "'Outfit', sans-serif",
+                }}>
+                  {lang === "es" ? "Unidades" : lang === "ko" ? "단원" : "Units"} ({matchedUnits.length})
+                </h4>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {matchedUnits.map(u => {
+                    const unitDecks = decks.filter(d => d.unit_id === u.id);
+                    return (
+                      <button
+                        key={u.id}
+                        onClick={() => {
+                          const idx = units.findIndex(x => x.id === u.id);
+                          if (idx >= 0) {
+                            setCurrentUnitIdx(idx);
+                            setSearchQuery("");
+                            setTopTab("current");
+                          }
+                        }}
+                        style={{
+                          background: C.bg,
+                          border: `1px solid ${C.border}`,
+                          borderLeft: `3px solid ${C.accent}`,
+                          borderRadius: 10,
+                          padding: "12px 16px",
+                          textAlign: "left",
+                          cursor: "pointer",
+                          transition: "background .12s ease",
+                        }}
+                        onMouseEnter={e => { e.currentTarget.style.background = C.bgSoft; }}
+                        onMouseLeave={e => { e.currentTarget.style.background = C.bg; }}
+                      >
+                        <div style={{
+                          fontFamily: "'Outfit', sans-serif",
+                          fontSize: 14, fontWeight: 600, color: C.text,
+                        }}>{u.name}</div>
+                        <div style={{ fontSize: 11.5, color: C.textMuted, marginTop: 2 }}>
+                          {unitStatusLabel(u.status, lang)} · {unitDecks.length} {lang === "es" ? "decks" : lang === "ko" ? "덱" : "decks"}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+            {matchedDecks.length > 0 && (
+              <div>
+                <h4 style={{
+                  fontSize: 11, fontWeight: 600,
+                  textTransform: "uppercase", letterSpacing: "0.07em",
+                  color: C.textMuted, marginBottom: 8,
+                  fontFamily: "'Outfit', sans-serif",
+                }}>
+                  {lang === "es" ? "Decks" : lang === "ko" ? "덱" : "Decks"} ({matchedDecks.length})
+                </h4>
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  {matchedDecks.map(deck => {
+                    const qs = deck.questions || [];
+                    return (
+                      <div
+                        key={deck.id}
+                        onClick={() => navigate(buildRoute.sessionsOptions(deck.id))}
+                        style={{
+                          background: C.bg,
+                          border: `1px solid ${C.border}`,
+                          borderLeft: `3px solid ${(deck.section === "warmup" ? "#D9730D" : deck.section === "exit_ticket" ? "#6940A5" : C.textMuted)}`,
+                          borderRadius: 8,
+                          padding: "10px 14px",
+                          cursor: "pointer",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 12,
+                          transition: "background .1s ease",
+                        }}
+                        onMouseEnter={e => { e.currentTarget.style.background = C.bgSoft; }}
+                        onMouseLeave={e => { e.currentTarget.style.background = C.bg; }}
+                      >
+                        <SectionBadge section={deck.section} lang={lang} />
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{
+                            fontFamily: "'Outfit', sans-serif",
+                            fontSize: 13.5, fontWeight: 600, color: C.text,
+                            overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                          }}>{deck.title}</div>
+                          <div style={{ fontSize: 11, color: C.textMuted, marginTop: 2 }}>
+                            {qs.length} {lang === "es" ? "preguntas" : lang === "ko" ? "문제" : "questions"}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
         );
       })()}
 

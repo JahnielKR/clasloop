@@ -951,6 +951,15 @@ function YourPlanCard({ item, t, lang = "en", onPick }) {
           display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap",
         }}>
           <span style={{ fontWeight: 500 }}>{cls.name}</span>
+          {/* PR5.1: show the unit context — "Unit 3 — Day 2" — when
+              the deck is part of a unit. Reflects the lesson plan
+              context "from the other side" (Plan view). */}
+          {item.unit && item.unit.name && (
+            <>
+              <span style={{ width: 3, height: 3, background: C.textMuted, borderRadius: "50%" }} />
+              <span style={{ fontWeight: 500 }}>{item.unit.name}</span>
+            </>
+          )}
           <span style={{ width: 3, height: 3, background: C.textMuted, borderRadius: "50%" }} />
           <span>{qs.length} {t.questions || "questions"}</span>
           {isDone && (
