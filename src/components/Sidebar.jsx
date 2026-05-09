@@ -50,36 +50,107 @@ import { C } from "./tokens";
 //   ⚙  Settings     — gear (universal)
 //   ★  Achievements — star (student-side gamification)
 //   ⊕  Join         — circled plus (join action)
-//   ⚙  AI stats     — admin only, settings adjacent
+//   ⚡  AI stats     — admin only
+//
+// The nav is structured as GROUPS, not a flat list. Each group reflects
+// a different mental mode the teacher is in:
+//
+//   TODAY    — "what does today need from me"
+//              Today + To review. Sustains the daily rhythm.
+//   TEACH    — "where I prepare and review my material"
+//              My Classes + Decks. The doors to all teaching content.
+//              When PR4 (Plan view) lands, Classes becomes the entry
+//              into unit planning — keeping it grouped with Decks here
+//              already nudges toward "this is where the work lives".
+//   DISCOVER — "what others are doing", non-urgent exploration
+//              Community.
+//   ACCOUNT  — "personal settings + system pings"
+//              Notifications + Settings.
+//
+// Grouping by frequency-of-use means a teacher's eye lands on TODAY first
+// (where they are 80% of the time) and never has to scan past 7 items to
+// find what they need. The visual breathing between groups also fixes
+// the "everything packed under one header" feel of the v1 sidebar.
 
-// Teacher nav. Order matches the redesign:
-//   Today is the daily landing.
-//   Classes → Decks → To review is the "preparing the next class" flow.
-//   Community / Notifications / Settings are utility, lower priority.
-const TEACHER_NAV = [
-  { id: "sessions",      glyph: "●", label: "Today" },
-  { id: "myClasses",     glyph: "▤", label: "My Classes" },
-  { id: "decks",         glyph: "▥", label: "Decks" },
-  { id: "review",        glyph: "✎", label: "To review", showBadge: "review" },
-  { id: "community",     glyph: "◇", label: "Community" },
-  { id: "notifications", glyph: "○", label: "Notifications", showBadge: "notifs" },
-  { id: "settings",      glyph: "⚙", label: "Settings" },
+// Teacher nav groups
+const TEACHER_NAV_GROUPS = [
+  {
+    title: "Today",
+    items: [
+      { id: "sessions", glyph: "●", label: "Today" },
+      { id: "review",   glyph: "✎", label: "To review", showBadge: "review" },
+    ],
+  },
+  {
+    title: "Teach",
+    items: [
+      { id: "myClasses", glyph: "▤", label: "My Classes" },
+      { id: "decks",     glyph: "▥", label: "Decks" },
+    ],
+  },
+  {
+    title: "Discover",
+    items: [
+      { id: "community", glyph: "◇", label: "Community" },
+    ],
+  },
+  {
+    title: "Account",
+    // A subtle divider before this group — it's the meta/settings cluster
+    // and should feel a step removed from the work clusters above.
+    divided: true,
+    items: [
+      { id: "notifications", glyph: "○", label: "Notifications", showBadge: "notifs" },
+      { id: "settings",      glyph: "⚙", label: "Settings" },
+    ],
+  },
 ];
 
-// Student nav. Different shape — students join sessions, don't run them.
-const STUDENT_NAV = [
-  { id: "myClasses",     glyph: "▤", label: "My Classes" },
-  { id: "studentJoin",   glyph: "⊕", label: "Join Session" },
-  { id: "achievements",  glyph: "★", label: "Achievements" },
-  { id: "community",     glyph: "◇", label: "Community" },
-  { id: "notifications", glyph: "○", label: "Notifications", showBadge: "notifs" },
-  { id: "settings",      glyph: "⚙", label: "Settings" },
+// Student nav groups. Same logic, different shape:
+//   LEARN    — daily learning: classes + joining sessions
+//   PROGRESS — gamification view (achievements)
+//   DISCOVER — community
+//   ACCOUNT  — notifications + settings
+const STUDENT_NAV_GROUPS = [
+  {
+    title: "Learn",
+    items: [
+      { id: "myClasses",   glyph: "▤", label: "My Classes" },
+      { id: "studentJoin", glyph: "⊕", label: "Join Session" },
+    ],
+  },
+  {
+    title: "Progress",
+    items: [
+      { id: "achievements", glyph: "★", label: "Achievements" },
+    ],
+  },
+  {
+    title: "Discover",
+    items: [
+      { id: "community", glyph: "◇", label: "Community" },
+    ],
+  },
+  {
+    title: "Account",
+    divided: true,
+    items: [
+      { id: "notifications", glyph: "○", label: "Notifications", showBadge: "notifs" },
+      { id: "settings",      glyph: "⚙", label: "Settings" },
+    ],
+  },
 ];
 
-// Admin extras. Appended to whichever role-nav the user has.
-const ADMIN_EXTRAS = [
-  { id: "adminAIStats", glyph: "⚡", label: "AI Stats" },
-];
+// Admin extras. Appended as its own group after the role's groups so it
+// reads as "you're a power user, here's the extra stuff" rather than
+// inserted somewhere weird.
+const ADMIN_GROUP = {
+  title: "Admin",
+  divided: true,
+  items: [
+    { id: "adminAIStats", glyph: "⚡", label: "AI Stats" },
+  ],
+};
 
 // ─── Subcomponents ─────────────────────────────────────────────────────
 
@@ -99,7 +170,7 @@ function NavItem({ item, active, showLabels, badgeCount, onClick }) {
         alignItems: "center",
         gap: 10,
         width: "100%",
-        padding: showLabels ? "7px 10px" : "9px 0",
+        padding: showLabels ? "6px 10px" : "8px 0",
         borderRadius: 6,
         background: active ? C.accentSoft : "transparent",
         color: active ? C.accent : C.textSecondary,
@@ -110,7 +181,10 @@ function NavItem({ item, active, showLabels, badgeCount, onClick }) {
         justifyContent: showLabels ? "flex-start" : "center",
         border: "none",
         cursor: "pointer",
-        marginBottom: 1,
+        // 2px between items — small but enough to avoid the "packed" feel
+        // the v1 sidebar had. Combined with the 16px between groups, this
+        // gives the sidebar a clear visual rhythm: group-cluster-group.
+        marginBottom: 2,
         transition: "background .12s ease, color .12s ease",
         position: "relative",
       }}
@@ -170,16 +244,30 @@ function NavItem({ item, active, showLabels, badgeCount, onClick }) {
 // Section header inside the sidebar — small uppercase label that groups
 // items under a heading. Only shown in expanded mode (collapsed mode skips
 // it, the whole sidebar is just glyphs).
-function SectionTitle({ children }) {
+//
+// Padding rationale: more breathing room ABOVE than below — the title
+// belongs to the items that follow it, so it sits closer to them. The
+// generous top margin (16px on non-first groups) is what gives the
+// sidebar its "respira" feel between sections.
+function SectionTitle({ children, isFirst = false, divided = false }) {
   return (
     <div
       style={{
         fontSize: 10.5,
         textTransform: "uppercase",
-        letterSpacing: "0.07em",
+        letterSpacing: "0.09em",     // wider than v1's 0.07 — feels more architectural
         color: C.textMuted,
         fontWeight: 600,
-        padding: "12px 10px 4px",
+        // First group has no top margin (sits flush with the brand area).
+        // Subsequent groups get a generous gap so each block reads as its own.
+        // `divided` adds a hairline border above for the Account group, where
+        // we want a stronger "this is a different kind of thing" cut.
+        padding: divided ? "14px 10px 4px" : "10px 10px 4px",
+        marginTop: isFirst ? 0 : 16,
+        borderTop: divided ? `1px solid ${C.border}` : "none",
+        // When we have a top border, the marginTop above pushes the border
+        // down too — that's the desired result. The line ends up visually
+        // at the top of the gap, separating clusters cleanly.
         fontFamily: "'Outfit', sans-serif",
       }}
     >
@@ -216,8 +304,10 @@ export default function Sidebar({
     : (page === "sessions" || page === "decks" || page === "director");
   const isAdmin = profile?.is_admin === true;
 
-  const baseNav = isTeacher ? TEACHER_NAV : STUDENT_NAV;
-  const nav = isAdmin ? [...baseNav, ...ADMIN_EXTRAS] : baseNav;
+  // Pick the group set for this role and append the admin group if applicable.
+  // The result is a list of groups, each with its own title + items.
+  const baseGroups = isTeacher ? TEACHER_NAV_GROUPS : STUDENT_NAV_GROUPS;
+  const navGroups = isAdmin ? [...baseGroups, ADMIN_GROUP] : baseGroups;
 
   // Width math: identical to the previous version so App.jsx's marginLeft
   // calculation doesn't need to change.
@@ -351,19 +441,40 @@ export default function Sidebar({
       )}
 
       {/* ─── Nav ─────────────────────────────────────────────── */}
-      <div style={{ flex: 1, overflowY: "auto", overflowX: "hidden", padding: "4px 6px" }}>
-        {showLabels && (
-          <SectionTitle>{isTeacher ? "Workspace" : "Learning"}</SectionTitle>
-        )}
-        {nav.map((item) => (
-          <NavItem
-            key={item.id}
-            item={item}
-            active={page === item.id}
-            showLabels={showLabels}
-            badgeCount={item.showBadge ? badgeFor(item.showBadge) : 0}
-            onClick={() => handleNav(item.id)}
-          />
+      {/* Padded slightly more than v1 (8 vs 4 top) so the first group's
+          title doesn't sit too tight against the brand area. */}
+      <div style={{ flex: 1, overflowY: "auto", overflowX: "hidden", padding: "8px 6px" }}>
+        {navGroups.map((group, gIdx) => (
+          // In collapsed mode we drop the title (no room for it) but keep
+          // a small visual gap between groups via marginTop on the items
+          // wrapper. The Account group still gets a hairline divider in
+          // collapsed mode — the cut is visible at-a-glance even when
+          // labels are hidden, which preserves the "kinds of things"
+          // grouping.
+          <div
+            key={group.title}
+            style={{
+              marginTop: !showLabels && gIdx > 0 ? 10 : 0,
+              borderTop: !showLabels && group.divided ? `1px solid ${C.border}` : "none",
+              paddingTop: !showLabels && group.divided ? 10 : 0,
+            }}
+          >
+            {showLabels && (
+              <SectionTitle isFirst={gIdx === 0} divided={group.divided}>
+                {group.title}
+              </SectionTitle>
+            )}
+            {group.items.map((item) => (
+              <NavItem
+                key={item.id}
+                item={item}
+                active={page === item.id}
+                showLabels={showLabels}
+                badgeCount={item.showBadge ? badgeFor(item.showBadge) : 0}
+                onClick={() => handleNav(item.id)}
+              />
+            ))}
+          </div>
         ))}
       </div>
 
