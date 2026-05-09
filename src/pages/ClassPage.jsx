@@ -18,7 +18,7 @@ import { CIcon } from "../components/Icons";
 import { DeckCover, resolveColor as resolveDeckColor } from "../lib/deck-cover";
 import { useIsMobile } from "../components/MobileMenuButton";
 import EditClassModal from "../components/EditClassModal";
-import SectionBadge from "../components/SectionBadge";
+import SectionBadge, { sectionAccent } from "../components/SectionBadge";
 import PlanView from "../components/PlanView";
 import { CloseUnitConfirmModal, CloseUnitSummary, ReopenUnitModal } from "../components/CloseUnitFlow";
 import { C, MONO } from "../components/tokens";
@@ -1804,7 +1804,7 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
                         style={{
                           background: C.bg,
                           border: `1px solid ${C.border}`,
-                          borderLeft: `3px solid ${(deck.section === "warmup" ? "#D9730D" : deck.section === "exit_ticket" ? "#6940A5" : C.textMuted)}`,
+                          borderLeft: `3px solid ${sectionAccent(deck.section)}`,
                           borderRadius: 8,
                           padding: "10px 14px",
                           cursor: "pointer",
@@ -1869,10 +1869,10 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
             marginBottom: 18, lineHeight: 1.5,
           }}>
             {lang === "es"
-              ? "Una unidad es un tema — \"Verbo hacer\", \"Subjuntivo\". Los warmups y exit tickets de cada día viven dentro de la unidad."
+              ? "Una unidad es un tema — \"La Revolución Francesa\", \"Ecuaciones cuadráticas\", \"Fotosíntesis\". Los warmups y exit tickets de cada día viven dentro de la unidad."
               : lang === "ko"
-              ? "단원은 주제입니다 — \"동사 hacer\", \"가정법\". 매일의 워밍업과 종료 티켓이 단원 안에 들어갑니다."
-              : "A unit is a theme — \"Verb hacer\", \"Subjunctive\". The warmups and exit tickets of each day live inside it."
+              ? "단원은 주제입니다 — \"프랑스 혁명\", \"이차방정식\", \"광합성\". 매일의 워밍업과 종료 티켓이 단원 안에 들어갑니다."
+              : "A unit is a theme — \"The French Revolution\", \"Quadratic Equations\", \"Photosynthesis\". The warmups and exit tickets of each day live inside it."
             }
           </div>
           {!showNewUnit ? (

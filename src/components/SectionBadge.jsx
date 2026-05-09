@@ -28,24 +28,31 @@ import { sectionLabels } from "../lib/class-hierarchy";
 // the sidebar. They render at the same size as text, scale automatically
 // with font-size, and don't need extra width when stacked next to a deck
 // title. The idea is the badge feels like punctuation, not a graphic.
+//
+// All colors come from CSS-variable-backed tokens so the badge adapts
+// to dark mode automatically. Earlier versions hardcoded foregrounds
+// (#6E3A00, #391E5E, #4a4a4a) which became invisible on dark theme
+// because dark theme inverts the soft-bg to a dark hue and the dark
+// foreground stopped being readable. The fix was adding theme-aware
+// section-fg tokens — see tokens.js.
 const SECTION_STYLE = {
   warmup: {
     glyph: "☀",
     bg: C.orangeSoft,
-    fg: "#6E3A00",        // dark warm — accessible on orange-soft bg
-    accent: "#D9730D",    // for stripe variant
+    fg: C.sectionWarmupFg,
+    accent: C.orange,        // for stripe variant — already theme-aware
   },
   exit_ticket: {
     glyph: "⤓",
     bg: C.purpleSoft,
-    fg: "#391E5E",
-    accent: "#6940A5",
+    fg: C.sectionExitFg,
+    accent: C.purple,
   },
   general_review: {
     glyph: "▤",
-    bg: "#EEEDEA",        // neutral soft — slightly cooler than text-muted
-    fg: "#4a4a4a",
-    accent: "#6B6B6B",
+    bg: C.sectionGeneralBg,
+    fg: C.sectionGeneralFg,
+    accent: C.sectionGeneralAccent,
   },
 };
 

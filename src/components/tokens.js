@@ -44,6 +44,17 @@ export const THEME_CSS = `
   --c-purple: #6940A5;
   --c-purple-soft: #F3EEFB;
 
+  /* Section badges — readable foreground on each section's soft bg.
+     These need to be theme-aware because the bg is theme-aware: a
+     dark-warm fg works on a light-orange bg but is invisible on a
+     dark-orange bg in dark mode. Light theme uses deep, saturated
+     hues; dark theme uses light, lifted hues — see [data-theme=dark]. */
+  --c-section-warmup-fg: #6E3A00;
+  --c-section-exit-fg: #391E5E;
+  --c-section-general-fg: #4a4a4a;
+  --c-section-general-bg: #EEEDEA;
+  --c-section-general-accent: #6B6B6B;
+
   /* Text */
   --c-text: #191919;
   --c-text-secondary: #6B6B6B;
@@ -82,6 +93,13 @@ export const THEME_CSS = `
   --c-red-soft: #3A1F1F;
   --c-purple: #A687D6;
   --c-purple-soft: #2A1F3A;
+
+  /* Section badges — light/lifted hues for dark mode readability */
+  --c-section-warmup-fg: #F5C088;
+  --c-section-exit-fg: #C8A8E8;
+  --c-section-general-fg: #B8B8B8;
+  --c-section-general-bg: #2A2B2E;
+  --c-section-general-accent: #888888;
 
   /* Text — high-contrast on dark surfaces */
   --c-text: #ECECEC;
@@ -128,6 +146,17 @@ export const C = {
   redSoft: "var(--c-red-soft)",
   purple: "var(--c-purple)",
   purpleSoft: "var(--c-purple-soft)",
+
+  // Section badge foregrounds — theme-aware, used by SectionBadge.
+  // The badge's bg comes from C.orangeSoft / C.purpleSoft (already
+  // theme-aware) and its accent from sectionAccent() (which uses
+  // C.orange / C.purple, also theme-aware). What was missing was a
+  // theme-aware foreground for the label text — that's these.
+  sectionWarmupFg: "var(--c-section-warmup-fg)",
+  sectionExitFg: "var(--c-section-exit-fg)",
+  sectionGeneralFg: "var(--c-section-general-fg)",
+  sectionGeneralBg: "var(--c-section-general-bg)",
+  sectionGeneralAccent: "var(--c-section-general-accent)",
 
   // Text
   text: "var(--c-text)",

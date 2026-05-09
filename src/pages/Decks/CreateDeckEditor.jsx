@@ -318,10 +318,35 @@ function AIGeneratePanel({
         >{t.cancel}</button>
       </div>
 
-      {/* File uploader */}
+      {/* File uploader. Source material is the single biggest lever for
+          AI quality — when teachers attach the actual lesson, generated
+          questions stay anchored to what students have seen. Without it,
+          the AI works from the topic name alone, which often produces
+          off-target content. So we visually elevate this block: a small
+          "recommended" pill in the label, an accent-tinted upload button
+          (instead of a quiet gray dashed one), and a longer hint text
+          that explains the *why*. */}
       <div style={{ marginBottom: 14 }}>
-        <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: C.textSecondary, marginBottom: 6 }}>
-          {t.aiSourceLabel}
+        <label style={{
+          display: "flex", alignItems: "center", gap: 8,
+          fontSize: 12, fontWeight: 600, color: C.textSecondary,
+          marginBottom: 6,
+        }}>
+          <span>{t.aiSourceLabel.split("—")[0].trim()}</span>
+          {/* Inline "recommended" pill — extracted from the label string
+              so it renders as a visual badge, not part of the prose. */}
+          <span style={{
+            fontSize: 9.5, fontWeight: 700,
+            textTransform: "uppercase", letterSpacing: "0.06em",
+            padding: "2px 7px", borderRadius: 999,
+            background: C.accentSoft,
+            color: C.accent,
+            lineHeight: 1.4,
+          }}>
+            {/* Picks "recommended" / "muy recomendado" / "권장" from
+                the locale's label, after the em-dash. */}
+            {(t.aiSourceLabel.split("—")[1] || "recommended").trim()}
+          </span>
         </label>
         {!file ? (
           <>
@@ -337,12 +362,27 @@ function AIGeneratePanel({
               onClick={() => aiFileInputRef.current?.click()}
               disabled={generating}
               style={{
-                width: "100%", padding: "14px 12px", borderRadius: 8,
-                border: `1.5px dashed ${C.border}`, background: C.bgSoft,
-                color: C.textSecondary, fontSize: 13,
+                width: "100%", padding: "16px 12px", borderRadius: 8,
+                // Accent-tinted instead of gray-dashed: signals "you
+                // probably want to do this" rather than a neutral option.
+                border: `1.5px dashed ${C.accent}`,
+                background: C.accentSoft,
+                color: C.accent,
+                fontSize: 13, fontWeight: 600,
                 cursor: generating ? "not-allowed" : "pointer",
                 fontFamily: "'Outfit',sans-serif",
                 display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                transition: "transform .12s ease, box-shadow .12s ease",
+              }}
+              onMouseEnter={e => {
+                if (!generating) {
+                  e.currentTarget.style.transform = "translateY(-1px)";
+                  e.currentTarget.style.boxShadow = "0 2px 8px rgba(0,0,0,0.06)";
+                }
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.transform = "translateY(0)";
+                e.currentTarget.style.boxShadow = "none";
               }}
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -350,7 +390,10 @@ function AIGeneratePanel({
               </svg>
               {t.aiUploadCta}
             </button>
-            <p style={{ fontSize: 11, color: C.textMuted, margin: "6px 0 0", lineHeight: 1.4 }}>
+            <p style={{
+              fontSize: 11.5, color: C.textSecondary,
+              margin: "8px 0 0", lineHeight: 1.5,
+            }}>
               {t.aiUploadHint}
             </p>
           </>
