@@ -1862,18 +1862,16 @@ function DeckTile({ deck, t, lang, onEdit, onDelete, onTogglePublic, onDownloadP
             title={t.downloadPdf}
             aria-label={t.downloadPdf}
             style={{
-              width: 24, height: 24,
+              width: 26, height: 26,
               padding: 0,
               borderRadius: 5,
               background: pdfOpen ? C.accentSoft : "transparent",
-              color: pdfOpen ? C.accent : C.textMuted,
+              color: pdfOpen ? C.accent : C.textSecondary,
               border: `1px solid ${pdfOpen ? C.accent : "transparent"}`,
               cursor: "pointer",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              fontSize: 14,
-              lineHeight: 1,
               fontFamily: "'Outfit', sans-serif",
               transition: "background .12s ease, color .12s ease, border-color .12s ease",
             }}
@@ -1890,12 +1888,27 @@ function DeckTile({ deck, t, lang, onEdit, onDelete, onTogglePublic, onDownloadP
               }
             }}
           >
-            ↓
+            {/* Bold download arrow. The Unicode ↓ rendered too thin
+                and didn't have presence — teacher feedback called it
+                "muy fino". This SVG draws a thick arrow with stroke 2.5,
+                rounded caps, and a tray bar at the bottom (the classic
+                "download" glyph used by Notion / Linear / GitHub). */}
+            <svg
+              width="14" height="14" viewBox="0 0 24 24"
+              fill="none" stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round" strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M12 4v12" />
+              <path d="M6 12l6 6 6-6" />
+              <path d="M5 20h14" />
+            </svg>
           </button>
           {pdfOpen && (
             <div style={{
               position: "absolute",
-              top: 28,
+              top: 30,
               right: 0,
               minWidth: 140,
               background: C.bg,
@@ -1946,7 +1959,7 @@ function DeckTile({ deck, t, lang, onEdit, onDelete, onTogglePublic, onDownloadP
           minHeight: 32,
           // Right padding so the title text doesn't underflow the
           // absolutely-positioned download button.
-          paddingRight: onDownloadPdf ? 28 : 0,
+          paddingRight: onDownloadPdf ? 30 : 0,
         }}>
           {deck.title}
         </div>

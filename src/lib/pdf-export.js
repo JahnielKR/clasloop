@@ -321,15 +321,13 @@ function drawTFOptions(doc, startY, fontFamily, labels) {
 }
 
 function drawFillBlanks(doc, q, startY, fontFamily) {
-  let y = startY;
-  // The "fill in the blank" question prompt usually has ___ markers in it.
-  // We've already rendered the question text above; here we add 1-2
-  // blank lines for the student to write their answer(s).
-  // Some fill questions have multiple blanks — count underscores in the
-  // prompt to estimate, capped at 4.
-  const text = q.q || q.prompt || "";
-  const blanksCount = Math.min(Math.max((text.match(/_+/g) || []).length, 1), 4);
-  return drawBlankLines(doc, y, blanksCount);
+  // Fill-the-blank questions already contain ___ markers in the prompt
+  // text where the student writes their answer. Earlier versions added
+  // extra blank lines below — but that's redundant: students write the
+  // word(s) directly on the underscores, they don't rewrite the whole
+  // sentence. Per teacher feedback in PR 8.1: just give a small
+  // breathing space below the question and move on.
+  return startY + 4;
 }
 
 function drawMatchPairs(doc, q, startY, fontFamily) {
@@ -337,14 +335,31 @@ function drawMatchPairs(doc, q, startY, fontFamily) {
   doc.setFont(fontFamily, "normal");
   doc.setFontSize(FONT.option);
   doc.setTextColor(40, 40, 40);
-  // Match has pairs; each pair has "left" and "right" or similar.
-  // We render two columns: left items numbered, right items lettered.
-  // Student writes the matching letter next to each number, or draws lines.
+  // Match question: q.pairs is an array of { left, right } ALREADY matched
+  // by index — pair[0].right is the correct match for pair[0].left, etc.
+  // For the exam, we have to shuffle the right column so the answer isn't
+  // trivially "1↔A, 2↔B, 3↔C". We use a deterministic shuffle based on
+  // the question's prompt as seed — that way the same question always
+  // produces the same shuffled order (so reprinting after a kid loses
+  // their copy doesn't change which letter pairs with which item).
   const pairs = q.pairs || q.items || [];
   const lefts = pairs.map((p, i) => p.left || p.l || `Item ${i + 1}`);
-  // Right column shuffled visually so it isn't 1:1 lined up. We use the
-  // same order as given (the AI usually shuffles already); it's fine.
-  const rights = pairs.map((p, i) => p.right || p.r || `Match ${i + 1}`);
+  // Pair right values with their original index, then shuffle.
+  const rightsWithOriginalIdx = pairs.map((p, i) => ({
+    text: p.right || p.r || `Match ${i + 1}`,
+    originalIdx: i,
+  }));
+  const shuffled = deterministicShuffle(
+    rightsWithOriginalIdx,
+    String(q.q || q.prompt || pairs.length)
+  );
+  // Build a label map: shuffled[k] gets letter at position k. The PDF
+  // shows "A, B, C..." in column order which means the original-idx
+  // tracking lets the answer key know "left #1 maps to letter at the
+  // position where its original right ended up after shuffling".
+  // We don't actually need this map for the exam (we just print the
+  // shuffled rights labeled A/B/C/D in display order). The answer key
+  // doesn't reference letters — it just lists "left → right" pairs.
   const colWidth = (PAGE.contentWidth - 8) / 2;
   const xLeft = PAGE.marginX + 4;
   const xRight = PAGE.marginX + 4 + colWidth + 8;
@@ -357,16 +372,37 @@ function drawMatchPairs(doc, q, startY, fontFamily) {
     doc.setFont(fontFamily, "normal");
     const leftWrapped = doc.splitTextToSize(lefts[i], colWidth - 8);
     doc.text(leftWrapped, xLeft + 6, y);
-    // Right: letter + text
+    // Right: letter + text (in shuffled order)
     const letter = String.fromCharCode(65 + i);
     doc.setFont(fontFamily, "bold");
     doc.text(`${letter}.`, xRight, y);
     doc.setFont(fontFamily, "normal");
-    const rightWrapped = doc.splitTextToSize(rights[i], colWidth - 8);
+    const rightWrapped = doc.splitTextToSize(shuffled[i].text, colWidth - 8);
     doc.text(rightWrapped, xRight + 6, y);
     y += lineHeight + (Math.max(leftWrapped.length, rightWrapped.length) - 1) * 4;
   }
   return y + 2;
+}
+
+// Deterministic shuffle — same input always produces same output.
+// Uses a tiny string-hash to seed an LCG-based shuffle. Not crypto-
+// secure (doesn't need to be), just stable across exports of the same
+// question. This way reprinting the exam after a student loses theirs
+// doesn't change the shuffle.
+function deterministicShuffle(arr, seed) {
+  // Simple hash of seed → starting state
+  let state = 0;
+  for (let i = 0; i < seed.length; i++) {
+    state = (state * 31 + seed.charCodeAt(i)) >>> 0;
+  }
+  const result = arr.slice();
+  // Fisher-Yates with LCG random
+  for (let i = result.length - 1; i > 0; i--) {
+    state = (state * 1664525 + 1013904223) >>> 0;
+    const j = state % (i + 1);
+    [result[i], result[j]] = [result[j], result[i]];
+  }
+  return result;
 }
 
 function drawOrderItems(doc, q, startY, fontFamily) {
@@ -468,10 +504,14 @@ function estimateQuestionHeight(q) {
     case "slider":
       response = 18;
       break;
+    case "fill":
+      // Fill writes the answer in the prompt's ___ — only need a small
+      // breathing space below.
+      response = 6;
+      break;
     case "sentence":
     case "free":
     case "open":
-    case "fill":
     default:
       response = 3 * SPACING.blankLine;
   }
@@ -480,56 +520,73 @@ function estimateQuestionHeight(q) {
 
 // Format a single question's answer for the answer-key PDF.
 // The output is one short string regardless of question type.
+//
+// Schema reference (matches src/lib/scoring.js):
+//   mcq:    q.options = [...], q.correct = index | [indices]
+//   tf:     q.correct = true | false
+//   fill:   q.answer = "word", q.alternatives = ["alt", ...]
+//   order:  q.items in correct order (the question presents them shuffled
+//           but stores the canonical order)
+//   match:  q.pairs = [{ left, right }] — pairs are stored matched.
+//           The exam shuffles them visually but the answer key just
+//           lists them as left → right.
+//   slider: q.correct = number, q.tolerance optional
+//   sentence/free/open: free-form, no canonical answer
+//
+// Earlier versions of this function used q.answer for everything, which
+// is wrong — most types use q.correct. MCQs ended up showing the index
+// number, match showed nothing useful. Fixed in PR 8.1.
 function formatAnswerForKey(q, labels) {
   switch (q.type) {
     case "mcq": {
-      // q.answer can be the option index (0-based) or the option string.
-      const opts = q.options || [];
-      if (typeof q.answer === "number" && opts[q.answer]) {
-        return `${"abcdef"[q.answer]}) ${opts[q.answer]}`;
+      const opts = Array.isArray(q.options) ? q.options : [];
+      const letters = "abcdef";
+      // Multi-select: q.correct is an array of indices
+      if (Array.isArray(q.correct)) {
+        return q.correct
+          .map(i => `${letters[i] || "?"}) ${opts[i] ?? "?"}`)
+          .join(" + ");
       }
-      const idx = opts.indexOf(q.answer);
-      if (idx >= 0) return `${"abcdef"[idx]}) ${q.answer}`;
-      return String(q.answer ?? "—");
+      // Single-select: q.correct is one index
+      const i = q.correct;
+      if (typeof i === "number" && opts[i] != null) {
+        return `${letters[i] || "?"}) ${opts[i]}`;
+      }
+      return String(q.correct ?? "—");
     }
     case "tf":
-      return q.answer === true || q.answer === "true" ? labels.true : labels.false;
-    case "fill":
-      // q.answer is the word(s) to fill
-      if (Array.isArray(q.answer)) return q.answer.join(", ");
-      return String(q.answer ?? "—");
+      return q.correct === true ? labels.true : (q.correct === false ? labels.false : "—");
+    case "fill": {
+      // q.answer is the primary; q.alternatives are accepted variants
+      const alts = Array.isArray(q.alternatives) ? q.alternatives : [];
+      return [q.answer, ...alts].filter(Boolean).join(" / ") || "—";
+    }
     case "order": {
-      const items = q.items || q.options || [];
-      const order = q.answer || q.correct_order || [];
-      // q.answer is usually a list of indices in correct order
-      if (Array.isArray(order)) {
-        return order.map(i => items[i] ?? `?`).join(" → ");
-      }
-      return String(order);
+      // q.items already stored in correct order
+      const items = Array.isArray(q.items) ? q.items : [];
+      return items.join(" → ");
     }
     case "match": {
-      // q.answer maps left index → right index, or is a list of pairs
-      const pairs = q.pairs || [];
-      if (Array.isArray(q.answer)) {
-        return q.answer.map((rightIdx, leftIdx) => {
-          const left = pairs[leftIdx]?.left || pairs[leftIdx]?.l || `?`;
-          const right = pairs[rightIdx]?.right || pairs[rightIdx]?.r || `?`;
-          return `${left}=${right}`;
-        }).join(", ");
-      }
-      // Default: just list each pair as "left → right"
-      return pairs.map(p => `${p.left || p.l} → ${p.right || p.r}`).join(", ");
+      // q.pairs is an array of { left, right } already matched
+      const pairs = Array.isArray(q.pairs) ? q.pairs : [];
+      return pairs.map(p => `${p.left} → ${p.right}`).join(",  ");
     }
-    case "slider":
-      return String(q.answer ?? "—");
+    case "slider": {
+      const target = q.correct;
+      const tol = Number(q.tolerance) || 0;
+      if (target == null) return "—";
+      return tol > 0 ? `${target} (±${tol})` : String(target);
+    }
     case "sentence":
+      // Sentences are open-ended. If there's a required_word, mention it.
+      return q.required_word
+        ? `(${labels.useWord}: "${q.required_word}")`
+        : `(${labels.openAnswer})`;
     case "free":
     case "open":
-      // For free-form there's often no single answer. Use sample_answer
-      // if present, else a placeholder.
-      return q.sample_answer || q.answer || `(${labels.openAnswer})`;
+      return q.sample_answer || `(${labels.openAnswer})`;
     default:
-      return String(q.answer ?? "—");
+      return q.answer != null ? String(q.answer) : "—";
   }
 }
 
