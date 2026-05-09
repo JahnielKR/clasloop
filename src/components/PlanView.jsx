@@ -43,7 +43,7 @@
 //   - Each empty slot inside an occupied day: "+ Add warmup" / "+ Add exit"
 //   - Both slots empty → a single "+ Add Day N" call-to-action
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import SectionBadge, { sectionAccent } from "./SectionBadge";
@@ -1062,13 +1062,58 @@ export default function PlanView({
   const [modalSlot, setModalSlot] = useState(null);
   // modalSlot shape: { dayNumber: number, slotKind: "warmup"|"exit" } | null
 
+  // PR6 follow-up: animate unit transitions. When activeUnit.id changes
+  // (the teacher hit prev/next or jumped from Past/Upcoming/Search),
+  // we slide the content out in one direction and the new content in
+  // from the opposite. The direction is inferred from a tiny handshake:
+  // when the teacher clicks an arrow, we set `pendingDir` BEFORE
+  // ClassPage updates the index, so we know which way the content
+  // should fly. For "external" jumps (Past tab click, Search result,
+  // initial load) we fall back to no-direction slide-in (just fade).
+  const [slideDir, setSlideDir] = useState(null);  // "left" | "right" | null
+  // Track which unit we're currently rendering. When activeUnit.id
+  // changes, we briefly hold onto the old unit, run the slide-out
+  // animation, then swap to the new unit.
+  const [renderUnit, setRenderUnit] = useState(activeUnit);
+  const [animating, setAnimating] = useState(false);
+
+  useEffect(() => {
+    // Same unit, nothing to do
+    if (!activeUnit || activeUnit.id === renderUnit?.id) {
+      // Keep renderUnit fresh on shallow updates (e.g. rename) without
+      // re-triggering animation
+      if (activeUnit && activeUnit !== renderUnit) setRenderUnit(activeUnit);
+      return;
+    }
+    // Different unit. Animate.
+    setAnimating(true);
+    // After the slide-out (200ms), swap to the new unit and slide in
+    const swapTimer = setTimeout(() => {
+      setRenderUnit(activeUnit);
+      // Let the slide-in animation complete before allowing new transitions
+      const inTimer = setTimeout(() => {
+        setAnimating(false);
+        setSlideDir(null);
+      }, 240);
+      return () => clearTimeout(inTimer);
+    }, 200);
+    return () => clearTimeout(swapTimer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeUnit?.id]);
+
+  // Wrap the prev/next handlers so they capture direction BEFORE the
+  // index actually moves. This way the effect above already knows
+  // which way to slide when activeUnit.id flips.
+  const handlePrev = onPrevUnit ? () => { setSlideDir("right"); onPrevUnit(); } : null;
+  const handleNext = onNextUnit ? () => { setSlideDir("left"); onNextUnit(); } : null;
+
   if (!activeUnit) {
     // Should not happen — ClassPage decides whether to render PlanView
     // based on whether an active unit exists. But defensive return.
     return null;
   }
 
-  const dayRows = buildDayRows(decks, activeUnit.id);
+  const dayRows = buildDayRows(decks, renderUnit.id);
   const dayCount = dayRows.length;
 
   // Action handlers
@@ -1084,7 +1129,7 @@ export default function PlanView({
   // jump to the editor with section + unit + class pre-filled.
   const handleCreateFromModal = (slotKind) => {
     const section = slotKind === "warmup" ? "warmup" : "exit_ticket";
-    navigate(`${ROUTES.DECKS_NEW}?${QUERY.CLASS}=${encodeURIComponent(classId)}&section=${section}&unit=${encodeURIComponent(activeUnit.id)}`);
+    navigate(`${ROUTES.DECKS_NEW}?${QUERY.CLASS}=${encodeURIComponent(classId)}&section=${section}&unit=${encodeURIComponent(renderUnit.id)}`);
   };
   // Modal "Pick from library" path — the modal already wrote unit_id
   // and position, so we just close + refresh.
@@ -1109,6 +1154,61 @@ export default function PlanView({
 
   return (
     <div style={{ paddingBottom: 20 }}>
+      {/* PR6 follow-up: keyframes for unit transition animations.
+          Slide-out: current unit content slides toward one edge and fades.
+          Slide-in: new unit content enters from the OPPOSITE edge.
+          Direction handshake: next-arrow → outgoing slides LEFT, incoming
+          enters from right; prev-arrow → outgoing slides RIGHT, incoming
+          enters from left. The 200ms out + 240ms in window matches the
+          setTimeout chain in the unit-change useEffect above. */}
+      <style>{`
+        @keyframes cl-slide-out-left {
+          from { transform: translateX(0); opacity: 1; }
+          to   { transform: translateX(-32px); opacity: 0; }
+        }
+        @keyframes cl-slide-out-right {
+          from { transform: translateX(0); opacity: 1; }
+          to   { transform: translateX(32px); opacity: 0; }
+        }
+        @keyframes cl-slide-in-from-right {
+          from { transform: translateX(32px); opacity: 0; }
+          to   { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes cl-slide-in-from-left {
+          from { transform: translateX(-32px); opacity: 0; }
+          to   { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes cl-fade-in {
+          from { opacity: 0; }
+          to   { opacity: 1; }
+        }
+      `}</style>
+      <div
+        // The wrapper that animates. We pick an animation name based on
+        // (a) whether we're animating, (b) what phase we're in (out vs in,
+        // determined by whether activeUnit.id matches renderUnit.id), and
+        // (c) which direction.
+        // - animating + activeUnit !== renderUnit → still showing OLD,
+        //   playing slide-out
+        // - animating + activeUnit === renderUnit → showing NEW, playing
+        //   slide-in (this branch isn't actually hit because the swap
+        //   happens at the boundary and `animating` stays true through
+        //   slide-in too — see useEffect)
+        // - !animating → no animation
+        // We use the renderUnit.id as a key so React fully remounts the
+        // children on swap, restarting any internal animation/state.
+        key={renderUnit.id}
+        style={{
+          animation: !animating
+            ? "none"
+            : (activeUnit && activeUnit.id !== renderUnit.id)
+              // In OUT phase: still showing the OLD unit, slide it away
+              ? `${slideDir === "left" ? "cl-slide-out-left" : slideDir === "right" ? "cl-slide-out-right" : "cl-fade-in"} 200ms ease forwards`
+              // In IN phase: showing the NEW unit, slide it in
+              : `${slideDir === "left" ? "cl-slide-in-from-right" : slideDir === "right" ? "cl-slide-in-from-left" : "cl-fade-in"} 240ms ease forwards`,
+        }}
+      >
+
       {/* Unit header — flex row with three groups:
           [← prev] [editable name + meta]                  [next →] [close unit]
           Arrows let the teacher flip between units like pages. The
@@ -1129,36 +1229,93 @@ export default function PlanView({
       }}>
         {/* Prev arrow */}
         <button
-          onClick={onPrevUnit || undefined}
-          disabled={!onPrevUnit}
+          onClick={handlePrev || undefined}
+          disabled={!handlePrev || animating}
           aria-label={t.prevUnit}
           style={{
             width: 32, height: 32,
             borderRadius: 7,
             background: "transparent",
             border: `1px solid ${C.border}`,
-            color: onPrevUnit ? C.text : C.textMuted,
-            cursor: onPrevUnit ? "pointer" : "default",
-            opacity: onPrevUnit ? 1 : 0.4,
+            color: handlePrev ? C.text : C.textMuted,
+            cursor: handlePrev && !animating ? "pointer" : "default",
+            opacity: handlePrev ? (animating ? 0.6 : 1) : 0.4,
             fontSize: 14,
             fontFamily: "'Outfit', sans-serif",
             display: "inline-flex", alignItems: "center", justifyContent: "center",
             flexShrink: 0,
-            transition: "background .12s ease, border-color .12s ease",
+            transition: "background .12s ease, border-color .12s ease, opacity .12s ease",
           }}
-          onMouseEnter={e => { if (onPrevUnit) e.currentTarget.style.background = C.bgSoft; }}
+          onMouseEnter={e => { if (handlePrev && !animating) e.currentTarget.style.background = C.bgSoft; }}
           onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}
         >
           ←
         </button>
 
-        {/* Name + meta */}
+        {/* Name + meta. PR6 follow-up: the close/reopen button moved
+            to live INSIDE this block, on the same row as the unit name,
+            instead of at the right edge of the header — putting it next
+            to the next-arrow made the flow visually cluttered. Now the
+            primary unit identity (name + action) reads as one unit, and
+            the arrows stay clean as nav-only. */}
         <div style={{ flex: 1, minWidth: 200 }}>
-          <EditableUnitName
-            unit={activeUnit}
-            lang={lang}
-            onChanged={() => onUnitChanged && onUnitChanged()}
-          />
+          <div style={{
+            display: "flex", alignItems: "center", gap: 10,
+            flexWrap: "wrap",
+          }}>
+            <EditableUnitName
+              unit={renderUnit}
+              lang={lang}
+              onChanged={() => onUnitChanged && onUnitChanged()}
+            />
+            {/* Close / Reopen — sized down a hair so it doesn't compete
+                with the name itself; the name stays the visual anchor. */}
+            {renderUnit.status === "closed" ? (
+              <button
+                onClick={onReopenUnit}
+                style={{
+                  padding: "5px 11px",
+                  borderRadius: 6,
+                  background: "transparent",
+                  color: C.textSecondary,
+                  border: `1px solid ${C.border}`,
+                  fontFamily: "'Outfit', sans-serif",
+                  fontSize: 12, fontWeight: 500,
+                  cursor: "pointer",
+                  flexShrink: 0,
+                  // marginBottom matches the EditableUnitName's marginBottom
+                  // (4px) so the baseline aligns visually
+                  marginBottom: 4,
+                  transition: "border-color .12s ease, color .12s ease",
+                }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = C.accent; e.currentTarget.style.color = C.accent; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = C.border; e.currentTarget.style.color = C.textSecondary; }}
+              >
+                ↺ {t.reopen}
+              </button>
+            ) : (
+              <button
+                onClick={onCloseUnit}
+                style={{
+                  padding: "6px 12px",
+                  borderRadius: 6,
+                  background: "#000",
+                  color: "#fff",
+                  border: "none",
+                  fontFamily: "'Outfit', sans-serif",
+                  fontSize: 12, fontWeight: 600,
+                  cursor: "pointer",
+                  flexShrink: 0,
+                  marginBottom: 4,
+                  transition: "background .12s ease",
+                }}
+                onMouseEnter={e => { e.currentTarget.style.background = "#1A1A1A"; }}
+                onMouseLeave={e => { e.currentTarget.style.background = "#000"; }}
+              >
+                {t.closeUnit}
+              </button>
+            )}
+          </div>
           <div style={{
             display: "flex", alignItems: "center", gap: 10,
             fontSize: 12, color: C.textMuted,
@@ -1167,10 +1324,10 @@ export default function PlanView({
               fontSize: 10.5, fontWeight: 600,
               textTransform: "uppercase", letterSpacing: "0.06em",
               padding: "2px 8px", borderRadius: 4,
-              background: activeUnit.status === "closed" ? C.bgSoft : C.greenSoft,
-              color: activeUnit.status === "closed" ? C.textSecondary : C.green,
+              background: renderUnit.status === "closed" ? C.bgSoft : C.greenSoft,
+              color: renderUnit.status === "closed" ? C.textSecondary : C.green,
             }}>
-              {unitStatusLabel(activeUnit.status, lang)}
+              {unitStatusLabel(renderUnit.status, lang)}
             </span>
             <span style={{ fontFamily: MONO }}>
               {dayCount === 0 ? t.daysCountZero
@@ -1179,9 +1336,9 @@ export default function PlanView({
             </span>
             {/* PR6: when the unit is closed, show the closed_at date
                 inline so the teacher remembers when it ended. */}
-            {activeUnit.status === "closed" && activeUnit.closed_at && (
+            {renderUnit.status === "closed" && renderUnit.closed_at && (
               <span style={{ fontFamily: MONO, color: C.textMuted }}>
-                · {new Date(activeUnit.closed_at).toLocaleDateString(lang)}
+                · {new Date(renderUnit.closed_at).toLocaleDateString(lang)}
               </span>
             )}
           </div>
@@ -1189,73 +1346,28 @@ export default function PlanView({
 
         {/* Next arrow */}
         <button
-          onClick={onNextUnit || undefined}
-          disabled={!onNextUnit}
+          onClick={handleNext || undefined}
+          disabled={!handleNext || animating}
           aria-label={t.nextUnit}
           style={{
             width: 32, height: 32,
             borderRadius: 7,
             background: "transparent",
             border: `1px solid ${C.border}`,
-            color: onNextUnit ? C.text : C.textMuted,
-            cursor: onNextUnit ? "pointer" : "default",
-            opacity: onNextUnit ? 1 : 0.4,
+            color: handleNext ? C.text : C.textMuted,
+            cursor: handleNext && !animating ? "pointer" : "default",
+            opacity: handleNext ? (animating ? 0.6 : 1) : 0.4,
             fontSize: 14,
             fontFamily: "'Outfit', sans-serif",
             display: "inline-flex", alignItems: "center", justifyContent: "center",
             flexShrink: 0,
-            transition: "background .12s ease, border-color .12s ease",
+            transition: "background .12s ease, border-color .12s ease, opacity .12s ease",
           }}
-          onMouseEnter={e => { if (onNextUnit) e.currentTarget.style.background = C.bgSoft; }}
+          onMouseEnter={e => { if (handleNext && !animating) e.currentTarget.style.background = C.bgSoft; }}
           onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}
         >
           →
         </button>
-
-        {/* PR6: Close / Reopen action — visually distinct from the
-            navigation arrows. Black solid button (per the mockup) for
-            active units; subtle outlined "Reopen" for closed units. */}
-        {activeUnit.status === "closed" ? (
-          <button
-            onClick={onReopenUnit}
-            style={{
-              padding: "7px 13px",
-              borderRadius: 7,
-              background: "transparent",
-              color: C.textSecondary,
-              border: `1px solid ${C.border}`,
-              fontFamily: "'Outfit', sans-serif",
-              fontSize: 12.5, fontWeight: 500,
-              cursor: "pointer",
-              flexShrink: 0,
-              transition: "border-color .12s ease, color .12s ease",
-            }}
-            onMouseEnter={e => { e.currentTarget.style.borderColor = C.accent; e.currentTarget.style.color = C.accent; }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = C.border; e.currentTarget.style.color = C.textSecondary; }}
-          >
-            ↺ {t.reopen}
-          </button>
-        ) : (
-          <button
-            onClick={onCloseUnit}
-            style={{
-              padding: "8px 14px",
-              borderRadius: 7,
-              background: "#000",
-              color: "#fff",
-              border: "none",
-              fontFamily: "'Outfit', sans-serif",
-              fontSize: 12.5, fontWeight: 600,
-              cursor: "pointer",
-              flexShrink: 0,
-              transition: "background .12s ease",
-            }}
-            onMouseEnter={e => { e.currentTarget.style.background = "#1A1A1A"; }}
-            onMouseLeave={e => { e.currentTarget.style.background = "#000"; }}
-          >
-            {t.closeUnit}
-          </button>
-        )}
       </div>
 
       {/* Empty unit state */}
@@ -1364,6 +1476,8 @@ export default function PlanView({
           </button>
         </>
       )}
+
+      </div>{/* end animation wrapper */}
 
       {/* Add-to-slot modal — opens whenever the teacher clicks an empty
           slot. Tabs let them pick from their library OR create a new one.

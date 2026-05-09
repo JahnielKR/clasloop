@@ -36,7 +36,8 @@ import SectionBadge, { sectionAccent } from "./SectionBadge";
 const i18n = {
   en: {
     confirmTitle: "Close this unit?",
-    confirmBody: "We'll show you a summary of how it went before finalizing.",
+    confirmBody: "We'll show you a summary of how the class did, suggest a closing review based on the weakest topics, and let you start the next unit.",
+    confirmBody2: "Decks from this unit don't disappear — they stay in your library and may resurface as review suggestions weeks later.",
     notYet: "Not yet",
     continueToSummary: "Continue with the summary →",
 
@@ -73,7 +74,8 @@ const i18n = {
   },
   es: {
     confirmTitle: "¿Cerrar esta unidad?",
-    confirmBody: "Te mostramos un resumen de cómo le fue antes de finalizar.",
+    confirmBody: "Te mostraremos un resumen de cómo le fue a la clase, sugeriremos un repaso de cierre basado en los temas más débiles, y te dejamos empezar la siguiente unidad.",
+    confirmBody2: "Los decks de esta unidad no desaparecen — quedan en tu biblioteca y pueden volver como sugerencias de repaso semanas después.",
     notYet: "Todavía no",
     continueToSummary: "Continuar al resumen →",
 
@@ -109,7 +111,8 @@ const i18n = {
   },
   ko: {
     confirmTitle: "이 단원을 종료할까요?",
-    confirmBody: "확정하기 전에 요약을 보여드립니다.",
+    confirmBody: "수업이 어떻게 진행되었는지 요약을 보여드리고, 가장 약한 주제를 기반으로 마무리 복습을 제안하며, 다음 단원을 시작할 수 있게 해드립니다.",
+    confirmBody2: "이 단원의 덱은 사라지지 않습니다 — 라이브러리에 남아있으며 몇 주 후 복습 제안으로 다시 나타날 수 있습니다.",
     notYet: "아직",
     continueToSummary: "요약 보기 →",
 
@@ -188,9 +191,15 @@ export function CloseUnitConfirmModal({ open, unit, onCancel, onContinue, lang =
         </div>
         <div style={{
           fontSize: 13, color: C.textSecondary,
-          lineHeight: 1.5, marginBottom: 22,
+          lineHeight: 1.55, marginBottom: 12,
         }}>
           {t.confirmBody}
+        </div>
+        <div style={{
+          fontSize: 12.5, color: C.textMuted,
+          lineHeight: 1.55, marginBottom: 22,
+        }}>
+          {t.confirmBody2}
         </div>
         <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
           <button
