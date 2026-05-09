@@ -41,22 +41,27 @@ const i18n = {
     notYet: "Not yet",
     continueToSummary: "Continue with the summary →",
 
-    summaryHeader: "Closing summary",
-    summarySubtitle: "Here's how {unit} went.",
-    daysPlanned: "Days planned",
-    daysLaunched: "Days launched",
-    avgRetention: "Average retention",
-    totalSessions: "Total sessions",
+    // Mockup-style summary header & meta
+    youreClosing: "You're closing",
+    daysUnit: "days",
+    warmupsLaunched: "warmups launched",
+    exitsLaunched: "exit tickets launched",
+    studentResponses: "student responses",
+    // Inline stats
+    avgRetentionShort: "avg retention",
+    strongTopics: "strong topics",
+    weakTopics: "weak topics",
+    launches: "launches",
+    // Reserved blocks (filled in PR 7 with AI generation)
+    aiInsightsLabel: "What worked / What didn't",
+    aiInsightsHint: "AI-generated insights from this unit's data — coming soon.",
+    closingReviewLabel: "Suggested closing review",
+    closingReviewHint: "A short review deck targeting this unit's weakest topics — coming soon.",
+    // Optional teacher note
+    noteLabel: "Optional · What did you want them to learn?",
+    notePlaceholder: "In 1-2 sentences. We'll use this for the auto-summary you can share with your department.",
+    // Legacy keys still referenced by the no-data fallback (kept for safety)
     noDataYet: "No data yet — this unit was closed before any session ran.",
-    deckBreakdown: "Deck breakdown",
-    deckBreakdownHint: "Sorted by retention. Strongest first.",
-    strongest: "Strongest",
-    weakest: "Weakest",
-    statusStrong: "Strong",
-    statusMedium: "Medium",
-    statusWeak: "Weak",
-    statusNew: "Not yet run",
-    notLaunched: "not launched",
 
     back: "← Back",
     closeUnit: "Close unit",
@@ -79,22 +84,22 @@ const i18n = {
     notYet: "Todavía no",
     continueToSummary: "Continuar al resumen →",
 
-    summaryHeader: "Resumen de cierre",
-    summarySubtitle: "Así fue {unit}.",
-    daysPlanned: "Días planeados",
-    daysLaunched: "Días lanzados",
-    avgRetention: "Retención promedio",
-    totalSessions: "Sesiones totales",
+    youreClosing: "Estás cerrando",
+    daysUnit: "días",
+    warmupsLaunched: "warmups lanzados",
+    exitsLaunched: "exit tickets lanzados",
+    studentResponses: "respuestas de alumnos",
+    avgRetentionShort: "retención promedio",
+    strongTopics: "temas fuertes",
+    weakTopics: "temas débiles",
+    launches: "lanzamientos",
+    aiInsightsLabel: "Qué funcionó / Qué no",
+    aiInsightsHint: "Insights generados por IA a partir de los datos de esta unidad — próximamente.",
+    closingReviewLabel: "Repaso de cierre sugerido",
+    closingReviewHint: "Un deck breve con los temas más débiles de esta unidad — próximamente.",
+    noteLabel: "Opcional · ¿Qué querías que aprendieran?",
+    notePlaceholder: "En 1-2 frases. Lo usaremos para el auto-resumen que puedes compartir con tu departamento.",
     noDataYet: "Sin datos — esta unidad se cerró sin sesiones lanzadas.",
-    deckBreakdown: "Desglose por deck",
-    deckBreakdownHint: "Ordenado por retención. Los mejores primero.",
-    strongest: "Mejor",
-    weakest: "Peor",
-    statusStrong: "Fuerte",
-    statusMedium: "Medio",
-    statusWeak: "Débil",
-    statusNew: "Sin lanzar",
-    notLaunched: "no lanzado",
 
     back: "← Volver",
     closeUnit: "Cerrar unidad",
@@ -116,22 +121,22 @@ const i18n = {
     notYet: "아직",
     continueToSummary: "요약 보기 →",
 
-    summaryHeader: "종료 요약",
-    summarySubtitle: "{unit}은(는) 이렇게 진행되었습니다.",
-    daysPlanned: "계획된 일수",
-    daysLaunched: "실행된 일수",
-    avgRetention: "평균 보존율",
-    totalSessions: "전체 세션",
+    youreClosing: "종료 중",
+    daysUnit: "일",
+    warmupsLaunched: "워밍업 실행됨",
+    exitsLaunched: "종료 티켓 실행됨",
+    studentResponses: "학생 응답",
+    avgRetentionShort: "평균 보존율",
+    strongTopics: "강한 주제",
+    weakTopics: "약한 주제",
+    launches: "실행",
+    aiInsightsLabel: "잘된 점 / 개선할 점",
+    aiInsightsHint: "이 단원 데이터에서 AI가 생성한 인사이트 — 곧 제공됩니다.",
+    closingReviewLabel: "추천 마무리 복습",
+    closingReviewHint: "이 단원의 약한 주제를 다루는 짧은 복습 덱 — 곧 제공됩니다.",
+    noteLabel: "선택 · 학생들이 무엇을 배우길 원하셨나요?",
+    notePlaceholder: "1-2 문장으로. 학과와 공유할 수 있는 자동 요약에 사용됩니다.",
     noDataYet: "데이터 없음 — 세션 실행 없이 종료되었습니다.",
-    deckBreakdown: "덱별 분석",
-    deckBreakdownHint: "보존율 순 정렬. 가장 강한 것부터.",
-    strongest: "최강",
-    weakest: "최약",
-    statusStrong: "강함",
-    statusMedium: "보통",
-    statusWeak: "약함",
-    statusNew: "미실행",
-    notLaunched: "미실행",
 
     back: "← 뒤로",
     closeUnit: "단원 종료",
@@ -255,10 +260,16 @@ export function CloseUnitSummary({ unit, lang = "en", onBack, onConfirm }) {
   const [loading, setLoading] = useState(true);
   const [closing, setClosing] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+  // PR6.2: optional reflection from the teacher, saved to units.closing_note
+  const [closingNote, setClosingNote] = useState("");
 
   useEffect(() => {
     if (!unit?.id) return;
     let cancelled = false;
+    // Pre-fill the closing-note textarea if the unit already has one
+    // (the teacher is re-closing a previously-closed-then-reopened unit,
+    // or revisiting the close-flow on the same unit).
+    setClosingNote(unit.closing_note || "");
     (async () => {
       setLoading(true);
       try {
@@ -278,10 +289,19 @@ export function CloseUnitSummary({ unit, lang = "en", onBack, onConfirm }) {
     setClosing(true);
     setErrorMsg("");
     try {
-      // 1. Mark this unit closed
+      // 1. Mark this unit closed (and save the optional reflection note)
+      const trimmedNote = closingNote.trim();
+      const updatePayload = {
+        status: "closed",
+        closed_at: new Date().toISOString(),
+      };
+      // Only include closing_note if the teacher actually wrote something —
+      // we don't want to overwrite a previous note with empty string if
+      // they're re-closing a unit (edge case, but safe).
+      if (trimmedNote) updatePayload.closing_note = trimmedNote;
       const { error: e1 } = await supabase
         .from("units")
-        .update({ status: "closed", closed_at: new Date().toISOString() })
+        .update(updatePayload)
         .eq("id", unit.id);
       if (e1) throw e1;
 
@@ -335,7 +355,18 @@ export function CloseUnitSummary({ unit, lang = "en", onBack, onConfirm }) {
   const hasData = summary.averageRetention !== null;
 
   return (
-    <div style={{ paddingBottom: 40, maxWidth: 720, margin: "0 auto" }}>
+    <div style={{
+      paddingBottom: 40,
+      maxWidth: 700,
+      margin: "0 auto",
+      // The mockup-like card frame: the summary lives inside a soft
+      // bordered card that distinguishes it from the rest of the page.
+      background: C.bg,
+      border: `1px solid ${C.border}`,
+      borderRadius: 12,
+      padding: "24px 28px 28px",
+      boxShadow: "0 1px 3px rgba(0,0,0,0.03)",
+    }}>
       {/* Back link */}
       <button
         onClick={onBack}
@@ -345,220 +376,195 @@ export function CloseUnitSummary({ unit, lang = "en", onBack, onConfirm }) {
           border: "none",
           color: C.textSecondary,
           fontFamily: "'Outfit', sans-serif",
-          fontSize: 13, fontWeight: 500,
+          fontSize: 12.5, fontWeight: 500,
           cursor: closing ? "wait" : "pointer",
-          padding: "4px 0",
-          marginBottom: 18,
+          padding: "2px 0",
+          marginBottom: 16,
           opacity: closing ? 0.5 : 1,
         }}
       >
         {t.back}
       </button>
 
-      {/* Header */}
-      <div style={{ marginBottom: 28 }}>
-        <div style={{
-          fontSize: 11, fontWeight: 600,
-          textTransform: "uppercase", letterSpacing: "0.08em",
-          color: C.textMuted,
-          marginBottom: 6,
-          fontFamily: "'Outfit', sans-serif",
-        }}>
-          {t.summaryHeader}
-        </div>
-        <h1 style={{
-          fontFamily: "'Outfit', sans-serif",
-          fontSize: 28, fontWeight: 700,
-          color: C.text,
-          letterSpacing: "-0.02em",
-          marginBottom: 6,
-          lineHeight: 1.2,
-        }}>
-          {unit.name}
-        </h1>
-        <p style={{
-          fontSize: 14, color: C.textSecondary,
-          lineHeight: 1.5,
-        }}>
-          {t.summarySubtitle.replace("{unit}", unit.name)}
-        </p>
+      {/* Header — narrative title + meta line */}
+      <h1 style={{
+        fontFamily: "'Outfit', sans-serif",
+        fontSize: 22, fontWeight: 700,
+        color: C.text,
+        letterSpacing: "-0.015em",
+        marginBottom: 6,
+        lineHeight: 1.2,
+      }}>
+        {t.youreClosing} <span style={{ color: C.text }}>"{unit.name}"</span>
+      </h1>
+      <div style={{
+        fontSize: 13, color: C.textMuted,
+        marginBottom: 16, lineHeight: 1.5,
+      }}>
+        {/* Meta line: days · warmups · exits · responses */}
+        <MetaPart label={summary.dayCount} unit={t.daysUnit} />
+        <Sep />
+        <MetaPart label={summary.warmupSessionCount} unit={t.warmupsLaunched} accent={C.orange} />
+        <Sep />
+        <MetaPart label={summary.exitSessionCount} unit={t.exitsLaunched} accent={C.purple} />
+        {summary.totalResponses > 0 && (
+          <>
+            <Sep />
+            <MetaPart label={summary.totalResponses} unit={t.studentResponses} />
+          </>
+        )}
       </div>
 
-      {/* Stats grid */}
+      {/* Stats inline — single bordered row at the top of the data */}
       <div style={{
-        display: "grid",
-        gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
-        gap: 12,
-        marginBottom: 28,
+        display: "flex", flexWrap: "wrap",
+        gap: 20,
+        padding: "12px 0",
+        borderTop: `1px solid ${C.border}`,
+        borderBottom: `1px solid ${C.border}`,
+        marginBottom: 24,
+        fontSize: 13,
+        color: C.textSecondary,
       }}>
-        <Stat label={t.daysPlanned} value={summary.dayCount} />
-        <Stat label={t.daysLaunched} value={`${summary.daysLaunched}/${summary.dayCount}`} />
-        <Stat
-          label={t.avgRetention}
+        <InlineStat
           value={summary.averageRetention !== null ? `${summary.averageRetention}%` : "—"}
+          label={t.avgRetentionShort}
           accent={summary.averageRetention !== null
             ? (summary.averageRetention >= 70 ? C.green
               : summary.averageRetention >= 40 ? C.orange
               : C.red)
             : C.textMuted}
         />
-        <Stat label={t.totalSessions} value={summary.totalSessions} />
+        <InlineStat value={summary.strongTopics} label={t.strongTopics} />
+        <InlineStat value={summary.weakTopics} label={t.weakTopics} accent={summary.weakTopics > 0 ? C.red : null} />
+        <InlineStat value={summary.totalSessions} label={t.launches} />
       </div>
 
-      {/* Strongest / weakest highlight */}
-      {hasData && summary.strongest && summary.weakest && summary.strongest.deck.id !== summary.weakest.deck.id && (
+      {/* Reserved space for AI-generated narrative — coming in PR 7.
+          We render a soft placeholder so the teacher knows the slot
+          exists and what's coming. When PR 7 lands, this block becomes
+          two real sections: WHAT WORKED and WHAT DIDN'T, populated by
+          a Claude API call with the unit's retention data. */}
+      <div style={{
+        padding: "14px 16px",
+        background: C.bgSoft,
+        border: `1px dashed ${C.border}`,
+        borderRadius: 8,
+        marginBottom: 22,
+      }}>
         <div style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-          gap: 10,
-          marginBottom: 28,
+          fontSize: 10.5, fontWeight: 600,
+          textTransform: "uppercase", letterSpacing: "0.08em",
+          color: C.textMuted,
+          marginBottom: 6,
+          fontFamily: "'Outfit', sans-serif",
         }}>
-          <HighlightCard
-            label={t.strongest}
-            deck={summary.strongest.deck}
-            retention={summary.strongest.retention}
-            color={C.green}
-            lang={lang}
-          />
-          <HighlightCard
-            label={t.weakest}
-            deck={summary.weakest.deck}
-            retention={summary.weakest.retention}
-            color={C.red}
-            lang={lang}
-          />
+          {t.aiInsightsLabel}
         </div>
-      )}
+        <div style={{
+          fontSize: 12.5, color: C.textMuted,
+          lineHeight: 1.5,
+        }}>
+          {t.aiInsightsHint}
+        </div>
+      </div>
 
-      {/* Deck breakdown */}
-      {sortedDecks.length > 0 && (
-        <div style={{ marginBottom: 32 }}>
-          <h3 style={{
+      {/* Reserved space for the closing-review suggestion — also PR 7.
+          When ready, this becomes a card with a generated review deck
+          based on the weakest topics, with [Review and launch] /
+          [Edit suggestion] / [Skip] actions. */}
+      {summary.weakTopics > 0 && (
+        <div style={{
+          padding: "14px 16px",
+          background: C.bgSoft,
+          border: `1px dashed ${C.border}`,
+          borderRadius: 8,
+          marginBottom: 22,
+        }}>
+          <div style={{
+            fontSize: 10.5, fontWeight: 600,
+            textTransform: "uppercase", letterSpacing: "0.08em",
+            color: C.textMuted,
+            marginBottom: 6,
             fontFamily: "'Outfit', sans-serif",
-            fontSize: 14, fontWeight: 700,
-            color: C.text,
-            marginBottom: 4,
           }}>
-            {t.deckBreakdown}
-          </h3>
-          <p style={{ fontSize: 12, color: C.textMuted, marginBottom: 12 }}>
-            {t.deckBreakdownHint}
-          </p>
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            {sortedDecks.map(({ deck, retention, status, sessionCount }) => {
-              const stripe = sectionAccent(deck.section);
-              const retCol = retention === null ? C.textMuted
-                : retention >= 70 ? C.green
-                : retention >= 40 ? C.orange
-                : C.red;
-              const statusLabel = status === 'strong' ? t.statusStrong
-                : status === 'medium' ? t.statusMedium
-                : status === 'weak' ? t.statusWeak
-                : t.statusNew;
-              return (
-                <div
-                  key={deck.id}
-                  style={{
-                    background: C.bg,
-                    border: `1px solid ${C.border}`,
-                    borderLeft: `3px solid ${stripe}`,
-                    borderRadius: 8,
-                    padding: "10px 14px",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 12,
-                  }}
-                >
-                  <SectionBadge section={deck.section} lang={lang} />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{
-                      fontFamily: "'Outfit', sans-serif",
-                      fontSize: 13.5, fontWeight: 600, color: C.text,
-                      overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-                    }}>
-                      {deck.title}
-                    </div>
-                    <div style={{
-                      fontSize: 11, color: C.textMuted,
-                      marginTop: 2,
-                    }}>
-                      {sessionCount > 0
-                        ? `${sessionCount} ${sessionCount === 1 ? "session" : "sessions"}`
-                        : t.notLaunched}
-                    </div>
-                  </div>
-                  {retention !== null ? (
-                    <div style={{
-                      display: "flex", alignItems: "center", gap: 6,
-                      flexShrink: 0,
-                    }}>
-                      <span style={{
-                        fontFamily: MONO,
-                        fontSize: 13, fontWeight: 700,
-                        color: retCol,
-                      }}>
-                        {retention}%
-                      </span>
-                      <span style={{
-                        fontSize: 10, fontWeight: 600,
-                        textTransform: "uppercase", letterSpacing: "0.05em",
-                        padding: "2px 6px", borderRadius: 4,
-                        background: retCol + "1A",
-                        color: retCol,
-                      }}>
-                        {statusLabel}
-                      </span>
-                    </div>
-                  ) : (
-                    <span style={{
-                      fontSize: 10.5, fontWeight: 600,
-                      textTransform: "uppercase", letterSpacing: "0.05em",
-                      color: C.textMuted,
-                      flexShrink: 0,
-                    }}>
-                      {t.statusNew}
-                    </span>
-                  )}
-                </div>
-              );
-            })}
+            {t.closingReviewLabel}
+          </div>
+          <div style={{
+            fontSize: 12.5, color: C.textMuted,
+            lineHeight: 1.5,
+          }}>
+            {t.closingReviewHint}
           </div>
         </div>
       )}
 
-      {/* No-data fallback */}
-      {!hasData && (
+      {/* Optional closing note — saves to units.closing_note on confirm.
+          Free-form 1-2 sentences. Not required, just an outlet for the
+          teacher to capture intent / reflection at close time. */}
+      <div style={{ marginBottom: 22 }}>
         <div style={{
-          padding: "24px 20px",
-          background: C.bgSoft,
-          border: `1px dashed ${C.border}`,
-          borderRadius: 10,
-          textAlign: "center",
-          color: C.textSecondary,
-          fontSize: 13,
-          marginBottom: 28,
+          fontSize: 10.5, fontWeight: 600,
+          textTransform: "uppercase", letterSpacing: "0.08em",
+          color: C.textMuted,
+          marginBottom: 8,
+          fontFamily: "'Outfit', sans-serif",
         }}>
-          {t.noDataYet}
+          {t.noteLabel}
         </div>
-      )}
+        <textarea
+          value={closingNote}
+          onChange={e => setClosingNote(e.target.value)}
+          placeholder={t.notePlaceholder}
+          rows={3}
+          maxLength={500}
+          disabled={closing}
+          style={{
+            width: "100%",
+            padding: "10px 12px",
+            border: `1px solid ${C.border}`,
+            borderRadius: 8,
+            fontSize: 13,
+            fontFamily: "'Inter', sans-serif",
+            color: C.text,
+            background: C.bg,
+            outline: "none",
+            resize: "vertical",
+            minHeight: 60,
+            lineHeight: 1.5,
+            transition: "border-color .12s ease",
+            boxSizing: "border-box",
+          }}
+          onFocus={e => { e.currentTarget.style.borderColor = C.accent; }}
+          onBlur={e => { e.currentTarget.style.borderColor = C.border; }}
+        />
+        <div style={{
+          fontSize: 10.5, color: C.textMuted,
+          marginTop: 4,
+          textAlign: "right",
+          fontFamily: MONO,
+        }}>
+          {closingNote.length}/500
+        </div>
+      </div>
 
       {/* Action buttons */}
       <div style={{
         display: "flex", gap: 8, justifyContent: "flex-end",
-        paddingTop: 16,
+        paddingTop: 14,
         borderTop: `1px solid ${C.border}`,
       }}>
         <button
           onClick={onBack}
           disabled={closing}
           style={{
-            padding: "10px 18px",
+            padding: "9px 16px",
             borderRadius: 7,
             background: "transparent",
             color: C.textSecondary,
             border: `1px solid ${C.border}`,
             fontFamily: "'Outfit', sans-serif",
-            fontSize: 13.5, fontWeight: 500,
+            fontSize: 13, fontWeight: 500,
             cursor: closing ? "wait" : "pointer",
           }}
         >
@@ -568,13 +574,13 @@ export function CloseUnitSummary({ unit, lang = "en", onBack, onConfirm }) {
           onClick={handleClose}
           disabled={closing}
           style={{
-            padding: "10px 18px",
+            padding: "9px 18px",
             borderRadius: 7,
             background: "#000",
             color: "#fff",
             border: "none",
             fontFamily: "'Outfit', sans-serif",
-            fontSize: 13.5, fontWeight: 600,
+            fontSize: 13, fontWeight: 600,
             cursor: closing ? "wait" : "pointer",
             opacity: closing ? 0.7 : 1,
           }}
@@ -596,6 +602,32 @@ export function CloseUnitSummary({ unit, lang = "en", onBack, onConfirm }) {
         </div>
       )}
     </div>
+  );
+}
+
+// ─── Tiny presentational helpers for the summary header ─────────────────
+function MetaPart({ label, unit, accent }) {
+  return (
+    <span>
+      <strong style={{ color: accent || C.text, fontWeight: 600 }}>{label}</strong>
+      <span style={{ marginLeft: 4 }}>{unit}</span>
+    </span>
+  );
+}
+function Sep() {
+  return <span style={{ margin: "0 8px", color: C.textMuted }}>·</span>;
+}
+function InlineStat({ value, label, accent }) {
+  return (
+    <span style={{ display: "inline-flex", alignItems: "baseline", gap: 5 }}>
+      <strong style={{
+        color: accent || C.text,
+        fontWeight: 700,
+        fontFamily: "'Outfit', sans-serif",
+        fontSize: 14,
+      }}>{value}</strong>
+      <span style={{ color: C.textMuted, fontSize: 12.5 }}>{label}</span>
+    </span>
   );
 }
 

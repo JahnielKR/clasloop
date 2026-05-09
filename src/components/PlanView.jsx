@@ -1252,70 +1252,15 @@ export default function PlanView({
           ←
         </button>
 
-        {/* Name + meta. PR6 follow-up: the close/reopen button moved
-            to live INSIDE this block, on the same row as the unit name,
-            instead of at the right edge of the header — putting it next
-            to the next-arrow made the flow visually cluttered. Now the
-            primary unit identity (name + action) reads as one unit, and
-            the arrows stay clean as nav-only. */}
+        {/* Name + meta. The close/reopen button now lives between this
+            block and the next-arrow, with a margin so it doesn't crowd
+            either side. */}
         <div style={{ flex: 1, minWidth: 200 }}>
-          <div style={{
-            display: "flex", alignItems: "center", gap: 10,
-            flexWrap: "wrap",
-          }}>
-            <EditableUnitName
-              unit={renderUnit}
-              lang={lang}
-              onChanged={() => onUnitChanged && onUnitChanged()}
-            />
-            {/* Close / Reopen — sized down a hair so it doesn't compete
-                with the name itself; the name stays the visual anchor. */}
-            {renderUnit.status === "closed" ? (
-              <button
-                onClick={onReopenUnit}
-                style={{
-                  padding: "5px 11px",
-                  borderRadius: 6,
-                  background: "transparent",
-                  color: C.textSecondary,
-                  border: `1px solid ${C.border}`,
-                  fontFamily: "'Outfit', sans-serif",
-                  fontSize: 12, fontWeight: 500,
-                  cursor: "pointer",
-                  flexShrink: 0,
-                  // marginBottom matches the EditableUnitName's marginBottom
-                  // (4px) so the baseline aligns visually
-                  marginBottom: 4,
-                  transition: "border-color .12s ease, color .12s ease",
-                }}
-                onMouseEnter={e => { e.currentTarget.style.borderColor = C.accent; e.currentTarget.style.color = C.accent; }}
-                onMouseLeave={e => { e.currentTarget.style.borderColor = C.border; e.currentTarget.style.color = C.textSecondary; }}
-              >
-                ↺ {t.reopen}
-              </button>
-            ) : (
-              <button
-                onClick={onCloseUnit}
-                style={{
-                  padding: "6px 12px",
-                  borderRadius: 6,
-                  background: "#000",
-                  color: "#fff",
-                  border: "none",
-                  fontFamily: "'Outfit', sans-serif",
-                  fontSize: 12, fontWeight: 600,
-                  cursor: "pointer",
-                  flexShrink: 0,
-                  marginBottom: 4,
-                  transition: "background .12s ease",
-                }}
-                onMouseEnter={e => { e.currentTarget.style.background = "#1A1A1A"; }}
-                onMouseLeave={e => { e.currentTarget.style.background = "#000"; }}
-              >
-                {t.closeUnit}
-              </button>
-            )}
-          </div>
+          <EditableUnitName
+            unit={renderUnit}
+            lang={lang}
+            onChanged={() => onUnitChanged && onUnitChanged()}
+          />
           <div style={{
             display: "flex", alignItems: "center", gap: 10,
             fontSize: 12, color: C.textMuted,
@@ -1343,6 +1288,54 @@ export default function PlanView({
             )}
           </div>
         </div>
+
+        {/* PR6.2: Close / Reopen — sits between the name+meta block
+            and the next arrow. marginRight gives it breathing room from
+            the arrow so they read as separate elements (the close action
+            is not navigation). */}
+        {renderUnit.status === "closed" ? (
+          <button
+            onClick={onReopenUnit}
+            style={{
+              padding: "6px 12px",
+              borderRadius: 7,
+              background: "transparent",
+              color: C.textSecondary,
+              border: `1px solid ${C.border}`,
+              fontFamily: "'Outfit', sans-serif",
+              fontSize: 12, fontWeight: 500,
+              cursor: "pointer",
+              flexShrink: 0,
+              marginRight: 8,
+              transition: "border-color .12s ease, color .12s ease",
+            }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = C.accent; e.currentTarget.style.color = C.accent; }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = C.border; e.currentTarget.style.color = C.textSecondary; }}
+          >
+            ↺ {t.reopen}
+          </button>
+        ) : (
+          <button
+            onClick={onCloseUnit}
+            style={{
+              padding: "7px 13px",
+              borderRadius: 7,
+              background: "#000",
+              color: "#fff",
+              border: "none",
+              fontFamily: "'Outfit', sans-serif",
+              fontSize: 12, fontWeight: 600,
+              cursor: "pointer",
+              flexShrink: 0,
+              marginRight: 8,
+              transition: "background .12s ease",
+            }}
+            onMouseEnter={e => { e.currentTarget.style.background = "#1A1A1A"; }}
+            onMouseLeave={e => { e.currentTarget.style.background = "#000"; }}
+          >
+            {t.closeUnit}
+          </button>
+        )}
 
         {/* Next arrow */}
         <button

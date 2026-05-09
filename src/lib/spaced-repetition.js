@@ -918,6 +918,39 @@ export async function getUnitRetentionSummary(unitId) {
 
   const totalSessions = sessions.length;
 
+  // PR6.2: extra counts for the closing-summary header.
+  // - Separate warmup vs exit counts (decks AND sessions) so the header
+  //   can read "8 warmups launched · 7 exit tickets launched"
+  // - Total student responses across all sessions of the unit
+  // - Strong/medium/weak topic counts derived from the deck statuses
+  const warmupSessionCount = sessions.filter(s => {
+    const d = decks.find(x => x.id === s.deck_id);
+    return d && d.section === 'warmup';
+  }).length;
+  const exitSessionCount = sessions.filter(s => {
+    const d = decks.find(x => x.id === s.deck_id);
+    return d && d.section === 'exit_ticket';
+  }).length;
+
+  // Count student responses across all this unit's sessions.
+  // We do this in a separate query — `responses` doesn't carry unit_id,
+  // so we filter by session_id IN (...). For typical unit volume (10-30
+  // sessions max) this is fast.
+  let totalResponses = 0;
+  if (sessions.length > 0) {
+    const sessionIds = sessions.map(s => s.id);
+    // We only need a count, not the rows themselves.
+    const { count } = await supabase
+      .from('responses')
+      .select('id', { count: 'exact', head: true })
+      .in('session_id', sessionIds);
+    totalResponses = count || 0;
+  }
+
+  const strongTopics = enrichedDecks.filter(d => d.status === 'strong').length;
+  const mediumTopics = enrichedDecks.filter(d => d.status === 'medium').length;
+  const weakTopics = enrichedDecks.filter(d => d.status === 'weak').length;
+
   return {
     unit,
     decks: enrichedDecks,
@@ -927,5 +960,12 @@ export async function getUnitRetentionSummary(unitId) {
     strongest,
     weakest,
     totalSessions,
+    // PR6.2 additions
+    warmupSessionCount,
+    exitSessionCount,
+    totalResponses,
+    strongTopics,
+    mediumTopics,
+    weakTopics,
   };
 }
