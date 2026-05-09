@@ -2,12 +2,12 @@ import { useState, useEffect, useMemo } from "react";
 import { useSearchParams, useNavigate, useMatch } from "react-router-dom";
 import { QRCodeSVG } from "qrcode.react";
 import { supabase } from "../lib/supabase";
-import { processSessionResults, getSuggestedDecksForToday, getRecentlyLaunchedDecks } from "../lib/spaced-repetition";
+import { processSessionResults, getSuggestedDecksForToday, getTodayPlan } from "../lib/spaced-repetition";
 import { CIcon } from "../components/Icons";
 import { DeckCover, resolveColor } from "../lib/deck-cover";
 import MobileMenuButton, { useIsMobile } from "../components/MobileMenuButton";
 import PageHeader from "../components/PageHeader";
-import SectionBadge from "../components/SectionBadge";
+import SectionBadge, { sectionAccent } from "../components/SectionBadge";
 import { C, MONO } from "../components/tokens";
 import { estimateDeckSeconds, formatDeckDuration } from "../lib/time-limits";
 import { ROUTES, QUERY, buildRoute } from "../routes";
@@ -18,7 +18,17 @@ const SUBJECTS = ["Math", "Science", "History", "Language", "Geography", "Art", 
 // ─── i18n ──────────────────────────────────────────────────────────────────
 const i18n = {
   en: {
-    pageTitle: "Today", subtitle: "Decks ready to launch — ranked by what your students need most",
+    pageTitle: "Today", subtitle: "Your plan for today and what's worth reviewing",
+    yourPlanTitle: "Your plan for today",
+    yourPlanHint: "What you set up to teach. One click to launch.",
+    yourPlanEmpty: "Nothing planned for today.",
+    yourPlanEmptyHint: "Open a class to set up warmups and exit tickets, or browse Decks.",
+    yourPlanItemCount: "{n} items",
+    yourPlanItemCountOne: "1 item",
+    doneToday: "Done today",
+    worthReviewingTitle: "Worth reviewing today",
+    worthReviewingHint: "Spotted by the retention algorithm — your students could use a refresh.",
+    worthReviewingEmpty: "All caught up. Nothing urgent to review.",
     suggestedToday: "Suggested for today", suggestedHint: "Decks your students should review now",
     suggestedNone: "All your classes are up to date. Nothing urgent to launch — nice work.",
     recentlyLaunched: "Recently launched",
@@ -66,7 +76,17 @@ const i18n = {
     sessionCreateFailed: "Could not create session. Please try again.",
   },
   es: {
-    pageTitle: "Hoy", subtitle: "Decks listos para lanzar — ordenados según lo que tus estudiantes más necesitan",
+    pageTitle: "Hoy", subtitle: "Tu plan para hoy y lo que vale la pena repasar",
+    yourPlanTitle: "Tu plan para hoy",
+    yourPlanHint: "Lo que preparaste para enseñar. Un click para lanzar.",
+    yourPlanEmpty: "Nada planificado para hoy.",
+    yourPlanEmptyHint: "Abre una clase para preparar warmups y exit tickets, o explora Decks.",
+    yourPlanItemCount: "{n} items",
+    yourPlanItemCountOne: "1 item",
+    doneToday: "Hecho hoy",
+    worthReviewingTitle: "Vale la pena repasar hoy",
+    worthReviewingHint: "Detectado por el algoritmo de retención — a tus estudiantes les vendría bien un repaso.",
+    worthReviewingEmpty: "Todo al día. Nada urgente que repasar.",
     suggestedToday: "Sugerencias para hoy", suggestedHint: "Decks que tus estudiantes deberían revisar ahora",
     suggestedNone: "Todas tus clases están al día. Nada urgente que lanzar — buen trabajo.",
     recentlyLaunched: "Lanzados recientemente",
@@ -114,7 +134,17 @@ const i18n = {
     sessionCreateFailed: "No se pudo crear la sesión. Probá de nuevo.",
   },
   ko: {
-    pageTitle: "오늘", subtitle: "실행 가능한 덱 — 학생들이 가장 필요로 하는 순서대로 정렬됨",
+    pageTitle: "오늘", subtitle: "오늘의 계획과 복습할 만한 항목",
+    yourPlanTitle: "오늘의 계획",
+    yourPlanHint: "준비한 수업 자료. 클릭 한 번으로 시작.",
+    yourPlanEmpty: "오늘 계획된 항목이 없습니다.",
+    yourPlanEmptyHint: "수업을 열어 워밍업과 종료 티켓을 준비하거나 덱을 살펴보세요.",
+    yourPlanItemCount: "{n}개 항목",
+    yourPlanItemCountOne: "1개 항목",
+    doneToday: "오늘 완료",
+    worthReviewingTitle: "오늘 복습할 만한 것",
+    worthReviewingHint: "보존율 알고리즘이 감지함 — 학생들에게 복습이 필요할 수 있습니다.",
+    worthReviewingEmpty: "모두 최신 상태. 시급히 복습할 것 없음.",
     suggestedToday: "오늘의 추천", suggestedHint: "지금 학생들이 복습해야 할 덱",
     suggestedNone: "모든 수업이 최신 상태입니다. 시급한 항목 없음 — 잘 하셨어요.",
     recentlyLaunched: "최근 실행한 덱",
@@ -763,8 +793,203 @@ function LiveResults({ session, t, onEnd }) {
   );
 }
 
-// ─── Suggested for Today ───────────────────────────────────────────────────
-function SuggestedToday({ teacherId, t, lang = "en", onPickSuggestion, onLoaded }) {
+// ─── Your Plan For Today ────────────────────────────────────────────────
+//
+// The protagonist row on Today. Pulls from getTodayPlan (active unit per
+// class + recent-launches fallback). Visual language matches the deck
+// cards in /classes/:id and /decks: stripe-top per section, badge inline,
+// minimal chrome. The point is the teacher should feel "this is mine,
+// I planned this" — not "this is the algorithm's pick".
+//
+// Layout choice: items are stacked vertically full-width (not in a grid)
+// so they read like a list of meaningful actions rather than a wall of
+// equivalent options. Each row's section badge + stripe make the role
+// scannable without reading.
+function YourPlanForToday({ teacherId, t, lang = "en", onPickItem }) {
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!teacherId) return;
+    (async () => {
+      try {
+        const list = await getTodayPlan(teacherId);
+        setItems(list);
+      } catch (e) {
+        console.error("Today plan fetch failed:", e);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [teacherId]);
+
+  // Don't render the heading skeleton during loading — Today already has
+  // a page header; an empty section title with no items below it would
+  // flicker awkwardly. Just render nothing until we know.
+  if (loading) return null;
+
+  const count = items.length;
+
+  return (
+    <div className="ns-fade" style={{ marginBottom: 28 }}>
+      <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 6 }}>
+        <h3 style={{
+          fontFamily: "'Outfit', sans-serif",
+          fontSize: 15, fontWeight: 700, color: C.text,
+          letterSpacing: "-0.01em",
+        }}>
+          {t.yourPlanTitle}
+        </h3>
+        {count > 0 && (
+          <span style={{ fontSize: 12, color: C.textMuted, fontFamily: MONO }}>
+            {count === 1 ? t.yourPlanItemCountOne : t.yourPlanItemCount.replace("{n}", count)}
+          </span>
+        )}
+      </div>
+      <p style={{ fontSize: 12, color: C.textMuted, marginBottom: 14 }}>{t.yourPlanHint}</p>
+
+      {count === 0 ? (
+        // Empty state — minimal, no fake encouragement. Just states the
+        // fact and offers the obvious next step.
+        <div style={{
+          padding: "28px 20px",
+          background: C.bg,
+          border: `1px dashed ${C.border}`,
+          borderRadius: 10,
+          textAlign: "center",
+        }}>
+          <div style={{
+            fontFamily: "'Outfit', sans-serif",
+            fontSize: 14, fontWeight: 600, color: C.text, marginBottom: 4,
+          }}>
+            {t.yourPlanEmpty}
+          </div>
+          <div style={{ fontSize: 12.5, color: C.textSecondary, lineHeight: 1.5 }}>
+            {t.yourPlanEmptyHint}
+          </div>
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {items.map(it => (
+            <YourPlanCard
+              key={`${it.class.id}-${it.deck.id}`}
+              item={it}
+              t={t}
+              lang={lang}
+              onPick={onPickItem}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// One row in "Your plan for today". Visually echoes the today-card shapes
+// from the mockup: section-colored stripe on the left, badge inline,
+// title bold, meta in muted gray, prominent Launch button on the right.
+//
+// Sections: warmup → orange stripe; exit_ticket → purple; general_review
+// → neutral. We import sectionAccent from SectionBadge to keep one source
+// of truth.
+function YourPlanCard({ item, t, lang = "en", onPick }) {
+  const { deck, class: cls, status } = item;
+  const stripe = sectionAccent(deck.section);
+  const isDone = status === "launched_today";
+  const qs = deck.questions || [];
+
+  return (
+    <div
+      onClick={() => onPick(item)}
+      style={{
+        background: C.bg,
+        border: `1px solid ${C.border}`,
+        borderLeft: `3px solid ${stripe}`,
+        borderRadius: 10,
+        padding: "12px 16px",
+        display: "flex",
+        alignItems: "center",
+        gap: 14,
+        cursor: "pointer",
+        transition: "border-color .12s ease, background .12s ease",
+        // Done-today rows are ghosted — visible but visually quieter.
+        // The teacher who already ran the morning warmup should see it
+        // ticked off, not erased.
+        opacity: isDone ? 0.65 : 1,
+      }}
+      onMouseEnter={(e) => { e.currentTarget.style.borderColor = C.textMuted; }}
+      onMouseLeave={(e) => { e.currentTarget.style.borderColor = C.border; }}
+    >
+      <SectionBadge section={deck.section} lang={lang} />
+
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{
+          fontFamily: "'Outfit', sans-serif",
+          fontSize: 14.5, fontWeight: 600, color: C.text,
+          lineHeight: 1.3,
+          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+        }}>
+          {deck.title}
+        </div>
+        <div style={{
+          fontSize: 11.5, color: C.textSecondary,
+          marginTop: 2,
+          display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap",
+        }}>
+          <span style={{ fontWeight: 500 }}>{cls.name}</span>
+          <span style={{ width: 3, height: 3, background: C.textMuted, borderRadius: "50%" }} />
+          <span>{qs.length} {t.questions || "questions"}</span>
+          {isDone && (
+            <>
+              <span style={{ width: 3, height: 3, background: C.textMuted, borderRadius: "50%" }} />
+              <span style={{ color: C.green, fontWeight: 600 }}>✓ {t.doneToday}</span>
+            </>
+          )}
+        </div>
+      </div>
+
+      {!isDone && (
+        <button
+          onClick={(e) => { e.stopPropagation(); onPick(item); }}
+          style={{
+            padding: "7px 14px",
+            borderRadius: 7,
+            background: C.accent,
+            color: "#fff",
+            border: "none",
+            fontFamily: "'Outfit', sans-serif",
+            fontSize: 13, fontWeight: 600,
+            cursor: "pointer",
+            display: "inline-flex", alignItems: "center", gap: 4,
+            flexShrink: 0,
+            transition: "filter .1s ease",
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.filter = "brightness(1.08)"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.filter = "brightness(1)"; }}
+        >
+          {t.launchNow} →
+        </button>
+      )}
+    </div>
+  );
+}
+
+
+// ─── Worth Reviewing Today ──────────────────────────────────────────────
+//
+// The retention-algorithm row, sitting BELOW "Your plan for today" as a
+// supporting cast member rather than the protagonist. Mechanically this
+// is the same `getSuggestedDecksForToday` data that v1 used as the
+// page's main attraction — what changed in PR3 is its position in the
+// hierarchy (below the plan) and its framing (worth reviewing, not
+// "do this now"). Same data, different role, calmer copy.
+//
+// Visual treatment also shifts: cards keep retention chips and overdue
+// labels because that information IS useful here (the algorithm's whole
+// job is "here's why I think this matters"), but they sit on a slightly
+// muted background and use a less prominent button so the eye lands on
+// the plan above first.
+function WorthReviewingToday({ teacherId, t, lang = "en", onPickSuggestion, onLoaded }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -788,26 +1013,31 @@ function SuggestedToday({ teacherId, t, lang = "en", onPickSuggestion, onLoaded 
   }, [teacherId]);
 
   if (loading) return null; // silently load — the parent shows nothing while loading
-  // Empty state: show a calm "all caught up" message instead of hiding the
-  // section entirely. Without something here the page can feel broken when
-  // the suggestions are the main content.
+  // Empty state: a calm "all caught up" rather than hiding the section
+  // entirely — without something here the page can feel broken when this
+  // is the page's secondary content.
   if (items.length === 0) {
     return (
       <div className="ns-fade" style={{ marginBottom: 24 }}>
-        <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 4, color: C.textSecondary, display: "flex", alignItems: "center", gap: 8 }}>
-          <CIcon name="fire" size={14} inline /> {t.suggestedToday}
+        <h3 style={{
+          fontFamily: "'Outfit', sans-serif",
+          fontSize: 15, fontWeight: 700, color: C.text,
+          letterSpacing: "-0.01em",
+          marginBottom: 6,
+        }}>
+          {t.worthReviewingTitle}
         </h3>
         <div style={{
           padding: "20px 18px",
           background: C.bgSoft,
           border: `1px dashed ${C.border}`,
-          borderRadius: 12,
+          borderRadius: 10,
           fontSize: 13,
           color: C.textSecondary,
           lineHeight: 1.5,
           textAlign: "center",
         }}>
-          {t.suggestedNone}
+          {t.worthReviewingEmpty}
         </div>
       </div>
     );
@@ -815,10 +1045,19 @@ function SuggestedToday({ teacherId, t, lang = "en", onPickSuggestion, onLoaded 
 
   return (
     <div className="ns-fade" style={{ marginBottom: 24 }}>
-      <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 4, color: C.textSecondary, display: "flex", alignItems: "center", gap: 8 }}>
-        <CIcon name="fire" size={14} inline /> {t.suggestedToday}
-      </h3>
-      <p style={{ fontSize: 12, color: C.textMuted, marginBottom: 12 }}>{t.suggestedHint}</p>
+      <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 6 }}>
+        <h3 style={{
+          fontFamily: "'Outfit', sans-serif",
+          fontSize: 15, fontWeight: 700, color: C.text,
+          letterSpacing: "-0.01em",
+        }}>
+          {t.worthReviewingTitle}
+        </h3>
+        <span style={{ fontSize: 12, color: C.textMuted, fontFamily: MONO }}>
+          {items.length === 1 ? t.yourPlanItemCountOne : t.yourPlanItemCount.replace("{n}", items.length)}
+        </span>
+      </div>
+      <p style={{ fontSize: 12, color: C.textMuted, marginBottom: 12 }}>{t.worthReviewingHint}</p>
 
       {/* The cap (9, 3×3) is enforced server-side in getSuggestedDecksForToday.
           The grid uses 3 columns at desktop widths and collapses to 1 on mobile
@@ -890,94 +1129,6 @@ function SuggestedCard({ item, t, lang = "en", onPick }) {
   );
 }
 
-// ─── Recently Launched (the "rerun" row) ───────────────────────────────────
-// Shows up to 3 decks the teacher has launched as sessions recently, dedup'd
-// by deck (most recent per deck). Click → /sessions/options/<deckId>, same
-// deep link as a ClassPage deck card, so the existing options-step
-// hydration handles it. Hidden when there's nothing recent.
-function RecentlyLaunched({ teacherId, t, lang = "en", onPickDeck }) {
-  const [items, setItems] = useState([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (!teacherId) return;
-    (async () => {
-      try {
-        const list = await getRecentlyLaunchedDecks(teacherId, 3);
-        setItems(list);
-      } catch (e) {
-        console.error("Recent launches fetch failed:", e);
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, [teacherId]);
-
-  if (loading) return null;
-  if (items.length === 0) return null; // never launched anything yet → hide section
-
-  return (
-    <div className="ns-fade" style={{ marginBottom: 24 }}>
-      <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 4, color: C.textSecondary, display: "flex", alignItems: "center", gap: 8 }}>
-        <CIcon name="rocket" size={14} inline /> {t.recentlyLaunched}
-      </h3>
-      <p style={{ fontSize: 12, color: C.textMuted, marginBottom: 12 }}>{t.recentlyLaunchedHint}</p>
-
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 10 }}>
-        {items.map(item => (
-          <RecentLaunchCard key={item.deck.id} item={item} t={t} lang={lang} onPick={onPickDeck} />
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// Compact card for the recently-launched row. No retention info — these
-// aren't "you should review this" cards, they're "you ran this lately"
-// cards. Layout mirrors SuggestedCard so the two rows visually match.
-function RecentLaunchCard({ item, t, lang = "en", onPick }) {
-  const { deck, class: cls } = item;
-  const accent = resolveColor(deck);
-
-  return (
-    <div
-      className="ns-card"
-      style={{
-        background: C.bg, borderRadius: 12, border: `1px solid ${C.border}`,
-        borderLeft: `4px solid ${accent}`,
-        padding: 12,
-        display: "flex", flexDirection: "column",
-      }}
-    >
-      {/* Section badge — same role marker as elsewhere. Lets the teacher
-          see "I ran a warmup of X yesterday" without re-reading the title. */}
-      <div style={{ marginBottom: 8 }}>
-        <SectionBadge section={deck.section} lang={lang} />
-      </div>
-      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
-        <DeckCover deck={deck} size={40} radius={9} />
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 13, fontWeight: 600, lineHeight: 1.3, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{deck.title}</div>
-          {cls?.name && (
-            <div style={{ fontSize: 10, color: accent, fontWeight: 600 }}>{cls.name}</div>
-          )}
-        </div>
-      </div>
-
-      <button
-        onClick={() => onPick(deck)}
-        style={{
-          width: "100%", padding: "8px 12px", borderRadius: 7, fontSize: 12, fontWeight: 600,
-          background: `linear-gradient(135deg, ${C.accent}, ${C.purple})`, color: "#fff",
-          border: "none", cursor: "pointer", fontFamily: "'Outfit',sans-serif",
-          display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6,
-        }}
-      >
-        <CIcon name="rocket" size={11} inline /> {t.launchNow}
-      </button>
-    </div>
-  );
-}
 
 // ─── Main Export ───────────────────────────────────────────────────────────
 export default function SessionFlow({ lang = "en", setLang, onNavigateToDecks, onOpenMobileMenu }) {
@@ -1284,34 +1435,39 @@ export default function SessionFlow({ lang = "en", setLang, onNavigateToDecks, o
           <>
             <p style={{ fontSize: 14, color: C.textSecondary, marginBottom: 20 }}>{t.subtitle}</p>
 
-            {/* The "today" dashboard. Three blocks, all optional:
-                  1. Suggested for today (always rendered — shows empty
-                     state when nothing's urgent)
-                  2. Recently launched (hidden if the teacher has never
-                     launched anything)
-                  3. Quick link to /classes (always visible — covers the
-                     "I want a deck not in either row" case)
+            {/* The "Today" dashboard. Two blocks now (was three before
+                the PR3 redesign):
+                  1. Your plan for today — protagonist. What the teacher
+                     set up to teach. Active-unit decks per class, plus
+                     anything launched in the last 24h.
+                  2. Worth reviewing today — supporting cast. The retention
+                     algorithm's picks; same data as v1's "Suggested for
+                     today" but reframed so it doesn't compete with the
+                     plan above for attention.
+                Recently-launched as a separate block was removed in PR3
+                because Your Plan now covers that case (a deck launched
+                today shows up there with a "✓ done today" tag).
                 Class creation lives in My Classes; the deck list lives
                 in /decks; this page is just "what should I run today". */}
-            <SuggestedToday
+            <YourPlanForToday
+              teacherId={user.id}
+              t={t}
+              lang={lang}
+              onPickItem={(item) => navigate(buildRoute.sessionsOptions(item.deck.id))}
+            />
+
+            <WorthReviewingToday
               teacherId={user.id}
               t={t}
               lang={lang}
               onPickSuggestion={handlePickSuggestion}
             />
 
-            <RecentlyLaunched
-              teacherId={user.id}
-              t={t}
-              lang={lang}
-              onPickDeck={(deck) => navigate(buildRoute.sessionsOptions(deck.id))}
-            />
-
             {/* Quick link to classes — always visible. The teacher might
-                want a deck that's neither suggested nor recently launched
-                (looking up an old deck, browsing what's organized in a
-                particular class). This is the explicit out for that case
-                so the page never feels like a dead end. */}
+                want a deck that's neither in their plan nor flagged by
+                the algorithm (looking up an old deck, browsing what's
+                organized in a particular class). This is the explicit
+                out for that case so the page never feels like a dead end. */}
             <div style={{
               marginTop: 8,
               padding: "16px 18px",

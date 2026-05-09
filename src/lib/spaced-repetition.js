@@ -580,3 +580,217 @@ export async function getStudentProgress(classId) {
     strongTopics: s.topics.filter(t => t.retention_score >= 70).length,
   })).sort((a, b) => b.avgRetention - a.avgRetention);
 }
+
+// ─── Get the teacher's plan for today ────────────────────────────────
+//
+// "Your plan for today" — the protagonist row on the Today screen. Returns
+// the decks the teacher meant to use today, derived from their workflow:
+// what they're actively teaching (the active unit per class) plus what
+// they recently launched.
+//
+// Contract per item returned:
+//   {
+//     deck:     { id, title, section, class_id, ... },        // full deck row
+//     class:    { id, name, subject, grade, color_id },       // its class
+//     unit:     { id, name, ... } | null,                      // its unit, if any
+//     status:   "pending" | "launched_today",                  // see below
+//     lastLaunchedAt: timestamptz | null,                      // for sorting
+//   }
+//
+// Status meanings:
+//   pending         → the deck is in the active unit but hasn't been
+//                     launched today. THIS is the protagonist case —
+//                     "you planned this, you haven't done it yet".
+//   launched_today  → already launched today. Kept visible (not hidden)
+//                     so the teacher who already ran their morning warmup
+//                     can see it as "done" rather than thinking they
+//                     forgot. Will get a "✓ done" visual treatment.
+//
+// What we DON'T include:
+//   - decks launched yesterday or earlier (those belong to past days,
+//     don't pollute today)
+//   - decks from non-active units (those live in /classes/:id, not here)
+//   - general_review decks unless they were just launched today (they're
+//     the algorithm's territory, shown in "Worth reviewing today")
+//
+// Ordering inside the result:
+//   Per class, we order: pending warmups → pending exit_tickets →
+//   launched_today (any section). Across classes, we keep classes
+//   alphabetical so the teacher with several classes has a stable
+//   reading order.
+//
+// Active-unit derivation (since units don't have an is_active flag yet):
+//   1. If any unit in the class has a deck launched in the last 14 days,
+//      the most recently active such unit wins.
+//   2. Otherwise, the unit with the highest `position` in the class
+//      (the "latest created" by manual order) wins.
+//   3. If the class has no units at all, we skip the unit logic entirely
+//      and just use recently-launched fallback for that class.
+//
+// This will get cleaner in PR 4 once units gain an explicit status column
+// ('planned' | 'active' | 'closed') — at that point we just read the flag.
+//
+export async function getTodayPlan(teacherId) {
+  if (!teacherId) return [];
+
+  // 1. Get all the teacher's classes
+  const { data: classes } = await supabase
+    .from('classes')
+    .select('id, name, subject, grade, color_id')
+    .eq('teacher_id', teacherId)
+    .order('name', { ascending: true });
+  if (!classes || classes.length === 0) return [];
+
+  // Compute "today" once, in the user's tz. We use UTC for date-line math
+  // — slight inaccuracy at midnight is tolerable for "what did I launch
+  // today". For lastLaunched comparisons (within last 24h) we use ms.
+  const now = new Date();
+  const todayStart = new Date(now);
+  todayStart.setHours(0, 0, 0, 0);
+  const fourteenDaysAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
+
+  // 2. Pull all units for these classes in one query
+  const classIds = classes.map(c => c.id);
+  const { data: allUnits } = await supabase
+    .from('units')
+    .select('id, class_id, section, name, position, created_at')
+    .in('class_id', classIds);
+  const unitsByClass = {};
+  (allUnits || []).forEach(u => {
+    if (!unitsByClass[u.class_id]) unitsByClass[u.class_id] = [];
+    unitsByClass[u.class_id].push(u);
+  });
+
+  // 3. Pull recent sessions for these classes (for activity-based unit
+  //    selection AND for "launched today" status). Last 14d is enough
+  //    for the active-unit heuristic; today-only check is a subset.
+  const { data: recentSessions } = await supabase
+    .from('sessions')
+    .select('id, deck_id, class_id, created_at, status')
+    .in('class_id', classIds)
+    .in('status', ['lobby', 'active', 'completed'])
+    .not('deck_id', 'is', null)
+    .gte('created_at', fourteenDaysAgo.toISOString())
+    .order('created_at', { ascending: false });
+
+  // Index sessions by deck — for each deck, what's the most recent session?
+  const lastSessionByDeck = new Map();
+  (recentSessions || []).forEach(s => {
+    if (!lastSessionByDeck.has(s.deck_id)) {
+      lastSessionByDeck.set(s.deck_id, s);
+    }
+  });
+
+  // 4. For each class, determine the active unit (or null)
+  const activeUnitByClass = {};
+  for (const cls of classes) {
+    const classUnits = unitsByClass[cls.id] || [];
+    if (classUnits.length === 0) continue; // no units at all → fallback path
+
+    // Find unit with most recent session in this class
+    const sessionsInClass = (recentSessions || []).filter(s => s.class_id === cls.id);
+    let activeUnitId = null;
+    if (sessionsInClass.length > 0) {
+      // Get the deck rows for these sessions to find their unit_ids
+      const deckIds = Array.from(new Set(sessionsInClass.map(s => s.deck_id)));
+      const { data: sessionDecks } = await supabase
+        .from('decks')
+        .select('id, unit_id')
+        .in('id', deckIds);
+      const unitIdByDeck = Object.fromEntries((sessionDecks || []).map(d => [d.id, d.unit_id]));
+      // Walk sessions in time order (already desc) and grab the first
+      // deck whose unit_id is non-null — that unit is the active one
+      for (const s of sessionsInClass) {
+        const uid = unitIdByDeck[s.deck_id];
+        if (uid) { activeUnitId = uid; break; }
+      }
+    }
+    // Fallback: highest position
+    if (!activeUnitId) {
+      const sortedByPos = [...classUnits].sort((a, b) => (b.position || 0) - (a.position || 0));
+      activeUnitId = sortedByPos[0]?.id || null;
+    }
+    if (activeUnitId) {
+      activeUnitByClass[cls.id] = classUnits.find(u => u.id === activeUnitId);
+    }
+  }
+
+  // 5. For each class, fetch the decks of its active unit (or recent-fallback
+  //    if there's no active unit). Build the result list.
+  const out = [];
+  for (const cls of classes) {
+    const activeUnit = activeUnitByClass[cls.id];
+
+    let decks = [];
+    if (activeUnit) {
+      // Active-unit path: pull all decks in this unit
+      const { data: unitDecks } = await supabase
+        .from('decks')
+        .select('*')
+        .eq('class_id', cls.id)
+        .eq('unit_id', activeUnit.id)
+        .order('position', { ascending: true });
+      decks = unitDecks || [];
+    } else {
+      // Fallback path: decks launched in this class today or yesterday
+      const yesterdayStart = new Date(todayStart.getTime() - 24 * 60 * 60 * 1000);
+      const recentSessionsInClass = (recentSessions || [])
+        .filter(s => s.class_id === cls.id && new Date(s.created_at) >= yesterdayStart);
+      const recentDeckIds = Array.from(new Set(recentSessionsInClass.map(s => s.deck_id)));
+      if (recentDeckIds.length === 0) continue;
+      const { data: recentDecks } = await supabase
+        .from('decks')
+        .select('*')
+        .in('id', recentDeckIds);
+      decks = recentDecks || [];
+    }
+
+    // 6. For each deck, classify its status and decide whether to include
+    for (const deck of decks) {
+      const lastSession = lastSessionByDeck.get(deck.id);
+      const lastLaunchedAt = lastSession ? new Date(lastSession.created_at) : null;
+      const launchedToday = lastLaunchedAt && lastLaunchedAt >= todayStart;
+
+      // For the active-unit path: include warmup + exit_ticket. Skip
+      // general_review unless it was launched today (then it counts as
+      // "you actually used this today, here it is as done"). For the
+      // fallback path: include everything that was launched recently.
+      let status;
+      if (activeUnit) {
+        if (launchedToday) {
+          status = "launched_today";
+        } else if (deck.section === "warmup" || deck.section === "exit_ticket") {
+          status = "pending";
+        } else {
+          continue; // general_review and not launched today → skip
+        }
+      } else {
+        // Fallback path: only items launched today/yesterday land here
+        status = launchedToday ? "launched_today" : "pending";
+      }
+
+      out.push({
+        deck,
+        class: cls,
+        unit: activeUnit || null,
+        status,
+        lastLaunchedAt: lastSession?.created_at || null,
+      });
+    }
+  }
+
+  // 7. Sort: pending first (warmup → exit_ticket → review), then
+  //    launched_today. Within each bucket, group by class (alphabetical
+  //    is already the input order).
+  const sectionRank = { warmup: 0, exit_ticket: 1, general_review: 2 };
+  out.sort((a, b) => {
+    const statusRank = (it) => it.status === "pending" ? 0 : 1;
+    const sr = statusRank(a) - statusRank(b);
+    if (sr !== 0) return sr;
+    const cr = (a.class.name || "").localeCompare(b.class.name || "");
+    if (cr !== 0) return cr;
+    return (sectionRank[a.deck.section] ?? 9) - (sectionRank[b.deck.section] ?? 9);
+  });
+
+  return out;
+}
