@@ -18,6 +18,7 @@ import { CIcon } from "../components/Icons";
 import { DeckCover, resolveColor as resolveDeckColor } from "../lib/deck-cover";
 import { useIsMobile } from "../components/MobileMenuButton";
 import EditClassModal from "../components/EditClassModal";
+import SectionBadge from "../components/SectionBadge";
 import { C, MONO } from "../components/tokens";
 import { ROUTES, QUERY, buildRoute } from "../routes";
 import {
@@ -427,6 +428,7 @@ function DeckCard({
   deck,
   accent,
   t,
+  lang = "en",
   units = [],
   onChangeUnit,
   onOpen,
@@ -506,6 +508,14 @@ function DeckCard({
       }}
       className="cl-deck-row"
     >
+      {/* Section badge — visible identity for warmup vs exit ticket vs
+          general review. Sits at the top of the card so a teacher scanning
+          the grid can tell them apart at a glance, even before reading the
+          title. The badge is non-clickable; the surrounding card click
+          still opens the deck. */}
+      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+        <SectionBadge section={deck.section} lang={lang} />
+      </div>
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
         <DeckCover deck={deck} size={36} radius={8} />
         <div style={{ flex: 1, minWidth: 0 }}>
@@ -560,7 +570,7 @@ function DeckCard({
 //
 // We pass everything down to DeckCard so the actual visuals stay in one
 // place.
-function SortableDeckCard({ deck, accent, t, units, onChangeUnit, onOpen }) {
+function SortableDeckCard({ deck, accent, t, lang, units, onChangeUnit, onOpen }) {
   const {
     attributes,
     listeners,
@@ -578,6 +588,7 @@ function SortableDeckCard({ deck, accent, t, units, onChangeUnit, onOpen }) {
       deck={deck}
       accent={accent}
       t={t}
+      lang={lang}
       units={units}
       onChangeUnit={onChangeUnit}
       onOpen={onOpen}
@@ -1523,6 +1534,7 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
                           deck={deck}
                           accent={accent}
                           t={t}
+                          lang={lang}
                           units={unitsForSection}
                           onChangeUnit={handleChangeDeckUnit}
                           onOpen={() => navigate(buildRoute.sessionsOptions(deck.id))}
@@ -1564,6 +1576,7 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
                 deck={deck}
                 accent={accent}
                 t={t}
+                lang={lang}
                 units={unitsForSection}
                 onChangeUnit={handleChangeDeckUnit}
                 onOpen={() => navigate(buildRoute.sessionsOptions(deck.id))}
@@ -1589,6 +1602,7 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
               deck={activeDeck}
               accent={accent}
               t={t}
+              lang={lang}
               units={unitsForSection}
               isOverlay
             />

@@ -6,6 +6,7 @@ import { DeckCover, SUBJ_ICON, SUBJ_COLOR, resolveColor, colorTint, DECK_COLORS 
 import { analyzeDerivation } from "../lib/deck-derivation";
 import { useIsMobile } from "../components/MobileMenuButton";
 import PageHeader from "../components/PageHeader";
+import SectionBadge from "../components/SectionBadge";
 import { MONO } from "../components/tokens";
 import { C, css } from "./Decks/styles";
 import CreateDeckEditor from "./Decks/CreateDeckEditor";
@@ -787,6 +788,12 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
             >
               <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                 <span style={{ fontSize: 15, fontWeight: 600, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{dk.title}</span>
+                {/* Section badge — visible identity for warmup vs exit ticket
+                    vs general review. Sits inline with the title so the role
+                    is visible at the same scan as the deck name. The schema
+                    guarantees deck.section is always one of the three values,
+                    so this always renders something. */}
+                <SectionBadge section={dk.section} lang={pageLang} />
                 {isCopy && (
                   <span style={{ display: "inline-flex", alignItems: "center", gap: 3, padding: "2px 7px", borderRadius: 5, fontSize: 10, fontWeight: 600, background: C.purpleSoft, color: C.purple, border: `1px solid ${C.purple}` }}>
                     ⧉ {t.badgeCopy}

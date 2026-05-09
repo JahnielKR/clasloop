@@ -2,8 +2,7 @@ import { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { useLocation, useNavigate, useMatch } from 'react-router-dom';
 import { ROUTES, PAGE_TO_ROUTE, pathToPage, defaultRouteForRole, buildRoute, buildPathWithOpts, isPageAllowedForRole } from './routes';
 import { supabase } from './lib/supabase';
-import Icon, { LogoMark, SessionsIcon, AIGenIcon, SchoolIcon, CommunityIcon, DecksIcon, NotificationsIcon, SettingsIcon, JoinSessionIcon, ProgressIcon, AchievementsIcon, ActivitiesIcon, TeacherInline, StudentInline, TeacherAvatar, StudentAvatar, BackArrow, ReviewIcon } from './components/Icons';
-import { Avatar as ProfileAvatar } from './components/Avatars';
+import { LogoMark, TeacherInline, StudentInline, TeacherAvatar, StudentAvatar } from './components/Icons';
 // PublicHome and AvatarOnboarding are eagerly imported because they paint
 // before the authed shell — making them lazy would just add a Suspense
 // fallback to the very first screen the user sees.
@@ -63,6 +62,7 @@ const MyResults        = lazy(importMyResults);
 import { useIsMobile } from './components/MobileMenuButton';
 import { countVisibleNotifications, countPendingReviewsForTeacher } from './lib/notifications';
 import { C } from './components/tokens';
+import Sidebar from './components/Sidebar';
 
 // MyClasses wrapper — /classes is shared between roles and now has a
 // nested route for class detail:
@@ -178,136 +178,6 @@ function AuthScreen({ initialMode = "select", initialRole = "teacher", onBack })
   );
 }
 
-function Sidebar({ page, setPage, profile, lang, setLang, open, setOpen, onSignOut, onNavClick, isMobile, mobileDrawerOpen, setMobileDrawerOpen, notifsCount = 0, reviewBadgeCount = 0 }) {
-  // Default to teacher unless we know for sure they're a student
-  // This prevents the sidebar from flipping during token refresh
-  const isT = profile ? profile.role === "teacher" : (page === "sessions" || page === "decks" || page === "director");
-  const isAdmin = profile?.is_admin === true;
-  // Sidebar nav items. Admin tools van al final, después de Settings, y solo
-  // se renderizan si profile.is_admin === true. La protección real está en
-  // la página + RLS de Supabase; ocultar en sidebar es solo UX.
-  const baseNav = isT
-    ? [{ id:"sessions",icon:(a)=><SessionsIcon size={28} active={a}/>,l:"Today" },{ id:"decks",icon:(a)=><DecksIcon size={28} active={a}/>,l:"Decks" },{ id:"myClasses",icon:(a)=><SchoolIcon size={28} active={a}/>,l:"My Classes" },{ id:"review",icon:(a)=><ReviewIcon size={28} active={a} badge={reviewBadgeCount}/>,l:"To review" },{ id:"community",icon:(a)=><CommunityIcon size={28} active={a}/>,l:"Community" },{ id:"notifications",icon:(a)=><NotificationsIcon size={28} active={a} badge={notifsCount}/>,l:"Notifications" },{ id:"settings",icon:(a)=><SettingsIcon size={28} active={a}/>,l:"Settings" }]
-    : [{ id:"myClasses",icon:(a)=><SchoolIcon size={28} active={a}/>,l:"My Classes" },{ id:"studentJoin",icon:(a)=><JoinSessionIcon size={28} active={a}/>,l:"Join Session" },{ id:"achievements",icon:(a)=><AchievementsIcon size={28} active={a}/>,l:"Achievements" },{ id:"community",icon:(a)=><CommunityIcon size={28} active={a}/>,l:"Community" },{ id:"notifications",icon:(a)=><NotificationsIcon size={28} active={a} badge={notifsCount}/>,l:"Notifications" },{ id:"settings",icon:(a)=><SettingsIcon size={28} active={a}/>,l:"Settings" }];
-  const nav = isAdmin
-    ? [...baseNav, { id:"adminAIStats", icon:(a)=><AIGenIcon size={28} active={a}/>, l:"AI Stats" }]
-    : baseNav;
-
-  // In mobile, the sidebar acts as a drawer: full-width-ish, slides in from
-  // the left, always shows labels (no collapsed state). In desktop it keeps
-  // its existing collapsible behavior — completely untouched.
-  const sidebarWidth = isMobile ? 240 : (open ? 210 : 56);
-  const showLabels = isMobile ? true : open;
-  const sidebarTransform = isMobile && !mobileDrawerOpen ? "translateX(-100%)" : "translateX(0)";
-
-  // In mobile, every nav action also closes the drawer.
-  const handleNav = (cb) => {
-    cb();
-    if (onNavClick) onNavClick();
-    if (isMobile) setMobileDrawerOpen(false);
-  };
-
-  return (
-    <div style={{
-      width: sidebarWidth,
-      background: C.bg,
-      borderRight: `1px solid ${C.border}`,
-      display: "flex",
-      flexDirection: "column",
-      height: "100vh",
-      position: "fixed",
-      left: 0,
-      top: 0,
-      zIndex: 60,
-      transition: isMobile ? "transform .25s ease" : "width .2s",
-      overflow: "hidden",
-      transform: sidebarTransform,
-      boxShadow: isMobile && mobileDrawerOpen ? "0 0 24px rgba(0,0,0,.12)" : "none",
-    }}>
-      <div style={{ padding: "14px 12px 8px", display: "flex", alignItems: "center", justifyContent: "space-between", minHeight: 50 }}>
-        {showLabels && <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-          <LogoMark size={26} />
-          <span style={{ fontSize: 15, fontWeight: 700, letterSpacing: "-.03em", fontFamily: "'Outfit',sans-serif" }}>clasloop</span>
-        </div>}
-        {!showLabels && <LogoMark size={26} />}
-        {/* Desktop collapse arrow — hidden in mobile */}
-        {!isMobile && open && <button className="cl-collapse" onClick={() => setOpen(!open)} style={{ width: 26, height: 26, borderRadius: 6, background: C.bgSoft, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, color: C.textMuted, flexShrink: 0, border: "none", cursor: "pointer" }}>◀</button>}
-        {/* Mobile close (×) — only when drawer is open */}
-        {isMobile && <button onClick={() => setMobileDrawerOpen(false)} aria-label="Close menu" style={{ width: 32, height: 32, borderRadius: 8, background: C.bgSoft, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, lineHeight: 1, color: C.textSecondary, flexShrink: 0, border: "none", cursor: "pointer" }}>×</button>}
-      </div>
-      {!isMobile && !open && <button className="cl-collapse" onClick={() => setOpen(true)} style={{ margin: "4px 6px", padding: "6px", borderRadius: 6, background: C.bgSoft, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, color: C.textMuted, border: "none", cursor: "pointer" }}>▶</button>}
-      <div style={{ flex: 1, overflow: "auto", padding: "0 6px" }}>
-        {nav.map(n => {
-          const isActive = page === n.id;
-          return <button key={n.id} className={isActive ? "cl-nav cl-nav-active" : "cl-nav"} onClick={() => handleNav(() => setPage(n.id))} style={{ display: "flex", alignItems: "center", gap: 10, padding: showLabels?"9px 10px":"9px", borderRadius: 8, width: "100%", background: isActive?C.accentSoft:"transparent", fontSize: 13, fontWeight: isActive?600:500, color: isActive?C.accent:C.textSecondary, marginBottom: 2, textAlign: "left", justifyContent: showLabels?"flex-start":"center", border: "none", cursor: "pointer" }}>
-            <span style={{ flexShrink: 0, display: "flex", alignItems: "center" }}>{n.icon(isActive)}</span>{showLabels && n.l}
-          </button>;
-        })}
-      </div>
-      <div style={{ padding: "10px 12px", borderTop: `1px solid ${C.border}` }}>
-        {showLabels ? <>
-          {/* Language selector lives here for both mobile and desktop now.
-              Used to live in the page header (PageHeader.jsx) but moved
-              to the sidebar so every page has the same chrome and the
-              choice feels like a user preference, not page furniture.
-              When the sidebar is collapsed (showLabels=false) we hide
-              this — the user can expand the sidebar or open Settings
-              to change the language. */}
-          <div style={{ display: "flex", gap: 4, marginBottom: 10 }}>
-            {[["en", "EN"], ["es", "ES"], ["ko", "한"]].map(([code, label]) => (
-              <button
-                key={code}
-                onClick={() => setLang(code)}
-                style={{
-                  flex: 1, padding: "6px 0", borderRadius: 6, fontSize: 11, fontWeight: 600,
-                  background: lang === code ? C.accentSoft : "transparent",
-                  color: lang === code ? C.accent : C.textMuted,
-                  border: `1px solid ${lang === code ? C.accent + "33" : C.border}`,
-                  cursor: "pointer", fontFamily: "'Outfit',sans-serif",
-                }}
-              >{label}</button>
-            ))}
-          </div>
-          <button
-            className="cl-profile-chip"
-            onClick={() => handleNav(() => setPage("settings"))}
-            title="Open Settings"
-            style={{
-              display: "flex", alignItems: "center", gap: 8, marginBottom: 8,
-              width: "100%", padding: "6px 8px", borderRadius: 8,
-              background: page === "settings" ? C.accentSoft : "transparent",
-              border: "none", cursor: "pointer", textAlign: "left",
-              fontFamily: "'Outfit',sans-serif",
-              transition: "background .15s ease",
-            }}
-          >
-            <div style={{ width: 30, height: 30, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{profile ? <ProfileAvatar photoUrl={profile.avatar_url} id={profile.avatar_id} seed={profile.id} size={30}/> : (isT?<TeacherAvatar size={30}/>:<StudentAvatar size={30}/>)}</div>
-            <div style={{ overflow: "hidden", flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 12, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", color: page === "settings" ? C.accent : C.text }}>{profile?.full_name||"User"}</div>
-              <div style={{ fontSize: 10, color: C.textMuted }}>{isT?"Teacher":`Lv.${profile?.level||1}`}</div>
-            </div>
-          </button>
-          <button className="cl-signout" onClick={onSignOut} style={{ fontSize: 11, color: C.textMuted, background: "transparent", border: "none", cursor: "pointer" }}>Sign out</button>
-        </> : <div style={{ display: "flex", justifyContent: "center" }}>
-          <button
-            className="cl-profile-chip"
-            onClick={() => handleNav(() => setPage("settings"))}
-            title="Open Settings"
-            style={{
-              width: 32, height: 32, padding: 0, borderRadius: "50%",
-              background: page === "settings" ? C.accentSoft : "transparent",
-              border: "none", cursor: "pointer",
-              display: "flex", alignItems: "center", justifyContent: "center",
-              transition: "background .15s ease",
-            }}
-          >
-            {profile ? <ProfileAvatar photoUrl={profile.avatar_url} id={profile.avatar_id} seed={profile.id} size={26}/> : (isT?<TeacherAvatar size={26}/>:<StudentAvatar size={26}/>)}
-          </button>
-        </div>}
-      </div>
-    </div>
-  );
-}
 
 // ── 404 screen ──
 // Shown inside the authed shell when the URL doesn't map to any known page.

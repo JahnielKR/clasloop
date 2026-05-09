@@ -7,6 +7,7 @@ import { CIcon } from "../components/Icons";
 import { DeckCover, resolveColor } from "../lib/deck-cover";
 import MobileMenuButton, { useIsMobile } from "../components/MobileMenuButton";
 import PageHeader from "../components/PageHeader";
+import SectionBadge from "../components/SectionBadge";
 import { C, MONO } from "../components/tokens";
 import { estimateDeckSeconds, formatDeckDuration } from "../lib/time-limits";
 import { ROUTES, QUERY, buildRoute } from "../routes";
@@ -763,7 +764,7 @@ function LiveResults({ session, t, onEnd }) {
 }
 
 // ─── Suggested for Today ───────────────────────────────────────────────────
-function SuggestedToday({ teacherId, t, onPickSuggestion, onLoaded }) {
+function SuggestedToday({ teacherId, t, lang = "en", onPickSuggestion, onLoaded }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -823,13 +824,13 @@ function SuggestedToday({ teacherId, t, onPickSuggestion, onLoaded }) {
           The grid uses 3 columns at desktop widths and collapses to 1 on mobile
           via auto-fill — looks tidy whatever the count. */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 10 }}>
-        {items.map(item => <SuggestedCard key={`${item.class.id}-${item.deck.id}`} item={item} t={t} onPick={onPickSuggestion} />)}
+        {items.map(item => <SuggestedCard key={`${item.class.id}-${item.deck.id}`} item={item} t={t} lang={lang} onPick={onPickSuggestion} />)}
       </div>
     </div>
   );
 }
 
-function SuggestedCard({ item, t, onPick }) {
+function SuggestedCard({ item, t, lang = "en", onPick }) {
   const { deck, class: cls, retention_score, days_overdue, is_overdue } = item;
   const accent = resolveColor(deck);
   const retCol = retention_score >= 70 ? C.green : retention_score >= 40 ? C.orange : C.red;
@@ -848,6 +849,13 @@ function SuggestedCard({ item, t, onPick }) {
         display: "flex", flexDirection: "column",
       }}
     >
+      {/* Section badge — tells the teacher at a glance whether this is a
+          warmup, exit ticket, or general review BEFORE they read the title.
+          Sits above the cover/title row so the role is the first thing
+          they read on the card. */}
+      <div style={{ marginBottom: 8 }}>
+        <SectionBadge section={deck.section} lang={lang} />
+      </div>
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
         <DeckCover deck={deck} size={40} radius={9} />
         <div style={{ flex: 1, minWidth: 0 }}>
@@ -887,7 +895,7 @@ function SuggestedCard({ item, t, onPick }) {
 // by deck (most recent per deck). Click → /sessions/options/<deckId>, same
 // deep link as a ClassPage deck card, so the existing options-step
 // hydration handles it. Hidden when there's nothing recent.
-function RecentlyLaunched({ teacherId, t, onPickDeck }) {
+function RecentlyLaunched({ teacherId, t, lang = "en", onPickDeck }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -917,7 +925,7 @@ function RecentlyLaunched({ teacherId, t, onPickDeck }) {
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 10 }}>
         {items.map(item => (
-          <RecentLaunchCard key={item.deck.id} item={item} t={t} onPick={onPickDeck} />
+          <RecentLaunchCard key={item.deck.id} item={item} t={t} lang={lang} onPick={onPickDeck} />
         ))}
       </div>
     </div>
@@ -927,7 +935,7 @@ function RecentlyLaunched({ teacherId, t, onPickDeck }) {
 // Compact card for the recently-launched row. No retention info — these
 // aren't "you should review this" cards, they're "you ran this lately"
 // cards. Layout mirrors SuggestedCard so the two rows visually match.
-function RecentLaunchCard({ item, t, onPick }) {
+function RecentLaunchCard({ item, t, lang = "en", onPick }) {
   const { deck, class: cls } = item;
   const accent = resolveColor(deck);
 
@@ -941,6 +949,11 @@ function RecentLaunchCard({ item, t, onPick }) {
         display: "flex", flexDirection: "column",
       }}
     >
+      {/* Section badge — same role marker as elsewhere. Lets the teacher
+          see "I ran a warmup of X yesterday" without re-reading the title. */}
+      <div style={{ marginBottom: 8 }}>
+        <SectionBadge section={deck.section} lang={lang} />
+      </div>
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
         <DeckCover deck={deck} size={40} radius={9} />
         <div style={{ flex: 1, minWidth: 0 }}>
@@ -1283,12 +1296,14 @@ export default function SessionFlow({ lang = "en", setLang, onNavigateToDecks, o
             <SuggestedToday
               teacherId={user.id}
               t={t}
+              lang={lang}
               onPickSuggestion={handlePickSuggestion}
             />
 
             <RecentlyLaunched
               teacherId={user.id}
               t={t}
+              lang={lang}
               onPickDeck={(deck) => navigate(buildRoute.sessionsOptions(deck.id))}
             />
 
