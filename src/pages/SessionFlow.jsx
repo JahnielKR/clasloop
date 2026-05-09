@@ -911,14 +911,28 @@ function YourPlanCard({ item, t, lang = "en", onPick }) {
         alignItems: "center",
         gap: 14,
         cursor: "pointer",
-        transition: "border-color .12s ease, background .12s ease",
+        // Hover lifts the card with a soft shadow rather than touching the
+        // border colors. The previous version dimmed the section identity
+        // (warm/cool/neutral stripes lost prominence under a darker
+        // perimeter) — that broke the whole point of having section
+        // colors in the first place. This way the card "responds" without
+        // ever apologizing for its color.
+        transition: "transform .12s ease, box-shadow .12s ease",
+        boxShadow: "none",
         // Done-today rows are ghosted — visible but visually quieter.
         // The teacher who already ran the morning warmup should see it
         // ticked off, not erased.
         opacity: isDone ? 0.65 : 1,
       }}
-      onMouseEnter={(e) => { e.currentTarget.style.borderColor = C.textMuted; }}
-      onMouseLeave={(e) => { e.currentTarget.style.borderColor = C.border; }}
+      onMouseEnter={(e) => {
+        if (isDone) return; // already-done rows don't lift on hover
+        e.currentTarget.style.transform = "translateY(-1px)";
+        e.currentTarget.style.boxShadow = "0 2px 8px rgba(0,0,0,0.06)";
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.transform = "translateY(0)";
+        e.currentTarget.style.boxShadow = "none";
+      }}
     >
       <SectionBadge section={deck.section} lang={lang} />
 
@@ -1059,10 +1073,12 @@ function WorthReviewingToday({ teacherId, t, lang = "en", onPickSuggestion, onLo
       </div>
       <p style={{ fontSize: 12, color: C.textMuted, marginBottom: 12 }}>{t.worthReviewingHint}</p>
 
-      {/* The cap (9, 3×3) is enforced server-side in getSuggestedDecksForToday.
-          The grid uses 3 columns at desktop widths and collapses to 1 on mobile
-          via auto-fill — looks tidy whatever the count. */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 10 }}>
+      {/* Vertical list, same shape as Your Plan above. The two blocks
+          should feel like cousins with one differentiator (this block's
+          cards have a slightly muted background to mark them as the
+          supporting cast). The cap (9 items) is enforced server-side
+          in getSuggestedDecksForToday. */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {items.map(item => <SuggestedCard key={`${item.class.id}-${item.deck.id}`} item={item} t={t} lang={lang} onPick={onPickSuggestion} />)}
       </div>
     </div>
@@ -1071,7 +1087,7 @@ function WorthReviewingToday({ teacherId, t, lang = "en", onPickSuggestion, onLo
 
 function SuggestedCard({ item, t, lang = "en", onPick }) {
   const { deck, class: cls, retention_score, days_overdue, is_overdue } = item;
-  const accent = resolveColor(deck);
+  const stripe = sectionAccent(deck.section);
   const retCol = retention_score >= 70 ? C.green : retention_score >= 40 ? C.orange : C.red;
 
   const overdueLabel = is_overdue && days_overdue > 0
@@ -1080,50 +1096,109 @@ function SuggestedCard({ item, t, lang = "en", onPick }) {
 
   return (
     <div
-      className="ns-card"
+      onClick={() => onPick(item)}
       style={{
-        background: C.bg, borderRadius: 12, border: `1px solid ${C.border}`,
-        borderLeft: `4px solid ${retCol}`,
-        padding: 12,
-        display: "flex", flexDirection: "column",
+        // Same shape as YourPlanCard above — full-width row, section
+        // stripe on the left, badge inline. The ONLY visual differences
+        // from Your Plan are intentional and minimal:
+        //   1. bgSoft instead of bg → the card sits one shade back from
+        //      the protagonist row, marking this as supporting content
+        //      without redesigning anything.
+        //   2. Retention chip + overdue label inline in the meta row —
+        //      this info IS the algorithm's whole pitch ("here's why
+        //      this matters today"), so it earns its place. Your Plan
+        //      doesn't have these because the teacher already knows why
+        //      they planned what they planned.
+        background: C.bgSoft,
+        border: `1px solid ${C.border}`,
+        borderLeft: `3px solid ${stripe}`,
+        borderRadius: 10,
+        padding: "12px 16px",
+        display: "flex",
+        alignItems: "center",
+        gap: 14,
+        cursor: "pointer",
+        transition: "transform .12s ease, box-shadow .12s ease",
+        boxShadow: "none",
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.transform = "translateY(-1px)";
+        e.currentTarget.style.boxShadow = "0 2px 8px rgba(0,0,0,0.06)";
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.transform = "translateY(0)";
+        e.currentTarget.style.boxShadow = "none";
       }}
     >
-      {/* Section badge — tells the teacher at a glance whether this is a
-          warmup, exit ticket, or general review BEFORE they read the title.
-          Sits above the cover/title row so the role is the first thing
-          they read on the card. */}
-      <div style={{ marginBottom: 8 }}>
-        <SectionBadge section={deck.section} lang={lang} />
-      </div>
-      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
-        <DeckCover deck={deck} size={40} radius={9} />
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 13, fontWeight: 600, lineHeight: 1.3, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{deck.title}</div>
-          <div style={{ fontSize: 10, color: accent, fontWeight: 600 }}>{cls.name}</div>
+      <SectionBadge section={deck.section} lang={lang} />
+
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{
+          fontFamily: "'Outfit', sans-serif",
+          fontSize: 14.5, fontWeight: 600, color: C.text,
+          lineHeight: 1.3,
+          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+        }}>
+          {deck.title}
+        </div>
+        <div style={{
+          fontSize: 11.5, color: C.textSecondary,
+          marginTop: 2,
+          display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap",
+        }}>
+          <span style={{ fontWeight: 500 }}>{cls.name}</span>
+          <span style={{ width: 3, height: 3, background: C.textMuted, borderRadius: "50%" }} />
+          {/* Retention chip — colored background + bold pct. Matches the
+              chip language used in deck cards in /classes/:id and /decks. */}
+          <span style={{
+            fontFamily: MONO,
+            fontSize: 10.5, fontWeight: 600,
+            padding: "1px 6px", borderRadius: 4,
+            background: retCol + "1A",
+            color: retCol,
+          }}>
+            {retention_score}%
+          </span>
+          <span>{t.retentionLabel}</span>
+          {overdueLabel && (
+            <>
+              <span style={{ width: 3, height: 3, background: C.textMuted, borderRadius: "50%" }} />
+              <span style={{ color: C.red, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", fontSize: 10.5 }}>
+                {overdueLabel}
+              </span>
+            </>
+          )}
         </div>
       </div>
 
-      <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 11, color: C.textMuted, marginBottom: 10 }}>
-        <span style={{ color: retCol, fontWeight: 700, fontFamily: MONO }}>{retention_score}%</span>
-        <span>{t.retentionLabel}</span>
-        {overdueLabel && (
-          <>
-            <span style={{ color: C.border }}>·</span>
-            <span style={{ color: C.red, fontWeight: 600 }}>{overdueLabel}</span>
-          </>
-        )}
-      </div>
-
       <button
-        onClick={() => onPick(item)}
+        onClick={(e) => { e.stopPropagation(); onPick(item); }}
         style={{
-          width: "100%", padding: "8px 12px", borderRadius: 7, fontSize: 12, fontWeight: 600,
-          background: `linear-gradient(135deg, ${C.accent}, ${C.purple})`, color: "#fff",
-          border: "none", cursor: "pointer", fontFamily: "'Outfit',sans-serif",
-          display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6,
+          // Slightly less prominent than the Launch button on Your Plan.
+          // White bg + dark border, not solid blue. Reads as "available
+          // action" rather than "primary action of the day". The plan
+          // above keeps the visual weight.
+          padding: "7px 14px",
+          borderRadius: 7,
+          background: C.bg,
+          color: C.text,
+          border: `1px solid ${C.border}`,
+          fontFamily: "'Outfit', sans-serif",
+          fontSize: 13, fontWeight: 500,
+          cursor: "pointer",
+          flexShrink: 0,
+          transition: "border-color .12s ease, background .12s ease",
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.borderColor = C.textMuted;
+          e.currentTarget.style.background = C.bg;
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.borderColor = C.border;
+          e.currentTarget.style.background = C.bg;
         }}
       >
-        <CIcon name="rocket" size={11} inline /> {t.launchNow}
+        {t.launchNow}
       </button>
     </div>
   );
