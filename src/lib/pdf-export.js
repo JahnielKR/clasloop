@@ -549,17 +549,26 @@ function drawMatchAnswerBlock(doc, q, num, startY, fontFamily) {
     return startY + 7;
   }
 
-  const headerHeight = 7;
-  const rowHeight = 5.5;
-  const padTop = 4;
-  const padBottom = 4;
+  // Layout constants — define ONCE at the top so blockHeight, the
+  // page-break check, and the actual draw all use the same numbers.
+  // PR 8.2 had a bug where blockHeight was computed differently from
+  // the actual content height, causing the next answer to overlap
+  // the bottom of the box. PR 8.3 unifies these.
+  const padTop = 4;        // space between box top and header text
+  const headerHeight = 8;  // header line + breathing space below it
+  const rowHeight = 5.5;   // each pair row
+  const padBottom = 4;     // space between last pair and box bottom
   const padX = 5;
   const arrowGap = 6;
 
-  // Estimate total block height. If header + at least one row doesn't
-  // fit, page-break before drawing.
-  const minNeeded = headerHeight + padTop + rowHeight + padBottom;
-  if (startY + minNeeded > PAGE.height - PAGE.marginY) {
+  // Total height the box will occupy.
+  const blockHeight = padTop + headerHeight + (pairs.length * rowHeight) + padBottom;
+
+  // Page-break: if the WHOLE block doesn't fit on this page, start
+  // the next page. We also page-break if even less than 30mm of the
+  // current page remains, to avoid orphaning a tiny header without
+  // any pair rows visible — match blocks should stay together.
+  if (startY + blockHeight > PAGE.height - PAGE.marginY) {
     doc.addPage();
     startY = PAGE.marginY;
   }
@@ -567,8 +576,7 @@ function drawMatchAnswerBlock(doc, q, num, startY, fontFamily) {
   let y = startY;
 
   // Compute width of the longest left-side text so we can align the
-  // arrows in a column. This is the only reason match needs its own
-  // renderer — alignment makes the block scannable.
+  // arrows in a column. Match needs this for scannability.
   doc.setFont(fontFamily, "normal");
   doc.setFontSize(FONT.questionText);
   let maxLeftWidth = 0;
@@ -576,13 +584,8 @@ function drawMatchAnswerBlock(doc, q, num, startY, fontFamily) {
     const w = doc.getTextWidth(String(p.left || ""));
     if (w > maxLeftWidth) maxLeftWidth = w;
   }
-  // Cap the left column so very long lefts don't push rights off-page.
   const maxLeftAllowed = PAGE.contentWidth * 0.45;
   if (maxLeftWidth > maxLeftAllowed) maxLeftWidth = maxLeftAllowed;
-
-  // Total block height (after wrapping):
-  const totalRows = pairs.length;
-  const blockHeight = padTop + headerHeight + (totalRows * rowHeight) + padBottom;
 
   // Draw box outline first — so text overlays cleanly.
   doc.setDrawColor(220, 220, 220);
@@ -597,7 +600,8 @@ function drawMatchAnswerBlock(doc, q, num, startY, fontFamily) {
     "FD"   // Fill + Draw
   );
 
-  // Header inside the box
+  // Header inside the box. The text baseline sits at padTop + 4 from
+  // the top edge, leaving headerHeight (=8) of room before pair rows.
   y += padTop + 4;
   doc.setFont(fontFamily, "bold");
   doc.setTextColor(40, 40, 40);
@@ -606,18 +610,17 @@ function drawMatchAnswerBlock(doc, q, num, startY, fontFamily) {
   doc.setTextColor(110, 110, 110);
   doc.setFontSize(FONT.meta);
   doc.text("(match)", PAGE.marginX + padX + 8, y);
-  y += 4;
+  // Advance to the first pair-row baseline. headerHeight - 4 gives
+  // the remaining gap from the header baseline to the first row.
+  y += (headerHeight - 4);
 
-  // Pair rows — bullet, left text, arrow, right text
+  // Pair rows — bullet, left text, arrow, right text.
+  // We don't page-break inside this loop — the outer check guarantees
+  // the whole block fits. (For an extreme case of >30 pairs we'd need
+  // mid-block break logic, but that's not a realistic match size.)
   doc.setFontSize(FONT.questionText);
   doc.setTextColor(40, 40, 40);
   for (const p of pairs) {
-    if (y + rowHeight > PAGE.height - PAGE.marginY - padBottom) {
-      // Edge case: very long match runs off-page. Page-break and
-      // continue without a new box (good enough for rare cases).
-      doc.addPage();
-      y = PAGE.marginY;
-    }
     // Bullet
     doc.setFillColor(140, 140, 140);
     doc.circle(PAGE.marginX + padX + 2, y - 1.4, 0.7, "F");
@@ -636,8 +639,10 @@ function drawMatchAnswerBlock(doc, q, num, startY, fontFamily) {
     doc.text(rightText, rightStartX, y);
     y += rowHeight;
   }
-  y += padBottom;
-  return y;
+  // Return the bottom edge of the box (= startY + blockHeight). Using
+  // the consistent calculation guarantees the next answer starts AFTER
+  // the box, not inside it.
+  return startY + blockHeight + 2;
 }
 
 // Format a single question's answer for the answer-key PDF.
