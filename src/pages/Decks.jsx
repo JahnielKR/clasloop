@@ -2028,15 +2028,25 @@ function FavoritesGrid({ decks, search, t, lang, onCustomize, onRemove }) {
                 }}
                 title={t.removeFav}
                 style={{
-                  padding: "5px 8px",
+                  flex: "0 0 auto",
+                  minWidth: 30,
+                  padding: "6px 8px",
                   borderRadius: 5,
                   background: "transparent",
                   color: C.textMuted,
                   border: `1px solid ${C.border}`,
-                  fontSize: 11,
+                  fontSize: 13,
+                  fontWeight: 500,
                   cursor: "pointer",
                   fontFamily: "'Outfit', sans-serif",
+                  lineHeight: 1,
+                  // PR 7.2 fix: hover wasn't lighting up red like the
+                  // delete button in DeckTile. Match the same handlers
+                  // for visual consistency between the two grids.
+                  transition: "border-color .12s ease, color .12s ease",
                 }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = C.red; e.currentTarget.style.color = C.red; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = C.border; e.currentTarget.style.color = C.textMuted; }}
               >
                 ×
               </button>
