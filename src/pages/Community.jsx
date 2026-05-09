@@ -4,6 +4,7 @@ import { CIcon } from "../components/Icons";
 import { DeckCover, colorTint } from "../lib/deck-cover";
 import { useIsMobile } from "../components/MobileMenuButton";
 import PageHeader from "../components/PageHeader";
+import SectionBadge from "../components/SectionBadge";
 import { C as BASE_C } from "../components/tokens";
 
 // Community-specific extension: yellow tints for highlighting popular/
@@ -197,7 +198,13 @@ export default function Community({ lang: pageLang = "en", setLang: pageSetLang,
           <div className="fade-up" style={{ background: C.bg, borderRadius: 14, border: `1px solid ${C.border}`, marginBottom: 16, overflow: "hidden", boxShadow: "0 4px 16px rgba(0,0,0,0.06)" }}>
             <DeckCover deck={dk} variant="banner" height={140} radius={14} />
             <div style={{ padding: 24, background: tint, borderTop: `1px solid ${C.border}` }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, fontSize: 12, color: C.textMuted }}>
+              {/* PR 9: Section badge in detail view — same fix as the
+                  list cards but at full size, since here the user is
+                  about to decide whether to save/customize the deck.
+                  Knowing if it's a warmup vs exit ticket is essential
+                  context. */}
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, fontSize: 12, color: C.textMuted, flexWrap: "wrap" }}>
+                {dk.section && <SectionBadge section={dk.section} lang={l} />}
                 <span>{dk.subject} · {dk.grade}</span>
                 <LangBadge lang={dk.language} />
               </div>
@@ -357,7 +364,13 @@ export default function Community({ lang: pageLang = "en", setLang: pageSetLang,
                 }}>
                   <DeckCover deck={dk} variant="banner" height={88} radius={14} />
                   <div style={{ padding: 14, background: tint, borderTop: `1px solid ${C.border}`, flex: 1, display: "flex", flexDirection: "column" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6, fontSize: 11, color: C.textMuted }}>
+                    {/* PR 9: Section badge — students complained they
+                        couldn't tell warmups from exit tickets in
+                        Community. Put it first so it's the most
+                        prominent piece of meta. The subject/grade
+                        sit beside it; language chip stays on the right. */}
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6, fontSize: 11, color: C.textMuted, flexWrap: "wrap" }}>
+                      {dk.section && <SectionBadge section={dk.section} lang={l} variant="compact" />}
                       <span>{dk.subject} · {dk.grade}</span>
                       <div style={{ marginLeft: "auto" }}><LangBadge lang={dk.language} /></div>
                     </div>

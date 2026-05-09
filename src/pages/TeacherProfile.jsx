@@ -5,6 +5,7 @@ import { Avatar as CatalogAvatar } from "../components/Avatars";
 import { DeckCover, resolveColor, colorTint } from "../lib/deck-cover";
 import { useIsMobile } from "../components/MobileMenuButton";
 import PageHeader from "../components/PageHeader";
+import SectionBadge from "../components/SectionBadge";
 import { C } from "../components/tokens";
 const MONO = "'JetBrains Mono', monospace";
 
@@ -312,7 +313,11 @@ export default function TeacherProfile({ teacherId, profile: viewerProfile, lang
           <div style={{ background: C.bg, borderRadius: 14, overflow: "hidden", border: `1px solid ${C.border}`, boxShadow: C.shadow }}>
             <DeckCover deck={dk} variant="banner" height={140} radius={14} />
             <div style={{ background: tint, padding: 20 }}>
-              <div style={{ fontSize: 11, color: C.textMuted, marginBottom: 4 }}>{dk.subject} · {dk.grade}</div>
+              {/* PR 9: Section badge in deck detail. */}
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, fontSize: 12, color: C.textMuted, flexWrap: "wrap" }}>
+                {dk.section && <SectionBadge section={dk.section} lang={lang} />}
+                <span>{dk.subject} · {dk.grade}</span>
+              </div>
               <h2 style={{ fontSize: 22, fontWeight: 700, marginBottom: 8, fontFamily: "'Outfit',sans-serif" }}>{dk.title}</h2>
               {dk.description && <p style={{ fontSize: 14, color: C.textSecondary, lineHeight: 1.5, marginBottom: 16 }}>{dk.description}</p>}
               <div style={{ fontSize: 13, color: C.textMuted, marginBottom: 16 }}>
@@ -503,9 +508,13 @@ export default function TeacherProfile({ teacherId, profile: viewerProfile, lang
                     <h4 style={{ fontSize: 15, fontWeight: 600, lineHeight: 1.3, marginBottom: 4, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
                       {dk.title}
                     </h4>
-                    <p style={{ fontSize: 11, color: C.textMuted, marginBottom: 10 }}>
-                      {dk.subject} · {dk.grade}
-                    </p>
+                    {/* PR 9: Section badge so students/teachers know
+                        if this deck is a warmup, exit ticket, or
+                        general review. */}
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10, fontSize: 11, color: C.textMuted, flexWrap: "wrap" }}>
+                      {dk.section && <SectionBadge section={dk.section} lang={lang} variant="compact" />}
+                      <span>{dk.subject} · {dk.grade}</span>
+                    </div>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 11, color: C.textMuted, paddingTop: 10, marginTop: "auto", borderTop: `1px solid ${C.border}` }}>
                       <span>{qs.length} {t.questions}</span>
                       {/* Quick favorite (only if not your own profile) */}
