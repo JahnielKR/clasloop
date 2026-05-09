@@ -10,6 +10,7 @@ import { resolveTimeLimit } from "../lib/time-limits";
 import { getPracticeTimerPref, setPracticeTimerPref } from "../lib/practice-timer-pref";
 import { evaluateAnswer, describeCorrectAnswer, formatStudentAnswer } from "../lib/scoring";
 import { QUERY } from "../routes";
+import { getSectionTheme, getSectionLabel, SectionIconSVG } from "../lib/section-theme";
 
 // Quiz option colors — kahoot-style fixed palette. NOT theme-aware on purpose:
 // students need to see the same colors the teacher launches the session with.
@@ -249,6 +250,13 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
   const [session, setSession] = useState(isPractice
     ? { id: `practice-${practiceDeck.id}`, questions: practiceDeck.questions || [], topic: practiceDeck.title, class_id: practiceDeck.class_id, status: "active", _isPractice: true }
     : null);
+  // PR 10: track the deck's section ("warmup" | "exit_ticket" | "general_review" | null)
+  // so the quiz UI can theme itself per type. For practice mode we read it
+  // straight from the practiceDeck prop. For live sessions we fetch it
+  // when the session loads (see effect below).
+  const [deckSection, setDeckSection] = useState(
+    isPractice ? (practiceDeck?.section || null) : null
+  );
   const [participant, setParticipant] = useState(null);
   const [current, setCurrent] = useState(0);
   const [answers, setAnswers] = useState([]); // [{ isCorrect, raw, points, maxPoints, needsReview }]
@@ -372,6 +380,32 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
     return shuffle(q.pairs.map(p => p.right));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [current, qType]);
+
+  // ── PR 10: load deck.section when the session is set ──
+  // We theme the quiz UI by section (warmup/exit/review). The session
+  // row itself doesn't include section, only deck_id, so we need a
+  // small follow-up fetch. Practice mode skips this entirely (the
+  // section is read from practiceDeck on initial mount).
+  useEffect(() => {
+    if (isPractice) return;
+    if (!session?.deck_id) return;
+    // Skip if we already have a section value for this deck.
+    if (deckSection != null) return;
+    let cancelled = false;
+    (async () => {
+      const { data, error } = await supabase
+        .from("decks")
+        .select("section")
+        .eq("id", session.deck_id)
+        .single();
+      if (cancelled) return;
+      // If the fetch fails (no read access, deleted, etc.) we silently
+      // fall back to null — the quiz still works, it just won't have
+      // section-specific theming. Better to render unthemed than break.
+      if (!error && data?.section) setDeckSection(data.section);
+    })();
+    return () => { cancelled = true; };
+  }, [session?.deck_id, isPractice, deckSection]);
 
   // ── Realtime: react to session status changes ──
   useEffect(() => {
@@ -873,9 +907,27 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
     const pct = hasTimer && timeLeft > 0 ? (timeLeft / timeLimit) * 100 : 0;
     const timerCol = pct > 50 ? C.green : pct > 25 ? C.orange : C.red;
 
+    // PR 10: section theme — drives the quiz visual identity (bg tint,
+    // accent for progress bar / selected option, header label).
+    // Falls back to the default theme when deckSection is null (legacy
+    // decks or fetch failed).
+    const theme = getSectionTheme(deckSection);
+    const sectionLabel = getSectionLabel(deckSection, l);
+
     return (
       <>
         <style>{css}</style>
+        {/* Section-tinted page background. Mounted as a fixed div behind
+            the content so it covers the viewport even on short pages.
+            Uses the theme.bg color which adapts to light/dark mode and
+            section type. The student's "this is a warmup / exit ticket /
+            review" feeling comes mostly from this tint. */}
+        <div style={{
+          position: "fixed", inset: 0,
+          background: theme.bg,
+          zIndex: -1,
+          transition: "background .25s ease",
+        }} />
         {/* Total mode countdown bar — fijo arriba mientras hay tiempo. */}
         {totalTimeLeft !== null && totalTimeLeft > 0 && (() => {
           const totalSec = session?.session_settings?.time_limit || 1;
@@ -909,9 +961,49 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
           );
         })()}
         <div style={{ maxWidth: 480, margin: "0 auto", padding: 20 }}>
+          {/* PR 10: Section header — visual identity tag. Tells the
+              student "this is a warmup / exit ticket / review" via
+              icon + label + background tint. Only renders if the
+              deck has a section (legacy decks without one stay clean). */}
+          {deckSection && (
+            <div style={{
+              display: "flex", alignItems: "center", gap: 8,
+              marginBottom: 14, paddingBottom: 12,
+              borderBottom: `0.5px solid ${theme.borderActive}22`,
+            }}>
+              <div style={{
+                width: 30, height: 30, borderRadius: "50%",
+                background: theme.iconBg,
+                color: theme.iconFg,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                flexShrink: 0,
+              }}>
+                <SectionIconSVG section={deckSection} color={theme.iconFg} size={16} />
+              </div>
+              <div style={{
+                fontSize: 11.5, fontWeight: 600,
+                color: theme.labelFg,
+                textTransform: "uppercase", letterSpacing: "0.06em",
+              }}>
+                {sectionLabel}
+              </div>
+              <div style={{
+                marginLeft: "auto",
+                fontSize: 12,
+                color: theme.onTint,
+                opacity: 0.7,
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+                maxWidth: 180,
+              }}>
+                {session?.topic || practiceDeck?.title || ""}
+              </div>
+            </div>
+          )}
           {/* Header */}
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-            <span style={{ fontSize: 13, color: C.textSecondary, fontWeight: 500 }}>
+            <span style={{ fontSize: 13, color: deckSection ? theme.onTint : C.textSecondary, opacity: deckSection ? 0.7 : 1, fontWeight: 500 }}>
               {current + 1} {t.of} {questions.length}
             </span>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -948,16 +1040,43 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
                   modo total el countdown es global y se muestra arriba (no acá).
                   En practice apagado simplemente no hay círculo. */}
               {hasTimer && (
-                <div style={{ width: 44, height: 44, borderRadius: "50%", background: `conic-gradient(${timerCol} ${pct}%, ${C.bgSoft} ${pct}%)`, display: "flex", alignItems: "center", justifyContent: "center", transition: "all .3s" }}>
-                  <div style={{ width: 34, height: 34, borderRadius: "50%", background: C.bg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 700, fontFamily: MONO, color: timerCol }}>{timeLeft}</div>
+                <div style={{
+                  width: 44, height: 44, borderRadius: "50%",
+                  // PR 10: track uses theme.tint so it blends with the
+                  // section-tinted page bg instead of looking like a
+                  // floating gray ring on the warmup orange surface.
+                  background: `conic-gradient(${timerCol} ${pct}%, ${deckSection ? theme.tint : C.bgSoft} ${pct}%)`,
+                  display: "flex", alignItems: "center", justifyContent: "center", transition: "all .3s",
+                }}>
+                  <div style={{
+                    width: 34, height: 34, borderRadius: "50%",
+                    // Inner circle uses the page bg (so it looks "cut
+                    // out" of the conic ring) — that's theme.bg now.
+                    background: deckSection ? theme.bg : C.bg,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    fontSize: 14, fontWeight: 700, fontFamily: MONO, color: timerCol,
+                  }}>{timeLeft}</div>
                 </div>
               )}
             </div>
           </div>
 
           {/* Progress */}
-          <div style={{ width: "100%", height: 4, background: C.bgSoft, borderRadius: 4, marginBottom: 28 }}>
-            <div style={{ width: `${((current + 1) / questions.length) * 100}%`, height: "100%", borderRadius: 4, background: `linear-gradient(90deg, ${C.accent}, ${C.purple})`, transition: "width .4s ease" }} />
+          <div style={{
+            width: "100%", height: 4,
+            background: deckSection ? theme.accentSoft : C.bgSoft,
+            borderRadius: 4, marginBottom: 28,
+          }}>
+            <div style={{
+              width: `${((current + 1) / questions.length) * 100}%`,
+              height: "100%", borderRadius: 4,
+              // PR 10: progress uses the section accent (solid, not the
+              // accent→purple gradient) so it reads as part of the
+              // section's identity. Falls back to the original gradient
+              // for legacy decks without a section.
+              background: deckSection ? theme.accent : `linear-gradient(90deg, ${C.accent}, ${C.purple})`,
+              transition: "width .4s ease",
+            }} />
           </div>
 
           {/* Question */}
@@ -984,6 +1103,8 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
               fontSize: 20, fontWeight: 600, textAlign: "center",
               marginBottom: 28, lineHeight: 1.5,
               whiteSpace: "pre-wrap", // preserve teacher's newlines
+              // PR 10: text reads on the section-tinted bg
+              color: deckSection ? theme.onTint : C.text,
             }}>{q.q}</h2>
 
             {/* ── MCQ (single or multi-correct, text or image options) ── */}
@@ -1002,18 +1123,50 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
                       {t.multipleCorrect}
                     </p>
                   )}
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                  {/* PR 10: Vertical list of MCQ options instead of
+                      the old 2x2 Kahoot-style grid. Each option is a
+                      card with a letter circle (A/B/C/D) + the option
+                      text/image, takes the full width, breathes more.
+                      Selected options fill with the section accent so
+                      "selected" reads as part of the section identity.
+                      For showResult state: green = correct, red = wrong
+                      (semantic, not theme — students need to read it
+                      independent of section). */}
+                  <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                     {q.options.map((o, i) => {
                       const optText = typeof o === "string" ? o : (o?.text || "");
                       const optImg = (typeof o === "object" && o?.image_url) ? o.image_url : null;
                       const picked = selectedSet.has(i);
                       const isCorrect = correctSet.has(i);
-                      let bg = OPT_C[i % OPT_C.length], op = 1, ring = "transparent";
+                      const letter = String.fromCharCode(65 + i); // A, B, C, D
+                      // Visual states:
+                      //   showResult + correct → green fill
+                      //   showResult + wrong picked → red fill
+                      //   showResult + other → muted
+                      //   !showResult + picked → section accent fill
+                      //   !showResult + idle → soft surface card
+                      let bg, fg, border, letterBg, letterFg, opacity = 1;
                       if (showResult) {
-                        bg = isCorrect ? C.green : (picked ? C.red : "#ccc");
-                        op = (isCorrect || picked) ? 1 : .3;
-                      } else if (isMulti) {
-                        ring = picked ? "#fff" : "transparent";
+                        if (isCorrect) {
+                          bg = C.green; fg = "#fff"; border = C.green;
+                          letterBg = "rgba(255,255,255,0.25)"; letterFg = "#fff";
+                        } else if (picked) {
+                          bg = C.red; fg = "#fff"; border = C.red;
+                          letterBg = "rgba(255,255,255,0.25)"; letterFg = "#fff";
+                        } else {
+                          bg = "transparent"; fg = theme.onTint; border = `${theme.borderActive}22`;
+                          letterBg = "transparent"; letterFg = theme.onTint;
+                          opacity = 0.4;
+                        }
+                      } else if (picked) {
+                        bg = theme.accentSoft; fg = theme.onTint; border = theme.borderActive;
+                        letterBg = theme.accent; letterFg = theme.onAccent;
+                      } else {
+                        // Idle option — uses a near-white surface so it
+                        // contrasts with the tinted page bg. In dark
+                        // mode this becomes the lifted "tint" color.
+                        bg = theme.tint; fg = theme.onTint; border = `${theme.borderActive}22`;
+                        letterBg = "transparent"; letterFg = theme.onTint;
                       }
                       return (
                         <button
@@ -1022,30 +1175,56 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
                           onClick={() => handleMcq(i)}
                           disabled={showResult}
                           style={{
-                            padding: optImg ? 0 : "18px 14px",
-                            borderRadius: 12, fontSize: 15, fontWeight: 600, color: "#fff",
-                            background: bg, opacity: op, lineHeight: 1.3, minHeight: 64,
-                            display: "flex", alignItems: "center", justifyContent: "center",
+                            padding: optImg ? "0" : "12px 14px",
+                            borderRadius: 10,
+                            border: `1.5px solid ${border}`,
+                            background: bg,
+                            color: fg,
+                            opacity,
                             cursor: showResult ? "default" : "pointer",
-                            position: "relative",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 12,
+                            textAlign: "left",
+                            fontSize: 14, fontWeight: 500, lineHeight: 1.4,
+                            transition: "background .15s ease, border-color .15s ease, opacity .2s ease",
+                            minHeight: optImg ? "auto" : 52,
                             overflow: "hidden",
-                            outline: isMulti ? `3px solid ${ring}` : "none",
-                            outlineOffset: -3,
+                            position: "relative",
                           }}
                         >
+                          {/* Letter circle on the left */}
+                          <span style={{
+                            flexShrink: 0,
+                            width: 28, height: 28, borderRadius: "50%",
+                            background: letterBg,
+                            color: letterFg,
+                            display: "flex", alignItems: "center", justifyContent: "center",
+                            fontSize: 12, fontWeight: 700,
+                            border: !picked && !showResult ? `1px solid ${theme.borderActive}33` : "none",
+                          }}>
+                            {letter}
+                          </span>
+                          {/* Option content */}
                           {optImg ? (
-                            <div style={{ width: "100%", height: 100, backgroundImage: `url(${optImg})`, backgroundSize: "cover", backgroundPosition: "center" }} />
+                            <div style={{
+                              flex: 1, minHeight: 80,
+                              backgroundImage: `url(${optImg})`,
+                              backgroundSize: "cover",
+                              backgroundPosition: "center",
+                              margin: "8px 8px 8px 0",
+                              borderRadius: 6,
+                            }} />
                           ) : (
-                            <span>{optText}</span>
+                            <span style={{ flex: 1 }}>{optText}</span>
                           )}
-                          {isMulti && !showResult && (
+                          {/* Multi-correct: show check mark on selected */}
+                          {isMulti && picked && !showResult && (
                             <span style={{
-                              position: "absolute", top: 8, right: 8,
-                              width: 22, height: 22, borderRadius: 6,
-                              background: picked ? "#fff" : "rgba(255,255,255,0.25)",
-                              color: bg, display: "flex", alignItems: "center", justifyContent: "center",
-                              fontSize: 13, fontWeight: 800,
-                            }}>{picked ? "✓" : ""}</span>
+                              flexShrink: 0,
+                              fontSize: 16, fontWeight: 800,
+                              color: theme.accent,
+                            }}>✓</span>
                           )}
                         </button>
                       );
@@ -1059,8 +1238,10 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
                       style={{
                         width: "100%", marginTop: 14, padding: 14, borderRadius: 10,
                         fontSize: 15, fontWeight: 600,
-                        background: selectedSet.size > 0 ? `linear-gradient(135deg, ${C.accent}, ${C.purple})` : C.border,
-                        color: "#fff", opacity: selectedSet.size > 0 ? 1 : .5,
+                        background: selectedSet.size > 0 ? theme.accent : (deckSection ? `${theme.borderActive}33` : C.border),
+                        color: selectedSet.size > 0 ? theme.onAccent : C.textMuted,
+                        opacity: selectedSet.size > 0 ? 1 : .6,
+                        border: "none",
                       }}
                     >{t.submit}</button>
                   )}
@@ -1075,17 +1256,33 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
                   { val: true,  label: t.true_,  baseColor: C.green },
                   { val: false, label: t.false_, baseColor: C.red   },
                 ].map(({ val, label, baseColor }) => {
-                  let bg = baseColor, op = 1;
+                  // PR 10: Idle TF buttons use the section theme
+                  // (subtle, like idle MCQ options). Once an answer is
+                  // submitted, semantic green/red takes over so right/
+                  // wrong stays unmistakable. This keeps the section
+                  // identity visible without breaking TF's color
+                  // language.
+                  let bg, fg, border, op = 1;
                   if (showResult) {
-                    bg = val === q.correct ? C.green : val === tfSelected ? C.red : "#ccc";
-                    op = val === q.correct || val === tfSelected ? 1 : .3;
+                    if (val === q.correct) {
+                      bg = C.green; fg = "#fff"; border = C.green;
+                    } else if (val === tfSelected) {
+                      bg = C.red; fg = "#fff"; border = C.red;
+                    } else {
+                      bg = "transparent"; fg = theme.onTint; border = `${theme.borderActive}22`;
+                      op = 0.4;
+                    }
+                  } else {
+                    bg = theme.tint; fg = theme.onTint; border = `${theme.borderActive}33`;
                   }
                   return (
                     <button key={String(val)} className="sj-option" onClick={() => handleTf(val)} disabled={showResult} style={{
-                      padding: "22px 14px", borderRadius: 12, fontSize: 17, fontWeight: 700, color: "#fff",
-                      background: bg, opacity: op, minHeight: 80,
+                      padding: "22px 14px", borderRadius: 12, fontSize: 17, fontWeight: 600,
+                      background: bg, color: fg, border: `1.5px solid ${border}`,
+                      opacity: op, minHeight: 80,
                       display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
                       cursor: showResult ? "default" : "pointer",
+                      transition: "background .15s ease, border-color .15s ease",
                     }}>
                       <CIcon name={val ? "check" : "cross"} size={20} inline />
                       {label}
@@ -1109,9 +1306,9 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
                   style={{
                     ...inp,
                     fontSize: 18, padding: "14px 16px", textAlign: "center", fontWeight: 500,
-                    background: showResult ? (lastIsCorrect ? C.greenSoft : C.redSoft) : C.bg,
-                    borderColor: showResult ? (lastIsCorrect ? C.green : C.red) : C.border,
-                    color: showResult ? (lastIsCorrect ? C.green : C.red) : C.text,
+                    background: showResult ? (lastIsCorrect ? C.greenSoft : C.redSoft) : (deckSection ? theme.tint : C.bg),
+                    borderColor: showResult ? (lastIsCorrect ? C.green : C.red) : (deckSection ? `${theme.borderActive}44` : C.border),
+                    color: showResult ? (lastIsCorrect ? C.green : C.red) : (deckSection ? theme.onTint : C.text),
                   }}
                 />
                 {!showResult && (
