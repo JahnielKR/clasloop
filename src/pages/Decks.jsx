@@ -11,6 +11,7 @@ import { MONO } from "../components/tokens";
 import { C, css } from "./Decks/styles";
 import CreateDeckEditor from "./Decks/CreateDeckEditor";
 import { ROUTES, QUERY, buildRoute } from "../routes";
+import { exportExamPDF, exportAnswerKeyPDF } from "../lib/pdf-export";
 // PR 7: drag-to-reorder decks within a unit. Same dnd-kit setup as the
 // old All-decks view in ClassPage (which is still in the file as dead
 // code from PR 5). We re-implement here rather than extracting into a
@@ -42,6 +43,25 @@ const GRADES = ["6th-7th", "7th-8th", "8th-9th", "9th-10th", "10th-11th", "11th-
 // files through a tiny utility module.
 const inp = { fontFamily: "'Outfit',sans-serif", background: C.bg, border: `1px solid ${C.border}`, color: C.text, padding: "10px 14px", borderRadius: 8, fontSize: 14, width: "100%", outline: "none" };
 const sel = { ...inp, cursor: "pointer", appearance: "none", backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2 4l4 4 4-4' fill='none' stroke='%239B9B9B' stroke-width='1.5'/%3E%3C/svg%3E")`, backgroundRepeat: "no-repeat", backgroundPosition: "right 12px center", paddingRight: 32 };
+
+// PR 8: shared style for items inside the PDF download popover.
+// Two items only (Exam / Answer key), so styling them inline in the
+// popover would be repetitive; consts keep the JSX readable.
+const popoverItemStyle = {
+  display: "block",
+  width: "100%",
+  padding: "8px 12px",
+  borderRadius: 5,
+  background: "transparent",
+  color: C.text,
+  border: "none",
+  fontSize: 12.5,
+  fontWeight: 500,
+  cursor: "pointer",
+  fontFamily: "'Outfit', sans-serif",
+  textAlign: "left",
+  transition: "background .12s ease",
+};
 
 const i18n = {
   en: {
@@ -188,6 +208,11 @@ const i18n = {
     makePrivate: "Make private",
     confirmRemoveFav: "Remove from favorites?",
     removeFav: "Remove",
+    // PR 8: PDF download
+    downloadPdf: "Download PDF",
+    pdfExam: "Exam",
+    pdfAnswerKey: "Answer key",
+    pdfErrorMsg: "PDF export failed. Try again.",
   },
   es: {
     pageTitle: "Biblioteca", subtitle: "Explora, busca y gestiona todos tus decks — los tuyos y los favoritos guardados",
@@ -332,6 +357,10 @@ const i18n = {
     makePrivate: "Hacer privado",
     confirmRemoveFav: "¿Quitar de favoritos?",
     removeFav: "Quitar",
+    downloadPdf: "Descargar PDF",
+    pdfExam: "Examen",
+    pdfAnswerKey: "Clave de respuestas",
+    pdfErrorMsg: "Falló la exportación a PDF. Intenta de nuevo.",
   },
   ko: {
     pageTitle: "라이브러리", subtitle: "내 덱과 저장한 즐겨찾기 — 모두 검색하고 관리하세요",
@@ -476,6 +505,10 @@ const i18n = {
     makePrivate: "비공개로 전환",
     confirmRemoveFav: "즐겨찾기에서 제거할까요?",
     removeFav: "제거",
+    downloadPdf: "PDF 다운로드",
+    pdfExam: "시험지",
+    pdfAnswerKey: "정답",
+    pdfErrorMsg: "PDF 내보내기에 실패했습니다. 다시 시도하세요.",
   },
 };
 
@@ -750,6 +783,27 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
     // decks) this is fast enough and avoids needing a stored procedure.
     for (const u of updates) {
       await supabase.from("decks").update({ position: u.position }).eq("id", u.id);
+    }
+  };
+
+  // PR 8: PDF download. Two flavors — exam (student-facing, well laid
+  // out, with name field, ready to print) and answer-key (teacher-only,
+  // bare-bones list of answers). The deck's class is needed for the
+  // header ("Spanish 9th"), so we look it up from userClasses.
+  // Errors surface via alert; jsPDF doesn't have an in-band failure
+  // mode that's easy to recover from, and these failures are rare.
+  const handleDownloadPdf = async (deck, kind) => {
+    try {
+      const classObj = userClasses.find(c => c.id === deck.class_id) || null;
+      const deckLang = deck.language || l;
+      if (kind === "exam") {
+        await exportExamPDF(deck, classObj, deckLang);
+      } else {
+        await exportAnswerKeyPDF(deck, classObj, deckLang);
+      }
+    } catch (err) {
+      console.error("PDF export failed:", err);
+      alert(t.pdfErrorMsg || "PDF export failed. Try again.");
     }
   };
 
@@ -1230,6 +1284,7 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
                 onDelete={handleDelete}
                 onTogglePublic={handleTogglePublic}
                 onReorder={handleReorderDeck}
+                onDownloadPdf={handleDownloadPdf}
                 activeDragDeckId={activeDragDeckId}
                 setActiveDragDeckId={setActiveDragDeckId}
                 collapsedUnits={collapsedUnits}
@@ -1345,7 +1400,7 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
 function ClassDecksView({
   classId, classObj, allUnits, allDecks, search,
   t, lang, isMobile, navigate,
-  onEdit, onDelete, onTogglePublic, onReorder,
+  onEdit, onDelete, onTogglePublic, onReorder, onDownloadPdf,
   activeDragDeckId, setActiveDragDeckId,
   collapsedUnits, toggleCollapsed,
 }) {
@@ -1488,7 +1543,7 @@ function ClassDecksView({
                     decks={warmups}
                     section="warmup"
                     t={t} lang={lang} isMobile={isMobile} navigate={navigate}
-                    onEdit={onEdit} onDelete={onDelete} onTogglePublic={onTogglePublic}
+                    onEdit={onEdit} onDelete={onDelete} onTogglePublic={onTogglePublic} onDownloadPdf={onDownloadPdf}
                     onDragEnd={handleDragEnd(warmups)}
                   />
                 )}
@@ -1498,7 +1553,7 @@ function ClassDecksView({
                     decks={exits}
                     section="exit_ticket"
                     t={t} lang={lang} isMobile={isMobile} navigate={navigate}
-                    onEdit={onEdit} onDelete={onDelete} onTogglePublic={onTogglePublic}
+                    onEdit={onEdit} onDelete={onDelete} onTogglePublic={onTogglePublic} onDownloadPdf={onDownloadPdf}
                     onDragEnd={handleDragEnd(exits)}
                   />
                 )}
@@ -1557,7 +1612,7 @@ function ClassDecksView({
               decks={generalReviews}
               section="general_review"
               t={t} lang={lang} isMobile={isMobile} navigate={navigate}
-              onEdit={onEdit} onDelete={onDelete} onTogglePublic={onTogglePublic}
+              onEdit={onEdit} onDelete={onDelete} onTogglePublic={onTogglePublic} onDownloadPdf={onDownloadPdf}
               onDragEnd={handleDragEnd(generalReviews)}
             />
           )}
@@ -1626,7 +1681,7 @@ function ClassDecksView({
                   decks={unassignedWarmups}
                   section="warmup"
                   t={t} lang={lang} isMobile={isMobile} navigate={navigate}
-                  onEdit={onEdit} onDelete={onDelete} onTogglePublic={onTogglePublic}
+                  onEdit={onEdit} onDelete={onDelete} onTogglePublic={onTogglePublic} onDownloadPdf={onDownloadPdf}
                   onDragEnd={handleDragEnd(unassignedWarmups)}
                 />
               )}
@@ -1635,7 +1690,7 @@ function ClassDecksView({
                   decks={unassignedExits}
                   section="exit_ticket"
                   t={t} lang={lang} isMobile={isMobile} navigate={navigate}
-                  onEdit={onEdit} onDelete={onDelete} onTogglePublic={onTogglePublic}
+                  onEdit={onEdit} onDelete={onDelete} onTogglePublic={onTogglePublic} onDownloadPdf={onDownloadPdf}
                   onDragEnd={handleDragEnd(unassignedExits)}
                 />
               )}
@@ -1649,7 +1704,7 @@ function ClassDecksView({
 }
 
 // ─── DeckRow — single horizontal row of sortable deck tiles ───────────
-function DeckRow({ decks, section, t, lang, isMobile, navigate, onEdit, onDelete, onTogglePublic, onDragEnd }) {
+function DeckRow({ decks, section, t, lang, isMobile, navigate, onEdit, onDelete, onTogglePublic, onDownloadPdf, onDragEnd }) {
   const stripe = sectionAccent(section);
   return (
     <div style={{
@@ -1700,6 +1755,7 @@ function DeckRow({ decks, section, t, lang, isMobile, navigate, onEdit, onDelete
                   onEdit={onEdit}
                   onDelete={onDelete}
                   onTogglePublic={onTogglePublic}
+                  onDownloadPdf={onDownloadPdf}
                 />
               ))}
             </div>
@@ -1711,7 +1767,7 @@ function DeckRow({ decks, section, t, lang, isMobile, navigate, onEdit, onDelete
 }
 
 // ─── SortableDeckTile — single deck card, draggable ────────────────────
-function SortableDeckTile({ deck, t, lang, onEdit, onDelete, onTogglePublic }) {
+function SortableDeckTile({ deck, t, lang, onEdit, onDelete, onTogglePublic, onDownloadPdf }) {
   const {
     attributes, listeners, setNodeRef, transform, transition, isDragging,
   } = useSortable({ id: deck.id });
@@ -1730,6 +1786,7 @@ function SortableDeckTile({ deck, t, lang, onEdit, onDelete, onTogglePublic }) {
         onEdit={onEdit}
         onDelete={onDelete}
         onTogglePublic={onTogglePublic}
+        onDownloadPdf={onDownloadPdf}
         dragHandleProps={{ ...attributes, ...listeners }}
       />
     </div>
@@ -1737,7 +1794,7 @@ function SortableDeckTile({ deck, t, lang, onEdit, onDelete, onTogglePublic }) {
 }
 
 // ─── DeckTile — visual presentation of a single deck card ─────────────
-function DeckTile({ deck, t, lang, onEdit, onDelete, onTogglePublic, dragHandleProps, isOverlay }) {
+function DeckTile({ deck, t, lang, onEdit, onDelete, onTogglePublic, onDownloadPdf, dragHandleProps, isOverlay }) {
   const stripe = sectionAccent(deck.section);
   const qs = deck.questions || [];
   // Description: deck.description, falls back to nothing. We trim to
@@ -1747,6 +1804,24 @@ function DeckTile({ deck, t, lang, onEdit, onDelete, onTogglePublic, dragHandleP
   // Show as uppercase 2-letter code so it's compact (EN / ES / KO).
   // If null/missing, hide the chip entirely.
   const deckLang = deck.language ? deck.language.toUpperCase() : null;
+  // PR 8: PDF download popover. Open state is local to each tile so
+  // multiple tiles' popovers don't collide. Only rendered when the
+  // tile is in a context that supplies onDownloadPdf (Library, not
+  // Favorites or the drag overlay).
+  const [pdfOpen, setPdfOpen] = useState(false);
+  // Close popover on outside click. We attach a single document-level
+  // listener while the popover is open and remove it on close.
+  useEffect(() => {
+    if (!pdfOpen) return;
+    const close = (e) => {
+      // Don't close if click is inside this tile's popover or button —
+      // we use a data-attr to identify them.
+      if (e.target.closest && e.target.closest("[data-pdf-popover]")) return;
+      setPdfOpen(false);
+    };
+    document.addEventListener("click", close);
+    return () => document.removeEventListener("click", close);
+  }, [pdfOpen]);
   return (
     <div style={{
       background: C.bg,
@@ -1762,6 +1837,94 @@ function DeckTile({ deck, t, lang, onEdit, onDelete, onTogglePublic, dragHandleP
       flexDirection: "column",
       gap: 8,
     }}>
+      {/* PR 8: PDF download — small ↓ button, top-right of the tile.
+          Click opens a popover with two options: Exam (student-facing)
+          and Answer key (teacher-only). Only rendered in Library
+          context (when onDownloadPdf prop is supplied). The button is
+          positioned absolute over the tile content so it doesn't push
+          the title or eat horizontal space. Title's right padding is
+          enough to keep text from underflowing the button. */}
+      {!isOverlay && onDownloadPdf && (
+        <div
+          data-pdf-popover="true"
+          style={{
+            position: "absolute",
+            top: 6,
+            right: 6,
+            zIndex: 2,
+          }}
+        >
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setPdfOpen(v => !v);
+            }}
+            title={t.downloadPdf}
+            aria-label={t.downloadPdf}
+            style={{
+              width: 24, height: 24,
+              padding: 0,
+              borderRadius: 5,
+              background: pdfOpen ? C.accentSoft : "transparent",
+              color: pdfOpen ? C.accent : C.textMuted,
+              border: `1px solid ${pdfOpen ? C.accent : "transparent"}`,
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: 14,
+              lineHeight: 1,
+              fontFamily: "'Outfit', sans-serif",
+              transition: "background .12s ease, color .12s ease, border-color .12s ease",
+            }}
+            onMouseEnter={e => {
+              if (!pdfOpen) {
+                e.currentTarget.style.background = C.bgSoft;
+                e.currentTarget.style.color = C.accent;
+              }
+            }}
+            onMouseLeave={e => {
+              if (!pdfOpen) {
+                e.currentTarget.style.background = "transparent";
+                e.currentTarget.style.color = C.textMuted;
+              }
+            }}
+          >
+            ↓
+          </button>
+          {pdfOpen && (
+            <div style={{
+              position: "absolute",
+              top: 28,
+              right: 0,
+              minWidth: 140,
+              background: C.bg,
+              border: `1px solid ${C.border}`,
+              borderRadius: 7,
+              boxShadow: "0 6px 16px rgba(0,0,0,0.08)",
+              padding: 4,
+              zIndex: 10,
+            }}>
+              <button
+                onClick={() => { setPdfOpen(false); onDownloadPdf(deck, "exam"); }}
+                style={popoverItemStyle}
+                onMouseEnter={e => { e.currentTarget.style.background = C.bgSoft; }}
+                onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}
+              >
+                {t.pdfExam}
+              </button>
+              <button
+                onClick={() => { setPdfOpen(false); onDownloadPdf(deck, "answers"); }}
+                style={popoverItemStyle}
+                onMouseEnter={e => { e.currentTarget.style.background = C.bgSoft; }}
+                onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}
+              >
+                {t.pdfAnswerKey}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
       {/* Drag handle area — title + description.
           Everything except the action buttons is grabable. */}
       <div
@@ -1781,6 +1944,9 @@ function DeckTile({ deck, t, lang, onEdit, onDelete, onTogglePublic, dragHandleP
           WebkitBoxOrient: "vertical",
           overflow: "hidden",
           minHeight: 32,
+          // Right padding so the title text doesn't underflow the
+          // absolutely-positioned download button.
+          paddingRight: onDownloadPdf ? 28 : 0,
         }}>
           {deck.title}
         </div>
