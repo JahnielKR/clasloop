@@ -71,6 +71,8 @@ const i18n = {
     emptyHint: "Add a warmup or exit ticket to start building Day 1.",
     prevUnit: "Previous unit",
     nextUnit: "Next unit",
+    closeUnit: "Close unit",
+    reopen: "Reopen",
     // Phase 6: general reviews live aside the unit plan
     generalReviewsTitle: "General reviews",
     generalReviewsHint: "Standalone content outside the daily plan — pre-exam recaps, monthly reviews.",
@@ -96,6 +98,8 @@ const i18n = {
     emptyHint: "Añade un warmup o exit ticket para empezar el Día 1.",
     prevUnit: "Unidad anterior",
     nextUnit: "Siguiente unidad",
+    closeUnit: "Cerrar unidad",
+    reopen: "Reabrir",
     generalReviewsTitle: "Repasos generales",
     generalReviewsHint: "Contenido aparte del plan diario — repasos previos a examen, repasos mensuales.",
     generalReviewsEmpty: "Aún no hay repasos. Úsalos para contenido que no encaja como warmup o exit ticket.",
@@ -119,6 +123,8 @@ const i18n = {
     emptyHint: "워밍업이나 종료 티켓을 추가하여 1일차를 시작하세요.",
     prevUnit: "이전 단원",
     nextUnit: "다음 단원",
+    closeUnit: "단원 종료",
+    reopen: "다시 열기",
     generalReviewsTitle: "일반 복습",
     generalReviewsHint: "일일 계획과 별도의 자료 — 시험 전 정리, 월간 복습 등.",
     generalReviewsEmpty: "아직 일반 복습이 없습니다. 워밍업이나 종료 티켓에 맞지 않는 자료에 사용하세요.",
@@ -1045,6 +1051,9 @@ export default function PlanView({
   // and passes null when there's nothing to navigate to.
   onPrevUnit,
   onNextUnit,
+  // PR6: close/reopen unit. ClassPage opens the modal/summary flow.
+  onCloseUnit,         // called when the teacher clicks "Close unit"
+  onReopenUnit,        // called when the teacher clicks "Reopen" on a closed unit
 }) {
   const t = i18n[lang] || i18n.en;
   const navigate = useNavigate();
@@ -1168,6 +1177,13 @@ export default function PlanView({
                 : dayCount === 1 ? t.daysCountOne
                 : t.daysCount.replace("{n}", dayCount)}
             </span>
+            {/* PR6: when the unit is closed, show the closed_at date
+                inline so the teacher remembers when it ended. */}
+            {activeUnit.status === "closed" && activeUnit.closed_at && (
+              <span style={{ fontFamily: MONO, color: C.textMuted }}>
+                · {new Date(activeUnit.closed_at).toLocaleDateString(lang)}
+              </span>
+            )}
           </div>
         </div>
 
@@ -1195,6 +1211,51 @@ export default function PlanView({
         >
           →
         </button>
+
+        {/* PR6: Close / Reopen action — visually distinct from the
+            navigation arrows. Black solid button (per the mockup) for
+            active units; subtle outlined "Reopen" for closed units. */}
+        {activeUnit.status === "closed" ? (
+          <button
+            onClick={onReopenUnit}
+            style={{
+              padding: "7px 13px",
+              borderRadius: 7,
+              background: "transparent",
+              color: C.textSecondary,
+              border: `1px solid ${C.border}`,
+              fontFamily: "'Outfit', sans-serif",
+              fontSize: 12.5, fontWeight: 500,
+              cursor: "pointer",
+              flexShrink: 0,
+              transition: "border-color .12s ease, color .12s ease",
+            }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = C.accent; e.currentTarget.style.color = C.accent; }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = C.border; e.currentTarget.style.color = C.textSecondary; }}
+          >
+            ↺ {t.reopen}
+          </button>
+        ) : (
+          <button
+            onClick={onCloseUnit}
+            style={{
+              padding: "8px 14px",
+              borderRadius: 7,
+              background: "#000",
+              color: "#fff",
+              border: "none",
+              fontFamily: "'Outfit', sans-serif",
+              fontSize: 12.5, fontWeight: 600,
+              cursor: "pointer",
+              flexShrink: 0,
+              transition: "background .12s ease",
+            }}
+            onMouseEnter={e => { e.currentTarget.style.background = "#1A1A1A"; }}
+            onMouseLeave={e => { e.currentTarget.style.background = "#000"; }}
+          >
+            {t.closeUnit}
+          </button>
+        )}
       </div>
 
       {/* Empty unit state */}

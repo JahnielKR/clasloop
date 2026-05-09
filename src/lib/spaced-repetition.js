@@ -779,3 +779,153 @@ export async function getTodayPlan(teacherId) {
 
   return out;
 }
+
+// ─── Get unit retention summary (PR 6: Close unit narrative) ─────────────
+//
+// Computes the closing-summary stats for a given unit. Used by the
+// CloseUnitSummary screen and the past-unit recap line in PlanView.
+//
+// Returns:
+//   {
+//     unit:           the unit row,
+//     decks:          [{ deck, sessionCount, retention, status }] sorted by position,
+//     dayCount:       max(warmup count, exit count) — same logic as PlanView buildDayRows,
+//     daysLaunched:   how many days had at least one launch (warmup OR exit),
+//     averageRetention: avg of all topic_retention rows tied to this unit's decks,
+//     strongest:      the deck with highest retention (or null),
+//     weakest:        the deck with lowest retention (or null),
+//     totalSessions:  total sessions launched across all decks of this unit,
+//   }
+//
+// Why we compute this client-side (not via a DB view): keeps the
+// algorithm transparent and easy to evolve. Per-unit volume is small
+// (10–30 decks max), so 2 supabase queries are enough.
+export async function getUnitRetentionSummary(unitId) {
+  if (!unitId) return null;
+
+  // 1. Fetch the unit and its decks
+  const { data: unit } = await supabase
+    .from('units')
+    .select('*')
+    .eq('id', unitId)
+    .maybeSingle();
+  if (!unit) return null;
+
+  const { data: unitDecks } = await supabase
+    .from('decks')
+    .select('id, title, section, position')
+    .eq('unit_id', unitId)
+    .order('position', { ascending: true });
+  const decks = unitDecks || [];
+
+  if (decks.length === 0) {
+    return {
+      unit,
+      decks: [],
+      dayCount: 0,
+      daysLaunched: 0,
+      averageRetention: null,
+      strongest: null,
+      weakest: null,
+      totalSessions: 0,
+    };
+  }
+
+  const deckIds = decks.map(d => d.id);
+
+  // 2. Fetch retention rows + session counts in parallel
+  const [retRes, sessRes] = await Promise.all([
+    supabase
+      .from('topic_retention')
+      .select('deck_id, retention_score, total_questions, correct_answers, last_reviewed_at, interval_days, session_count')
+      .in('deck_id', deckIds),
+    supabase
+      .from('sessions')
+      .select('id, deck_id, status')
+      .in('deck_id', deckIds)
+      .in('status', ['active', 'completed']),
+  ]);
+
+  const retentionRows = retRes.data || [];
+  const sessions = sessRes.data || [];
+
+  // Index sessions by deck for "did this deck ever launch"
+  const sessionsByDeck = new Map();
+  sessions.forEach(s => {
+    sessionsByDeck.set(s.deck_id, (sessionsByDeck.get(s.deck_id) || 0) + 1);
+  });
+
+  // For each deck, compute its CURRENT retention from its retention rows.
+  // A deck might have multiple topic_retention rows (one per topic). We
+  // average them per deck.
+  const now = new Date();
+  const enrichedDecks = decks.map(deck => {
+    const retsForDeck = retentionRows.filter(r => r.deck_id === deck.id);
+    let retention = null;
+    if (retsForDeck.length > 0) {
+      const currents = retsForDeck.map(r => calculateRetention(
+        r.last_reviewed_at,
+        r.interval_days || 1,
+        (r.total_questions || 0) > 0 ? (r.correct_answers || 0) / r.total_questions : 0
+      ));
+      retention = Math.round(currents.reduce((s, x) => s + x, 0) / currents.length);
+    }
+    const sessCount = sessionsByDeck.get(deck.id) || 0;
+    const status = retention === null ? 'new'
+      : retention >= 70 ? 'strong'
+      : retention >= 40 ? 'medium'
+      : 'weak';
+    return { deck, sessionCount: sessCount, retention, status };
+  });
+
+  // Day count: max of warmup count and exit count (same as PlanView)
+  const warmupCount = decks.filter(d => d.section === 'warmup').length;
+  const exitCount = decks.filter(d => d.section === 'exit_ticket').length;
+  const dayCount = Math.max(warmupCount, exitCount);
+
+  // Days launched: a "day" counts as launched if its warmup OR exit ticket
+  // (or both) had at least one session. We pair them by position.
+  const warmupsByPos = new Map();
+  const exitsByPos = new Map();
+  decks.forEach(d => {
+    if (d.section === 'warmup') warmupsByPos.set(d.position, d.id);
+    else if (d.section === 'exit_ticket') exitsByPos.set(d.position, d.id);
+  });
+  let daysLaunched = 0;
+  for (let i = 0; i < dayCount; i++) {
+    const pos = i;
+    const w = warmupsByPos.get(pos);
+    const e = exitsByPos.get(pos);
+    const wLaunched = w && (sessionsByDeck.get(w) || 0) > 0;
+    const eLaunched = e && (sessionsByDeck.get(e) || 0) > 0;
+    if (wLaunched || eLaunched) daysLaunched++;
+  }
+
+  // Average retention across all decks that have a retention score
+  const decksWithScore = enrichedDecks.filter(d => d.retention !== null);
+  const averageRetention = decksWithScore.length === 0
+    ? null
+    : Math.round(decksWithScore.reduce((s, d) => s + d.retention, 0) / decksWithScore.length);
+
+  // Strongest and weakest — null when no decks have retention yet
+  let strongest = null, weakest = null;
+  if (decksWithScore.length > 0) {
+    strongest = decksWithScore.reduce((best, d) =>
+      d.retention > best.retention ? d : best, decksWithScore[0]);
+    weakest = decksWithScore.reduce((worst, d) =>
+      d.retention < worst.retention ? d : worst, decksWithScore[0]);
+  }
+
+  const totalSessions = sessions.length;
+
+  return {
+    unit,
+    decks: enrichedDecks,
+    dayCount,
+    daysLaunched,
+    averageRetention,
+    strongest,
+    weakest,
+    totalSessions,
+  };
+}

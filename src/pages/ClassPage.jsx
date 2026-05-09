@@ -20,6 +20,7 @@ import { useIsMobile } from "../components/MobileMenuButton";
 import EditClassModal from "../components/EditClassModal";
 import SectionBadge from "../components/SectionBadge";
 import PlanView from "../components/PlanView";
+import { CloseUnitConfirmModal, CloseUnitSummary, ReopenUnitModal } from "../components/CloseUnitFlow";
 import { C, MONO } from "../components/tokens";
 import { ROUTES, QUERY, buildRoute } from "../routes";
 import {
@@ -669,6 +670,15 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
   const [currentUnitIdx, setCurrentUnitIdx] = useState(0);
   // PR5.1: search query (used by the "search" tab)
   const [searchQuery, setSearchQuery] = useState("");
+  // PR6: close-unit flow has 3 possible states for a given unit:
+  //   null            → not in flow
+  //   { unit, step:1} → confirmation modal showing
+  //   { unit, step:2} → full-page summary showing
+  // The unit reference is captured so even if the carousel index moves,
+  // we close the right unit.
+  const [closeUnitFlow, setCloseUnitFlow] = useState(null);
+  // Reopen flow is single-step (just a confirmation modal)
+  const [reopenUnit, setReopenUnit] = useState(null);
 
   // Sensors. PointerSensor with a small activationConstraint distance
   // ensures plain clicks (open the deck) and short clicks on the unit
@@ -1255,6 +1265,39 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
         </div>
       </div>
 
+      {/* PR6: Close-unit summary page. When the teacher confirms step 1
+          and we move to step 2, the summary REPLACES the entire tabs
+          UI — it's a full-page experience, not a modal. The teacher
+          can Back out (returns to topTab=current) or confirm the close
+          (which fires the schema update + auto-promote, then closes
+          the flow + bumps refreshTick). */}
+      {closeUnitFlow && closeUnitFlow.step === 2 && (
+        <CloseUnitSummary
+          unit={closeUnitFlow.unit}
+          lang={lang}
+          onBack={() => setCloseUnitFlow(null)}
+          onConfirm={({ promotedId }) => {
+            setCloseUnitFlow(null);
+            // After closing, jump the carousel index to the promoted
+            // unit if there is one (so the teacher lands on what's
+            // active now). If no promotion happened, stay where we are
+            // — the closed unit will still be browsable via Past tab.
+            if (promotedId) {
+              setRefreshTick(n => n + 1);
+              // Defer setting the index until after the data refetch —
+              // we need the new units array. We'll handle it in the
+              // useEffect that loads data. For now, just bump.
+            } else {
+              setRefreshTick(n => n + 1);
+            }
+          }}
+        />
+      )}
+
+      {/* Topbar + content tabs — hidden when the summary page is active */}
+      {!(closeUnitFlow && closeUnitFlow.step === 2) && (
+      <>
+
       {/* PR5.1 — Top tabs bar. Five tabs:
           [Current unit] [Past] [Upcoming] | [General review] [Search]
           The vertical bar ('|') visually separates "unit-related navigation"
@@ -1389,6 +1432,15 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
             onUnitChanged={() => setRefreshTick(n => n + 1)}
             onPrevUnit={safeIdx > 0 ? () => setCurrentUnitIdx(safeIdx - 1) : null}
             onNextUnit={safeIdx < units.length - 1 ? () => setCurrentUnitIdx(safeIdx + 1) : null}
+            // PR6: close/reopen handlers. Active and planned units can
+            // be closed; closed units can be reopened. PlanView decides
+            // which button to show based on activeUnit.status.
+            onCloseUnit={shownUnit.status !== "closed"
+              ? () => setCloseUnitFlow({ unit: shownUnit, step: 1 })
+              : null}
+            onReopenUnit={shownUnit.status === "closed"
+              ? () => setReopenUnit(shownUnit)
+              : null}
           />
         );
       })()}
@@ -1900,6 +1952,34 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
             </div>
           )}
         </div>
+      )}
+
+      </>
+      )}
+
+      {/* PR6: Close unit confirmation modal (step 1 of close flow) */}
+      {closeUnitFlow && closeUnitFlow.step === 1 && (
+        <CloseUnitConfirmModal
+          open={true}
+          unit={closeUnitFlow.unit}
+          lang={lang}
+          onCancel={() => setCloseUnitFlow(null)}
+          onContinue={() => setCloseUnitFlow({ ...closeUnitFlow, step: 2 })}
+        />
+      )}
+
+      {/* PR6: Reopen unit modal (single step) */}
+      {reopenUnit && (
+        <ReopenUnitModal
+          open={true}
+          unit={reopenUnit}
+          lang={lang}
+          onCancel={() => setReopenUnit(null)}
+          onConfirm={() => {
+            setReopenUnit(null);
+            setRefreshTick(n => n + 1);
+          }}
+        />
       )}
 
       {/* Edit class modal */}
