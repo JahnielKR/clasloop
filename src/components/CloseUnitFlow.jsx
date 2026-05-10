@@ -76,7 +76,7 @@ const i18n = {
     reviewView: "View deck",
     // Optional teacher note
     noteLabel: "Optional · What did you want them to learn?",
-    notePlaceholder: "In 1-2 sentences. We'll use this for the auto-summary you can share with your department.",
+    notePlaceholder: "Your honest take in 1-2 sentences — for your records.",
     // Legacy keys still referenced by the no-data fallback (kept for safety)
     noDataYet: "No data yet — this unit was closed before any session ran.",
 
@@ -126,7 +126,7 @@ const i18n = {
     reviewError: "No pudimos crear el deck de repaso.",
     reviewView: "Ver deck",
     noteLabel: "Opcional · ¿Qué querías que aprendieran?",
-    notePlaceholder: "En 1-2 frases. Lo usaremos para el auto-resumen que puedes compartir con tu departamento.",
+    notePlaceholder: "Tu reflexión honesta en 1-2 frases — para tu registro personal.",
     noDataYet: "Sin datos — esta unidad se cerró sin sesiones lanzadas.",
 
     back: "← Volver",
@@ -174,7 +174,7 @@ const i18n = {
     reviewError: "복습 덱을 만들 수 없습니다.",
     reviewView: "덱 보기",
     noteLabel: "선택 · 학생들이 무엇을 배우길 원하셨나요?",
-    notePlaceholder: "1-2 문장으로. 학과와 공유할 수 있는 자동 요약에 사용됩니다.",
+    notePlaceholder: "1-2문장으로 솔직하게 — 본인의 기록용입니다.",
     noDataYet: "데이터 없음 — 세션 실행 없이 종료되었습니다.",
 
     back: "← 뒤로",
