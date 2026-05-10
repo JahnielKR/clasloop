@@ -955,53 +955,6 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
           zIndex: -1,
           transition: "background .25s ease",
         }} />
-        {/* PR 11: Exit button — students reported there was no way out
-            of a practice quiz once started; they had to switch tabs.
-            Only shown in practice mode (in live sessions, the teacher
-            controls when it ends). Confirms before exiting so a stray
-            tap doesn't lose progress. Visually integrated with the
-            section theme: tint bg, sectiony text color, subtle border. */}
-        {isPractice && onPracticeExit && (
-          <button
-            onClick={() => {
-              // Confirm only if the student has answered at least one
-              // question — otherwise an empty quiz exits silently.
-              if (answers.length > 0) {
-                if (!confirm(t.exitPracticeConfirm)) return;
-              }
-              onPracticeExit();
-            }}
-            title={t.exitPractice}
-            aria-label={t.exitPractice}
-            style={{
-              position: "fixed",
-              top: 12, left: 12,
-              zIndex: 20,
-              padding: "7px 12px 7px 9px",
-              borderRadius: 999,
-              background: deckSection ? `${theme.tint}DD` : "rgba(255,255,255,0.85)",
-              border: `1px solid ${deckSection ? `${theme.borderActive}44` : C.border}`,
-              color: deckSection ? theme.onTint : C.textSecondary,
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              gap: 5,
-              fontSize: 13,
-              fontWeight: 500,
-              fontFamily: "'Outfit', sans-serif",
-              backdropFilter: "blur(6px)",
-              boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
-              transition: "background .15s ease, transform .12s ease",
-            }}
-            onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-1px)"; }}
-            onMouseLeave={e => { e.currentTarget.style.transform = "translateY(0)"; }}
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <path d="M15 18l-6-6 6-6" />
-            </svg>
-            {t.exitPractice}
-          </button>
-        )}
         {/* Total mode countdown bar — fijo arriba mientras hay tiempo. */}
         {totalTimeLeft !== null && totalTimeLeft > 0 && (() => {
           const totalSec = session?.session_settings?.time_limit || 1;
@@ -1035,6 +988,44 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
           );
         })()}
         <div style={{ maxWidth: 480, margin: "0 auto", padding: 20 }}>
+          {/* PR 11.1: Exit button — moved inside the quiz flow because
+              the previous fixed-position version was hidden under the
+              sidebar (sidebar is z-index 60, fixed left). Now it sits
+              above the section header, aligned left, as a normal
+              flow element. Always visible regardless of viewport size
+              or sidebar state. Practice mode only — in live sessions
+              the teacher controls when it ends. */}
+          {isPractice && onPracticeExit && (
+            <button
+              onClick={() => {
+                if (answers.length > 0) {
+                  if (!confirm(t.exitPracticeConfirm)) return;
+                }
+                onPracticeExit();
+              }}
+              style={{
+                marginBottom: 14,
+                padding: "6px 12px 6px 8px",
+                borderRadius: 999,
+                background: deckSection ? `${theme.tint}` : C.bgSoft,
+                border: `1px solid ${deckSection ? `${theme.borderActive}33` : C.border}`,
+                color: deckSection ? theme.onTint : C.textSecondary,
+                cursor: "pointer",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 5,
+                fontSize: 12.5,
+                fontWeight: 500,
+                fontFamily: "'Outfit', sans-serif",
+                transition: "background .15s ease",
+              }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M15 18l-6-6 6-6" />
+              </svg>
+              {t.exitPractice}
+            </button>
+          )}
           {/* PR 10: Section header — visual identity tag. Tells the
               student "this is a warmup / exit ticket / review" via
               icon + label + background tint. Only renders if the
