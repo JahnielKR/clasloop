@@ -381,17 +381,37 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [current, qType]);
 
+  // ── PR 10.1: keep deckSection in sync with practiceDeck ──
+  // useState only reads its initial value once. If the parent swaps
+  // practiceDeck (e.g. the student finishes one practice deck and the
+  // app loads another without remounting StudentJoin), deckSection
+  // would stay stuck on the first deck's section. This effect fixes
+  // that.
+  useEffect(() => {
+    if (!isPractice) return;
+    setDeckSection(practiceDeck?.section || null);
+  }, [isPractice, practiceDeck?.id, practiceDeck?.section]);
+
   // ── PR 10: load deck.section when the session is set ──
   // We theme the quiz UI by section (warmup/exit/review). The session
   // row itself doesn't include section, only deck_id, so we need a
   // small follow-up fetch. Practice mode skips this entirely (the
   // section is read from practiceDeck on initial mount).
+  //
+  // PR 10.1 fix: previous version guarded with `if (deckSection != null) return`
+  // which meant the section was set ONCE and never re-fetched. After the
+  // first quiz, the second/third quiz inherited the previous section
+  // (e.g. you'd open a warmup, then an exit ticket, and the exit ticket
+  // would still render with warmup theming). Now we re-fetch whenever
+  // deck_id changes, and reset the local section first so we don't show
+  // stale theming during the brief window before the new fetch resolves.
   useEffect(() => {
     if (isPractice) return;
     if (!session?.deck_id) return;
-    // Skip if we already have a section value for this deck.
-    if (deckSection != null) return;
     let cancelled = false;
+    // Reset to null so the previous deck's theming clears immediately.
+    // The new value lands as soon as the fetch resolves.
+    setDeckSection(null);
     (async () => {
       const { data, error } = await supabase
         .from("decks")
@@ -405,7 +425,7 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
       if (!error && data?.section) setDeckSection(data.section);
     })();
     return () => { cancelled = true; };
-  }, [session?.deck_id, isPractice, deckSection]);
+  }, [session?.deck_id, isPractice]);
 
   // ── Realtime: react to session status changes ──
   useEffect(() => {
