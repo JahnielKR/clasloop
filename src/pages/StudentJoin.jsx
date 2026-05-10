@@ -38,6 +38,9 @@ const i18n = {
     reviewQuestion: "Question {n} of {total}",
     pointsLabel: "{points}/{max} points",
     joinAnother: "Join another session", noQuestions: "No questions available",
+    // PR 11: practice mode exit button
+    exitPractice: "Exit",
+    exitPracticeConfirm: "Exit practice? Your progress will be lost.",
     timerOnTip: "Timer on. Tap to study without time pressure.",
     timerOffTip: "Timer off. Tap to turn on the recommended timing.",
     totalTimeLabel: "Time left",
@@ -82,6 +85,8 @@ const i18n = {
     reviewQuestion: "Pregunta {n} de {total}",
     pointsLabel: "{points}/{max} puntos",
     joinAnother: "Unirse a otra sesión", noQuestions: "No hay preguntas",
+    exitPractice: "Salir",
+    exitPracticeConfirm: "¿Salir de la práctica? Vas a perder tu progreso.",
     timerOnTip: "Timer activo. Toca para estudiar sin presión.",
     timerOffTip: "Timer apagado. Toca para activar el tiempo recomendado.",
     totalTimeLabel: "Tiempo restante",
@@ -126,6 +131,8 @@ const i18n = {
     reviewQuestion: "{total}문제 중 {n}번",
     pointsLabel: "{points}/{max} 점",
     joinAnother: "다른 세션 참여", noQuestions: "문제가 없습니다",
+    exitPractice: "나가기",
+    exitPracticeConfirm: "연습을 종료할까요? 진행 상황이 사라집니다.",
     timerOnTip: "타이머 켜짐. 시간 압박 없이 학습하려면 탭하세요.",
     timerOffTip: "타이머 꺼짐. 권장 시간을 활성화하려면 탭하세요.",
     totalTimeLabel: "남은 시간",
@@ -948,6 +955,53 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
           zIndex: -1,
           transition: "background .25s ease",
         }} />
+        {/* PR 11: Exit button — students reported there was no way out
+            of a practice quiz once started; they had to switch tabs.
+            Only shown in practice mode (in live sessions, the teacher
+            controls when it ends). Confirms before exiting so a stray
+            tap doesn't lose progress. Visually integrated with the
+            section theme: tint bg, sectiony text color, subtle border. */}
+        {isPractice && onPracticeExit && (
+          <button
+            onClick={() => {
+              // Confirm only if the student has answered at least one
+              // question — otherwise an empty quiz exits silently.
+              if (answers.length > 0) {
+                if (!confirm(t.exitPracticeConfirm)) return;
+              }
+              onPracticeExit();
+            }}
+            title={t.exitPractice}
+            aria-label={t.exitPractice}
+            style={{
+              position: "fixed",
+              top: 12, left: 12,
+              zIndex: 20,
+              padding: "7px 12px 7px 9px",
+              borderRadius: 999,
+              background: deckSection ? `${theme.tint}DD` : "rgba(255,255,255,0.85)",
+              border: `1px solid ${deckSection ? `${theme.borderActive}44` : C.border}`,
+              color: deckSection ? theme.onTint : C.textSecondary,
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: 5,
+              fontSize: 13,
+              fontWeight: 500,
+              fontFamily: "'Outfit', sans-serif",
+              backdropFilter: "blur(6px)",
+              boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
+              transition: "background .15s ease, transform .12s ease",
+            }}
+            onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-1px)"; }}
+            onMouseLeave={e => { e.currentTarget.style.transform = "translateY(0)"; }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M15 18l-6-6 6-6" />
+            </svg>
+            {t.exitPractice}
+          </button>
+        )}
         {/* Total mode countdown bar — fijo arriba mientras hay tiempo. */}
         {totalTimeLeft !== null && totalTimeLeft > 0 && (() => {
           const totalSec = session?.session_settings?.time_limit || 1;

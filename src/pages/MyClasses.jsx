@@ -6,6 +6,7 @@ import { Avatar } from "../components/Avatars";
 import { DeckCover, colorTint } from "../lib/deck-cover";
 import { useIsMobile } from "../components/MobileMenuButton";
 import PageHeader from "../components/PageHeader";
+import SectionBadge from "../components/SectionBadge";
 import { C, MONO } from "../components/tokens";
 import { getPracticeTimerPref, setPracticeTimerPref } from "../lib/practice-timer-pref";
 import { ROUTES, buildRoute } from "../routes";
@@ -555,6 +556,7 @@ export default function MyClasses({ lang: pageLang = "en", setLang: pageSetLang,
                         key={deck.id}
                         deck={deck}
                         t={t}
+                        lang={l}
                         onPractice={() => onLaunchPractice && onLaunchPractice(deck)}
                         onToggleFavorite={() => handleToggleFavorite(deck.id)}
                         onUnsave={() => handleUnsave(deck.id)}
@@ -578,6 +580,7 @@ export default function MyClasses({ lang: pageLang = "en", setLang: pageSetLang,
                         key={deck.id}
                         deck={deck}
                         t={t}
+                        lang={l}
                         onPractice={() => onLaunchPractice && onLaunchPractice(deck)}
                         onToggleFavorite={() => handleToggleFavorite(deck.id)}
                         onUnsave={() => handleUnsave(deck.id)}
@@ -598,7 +601,7 @@ export default function MyClasses({ lang: pageLang = "en", setLang: pageSetLang,
 const SUBJECT_ICON_MAP = { Math: "math", Science: "science", History: "history", Language: "language", Geography: "geo", Art: "art", Music: "music", Other: "book" };
 
 // ─── SavedDeckCard ──────────────────────────────────────────────────────────
-function SavedDeckCard({ deck, t, onPractice, onToggleFavorite, onUnsave }) {
+function SavedDeckCard({ deck, t, lang, onPractice, onToggleFavorite, onUnsave }) {
   const isFav = deck._isFavorite;
   const qs = deck.questions || [];
   const tint = colorTint(deck, "0F");
@@ -683,8 +686,12 @@ function SavedDeckCard({ deck, t, onPractice, onToggleFavorite, onUnsave }) {
         </button>
       </div>
       <div style={{ padding: 14, background: tint, borderTop: `1px solid ${C.border}`, flex: 1, display: "flex", flexDirection: "column" }}>
-        <div style={{ fontSize: 11, color: C.textMuted, marginBottom: 6 }}>
-          {deck.subject} · {deck.grade}
+        {/* PR 11: Section badge — students asked to see warmup vs exit
+            ticket vs review on their saved decks (same fix as Community
+            in PR 9). Goes first so it's the most prominent piece of meta. */}
+        <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6, fontSize: 11, color: C.textMuted, flexWrap: "wrap" }}>
+          {deck.section && <SectionBadge section={deck.section} lang={lang} variant="compact" />}
+          <span>{deck.subject} · {deck.grade}</span>
         </div>
         <h3 style={{ fontSize: 15, fontWeight: 600, marginBottom: 10, lineHeight: 1.3, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{deck.title}</h3>
         <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
@@ -973,8 +980,10 @@ function ClassDetail({ cls, profile, t, lang, onBack, onLaunchPractice }) {
                       >
                         <DeckCover deck={deck} variant="banner" height={88} radius={14} />
                         <div style={{ padding: 14, background: tint, borderTop: `1px solid ${C.border}`, flex: 1, display: "flex", flexDirection: "column" }}>
-                          <div style={{ fontSize: 11, color: C.textMuted, marginBottom: 6 }}>
-                            {deck.subject} · {deck.grade}
+                          {/* PR 11: Section badge in class deck cards */}
+                          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6, fontSize: 11, color: C.textMuted, flexWrap: "wrap" }}>
+                            {deck.section && <SectionBadge section={deck.section} lang={lang} variant="compact" />}
+                            <span>{deck.subject} · {deck.grade}</span>
                           </div>
                           <h3 style={{ fontSize: 15, fontWeight: 600, marginBottom: 10, lineHeight: 1.3, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{deck.title}</h3>
                           <button
