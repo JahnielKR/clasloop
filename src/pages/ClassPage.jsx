@@ -1274,6 +1274,8 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
       {closeUnitFlow && closeUnitFlow.step === 2 && (
         <CloseUnitSummary
           unit={closeUnitFlow.unit}
+          classObj={classObj}
+          userId={profile?.id}
           lang={lang}
           onBack={() => setCloseUnitFlow(null)}
           onConfirm={({ promotedId }) => {

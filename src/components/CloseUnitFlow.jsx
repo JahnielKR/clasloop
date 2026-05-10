@@ -32,6 +32,11 @@ import { supabase } from "../lib/supabase";
 import { getUnitRetentionSummary } from "../lib/spaced-repetition";
 import { C, MONO } from "./tokens";
 import SectionBadge, { sectionAccent } from "./SectionBadge";
+import {
+  generateClosingNarrative,
+  generateSuggestedReviewQuestions,
+  saveReviewDeck,
+} from "../lib/close-unit-ai";
 
 const i18n = {
   en: {
@@ -57,6 +62,18 @@ const i18n = {
     aiInsightsHint: "AI-generated insights from this unit's data — coming soon.",
     closingReviewLabel: "Suggested closing review",
     closingReviewHint: "A short review deck targeting this unit's weakest topics — coming soon.",
+    // PR 12: AI states
+    whatWorkedLabel: "What worked",
+    whatDidntLabel: "What didn't",
+    aiGenerating: "Reading the unit's data…",
+    aiError: "Couldn't generate insights right now.",
+    aiRetry: "Try again",
+    aiNotEnoughData: "Not enough data to summarize this unit yet.",
+    reviewGenerate: "Generate review deck",
+    reviewGenerating: "Building a 7-question recap…",
+    reviewSuccess: "Review deck created",
+    reviewError: "Couldn't create the review deck.",
+    reviewView: "View deck",
     // Optional teacher note
     noteLabel: "Optional · What did you want them to learn?",
     notePlaceholder: "In 1-2 sentences. We'll use this for the auto-summary you can share with your department.",
@@ -97,6 +114,17 @@ const i18n = {
     aiInsightsHint: "Insights generados por IA a partir de los datos de esta unidad — próximamente.",
     closingReviewLabel: "Repaso de cierre sugerido",
     closingReviewHint: "Un deck breve con los temas más débiles de esta unidad — próximamente.",
+    whatWorkedLabel: "Qué funcionó",
+    whatDidntLabel: "Qué no",
+    aiGenerating: "Leyendo los datos de la unidad…",
+    aiError: "No pudimos generar los insights ahora.",
+    aiRetry: "Reintentar",
+    aiNotEnoughData: "Todavía no hay suficientes datos para resumir esta unidad.",
+    reviewGenerate: "Generar deck de repaso",
+    reviewGenerating: "Armando un repaso de 7 preguntas…",
+    reviewSuccess: "Deck de repaso creado",
+    reviewError: "No pudimos crear el deck de repaso.",
+    reviewView: "Ver deck",
     noteLabel: "Opcional · ¿Qué querías que aprendieran?",
     notePlaceholder: "En 1-2 frases. Lo usaremos para el auto-resumen que puedes compartir con tu departamento.",
     noDataYet: "Sin datos — esta unidad se cerró sin sesiones lanzadas.",
@@ -134,6 +162,17 @@ const i18n = {
     aiInsightsHint: "이 단원 데이터에서 AI가 생성한 인사이트 — 곧 제공됩니다.",
     closingReviewLabel: "추천 마무리 복습",
     closingReviewHint: "이 단원의 약한 주제를 다루는 짧은 복습 덱 — 곧 제공됩니다.",
+    whatWorkedLabel: "잘된 점",
+    whatDidntLabel: "개선할 점",
+    aiGenerating: "단원 데이터 분석 중…",
+    aiError: "지금은 인사이트를 생성할 수 없습니다.",
+    aiRetry: "다시 시도",
+    aiNotEnoughData: "이 단원을 요약할 데이터가 아직 충분하지 않습니다.",
+    reviewGenerate: "복습 덱 생성",
+    reviewGenerating: "7문항 복습 만드는 중…",
+    reviewSuccess: "복습 덱이 만들어졌습니다",
+    reviewError: "복습 덱을 만들 수 없습니다.",
+    reviewView: "덱 보기",
     noteLabel: "선택 · 학생들이 무엇을 배우길 원하셨나요?",
     notePlaceholder: "1-2 문장으로. 학과와 공유할 수 있는 자동 요약에 사용됩니다.",
     noDataYet: "데이터 없음 — 세션 실행 없이 종료되었습니다.",
@@ -254,7 +293,7 @@ export function CloseUnitConfirmModal({ open, unit, onCancel, onContinue, lang =
 // Full-page experience showing the unit's stats. Renders inline (not as
 // a modal) — the closing of a unit deserves space, not a small dialog.
 // ClassPage swaps PlanView for this when closingUnit is set.
-export function CloseUnitSummary({ unit, lang = "en", onBack, onConfirm }) {
+export function CloseUnitSummary({ unit, classObj, userId, lang = "en", onBack, onConfirm }) {
   const t = i18n[lang] || i18n.en;
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -262,6 +301,21 @@ export function CloseUnitSummary({ unit, lang = "en", onBack, onConfirm }) {
   const [errorMsg, setErrorMsg] = useState("");
   // PR6.2: optional reflection from the teacher, saved to units.closing_note
   const [closingNote, setClosingNote] = useState("");
+
+  // PR 12: AI narrative state
+  // narrative is the {whatWorked, whatDidnt} object once generated.
+  // Loads from unit.closing_narrative cache if present, otherwise auto-
+  // generates via /api/close-unit-narrative when the summary data lands.
+  const [narrative, setNarrative] = useState(unit?.closing_narrative || null);
+  const [narrativeLoading, setNarrativeLoading] = useState(false);
+  const [narrativeError, setNarrativeError] = useState("");
+
+  // PR 12: Suggested review deck state
+  // The deck isn't created automatically — teacher clicks "Generate".
+  // Once created, we store the deck id so the View link works.
+  const [reviewLoading, setReviewLoading] = useState(false);
+  const [reviewDeckId, setReviewDeckId] = useState(null);
+  const [reviewError, setReviewError] = useState("");
 
   useEffect(() => {
     if (!unit?.id) return;
@@ -283,6 +337,103 @@ export function CloseUnitSummary({ unit, lang = "en", onBack, onConfirm }) {
     })();
     return () => { cancelled = true; };
   }, [unit?.id]);
+
+  // PR 12: Auto-generate the AI narrative when the summary is ready.
+  // Skip if we already have one cached on the unit row (the teacher
+  // is revisiting a previously-summarized unit). Skip if data is too
+  // sparse (no decks, no responses) — the writer prompt would just
+  // produce the "not enough data" placeholder, no point spending an
+  // API call on that. Show that placeholder directly instead.
+  useEffect(() => {
+    if (!summary || !unit?.id) return;
+    // Already cached on the unit row — use it.
+    if (unit.closing_narrative) {
+      setNarrative(unit.closing_narrative);
+      return;
+    }
+    // Sparse data — show the static "not enough data" message without
+    // calling the API.
+    const totalResponses = summary.totalResponses || 0;
+    const totalSessions = summary.totalSessions || 0;
+    if (totalResponses === 0 && totalSessions === 0) {
+      setNarrative({
+        whatWorked: t.aiNotEnoughData,
+        whatDidnt: "",
+        _staticFallback: true,
+      });
+      return;
+    }
+    // Real generation
+    let cancelled = false;
+    (async () => {
+      setNarrativeLoading(true);
+      setNarrativeError("");
+      const result = await generateClosingNarrative({
+        unitId: unit.id,
+        unit,
+        classObj,
+        summary,
+        lang,
+      });
+      if (cancelled) return;
+      setNarrativeLoading(false);
+      if (result.ok) {
+        setNarrative(result.narrative);
+      } else {
+        setNarrativeError(result.error);
+      }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [summary, unit?.id]);
+
+  // Manual retry for the narrative — only used after an error.
+  const retryNarrative = async () => {
+    if (!summary || !unit?.id) return;
+    setNarrativeLoading(true);
+    setNarrativeError("");
+    const result = await generateClosingNarrative({
+      unitId: unit.id,
+      unit,
+      classObj,
+      summary,
+      lang,
+    });
+    setNarrativeLoading(false);
+    if (result.ok) setNarrative(result.narrative);
+    else setNarrativeError(result.error);
+  };
+
+  // PR 12: handler for the "Generate review deck" button.
+  // Generates 7 questions targeting the unit's weakest topics, then
+  // saves them as a new general_review deck in the same class.
+  const handleGenerateReview = async () => {
+    if (!summary || !classObj || !userId) return;
+    setReviewLoading(true);
+    setReviewError("");
+    setReviewDeckId(null);
+    const gen = await generateSuggestedReviewQuestions({
+      unit, classObj, summary, lang,
+    });
+    if (!gen.ok) {
+      setReviewLoading(false);
+      setReviewError(gen.error);
+      return;
+    }
+    const saved = await saveReviewDeck({
+      unit,
+      classObj,
+      questions: gen.questions,
+      lang,
+      authorId: userId,
+    });
+    setReviewLoading(false);
+    if (saved.ok) {
+      setReviewDeckId(saved.deckId);
+    } else {
+      setReviewError(saved.error);
+    }
+  };
 
   const handleClose = async () => {
     if (closing) return;
@@ -440,61 +591,213 @@ export function CloseUnitSummary({ unit, lang = "en", onBack, onConfirm }) {
         <InlineStat value={summary.totalSessions} label={t.launches} />
       </div>
 
-      {/* Reserved space for AI-generated narrative — coming in PR 7.
-          We render a soft placeholder so the teacher knows the slot
-          exists and what's coming. When PR 7 lands, this block becomes
-          two real sections: WHAT WORKED and WHAT DIDN'T, populated by
-          a Claude API call with the unit's retention data. */}
-      <div style={{
-        padding: "14px 16px",
-        background: C.bgSoft,
-        border: `1px dashed ${C.border}`,
-        borderRadius: 8,
-        marginBottom: 22,
-      }}>
+      {/* PR 12: AI-generated narrative (What worked / What didn't).
+          Three states:
+            1. narrativeLoading → soft skeleton
+            2. narrativeError → error card with retry
+            3. narrative present → render the two paragraphs
+          The narrative auto-generates when summary lands (see effect
+          above). Cached on units.closing_narrative so re-visiting the
+          summary doesn't re-bill the API. */}
+      <div style={{ marginBottom: 22 }}>
         <div style={{
           fontSize: 10.5, fontWeight: 600,
           textTransform: "uppercase", letterSpacing: "0.08em",
           color: C.textMuted,
-          marginBottom: 6,
+          marginBottom: 10,
           fontFamily: "'Outfit', sans-serif",
         }}>
           {t.aiInsightsLabel}
         </div>
-        <div style={{
-          fontSize: 12.5, color: C.textMuted,
-          lineHeight: 1.5,
-        }}>
-          {t.aiInsightsHint}
-        </div>
+
+        {narrativeLoading && (
+          <div style={{
+            padding: "16px 18px",
+            background: C.bgSoft,
+            border: `1px solid ${C.border}`,
+            borderRadius: 8,
+            fontSize: 13, color: C.textMuted,
+            display: "flex", alignItems: "center", gap: 10,
+          }}>
+            <div style={{
+              width: 14, height: 14, borderRadius: "50%",
+              border: `2px solid ${C.border}`,
+              borderTopColor: C.accent,
+              animation: "cuf-spin 0.8s linear infinite",
+            }} />
+            <span>{t.aiGenerating}</span>
+            <style>{`@keyframes cuf-spin { to { transform: rotate(360deg); } }`}</style>
+          </div>
+        )}
+
+        {!narrativeLoading && narrativeError && (
+          <div style={{
+            padding: "14px 16px",
+            background: C.redSoft || "#FEE",
+            border: `1px solid ${C.red}33`,
+            borderRadius: 8,
+            display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12,
+            fontSize: 13, color: C.red,
+          }}>
+            <span>{t.aiError}</span>
+            <button
+              onClick={retryNarrative}
+              style={{
+                padding: "6px 12px",
+                borderRadius: 6,
+                background: C.bg,
+                border: `1px solid ${C.red}55`,
+                color: C.red,
+                fontSize: 12, fontWeight: 600,
+                cursor: "pointer",
+                fontFamily: "'Outfit', sans-serif",
+              }}
+            >
+              {t.aiRetry}
+            </button>
+          </div>
+        )}
+
+        {!narrativeLoading && !narrativeError && narrative && (
+          <div style={{
+            padding: "16px 18px",
+            background: C.bgSoft,
+            border: `1px solid ${C.border}`,
+            borderRadius: 8,
+          }}>
+            {/* What worked */}
+            {narrative.whatWorked && (
+              <div style={{ marginBottom: narrative.whatDidnt ? 14 : 0 }}>
+                <div style={{
+                  fontSize: 10.5, fontWeight: 700,
+                  textTransform: "uppercase", letterSpacing: "0.06em",
+                  color: C.green || "#0F7B6C",
+                  marginBottom: 6,
+                  fontFamily: "'Outfit', sans-serif",
+                }}>
+                  {t.whatWorkedLabel}
+                </div>
+                <p style={{
+                  margin: 0,
+                  fontSize: 13.5, lineHeight: 1.6,
+                  color: C.text,
+                }}>
+                  {narrative.whatWorked}
+                </p>
+              </div>
+            )}
+            {/* What didn't */}
+            {narrative.whatDidnt && (
+              <div>
+                <div style={{
+                  fontSize: 10.5, fontWeight: 700,
+                  textTransform: "uppercase", letterSpacing: "0.06em",
+                  color: C.orange || "#D9730D",
+                  marginBottom: 6,
+                  fontFamily: "'Outfit', sans-serif",
+                }}>
+                  {t.whatDidntLabel}
+                </div>
+                <p style={{
+                  margin: 0,
+                  fontSize: 13.5, lineHeight: 1.6,
+                  color: C.text,
+                }}>
+                  {narrative.whatDidnt}
+                </p>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
-      {/* Reserved space for the closing-review suggestion — also PR 7.
-          When ready, this becomes a card with a generated review deck
-          based on the weakest topics, with [Review and launch] /
-          [Edit suggestion] / [Skip] actions. */}
+      {/* PR 12: Suggested closing review — generates a 7-question recap
+          deck targeting the unit's weakest topics. Only shown when the
+          unit has weak topics worth reviewing. Three states:
+            1. idle (no deck yet) → "Generate review deck" button
+            2. reviewLoading → "Building..." with spinner
+            3. reviewDeckId → success with "View deck" link
+          Errors render inline with the button so retry is one click. */}
       {summary.weakTopics > 0 && (
-        <div style={{
-          padding: "14px 16px",
-          background: C.bgSoft,
-          border: `1px dashed ${C.border}`,
-          borderRadius: 8,
-          marginBottom: 22,
-        }}>
+        <div style={{ marginBottom: 22 }}>
           <div style={{
             fontSize: 10.5, fontWeight: 600,
             textTransform: "uppercase", letterSpacing: "0.08em",
             color: C.textMuted,
-            marginBottom: 6,
+            marginBottom: 10,
             fontFamily: "'Outfit', sans-serif",
           }}>
             {t.closingReviewLabel}
           </div>
           <div style={{
-            fontSize: 12.5, color: C.textMuted,
-            lineHeight: 1.5,
+            padding: "14px 16px",
+            background: C.bgSoft,
+            border: `1px solid ${C.border}`,
+            borderRadius: 8,
           }}>
-            {t.closingReviewHint}
+            <div style={{
+              fontSize: 12.5, color: C.textSecondary,
+              lineHeight: 1.5,
+              marginBottom: 12,
+            }}>
+              {t.closingReviewHint}
+            </div>
+
+            {!reviewDeckId && !reviewLoading && (
+              <button
+                onClick={handleGenerateReview}
+                disabled={reviewLoading}
+                style={{
+                  padding: "8px 14px",
+                  borderRadius: 7,
+                  background: "#000",
+                  color: "#fff",
+                  border: "none",
+                  fontSize: 13, fontWeight: 600,
+                  fontFamily: "'Outfit', sans-serif",
+                  cursor: "pointer",
+                }}
+              >
+                {t.reviewGenerate}
+              </button>
+            )}
+
+            {reviewLoading && (
+              <div style={{
+                display: "flex", alignItems: "center", gap: 10,
+                fontSize: 13, color: C.textMuted,
+              }}>
+                <div style={{
+                  width: 14, height: 14, borderRadius: "50%",
+                  border: `2px solid ${C.border}`,
+                  borderTopColor: C.accent,
+                  animation: "cuf-spin 0.8s linear infinite",
+                }} />
+                <span>{t.reviewGenerating}</span>
+              </div>
+            )}
+
+            {reviewDeckId && (
+              <div style={{
+                display: "flex", alignItems: "center", gap: 10,
+                fontSize: 13, color: C.green,
+                fontWeight: 500,
+              }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M20 6L9 17l-5-5" />
+                </svg>
+                <span>{t.reviewSuccess}</span>
+              </div>
+            )}
+
+            {reviewError && (
+              <div style={{
+                marginTop: 10,
+                fontSize: 12, color: C.red,
+              }}>
+                {t.reviewError}
+              </div>
+            )}
           </div>
         </div>
       )}
