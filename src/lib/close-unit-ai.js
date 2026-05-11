@@ -82,15 +82,48 @@ export async function generateSuggestedReviewQuestions({ unit, classObj, summary
   const accessToken = session?.access_token;
   if (!accessToken) return { ok: false, error: 'not_authenticated' };
 
-  // Skip if unit has no decks or no retention data — there's nothing
-  // to recap. The UI hides the "Suggested review" CTA in that case
-  // already, but defensive check here too.
   if (!summary?.decks?.length) {
     return { ok: false, error: 'no_decks_in_unit' };
   }
 
-  const context = buildNarrativeContext({ unit, classObj, summary, lang });
-  const messages = buildReviewDeckMessages(context);
+  // ── PR 12.3: Build rich context from real teacher content ──
+  // Fetch ALL decks of this unit with their full question content,
+  // plus weak points accumulated from session_insights. This grounds
+  // the AI in actual teacher content (preventing the off-topic
+  // hallucination bug we saw in PR 12.2).
+  const deckIds = summary.decks.map(d => d.id);
+
+  // 1. Full deck content (questions + language)
+  const { data: deckRows, error: deckErr } = await supabase
+    .from('decks')
+    .select('id, title, section, language, questions')
+    .in('id', deckIds);
+  if (deckErr) return { ok: false, error: `deck_fetch_failed: ${deckErr.message}` };
+
+  const fullDecks = (deckRows || []).map(d => ({
+    id: d.id,
+    title: d.title,
+    section: d.section,
+    language: d.language,
+    questions: Array.isArray(d.questions) ? d.questions : [],
+  }));
+
+  // Determine the dominant language across the decks. Used both as the
+  // hint for the AI and as the language of the saved deck row.
+  const langCounts = {};
+  fullDecks.forEach(d => {
+    if (d.language) langCounts[d.language] = (langCounts[d.language] || 0) + 1;
+  });
+  const inferredLang =
+    Object.entries(langCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || lang;
+
+  // 2. Weak points from session_insights aggregated across all sessions
+  //    of this unit.
+  const aggregatedWeakPoints = await fetchAggregatedWeakPoints(deckIds);
+
+  // 3. Build the context + messages
+  const context = buildNarrativeContext({ unit, classObj, summary, lang: inferredLang });
+  const messages = buildReviewDeckMessages(context, fullDecks, aggregatedWeakPoints);
 
   let resp;
   try {
@@ -109,9 +142,6 @@ export async function generateSuggestedReviewQuestions({ unit, classObj, summary
         messages,
         max_tokens: 5000,
         validate: true,
-        // Existing /api/generate.js logging fields. We mark this as
-        // input_type='close_unit_review' so the admin AI stats can
-        // distinguish recap-deck generation from regular generation.
         activity_type: 'general_review',
         num_questions: 20,
         input_type: 'close_unit_review',
@@ -157,7 +187,79 @@ export async function generateSuggestedReviewQuestions({ unit, classObj, summary
   if (!questions || questions.length === 0) {
     return { ok: false, error: 'no_questions_returned' };
   }
-  return { ok: true, questions };
+  // Return inferredLang too so the caller saves the deck with the
+  // language that matches the source content (not the UI language).
+  return { ok: true, questions, inferredLang };
+}
+
+// ─── Helpers ────────────────────────────────────────────────────────────
+
+/**
+ * Aggregate weak_points across all session_insights rows for sessions
+ * whose deck_id is in the given list. Merges duplicates (same label
+ * across multiple sessions) and sums fail counts.
+ *
+ * Returns: [{label, fail_pct, fail_count, total, sessionCount}, ...]
+ *          sorted by fail_pct desc.
+ *
+ * If anything fails, returns [] — the prompt handles "no weak points"
+ * by distributing review evenly across decks.
+ */
+async function fetchAggregatedWeakPoints(deckIds) {
+  if (!Array.isArray(deckIds) || deckIds.length === 0) return [];
+  try {
+    // 1. Get sessions for these decks
+    const { data: sessions } = await supabase
+      .from('sessions')
+      .select('id')
+      .in('deck_id', deckIds);
+    if (!sessions || sessions.length === 0) return [];
+
+    // 2. Get session_insights for those sessions
+    const sessionIds = sessions.map(s => s.id);
+    const { data: insights } = await supabase
+      .from('session_insights')
+      .select('weak_points')
+      .in('session_id', sessionIds)
+      .eq('status', 'ready');
+    if (!insights || insights.length === 0) return [];
+
+    // 3. Flatten all weak_points + merge by label
+    // Each insight.weak_points is an array of {label, fail_pct,
+    // fail_count, total, top_failers, question_ids}.
+    const byLabel = new Map();
+    for (const ins of insights) {
+      const wps = Array.isArray(ins.weak_points) ? ins.weak_points : [];
+      for (const wp of wps) {
+        if (!wp?.label) continue;
+        const key = wp.label.trim().toLowerCase();
+        const existing = byLabel.get(key);
+        if (existing) {
+          existing.fail_count += wp.fail_count || 0;
+          existing.total += wp.total || 0;
+          existing.sessionCount += 1;
+        } else {
+          byLabel.set(key, {
+            label: wp.label,
+            fail_count: wp.fail_count || 0,
+            total: wp.total || 0,
+            sessionCount: 1,
+          });
+        }
+      }
+    }
+
+    // 4. Compute aggregate fail_pct and sort
+    return Array.from(byLabel.values())
+      .map(wp => ({
+        ...wp,
+        fail_pct: wp.total > 0 ? Math.round((wp.fail_count / wp.total) * 100) : 0,
+      }))
+      .sort((a, b) => b.fail_pct - a.fail_pct);
+  } catch (err) {
+    // Soft fail — the prompt handles empty weak points
+    return [];
+  }
 }
 
 /**

@@ -427,7 +427,10 @@ export function CloseUnitSummary({ unit, classObj, userId, lang = "en", onBack, 
       unit,
       classObj,
       questions: gen.questions,
-      lang,
+      // PR 12.3: use the language inferred from the unit's deck rows
+      // (matches what the AI actually wrote), not the UI language.
+      // Falls back to UI lang if inference failed.
+      lang: gen.inferredLang || lang,
       authorId: userId,
     });
     setReviewLoading(false);

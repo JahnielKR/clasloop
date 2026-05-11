@@ -161,63 +161,216 @@ export function buildVerifierMessages(context, draft) {
 }
 
 // ─── Suggested review deck prompt ────────────────────────────────────────
-// This is a separate generation: we ask Sonnet to write 20 questions
-// targeting the unit's weakest topics. Format identical to the regular
-// generation pipeline (so it can flow into the existing scoring.js
-// types: mcq, tf, fill).
 //
-// Topics + retention come from the same context object; we extract the
-// 3 weakest and tell the model "make a recap deck".
+// PR 12.3: This prompt was rewritten after a real-world bug:
+// a Spanish unit generated 20 English ELA questions (denotation,
+// subject-verb agreement, misplaced modifiers, etc.) because we
+// only sent the deck TITLES + class subject + grade. With sparse
+// context, Sonnet defaulted to its prior for "9th grade curriculum",
+// which in its training data is heavily English Language Arts.
 //
-// PR 12.2: bumped from 7 to 20 questions per teacher feedback —
-// "es un review general de la unidad", needs to be substantive.
-export const REVIEW_DECK_SYSTEM = `You are creating a 20-question closing review deck for a unit that's about to close. The teacher wants a substantive recap that targets the weakest topics — not all topics, just the ones that need reinforcing.
+// Fix: the prompt now receives THE ACTUAL CONTENT of every deck in
+// the unit (questions + answers), plus the accumulated weak points
+// detected by PR 13 session_insights. This grounds the generation
+// in real teacher content, not the model's prior.
+//
+// The model writes a 20-question review weighted toward weak points
+// (~65%) with the remainder being broader coverage of the unit content.
 
-You will be given a list of decks the teacher already used in this unit, with their retention percentages. Pick the 3 lowest-retention topics and write 20 questions distributed across those topics, weighted toward the weakest one.
+export const REVIEW_DECK_SYSTEM = `You are creating a 20-question closing review deck for a teacher's unit. The teacher has already taught this unit — your job is to review it, not to invent new curriculum.
 
-Distribution by question type (must be exactly):
-- 12 MCQ (most efficient for review)
-- 5 fill-in-the-blank (active recall)
-- 3 true/false (quick check)
+═══════════════════════════════════════════════════════════════════════
+THE GROUND TRUTH: the teacher's actual unit content
+═══════════════════════════════════════════════════════════════════════
 
-Difficulty: easier than the original questions on average. This is a recap to reinforce, not a new test. Stick to facts and applications the teacher demonstrably already taught (inferred from the deck titles).
+You will receive in the user message:
 
-Coverage:
-- Distribute questions roughly: ~10 questions on the weakest topic, ~6 on the second weakest, ~4 on the third weakest. Adjust if there are only 1 or 2 weak topics.
-- Within each topic, vary angles: definitions, applications, edge cases, common mistakes.
+1. A list of EVERY DECK in this unit, with ALL their actual questions
+   and correct answers. This is the COMPLETE record of what the teacher
+   taught. Treat it as authoritative.
 
-Output JSON:
+2. A list of WEAK POINTS detected during the unit — specific topics
+   where students struggled most across sessions. Each weak point
+   includes a label and a sample failure rate.
+
+═══════════════════════════════════════════════════════════════════════
+HARD RULES — these are not suggestions
+═══════════════════════════════════════════════════════════════════════
+
+DOMAIN
+- Your questions MUST be about the same subject matter as the deck
+  questions you're shown. If the decks are about Spanish verbs, your
+  questions are about Spanish verbs. If they're about photosynthesis,
+  yours are about photosynthesis.
+- NEVER invent curriculum content based on grade level or class subject
+  label. The deck content overrides any assumption you might have about
+  "what a 9th grade class typically studies".
+
+LANGUAGE
+- Write your questions in the SAME LANGUAGE as the existing question
+  text shown to you.
+- If the existing questions are written in Spanish, you write in Spanish.
+- If they're written in Korean, you write in Korean.
+- target_lang in the prompt is a hint; the actual deck language is the
+  authoritative signal.
+
+VOCABULARY & DIFFICULTY
+- Reuse specific terms, verb forms, named entities, dates, and phrasing
+  style from the existing questions. Match their register and difficulty.
+- Don't introduce vocabulary the teacher didn't use unless it's a natural
+  variant.
+
+═══════════════════════════════════════════════════════════════════════
+DISTRIBUTION
+═══════════════════════════════════════════════════════════════════════
+
+Exactly 20 questions in this mix:
+- 14 MCQ
+- 2 fill-in-the-blank
+- 2 true/false
+- 2 free-text (open-ended, graded manually by the teacher)
+
+Topic weighting:
+- About 65% of the questions (≈13) should target the WEAK POINTS list.
+  Distribute proportionally — more questions for higher fail rates.
+- The remaining ≈7 questions cover the rest of the unit content for
+  general reinforcement.
+
+If the weak points list is empty (the unit had no clearly weak topics),
+distribute all 20 questions evenly across the unit's decks.
+
+Difficulty:
+- Slightly easier than the originals on average. This is a recap.
+- For each weak-point topic, write SOME questions at the same difficulty
+  as the originals (the students failed those — show they can still
+  succeed at that level) and OTHERS that approach the topic from a
+  different angle (vocabulary, application, edge case).
+
+═══════════════════════════════════════════════════════════════════════
+OUTPUT FORMAT — strict JSON, no markdown fences, no preamble
+═══════════════════════════════════════════════════════════════════════
+
 {
   "questions": [
-    { "type": "mcq", "q": "...", "options": ["...", "...", "...", "..."], "correct": 0 },
+    { "type": "mcq", "q": "...", "options": ["a", "b", "c", "d"], "correct": 0 },
     { "type": "fill", "q": "Sentence with ___ blank.", "answer": "word" },
     { "type": "tf", "q": "...", "correct": true },
+    { "type": "free", "q": "Open-ended question prompting a short written answer." },
     ...
   ]
 }
 
-Write questions in the language specified by target_lang. No preamble, no markdown — just the JSON.`;
+Notes per type:
+- MCQ: "correct" is the index (0-3) of the right option in the array.
+- TF: "correct" is the boolean true or false.
+- fill: "answer" is the canonical word/phrase that fills the ___ blank.
+- free: NO "answer" field. The teacher will grade these manually
+  through the existing review queue.`;
 
-export function buildReviewDeckMessages(context) {
-  // Pick 3 weakest decks for the prompt focus
-  const weakest = (context.decks || [])
-    .filter(d => d.retention_pct != null)
-    .sort((a, b) => (a.retention_pct ?? 100) - (b.retention_pct ?? 100))
-    .slice(0, 3);
+/**
+ * Build the user message for the review-deck generation.
+ *
+ * @param {object} context - output of buildNarrativeContext
+ * @param {Array} fullDecks - all decks in the unit with FULL content:
+ *   [{ id, title, section, language, questions: [{type, q, ...}] }, ...]
+ * @param {Array} weakPoints - accumulated session_insights.weak_points
+ *   from all sessions in this unit. Each entry:
+ *   { label: "Las preguntas con `estar`...", fail_pct: 60,
+ *     fail_count: 6, total: 10, sessionCount: 2 }
+ *   sessionCount is the number of sessions in this unit where this
+ *   weak point appeared (we merge duplicates).
+ */
+export function buildReviewDeckMessages(context, fullDecks = [], weakPoints = []) {
+  // Format every deck with its full question content. This is the
+  // most important part of the prompt — it's the ground truth that
+  // prevents hallucination of unrelated curriculum.
+  const decksContent = fullDecks.length > 0
+    ? fullDecks.map((d, i) => {
+        const qs = Array.isArray(d.questions) ? d.questions : [];
+        const qsFormatted = qs.map((q, qi) => {
+          const answerStr = formatAnswerForPrompt(q);
+          return `   ${qi + 1}. [${q.type}] ${stringifyQuestionText(q.q)}${answerStr ? `\n      → correct answer: ${answerStr}` : ""}`;
+        }).join("\n");
+        return `Deck ${i + 1}: "${d.title}" (${d.section}, language: ${d.language || "?"}, ${qs.length} questions)\n${qsFormatted || "   (no questions)"}`;
+      }).join("\n\n")
+    : "(no decks in this unit)";
+
+  // Format weak points. The PR 13 session_insights system produces
+  // these as a list of {label, fail_pct, fail_count, total} objects
+  // per session. We've aggregated them across all sessions of the unit.
+  const weakPointsText = weakPoints.length > 0
+    ? weakPoints.map((wp, i) => {
+        const recurrence = wp.sessionCount > 1 ? ` — appeared in ${wp.sessionCount} sessions` : "";
+        return `   ${i + 1}. ${wp.label} (≈${wp.fail_pct}% fail rate, ${wp.fail_count}/${wp.total} students${recurrence})`;
+      }).join("\n")
+    : "   (no weak points were detected in this unit's sessions — distribute review evenly across the decks above)";
+
   return [
     {
       role: "user",
       content: `Unit: ${context.unit.name}
 Class: ${context.class.subject || "—"} · ${context.class.grade || "—"}
-target_lang: ${context.target_lang}
+target_lang hint (deck language is authoritative): ${context.target_lang}
 
-Decks taught in this unit (sorted by retention, lowest first):
-${context.decks.map(d => `  - "${d.title}" (${d.section}) — retention: ${d.retention_pct ?? "n/a"}%`).join("\n")}
+═══════════════════════════════════════════════════════════════════════
+COMPLETE UNIT CONTENT — every deck the teacher used, with all questions:
+═══════════════════════════════════════════════════════════════════════
 
-Focus on these 3 weakest topics:
-${weakest.map(d => `  - ${d.title} (${d.retention_pct}% retention)`).join("\n") || "  (insufficient data)"}
+${decksContent}
 
-Write the 20-question recap deck now.`,
+═══════════════════════════════════════════════════════════════════════
+WEAK POINTS detected during this unit's sessions:
+═══════════════════════════════════════════════════════════════════════
+
+${weakPointsText}
+
+═══════════════════════════════════════════════════════════════════════
+TASK
+═══════════════════════════════════════════════════════════════════════
+
+Generate the 20-question review deck following the rules in the system
+message. Target ~65% of questions at the weak points (if any), the
+remainder for general unit reinforcement. Write in the same language
+and domain as the deck content above.`,
     },
   ];
+}
+
+/**
+ * Format a question's correct answer in a way that's useful in the
+ * prompt. Returns null when there's no canonical answer (free / open).
+ */
+function formatAnswerForPrompt(q) {
+  if (!q) return null;
+  if (q.type === "mcq" && Array.isArray(q.options)) {
+    if (Array.isArray(q.correct)) {
+      return q.correct
+        .map(i => q.options[i]?.text || q.options[i] || "")
+        .filter(Boolean)
+        .join(", ");
+    }
+    if (typeof q.correct === "number") {
+      return q.options[q.correct]?.text || q.options[q.correct] || null;
+    }
+  }
+  if (q.type === "tf") {
+    return q.correct === true ? "true" : q.correct === false ? "false" : null;
+  }
+  if (q.type === "fill" && typeof q.answer === "string") {
+    return q.answer;
+  }
+  if (q.type === "match" && Array.isArray(q.pairs)) {
+    return q.pairs.map(p => `${p.left} ↔ ${p.right}`).join("; ");
+  }
+  if (q.type === "order" && Array.isArray(q.items)) {
+    return q.items.join(" → ");
+  }
+  if (q.type === "free" || q.type === "open") return null;
+  if (q.answer != null) return String(q.answer).slice(0, 100);
+  return null;
+}
+
+function stringifyQuestionText(qText) {
+  if (typeof qText === "string") return qText;
+  return String(qText || "").slice(0, 300);
 }
