@@ -107,13 +107,13 @@ export async function generateSuggestedReviewQuestions({ unit, classObj, summary
         model: 'primary',
         system: REVIEW_DECK_SYSTEM,
         messages,
-        max_tokens: 2500,
+        max_tokens: 5000,
         validate: true,
         // Existing /api/generate.js logging fields. We mark this as
         // input_type='close_unit_review' so the admin AI stats can
         // distinguish recap-deck generation from regular generation.
         activity_type: 'general_review',
-        num_questions: 7,
+        num_questions: 20,
         input_type: 'close_unit_review',
         grade: classObj?.grade || null,
         subject: classObj?.subject || null,

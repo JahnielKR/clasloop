@@ -161,23 +161,30 @@ export function buildVerifierMessages(context, draft) {
 }
 
 // ─── Suggested review deck prompt ────────────────────────────────────────
-// This is a separate generation: we ask Sonnet to write 7 questions
+// This is a separate generation: we ask Sonnet to write 20 questions
 // targeting the unit's weakest topics. Format identical to the regular
 // generation pipeline (so it can flow into the existing scoring.js
 // types: mcq, tf, fill).
 //
 // Topics + retention come from the same context object; we extract the
-// 3 weakest and tell the model "make a quick recap".
-export const REVIEW_DECK_SYSTEM = `You are creating a 7-question closing review deck for a unit that's about to close. The teacher wants a quick recap that targets the weakest topics — not all topics, just the ones that need reinforcing.
+// 3 weakest and tell the model "make a recap deck".
+//
+// PR 12.2: bumped from 7 to 20 questions per teacher feedback —
+// "es un review general de la unidad", needs to be substantive.
+export const REVIEW_DECK_SYSTEM = `You are creating a 20-question closing review deck for a unit that's about to close. The teacher wants a substantive recap that targets the weakest topics — not all topics, just the ones that need reinforcing.
 
-You will be given a list of decks the teacher already used in this unit, with their retention percentages. Pick the 3 lowest-retention topics and write 7 questions that target those.
+You will be given a list of decks the teacher already used in this unit, with their retention percentages. Pick the 3 lowest-retention topics and write 20 questions distributed across those topics, weighted toward the weakest one.
 
-Mix question types:
-- 4 MCQ (most efficient for review)
-- 2 fill-in-the-blank (active recall)
-- 1 true/false (quick check)
+Distribution by question type (must be exactly):
+- 12 MCQ (most efficient for review)
+- 5 fill-in-the-blank (active recall)
+- 3 true/false (quick check)
 
-Difficulty: easier than the original questions. This is a recap to reinforce, not a new test. Stick to facts and applications the teacher demonstrably already taught (inferred from the deck titles).
+Difficulty: easier than the original questions on average. This is a recap to reinforce, not a new test. Stick to facts and applications the teacher demonstrably already taught (inferred from the deck titles).
+
+Coverage:
+- Distribute questions roughly: ~10 questions on the weakest topic, ~6 on the second weakest, ~4 on the third weakest. Adjust if there are only 1 or 2 weak topics.
+- Within each topic, vary angles: definitions, applications, edge cases, common mistakes.
 
 Output JSON:
 {
@@ -210,7 +217,7 @@ ${context.decks.map(d => `  - "${d.title}" (${d.section}) — retention: ${d.ret
 Focus on these 3 weakest topics:
 ${weakest.map(d => `  - ${d.title} (${d.retention_pct}% retention)`).join("\n") || "  (insufficient data)"}
 
-Write the 7-question recap deck now.`,
+Write the 20-question recap deck now.`,
     },
   ];
 }

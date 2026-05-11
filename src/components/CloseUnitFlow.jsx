@@ -28,10 +28,12 @@
 //   currently active).
 
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { getUnitRetentionSummary } from "../lib/spaced-repetition";
 import { C, MONO } from "./tokens";
 import SectionBadge, { sectionAccent } from "./SectionBadge";
+import { buildRoute } from "../routes";
 import {
   generateClosingNarrative,
   generateSuggestedReviewQuestions,
@@ -61,7 +63,7 @@ const i18n = {
     aiInsightsLabel: "What worked / What didn't",
     aiInsightsHint: "AI-generated insights from this unit's data — coming soon.",
     closingReviewLabel: "Suggested closing review",
-    closingReviewHint: "A short review deck targeting this unit's weakest topics — coming soon.",
+    closingReviewHint: "A review deck targeting this unit's weakest topics.",
     // PR 12: AI states
     whatWorkedLabel: "What worked",
     whatDidntLabel: "What didn't",
@@ -71,9 +73,9 @@ const i18n = {
     aiNotEnoughData: "Not enough data to summarize this unit yet.",
     reviewGenerate: "Generate review deck",
     reviewGenerating: "Building a 7-question recap…",
-    reviewSuccess: "Review deck created",
+    reviewSuccess: "Review deck created — added to your library",
     reviewError: "Couldn't create the review deck.",
-    reviewView: "View deck",
+    reviewView: "Open in library",
     // Optional teacher note
     noteLabel: "Optional · What did you want them to learn?",
     notePlaceholder: "In 1-2 sentences, what you hoped they'd learn.",
@@ -113,7 +115,7 @@ const i18n = {
     aiInsightsLabel: "Qué funcionó / Qué no",
     aiInsightsHint: "Insights generados por IA a partir de los datos de esta unidad — próximamente.",
     closingReviewLabel: "Repaso de cierre sugerido",
-    closingReviewHint: "Un deck breve con los temas más débiles de esta unidad — próximamente.",
+    closingReviewHint: "Un deck con los temas más débiles de esta unidad.",
     whatWorkedLabel: "Qué funcionó",
     whatDidntLabel: "Qué no",
     aiGenerating: "Leyendo los datos de la unidad…",
@@ -122,9 +124,9 @@ const i18n = {
     aiNotEnoughData: "Todavía no hay suficientes datos para resumir esta unidad.",
     reviewGenerate: "Generar deck de repaso",
     reviewGenerating: "Armando un repaso de 7 preguntas…",
-    reviewSuccess: "Deck de repaso creado",
+    reviewSuccess: "Deck de repaso creado — agregado a tu library",
     reviewError: "No pudimos crear el deck de repaso.",
-    reviewView: "Ver deck",
+    reviewView: "Abrir en library",
     noteLabel: "Opcional · ¿Qué querías que aprendieran?",
     notePlaceholder: "En 1-2 frases, lo que esperabas que aprendieran.",
     noDataYet: "Sin datos — esta unidad se cerró sin sesiones lanzadas.",
@@ -161,7 +163,7 @@ const i18n = {
     aiInsightsLabel: "잘된 점 / 개선할 점",
     aiInsightsHint: "이 단원 데이터에서 AI가 생성한 인사이트 — 곧 제공됩니다.",
     closingReviewLabel: "추천 마무리 복습",
-    closingReviewHint: "이 단원의 약한 주제를 다루는 짧은 복습 덱 — 곧 제공됩니다.",
+    closingReviewHint: "이 단원의 약한 주제를 다루는 복습 덱.",
     whatWorkedLabel: "잘된 점",
     whatDidntLabel: "개선할 점",
     aiGenerating: "단원 데이터 분석 중…",
@@ -170,9 +172,9 @@ const i18n = {
     aiNotEnoughData: "이 단원을 요약할 데이터가 아직 충분하지 않습니다.",
     reviewGenerate: "복습 덱 생성",
     reviewGenerating: "7문항 복습 만드는 중…",
-    reviewSuccess: "복습 덱이 만들어졌습니다",
+    reviewSuccess: "복습 덱이 만들어졌습니다 — 라이브러리에 추가됨",
     reviewError: "복습 덱을 만들 수 없습니다.",
-    reviewView: "덱 보기",
+    reviewView: "라이브러리에서 열기",
     noteLabel: "선택 · 학생들이 무엇을 배우길 원하셨나요?",
     notePlaceholder: "1-2문장으로, 학생들이 배우길 바랐던 내용.",
     noDataYet: "데이터 없음 — 세션 실행 없이 종료되었습니다.",
@@ -295,6 +297,7 @@ export function CloseUnitConfirmModal({ open, unit, onCancel, onContinue, lang =
 // ClassPage swaps PlanView for this when closingUnit is set.
 export function CloseUnitSummary({ unit, classObj, userId, lang = "en", onBack, onConfirm }) {
   const t = i18n[lang] || i18n.en;
+  const navigate = useNavigate();
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
   const [closing, setClosing] = useState(false);
@@ -779,14 +782,47 @@ export function CloseUnitSummary({ unit, classObj, userId, lang = "en", onBack, 
 
             {reviewDeckId && (
               <div style={{
-                display: "flex", alignItems: "center", gap: 10,
-                fontSize: 13, color: C.green,
-                fontWeight: 500,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 10,
+                flexWrap: "wrap",
               }}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M20 6L9 17l-5-5" />
-                </svg>
-                <span>{t.reviewSuccess}</span>
+                <div style={{
+                  display: "flex", alignItems: "center", gap: 8,
+                  fontSize: 13, color: C.green,
+                  fontWeight: 500,
+                }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M20 6L9 17l-5-5" />
+                  </svg>
+                  <span>{t.reviewSuccess}</span>
+                </div>
+                {/* PR 12.2: direct button to the new deck — saves the
+                    teacher a manual hunt through their library. */}
+                <button
+                  onClick={() => navigate(buildRoute.deckEdit(reviewDeckId))}
+                  style={{
+                    padding: "7px 12px",
+                    borderRadius: 7,
+                    background: C.bg,
+                    color: C.text,
+                    border: `1px solid ${C.border}`,
+                    fontSize: 12.5,
+                    fontWeight: 600,
+                    fontFamily: "'Outfit', sans-serif",
+                    cursor: "pointer",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 6,
+                  }}
+                >
+                  {t.reviewView}
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M5 12h14" />
+                    <path d="m12 5 7 7-7 7" />
+                  </svg>
+                </button>
               </div>
             )}
 
