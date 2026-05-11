@@ -38,6 +38,7 @@ import {
   generateClosingNarrative,
   generateSuggestedReviewQuestions,
   saveReviewDeck,
+  findExistingReviewDeck,
 } from "../lib/close-unit-ai";
 
 const i18n = {
@@ -72,7 +73,7 @@ const i18n = {
     aiRetry: "Try again",
     aiNotEnoughData: "Not enough data to summarize this unit yet.",
     reviewGenerate: "Generate review deck",
-    reviewGenerating: "Building a 7-question recap…",
+    reviewGenerating: "Building a 20-question deck (15–25 seconds)…",
     reviewSuccess: "Review deck created — added to your library",
     reviewError: "Couldn't create the review deck.",
     reviewView: "Open in library",
@@ -123,7 +124,7 @@ const i18n = {
     aiRetry: "Reintentar",
     aiNotEnoughData: "Todavía no hay suficientes datos para resumir esta unidad.",
     reviewGenerate: "Generar deck de repaso",
-    reviewGenerating: "Armando un repaso de 7 preguntas…",
+    reviewGenerating: "Generando un deck de 20 preguntas (15–25 segundos)…",
     reviewSuccess: "Deck de repaso creado — agregado a tu library",
     reviewError: "No pudimos crear el deck de repaso.",
     reviewView: "Abrir en library",
@@ -171,7 +172,7 @@ const i18n = {
     aiRetry: "다시 시도",
     aiNotEnoughData: "이 단원을 요약할 데이터가 아직 충분하지 않습니다.",
     reviewGenerate: "복습 덱 생성",
-    reviewGenerating: "7문항 복습 만드는 중…",
+    reviewGenerating: "20문항 복습 덱 만드는 중 (15–25초)…",
     reviewSuccess: "복습 덱이 만들어졌습니다 — 라이브러리에 추가됨",
     reviewError: "복습 덱을 만들 수 없습니다.",
     reviewView: "라이브러리에서 열기",
@@ -340,6 +341,24 @@ export function CloseUnitSummary({ unit, classObj, userId, lang = "en", onBack, 
     })();
     return () => { cancelled = true; };
   }, [unit?.id]);
+
+  // PR 12.4: Check if a closing review deck was already generated for
+  // this unit. If so, lock the generation button (HARD lock — the
+  // teacher can't regenerate from here; they'd have to delete the
+  // existing deck from their library first, then revisit close-unit).
+  // This survives page reload, browser close, etc — the lock is
+  // inferred from the actual deck's existence, not from local state.
+  useEffect(() => {
+    if (!unit?.id || !classObj?.id) return;
+    let cancelled = false;
+    (async () => {
+      const res = await findExistingReviewDeck({ unit, classObj });
+      if (!cancelled && res.ok && res.deckId) {
+        setReviewDeckId(res.deckId);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [unit?.id, classObj?.id]);
 
   // PR 12: Auto-generate the AI narrative when the summary is ready.
   // Skip if we already have one cached on the unit row (the teacher

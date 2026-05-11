@@ -303,6 +303,39 @@ export async function saveReviewDeck({ unit, classObj, questions, lang = 'en', a
   return { ok: true, deckId: data.id };
 }
 
+/**
+ * Look up whether a closing review deck already exists for the given
+ * unit. Used by CloseUnitFlow to enforce "only one generation per unit"
+ * (PR 12.4 lock). Searches by class_id + section='general_review' + a
+ * title that contains the unit's name. The buildReviewTitle helper
+ * formats titles deterministically in all 3 languages, all of which
+ * contain the literal unit.name, so this substring match catches all.
+ *
+ * Returns { ok: true, deckId: string|null } — deckId is null if none.
+ */
+export async function findExistingReviewDeck({ unit, classObj }) {
+  if (!unit?.name || !classObj?.id) return { ok: true, deckId: null };
+  try {
+    const { data } = await supabase
+      .from('decks')
+      .select('id, title')
+      .eq('class_id', classObj.id)
+      .eq('section', 'general_review')
+      .ilike('title', `%${unit.name}%`)
+      .order('created_at', { ascending: false })
+      .limit(1);
+    if (Array.isArray(data) && data.length > 0) {
+      return { ok: true, deckId: data[0].id };
+    }
+    return { ok: true, deckId: null };
+  } catch (e) {
+    // Soft fail — if the lookup errors, we just don't show the lock.
+    // The teacher could regenerate, but that's a minor inconvenience
+    // vs blocking them entirely.
+    return { ok: false, error: String(e), deckId: null };
+  }
+}
+
 function buildReviewTitle(unit, lang) {
   const name = unit?.name || '';
   switch (lang) {
@@ -314,8 +347,8 @@ function buildReviewTitle(unit, lang) {
 
 function buildReviewDescription(unit, lang) {
   switch (lang) {
-    case 'es': return `Repaso rápido de los temas más débiles de la unidad "${unit?.name || ''}".`;
-    case 'ko': return `"${unit?.name || ''}" 단원에서 가장 약한 주제들에 대한 간단한 복습.`;
-    default: return `A quick recap of the weakest topics from the "${unit?.name || ''}" unit.`;
+    case 'es': return `Repaso de los temas más débiles de la unidad "${unit?.name || ''}".`;
+    case 'ko': return `"${unit?.name || ''}" 단원에서 가장 약한 주제들에 대한 복습.`;
+    default: return `A review of the weakest topics from the "${unit?.name || ''}" unit.`;
   }
 }
