@@ -49,23 +49,28 @@ export function buildNarrativeContext({ unit, classObj, summary, lang = "en" }) 
     },
     strongest: summary?.strongest
       ? {
-          title: summary.strongest.title,
-          section: summary.strongest.section,
+          // PR 12.3.1 fix: getUnitRetentionSummary returns enrichedDecks
+          // as { deck, sessionCount, retention, status } — so title and
+          // section live inside .deck, not at the top level. This bug
+          // existed since PR 12 but only manifested in PR 12.3 when we
+          // started using d.id to fetch deck content.
+          title: summary.strongest.deck?.title || "",
+          section: summary.strongest.deck?.section || null,
           retention_pct: summary.strongest.retention,
         }
       : null,
     weakest: summary?.weakest
       ? {
-          title: summary.weakest.title,
-          section: summary.weakest.section,
+          title: summary.weakest.deck?.title || "",
+          section: summary.weakest.deck?.section || null,
           retention_pct: summary.weakest.retention,
         }
       : null,
     decks: (summary?.decks || []).map(d => ({
-      title: d.title,
-      section: d.section,
+      title: d.deck?.title || "",
+      section: d.deck?.section || null,
       retention_pct: d.retention,
-      sessions_launched: d.sessionsLaunched || 0,
+      sessions_launched: d.sessionCount || 0,
     })),
     target_lang: lang,
   };

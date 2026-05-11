@@ -91,7 +91,16 @@ export async function generateSuggestedReviewQuestions({ unit, classObj, summary
   // plus weak points accumulated from session_insights. This grounds
   // the AI in actual teacher content (preventing the off-topic
   // hallucination bug we saw in PR 12.2).
-  const deckIds = summary.decks.map(d => d.id);
+  // PR 12.3.1 fix: enrichedDecks shape is { deck, sessionCount,
+  // retention, status }, so the id lives in d.deck.id. Filter out
+  // entries where deck is missing (shouldn't happen but defensive).
+  const deckIds = summary.decks
+    .map(d => d.deck?.id)
+    .filter(Boolean);
+
+  if (deckIds.length === 0) {
+    return { ok: false, error: 'no_deck_ids_in_summary' };
+  }
 
   // 1. Full deck content (questions + language)
   const { data: deckRows, error: deckErr } = await supabase
