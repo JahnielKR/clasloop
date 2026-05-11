@@ -94,6 +94,10 @@ export const buildRoute = {
   // Per-deck aggregated results page
   deckResults: (deckId) => `/decks/${enc(deckId)}/results`,
 
+  // PR 13: Post-session recap screen (teacher's view after ending a session).
+  // Shows leaderboard + AI-generated weak-points insight.
+  sessionRecap: (sessionId) => `/sessions/${enc(sessionId)}/recap`,
+
   // Practice mode (hoy es state practiceDeck en App.jsx)
   practice: (deckId) => `/practice/${enc(deckId)}`,
 
@@ -122,6 +126,7 @@ export const ROUTE_PATTERNS = {
   SESSIONS_OPTIONS: "/sessions/options/:deckId",
   SESSIONS_LOBBY:   "/sessions/lobby/:sessionId",
   SESSIONS_LIVE:    "/sessions/live/:sessionId",
+  SESSIONS_RECAP:   "/sessions/:sessionId/recap",
   SESSIONS_MY_RESULTS: "/sessions/:sessionId/my-results",
 
   DECKS: "/decks",
@@ -201,6 +206,9 @@ export function pathToPage(pathname) {
   // generic /sessions startsWith, otherwise this is captured as "sessions"
   // and the student lands on the teacher SessionFlow page (which would 403).
   if (/^\/sessions\/[^/]+\/my-results\/?$/.test(pathname)) return "myResults";
+  // PR 13: /sessions/:sessionId/recap → its own page (post-session recap
+  // with insight bar). Same precedence as my-results.
+  if (/^\/sessions\/[^/]+\/recap\/?$/.test(pathname)) return "sessionRecap";
   if (pathname.startsWith("/sessions"))    return "sessions";
   // /decks/:deckId/results → its own page. MUST come before the generic
   // /decks startsWith, otherwise this is captured as "decks" and the

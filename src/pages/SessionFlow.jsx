@@ -722,7 +722,12 @@ function LiveResults({ session, t, onEnd }) {
       status: "completed",
       completed_at: new Date().toISOString(),
     }).eq("id", session.id);
-    onEnd();
+    // PR 13: pass the session id so the parent can navigate to the
+    // recap page. The status update above triggers the Database Webhook
+    // that fires the Edge Function to generate the AI insight in the
+    // background — by the time the teacher lands on /recap, the insight
+    // is usually ready or almost ready.
+    onEnd(session.id);
   };
 
   const retCol = (v) => v >= 70 ? C.green : v >= 40 ? C.orange : C.red;
@@ -1474,11 +1479,19 @@ export default function SessionFlow({ lang = "en", setLang, onNavigateToDecks, o
     navigate(ROUTES.SESSIONS);
   };
 
-  const handleEnd = () => {
+  // PR 13: when the teacher ends a session, we now navigate to the
+  // SessionRecap page (showing leaderboard + AI insight) instead of
+  // bouncing straight back to the sessions hub. Falls back to the hub
+  // only if for some reason we don't have a session id (defensive).
+  const handleEnd = (endedSessionId) => {
     setSession(null);
     setSelectedDeck(null);
     setStep("pickDeck");
-    navigate(ROUTES.SESSIONS);
+    if (endedSessionId) {
+      navigate(buildRoute.sessionRecap(endedSessionId));
+    } else {
+      navigate(ROUTES.SESSIONS);
+    }
   };
 
   if (!user) return <div style={{ padding: 40, textAlign: "center", color: C.textMuted }}>Loading...</div>;
