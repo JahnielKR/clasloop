@@ -1375,6 +1375,148 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
               {countBadge(reviewDecks.length)}
             </button>
 
+            {/* PR 19.2: "+ Nueva unidad" affordance lives in the tab bar
+                between "General review" and the search input. Visible
+                whenever a class is loaded (works in any topTab — creating
+                a unit is global to the class, not view-specific). When
+                clicked, the inline-create UI pops out absolutely below
+                the button so the tab bar doesn't grow / wrap. */}
+            {!loading && classObj && (
+              <div style={{ position: "relative" }}>
+                {!showNewUnit ? (
+                  <button
+                    onClick={() => { setShowNewUnit(true); setNewUnitError(""); }}
+                    style={{
+                      padding: "6px 11px",
+                      borderRadius: 7,
+                      background: "transparent",
+                      color: C.textSecondary,
+                      border: `1px dashed ${C.border}`,
+                      fontFamily: "'Outfit', sans-serif",
+                      fontSize: 12, fontWeight: 500,
+                      cursor: "pointer",
+                      whiteSpace: "nowrap",
+                      transition: "border-color .12s ease, color .12s ease, background .12s ease",
+                    }}
+                    onMouseEnter={e => {
+                      e.currentTarget.style.borderColor = C.accent;
+                      e.currentTarget.style.color = C.accent;
+                      e.currentTarget.style.background = C.accentSoft;
+                    }}
+                    onMouseLeave={e => {
+                      e.currentTarget.style.borderColor = C.border;
+                      e.currentTarget.style.color = C.textSecondary;
+                      e.currentTarget.style.background = "transparent";
+                    }}
+                  >
+                    {lang === "es" ? "+ Nueva unidad"
+                      : lang === "ko" ? "+ 새 단원"
+                      : "+ New unit"}
+                  </button>
+                ) : (
+                  <>
+                    {/* The button placeholder keeps the tab bar's layout
+                        stable while the popover is open. */}
+                    <button
+                      disabled
+                      style={{
+                        padding: "6px 11px",
+                        borderRadius: 7,
+                        background: C.accentSoft,
+                        color: C.accent,
+                        border: `1px dashed ${C.accent}`,
+                        fontFamily: "'Outfit', sans-serif",
+                        fontSize: 12, fontWeight: 500,
+                        cursor: "default",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {lang === "es" ? "+ Nueva unidad"
+                        : lang === "ko" ? "+ 새 단원"
+                        : "+ New unit"}
+                    </button>
+                    {/* Backdrop closes the popover on outside click */}
+                    <div
+                      onClick={() => { setShowNewUnit(false); setNewUnitName(""); setNewUnitError(""); }}
+                      style={{ position: "fixed", inset: 0, zIndex: 49 }}
+                    />
+                    {/* Popover with input + Create + Cancel */}
+                    <div style={{
+                      position: "absolute",
+                      top: "calc(100% + 6px)",
+                      left: 0,
+                      zIndex: 50,
+                      background: C.bg,
+                      border: `1px solid ${C.border}`,
+                      borderRadius: 8,
+                      boxShadow: "0 6px 24px rgba(0,0,0,0.12)",
+                      padding: 10,
+                      display: "flex",
+                      gap: 6,
+                      alignItems: "flex-start",
+                      flexWrap: "wrap",
+                      minWidth: 280,
+                    }}>
+                      <input
+                        type="text"
+                        value={newUnitName}
+                        autoFocus
+                        placeholder={lang === "es" ? "Nombre de unidad…"
+                          : lang === "ko" ? "단원 이름…"
+                          : "Unit name…"}
+                        onChange={e => setNewUnitName(e.target.value)}
+                        onKeyDown={e => {
+                          if (e.key === "Enter" && !creatingUnit) handleCreateUnit();
+                          else if (e.key === "Escape") { setShowNewUnit(false); setNewUnitName(""); setNewUnitError(""); }
+                        }}
+                        maxLength={60}
+                        style={{
+                          padding: "7px 11px",
+                          borderRadius: 7,
+                          border: `1px solid ${newUnitError ? C.red : C.border}`,
+                          fontSize: 12.5,
+                          fontFamily: "'Inter', sans-serif",
+                          background: C.bg,
+                          color: C.text,
+                          outline: "none",
+                          width: 180,
+                        }}
+                        onFocus={e => { if (!newUnitError) e.currentTarget.style.borderColor = C.accent; }}
+                        onBlur={e => { if (!newUnitError && !newUnitName.trim()) e.currentTarget.style.borderColor = C.border; }}
+                      />
+                      <button
+                        onClick={handleCreateUnit}
+                        disabled={creatingUnit}
+                        style={{
+                          padding: "7px 14px",
+                          borderRadius: 7,
+                          background: C.accent,
+                          color: "#fff",
+                          border: "none",
+                          fontFamily: "'Outfit', sans-serif",
+                          fontSize: 12.5, fontWeight: 600,
+                          cursor: creatingUnit ? "wait" : "pointer",
+                          opacity: creatingUnit ? 0.6 : 1,
+                        }}
+                      >
+                        {lang === "es" ? "Crear" : lang === "ko" ? "만들기" : "Create"}
+                      </button>
+                      {newUnitError && (
+                        <div style={{
+                          width: "100%",
+                          fontSize: 11,
+                          color: C.red,
+                          marginTop: 2,
+                        }}>
+                          {newUnitError}
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+
             {/* Search — input that lives in the bar itself, not a button.
                 When the teacher types something, results appear below in
                 whatever tab they're on (overrides current view). */}
@@ -1449,128 +1591,6 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
           />
         );
       })()}
-
-      {/* PR 19.1: "+ New unit" affordance shown BELOW the PlanView when
-          at least one unit exists. Previous placement (above PlanView)
-          left too much empty space on screens with short PlanViews.
-          Below feels natural: "you've seen this unit's plan — here's
-          how to add another."
-          Reuses showNewUnit / newUnitName / handleCreateUnit state that
-          the empty-state CTA already uses. */}
-      {topTab === "current" && units.length > 0 && !loading && classObj && (
-        <div style={{
-          marginTop: 14,
-          display: "flex",
-          justifyContent: "flex-end",
-        }}>
-          {!showNewUnit ? (
-            <button
-              onClick={() => { setShowNewUnit(true); setNewUnitError(""); }}
-              style={{
-                padding: "7px 13px",
-                borderRadius: 7,
-                background: "transparent",
-                color: C.textSecondary,
-                border: `1px dashed ${C.border}`,
-                fontFamily: "'Outfit', sans-serif",
-                fontSize: 12.5, fontWeight: 500,
-                cursor: "pointer",
-                transition: "border-color .12s ease, color .12s ease, background .12s ease",
-              }}
-              onMouseEnter={e => {
-                e.currentTarget.style.borderColor = C.accent;
-                e.currentTarget.style.color = C.accent;
-                e.currentTarget.style.background = C.accentSoft;
-              }}
-              onMouseLeave={e => {
-                e.currentTarget.style.borderColor = C.border;
-                e.currentTarget.style.color = C.textSecondary;
-                e.currentTarget.style.background = "transparent";
-              }}
-            >
-              {lang === "es" ? "+ Nueva unidad"
-                : lang === "ko" ? "+ 새 단원"
-                : "+ New unit"}
-            </button>
-          ) : (
-            <div style={{
-              display: "flex", gap: 6,
-              alignItems: "flex-start", flexWrap: "wrap",
-            }}>
-              <input
-                type="text"
-                value={newUnitName}
-                autoFocus
-                placeholder={lang === "es" ? "Nombre de unidad…"
-                  : lang === "ko" ? "단원 이름…"
-                  : "Unit name…"}
-                onChange={e => setNewUnitName(e.target.value)}
-                onKeyDown={e => {
-                  if (e.key === "Enter" && !creatingUnit) handleCreateUnit();
-                  else if (e.key === "Escape") { setShowNewUnit(false); setNewUnitName(""); setNewUnitError(""); }
-                }}
-                maxLength={60}
-                style={{
-                  padding: "7px 11px",
-                  borderRadius: 7,
-                  border: `1px solid ${newUnitError ? C.red : C.border}`,
-                  fontSize: 12.5,
-                  fontFamily: "'Inter', sans-serif",
-                  background: C.bg,
-                  outline: "none",
-                  width: 200,
-                }}
-                onFocus={e => { if (!newUnitError) e.currentTarget.style.borderColor = C.accent; }}
-                onBlur={e => { if (!newUnitError && !newUnitName.trim()) e.currentTarget.style.borderColor = C.border; }}
-              />
-              <button
-                onClick={handleCreateUnit}
-                disabled={creatingUnit}
-                style={{
-                  padding: "7px 14px",
-                  borderRadius: 7,
-                  background: C.accent,
-                  color: "#fff",
-                  border: "none",
-                  fontFamily: "'Outfit', sans-serif",
-                  fontSize: 12.5, fontWeight: 600,
-                  cursor: creatingUnit ? "wait" : "pointer",
-                  opacity: creatingUnit ? 0.6 : 1,
-                }}
-              >
-                {lang === "es" ? "Crear" : lang === "ko" ? "만들기" : "Create"}
-              </button>
-              <button
-                onClick={() => { setShowNewUnit(false); setNewUnitName(""); setNewUnitError(""); }}
-                disabled={creatingUnit}
-                style={{
-                  padding: "7px 11px",
-                  borderRadius: 7,
-                  background: "transparent",
-                  color: C.textMuted,
-                  border: `1px solid ${C.border}`,
-                  fontFamily: "'Outfit', sans-serif",
-                  fontSize: 12.5, fontWeight: 500,
-                  cursor: creatingUnit ? "default" : "pointer",
-                }}
-              >
-                {lang === "es" ? "Cancelar" : lang === "ko" ? "취소" : "Cancel"}
-              </button>
-              {newUnitError && (
-                <div style={{
-                  width: "100%",
-                  fontSize: 11,
-                  color: C.red,
-                  marginTop: 2,
-                  textAlign: "right",
-                }}>
-                  {newUnitError}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      )}
 
       {/* ─── TAB: Past units ───────────────────────────────────────────
           Read-mostly list of closed units. Click on one → jump to it
