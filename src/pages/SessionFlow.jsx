@@ -1420,7 +1420,13 @@ export default function SessionFlow({ lang = "en", setLang, onNavigateToDecks, o
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
       setUser(user);
-      const { data: cls } = await supabase.from("classes").select("*").eq("teacher_id", user.id).order("created_at", { ascending: false });
+      // PR 19: order classes by position (teacher's drag arrangement)
+      const { data: cls } = await supabase
+        .from("classes")
+        .select("*")
+        .eq("teacher_id", user.id)
+        .order("position", { ascending: true })
+        .order("created_at", { ascending: false });
       setClasses(cls || []);
     })();
   }, []);

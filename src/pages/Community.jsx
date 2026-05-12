@@ -117,7 +117,13 @@ export default function Community({ lang: pageLang = "en", setLang: pageSetLang,
 
       // Teachers also need their classes for the "Save to my decks" picker.
       if (!isStudent) {
-        const { data: cls } = await supabase.from("classes").select("*").eq("teacher_id", user.id).order("created_at", { ascending: false });
+        // PR 19: order classes by position (teacher's drag arrangement)
+        const { data: cls } = await supabase
+          .from("classes")
+          .select("*")
+          .eq("teacher_id", user.id)
+          .order("position", { ascending: true })
+          .order("created_at", { ascending: false });
         setUserClasses(cls || []);
       }
     }

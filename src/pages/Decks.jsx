@@ -630,7 +630,16 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
     setUserId(user?.id);
     if (!user) { setLoading(false); return; }
 
-    const { data: cls } = await supabase.from("classes").select("*").eq("teacher_id", user.id).order("created_at", { ascending: false });
+    // PR 19: order classes by position (the teacher's drag-ordered
+    // arrangement from My Classes), with created_at as a stable
+    // tiebreaker. Same ordering rule as MyClassesTeacher, so the
+    // class tabs in Library follow the order the teacher chose.
+    const { data: cls } = await supabase
+      .from("classes")
+      .select("*")
+      .eq("teacher_id", user.id)
+      .order("position", { ascending: true })
+      .order("created_at", { ascending: false });
     setUserClasses(cls || []);
     // PR 7: auto-select the first class as the active tab when Library
     // first loads. If the teacher has zero classes, leave activeClassTab
