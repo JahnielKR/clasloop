@@ -731,8 +731,22 @@ function LiveResults({ session, t, onEnd }) {
     };
   }).sort((a, b) => b.correct - a.correct);
 
-  const avgPct = results.length > 0
-    ? Math.round(results.reduce((s, r) => s + r.correct, 0) / results.length / Math.max(totalQ, 1) * 100)
+  // PR 16: fix average calculation. The previous formula divided by
+  // totalQ for every participant, including those who hadn't answered
+  // a single question yet. Result: a class of 3 students where only
+  // one answered 2/2 correctly showed 8% average (2 / 3 / 8 = 8%)
+  // instead of the intuitive 100% for the student who actually played.
+  //
+  // The fix: only consider students who answered at least one question,
+  // and compute their average as (correct / answered) × 100. This
+  // reflects the active class's performance live, and updates naturally
+  // as more students answer.
+  const studentsWhoAnswered = results.filter(r => r.answered > 0);
+  const avgPct = studentsWhoAnswered.length > 0
+    ? Math.round(
+        studentsWhoAnswered.reduce((s, r) => s + (r.correct / r.answered) * 100, 0) /
+        studentsWhoAnswered.length
+      )
     : 0;
 
   const handleEnd = async () => {

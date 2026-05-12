@@ -721,12 +721,69 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
       insertData.student_id = profile.id;
     }
 
+    // PR 16: pre-insert rejoin lookup. Without this, every time the user
+    // hits "Join" they create a NEW row, accumulating duplicates in the
+    // lobby (a user could appear 3 times if they joined 3 times). The
+    // previous code relied on a 23505 unique violation that never fired
+    // because no unique constraint exists on session_participants.
+    //
+    // Lookup priority:
+    //   1. student_id (authenticated user — strongest match)
+    //   2. guest_token (guest who already had a session_token saved locally)
+    //   3. student_name as last resort (guest joining fresh on a new device
+    //      with no token yet, but with a name that matches an existing row
+    //      from earlier — accept it to prevent dupes; the worst case is two
+    //      different students with the same name share a row, which is an
+    //      edge case we accept over the much more common rejoin scenario)
+    let existing = null;
+    if (insertData.student_id) {
+      const { data } = await supabase
+        .from("session_participants")
+        .select("*")
+        .eq("session_id", sess.id)
+        .eq("student_id", insertData.student_id)
+        .maybeSingle();
+      existing = data;
+    } else if (insertData.guest_token) {
+      const { data } = await supabase
+        .from("session_participants")
+        .select("*")
+        .eq("session_id", sess.id)
+        .eq("guest_token", insertData.guest_token)
+        .maybeSingle();
+      existing = data;
+    }
+    if (!existing) {
+      // Fallback: name-based lookup for guests without a token match
+      const { data } = await supabase
+        .from("session_participants")
+        .select("*")
+        .eq("session_id", sess.id)
+        .eq("student_name", name.trim())
+        .limit(1)
+        .maybeSingle();
+      existing = data;
+    }
+
+    if (existing) {
+      // Reuse the existing row. If it was kicked, refuse re-entry.
+      if (existing.is_kicked) {
+        setError(t.notFound);
+        return;
+      }
+      setParticipant(existing);
+      setSession(sess);
+      setStep(sess.status === "active" ? "quiz" : "waiting");
+      return;
+    }
+
     const { data: part, error: joinErr } = await supabase.from("session_participants").insert(insertData).select().single();
     if (joinErr) {
       if (joinErr.code === "23505") {
-        // Re-join: same student_name, same session — fetch existing row
-        const { data: existing } = await supabase.from("session_participants").select("*").eq("session_id", sess.id).eq("student_name", name.trim()).single();
-        setParticipant(existing);
+        // Belt-and-suspenders: if somehow we still race into a duplicate,
+        // fetch by name and reuse.
+        const { data: raceWinner } = await supabase.from("session_participants").select("*").eq("session_id", sess.id).eq("student_name", name.trim()).single();
+        setParticipant(raceWinner);
       } else { setError(joinErr.message); return; }
     } else { setParticipant(part); }
     setSession(sess);
