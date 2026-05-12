@@ -8,6 +8,22 @@ import ImportClassModal from "../components/ImportClassModal";
 import { C, MONO } from "../components/tokens";
 import { ROUTES, QUERY, buildPathWithOpts, buildRoute } from "../routes";
 import { resolveClassAccent } from "../lib/class-hierarchy";
+import {
+  DndContext,
+  PointerSensor,
+  KeyboardSensor,
+  useSensor,
+  useSensors,
+  closestCenter,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  arrayMove,
+  rectSortingStrategy,
+  useSortable,
+  sortableKeyboardCoordinates,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 // ─── i18n ────────────────────────────────────────────────────────────────
 const i18n = {
@@ -336,6 +352,39 @@ function ClassCard({ cls, t, lang, onOpen, deckCount = 0, studentCount = 0, high
   );
 }
 
+// ─── Sortable wrapper ───────────────────────────────────────────────────
+// PR 18: thin wrapper that adds drag-to-reorder. We keep ClassCard
+// untouched (same props, same render) and just give the outer div the
+// transform/transition styles needed by @dnd-kit/sortable.
+//
+// The whole card is the drag handle — the teacher just grabs the card.
+// PointerSensor's 8px activation distance prevents accidental drags
+// from a click that opens the class.
+function SortableClassCard(props) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: props.cls.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.4 : 1,
+    // Lift the dragged card above siblings during the drag animation
+    zIndex: isDragging ? 10 : 1,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
+      <ClassCard {...props} />
+    </div>
+  );
+}
+
 // ─── Main export ────────────────────────────────────────────────────────
 export default function MyClassesTeacher({ lang = "en", profile, onNavigateToSessions, onOpenMobileMenu }) {
   const t = i18n[lang] || i18n.en;
@@ -354,6 +403,52 @@ export default function MyClassesTeacher({ lang = "en", profile, onNavigateToSes
   // a quick visual cue makes "I just made this" obvious).
   const [justCreatedId, setJustCreatedId] = useState(null);
   const [toast, setToast] = useState(null); // { message, code? } | null
+
+  // PR 18: DnD sensors for drag-to-reorder. PointerSensor needs a small
+  // activation distance so a click on the card (to open the class) doesn't
+  // accidentally trigger a drag. 8px is a comfortable threshold.
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  // PR 18: Handle drag end — reorder local state optimistically, then
+  // persist the new positions to the DB. Failures don't roll back the UI
+  // (last-write-wins is acceptable for ordering).
+  const handleDragEnd = async (event) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = classes.findIndex(c => c.id === active.id);
+    const newIndex = classes.findIndex(c => c.id === over.id);
+    if (oldIndex < 0 || newIndex < 0) return;
+
+    const reordered = arrayMove(classes, oldIndex, newIndex);
+    // Reassign positions to match new index. Simpler than trying to
+    // only update affected rows — the array is small (1-15 classes).
+    const withPositions = reordered.map((c, i) => ({ ...c, position: i }));
+    setClasses(withPositions);
+
+    // Persist in parallel. We update only the rows whose position changed
+    // to minimize DB writes.
+    const updates = withPositions
+      .map((c, i) => {
+        const oldC = classes.find(o => o.id === c.id);
+        if (!oldC || oldC.position === i) return null;
+        return supabase
+          .from("classes")
+          .update({ position: i })
+          .eq("id", c.id);
+      })
+      .filter(Boolean);
+
+    try {
+      await Promise.all(updates);
+    } catch (_) {
+      // Soft fail — the optimistic UI already shows the new order. On
+      // next reload the DB state is authoritative.
+    }
+  };
 
   // Auto-dismiss toast (5s when it carries a class code, 3s otherwise so the
   // teacher has time to read the code before it disappears).
@@ -377,6 +472,10 @@ export default function MyClassesTeacher({ lang = "en", profile, onNavigateToSes
         .from("classes")
         .select("*")
         .eq("teacher_id", userId)
+        // PR 18: order by position (teacher-set via drag-to-reorder),
+        // with created_at as a stable tiebreaker for rows that share
+        // the same position (shouldn't happen after backfill but safe).
+        .order("position", { ascending: true })
         .order("created_at", { ascending: false });
       if (cancelled) return;
       const list = cls || [];
@@ -420,8 +519,22 @@ export default function MyClassesTeacher({ lang = "en", profile, onNavigateToSes
     setShowCreateModal(true);
   };
 
-  const handleClassCreated = (newClass) => {
-    setClasses(prev => [newClass, ...prev]);
+  const handleClassCreated = async (newClass) => {
+    // PR 18: new classes go at the END (max position + 1) so they don't
+    // disturb the teacher's existing drag-ordered arrangement.
+    setClasses(prev => {
+      const maxPos = prev.reduce((m, c) => Math.max(m, c.position || 0), -1);
+      const nextPos = maxPos + 1;
+      // Patch the new class with its position locally so the optimistic
+      // render shows it at the end too.
+      const patched = { ...newClass, position: nextPos };
+      // Persist position to the DB asynchronously (don't block UI).
+      supabase.from("classes")
+        .update({ position: nextPos })
+        .eq("id", newClass.id)
+        .then(() => {});
+      return [...prev, patched];
+    });
     setShowCreateModal(false);
     setJustCreatedId(newClass.id);
     setToast({
@@ -632,28 +745,36 @@ export default function MyClassesTeacher({ lang = "en", profile, onNavigateToSes
       ) : classes.length === 0 ? (
         renderEmpty()
       ) : (
-        <div
-          className="ns-fade"
-          style={{
-            display: "grid",
-            gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fill, minmax(300px, 1fr))",
-            gap: 16,
-            marginTop: 12,
-          }}
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
         >
-          {classes.map(cls => (
-            <ClassCard
-              key={cls.id}
-              cls={cls}
-              t={t}
-              lang={lang}
-              deckCount={deckCounts[cls.id] || 0}
-              studentCount={studentCounts[cls.id] || 0}
-              onOpen={() => handleOpenClass(cls)}
-              highlight={cls.id === justCreatedId}
-            />
-          ))}
-        </div>
+          <SortableContext items={classes.map(c => c.id)} strategy={rectSortingStrategy}>
+            <div
+              className="ns-fade"
+              style={{
+                display: "grid",
+                gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fill, minmax(300px, 1fr))",
+                gap: 16,
+                marginTop: 12,
+              }}
+            >
+              {classes.map(cls => (
+                <SortableClassCard
+                  key={cls.id}
+                  cls={cls}
+                  t={t}
+                  lang={lang}
+                  deckCount={deckCounts[cls.id] || 0}
+                  studentCount={studentCounts[cls.id] || 0}
+                  onOpen={() => handleOpenClass(cls)}
+                  highlight={cls.id === justCreatedId}
+                />
+              ))}
+            </div>
+          </SortableContext>
+        </DndContext>
       )}
 
       {/* Create class modal — lives here so the create flow stays in the
@@ -702,11 +823,19 @@ export default function MyClassesTeacher({ lang = "en", profile, onNavigateToSes
           }}
           onClose={() => setShowImportModal(false)}
           onImported={(insertedClass) => {
-            // Treat an imported class like a freshly-created one: prepend
-            // to the list, flash the card, show the toast with code, and
-            // close the modal. The teacher stays on /classes — they can
-            // click into the new class when ready.
-            setClasses(prev => [insertedClass, ...prev]);
+            // PR 18: same as handleClassCreated — imported classes get
+            // the next available position so they don't disturb the
+            // teacher's existing drag order.
+            setClasses(prev => {
+              const maxPos = prev.reduce((m, c) => Math.max(m, c.position || 0), -1);
+              const nextPos = maxPos + 1;
+              const patched = { ...insertedClass, position: nextPos };
+              supabase.from("classes")
+                .update({ position: nextPos })
+                .eq("id", insertedClass.id)
+                .then(() => {});
+              return [...prev, patched];
+            });
             setJustCreatedId(insertedClass.id);
             setShowImportModal(false);
             setToast({

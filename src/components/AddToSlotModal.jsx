@@ -221,6 +221,13 @@ export default function AddToSlotModal({
       // ── COPY path: duplicate the deck into this class ─────────────
       // Strip identity/stat fields so the new row starts fresh. The
       // questions array is the actual reusable payload.
+      //
+      // PR 17.1: set copied_from_id so the existing publish gate
+      // (analyzeDerivation in src/lib/deck-derivation.js, called from
+      // Decks.jsx) can detect the copy as a derivative of the original
+      // when the teacher tries to publish it. Without this field set,
+      // both versions could be published independently — the gate is
+      // keyed on copied_from_id.
       const copy = {
         author_id: deck.author_id,
         title: deck.title,
@@ -235,6 +242,7 @@ export default function AddToSlotModal({
         class_id: classId,
         unit_id: activeUnit.id,
         position: nextPos,
+        copied_from_id: deck.id,     // lineage for the publish gate
         // uses_count, rating, review_count default to 0/0/0
       };
       const { data, error } = await supabase
