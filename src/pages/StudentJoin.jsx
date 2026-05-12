@@ -742,7 +742,16 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
         if (isGuest && participant.guest_token) {
           insertData.guest_token = participant.guest_token;
         }
-        await supabase.from("responses").insert(insertData);
+        // PR 14: upsert (not insert) to handle the case where a student
+        // left and re-joined the session — they may re-answer a question
+        // they already answered. Without upsert this used to create a
+        // duplicate row, doubling their leaderboard points. With upsert
+        // the new answer overwrites the old one, treating re-entry as
+        // a correction. The (session_id, participant_id, question_index)
+        // unique constraint was added in supabase/phase14_responses_unique.sql.
+        await supabase.from("responses").upsert(insertData, {
+          onConflict: "session_id,participant_id,question_index",
+        });
       } catch (_) { /* swallow – UI already reflects state */ }
     }
   };

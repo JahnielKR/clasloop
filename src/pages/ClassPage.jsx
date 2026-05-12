@@ -809,10 +809,13 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
 
   // ── Edit class modal handlers ─────────────────────────────────────────
   // Saved: merge updated fields into local classObj so the header reflects
-  // changes immediately (no refetch needed). The modal stays open with
-  // a brief "✓ Saved" flash; the teacher closes manually.
+  // changes immediately (no refetch needed). PR 14: close the modal
+  // automatically — the previous behavior left it open with a "✓ Saved"
+  // flash that required the teacher to click X. Real-use feedback: that
+  // felt broken, not intentional.
   const handleClassSaved = (updated) => {
     setClassObj(prev => ({ ...prev, ...updated }));
+    setShowEditModal(false);
   };
 
   // Deleted: navigate away. The class row is gone and the cascade has
