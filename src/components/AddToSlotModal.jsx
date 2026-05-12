@@ -45,7 +45,9 @@ const i18n = {
     searchPlaceholder: "Search your decks…",
     emptyLibrary: "No decks of this type yet. Create your first one.",
     emptySearch: "No matches. Try a different search or create a new one.",
+    loadingDecks: "Loading your decks…",
     fromClass: "from",
+    willCopy: "copy",
     questions: "questions",
     pick: "Add to slot",
     createButton: "Create a new one",
@@ -60,7 +62,9 @@ const i18n = {
     searchPlaceholder: "Busca en tus decks…",
     emptyLibrary: "Aún no tienes decks de este tipo. Crea el primero.",
     emptySearch: "Sin resultados. Prueba otra búsqueda o crea uno nuevo.",
+    loadingDecks: "Cargando tus decks…",
     fromClass: "de",
+    willCopy: "copia",
     questions: "preguntas",
     pick: "Agregar al slot",
     createButton: "Crear uno nuevo",
@@ -75,7 +79,9 @@ const i18n = {
     searchPlaceholder: "내 덱 검색…",
     emptyLibrary: "이 유형의 덱이 아직 없습니다. 첫 번째 덱을 만들어보세요.",
     emptySearch: "결과 없음. 다른 검색어를 시도하거나 새로 만드세요.",
+    loadingDecks: "덱 불러오는 중…",
     fromClass: "—",
+    willCopy: "복사",
     questions: "문제",
     pick: "슬롯에 추가",
     createButton: "새로 만들기",
@@ -105,6 +111,11 @@ export default function AddToSlotModal({
   const [search, setSearch] = useState("");
   const [adding, setAdding] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+  // PR 17: load ALL the teacher's decks across all classes, not just this
+  // class. Allows reusing a deck taught in Spanish 1A when adding to 1B.
+  const [allTeacherDecks, setAllTeacherDecks] = useState(null);
+  const [allTeacherClasses, setAllTeacherClasses] = useState(null);
+  const [loadingDecks, setLoadingDecks] = useState(false);
 
   // Reset state every time the modal opens. Without this, leftover state
   // from the previous open (search query, selected tab, error) bleeds in.
@@ -117,15 +128,46 @@ export default function AddToSlotModal({
     }
   }, [open]);
 
+  // PR 17: fetch all teacher's decks AND classes (not just this class)
+  // when the modal opens. We use the broader lists so the picker can
+  // show decks from OTHER classes that the teacher could copy here, and
+  // display "from <classname>" correctly for those rows.
+  // Cache after first fetch so re-opens are instant.
+  useEffect(() => {
+    if (!open || !userId) return;
+    if (allTeacherDecks !== null) return; // already loaded
+    let cancelled = false;
+    (async () => {
+      setLoadingDecks(true);
+      const [decksRes, classesRes] = await Promise.all([
+        supabase.from("decks").select("*").eq("author_id", userId)
+          .order("created_at", { ascending: false }),
+        supabase.from("classes").select("id, name").eq("teacher_id", userId),
+      ]);
+      if (cancelled) return;
+      // Soft fail: fall back to props (legacy class-only list) if anything errors
+      setAllTeacherDecks(decksRes.error || !decksRes.data ? (decks || []) : decksRes.data);
+      setAllTeacherClasses(classesRes.error || !classesRes.data ? (classes || []) : classesRes.data);
+      setLoadingDecks(false);
+    })();
+    return () => { cancelled = true; };
+  }, [open, userId, allTeacherDecks, decks, classes]);
+
   // Library candidates: teacher's own decks of the matching section,
-  // EXCLUDING ones already in the active unit (they're already slotted).
+  // EXCLUDING ones already in the active unit (already slotted).
+  // PR 17: now spans ALL classes, not just the current one. The row
+  // renders show "from {class.name}" so the teacher knows the origin.
   // Sorted: most recently created first — fresh content is more likely
   // what the teacher wants to grab.
   const libraryDecks = useMemo(() => {
-    if (!decks || !activeUnit) return [];
-    const filtered = decks
+    const source = allTeacherDecks || decks || [];
+    if (!activeUnit) return [];
+    const filtered = source
       .filter(d => d.section === section)
-      .filter(d => d.unit_id !== activeUnit.id) // don't offer decks already here
+      // Exclude decks already in THIS unit. Decks from other classes/units
+      // (even other units within the same class) are valid candidates to
+      // copy or move from.
+      .filter(d => !(d.class_id === classId && d.unit_id === activeUnit.id))
       .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
     if (!search.trim()) return filtered;
     const q = search.toLowerCase().trim();
@@ -134,21 +176,30 @@ export default function AddToSlotModal({
       (d.subject || "").toLowerCase().includes(q) ||
       (d.tags || []).some(tg => (tg || "").toLowerCase().includes(q))
     );
-  }, [decks, section, activeUnit, search]);
+  }, [allTeacherDecks, decks, section, activeUnit, classId, search]);
 
-  // Class lookup so we can show "from {class.name}" on each result row
+  // Class lookup so we can show "from {class.name}" on each result row.
+  // Prefers allTeacherClasses (fetched on modal open) so cross-class
+  // decks display the right name; falls back to the classes prop.
   const classMap = useMemo(() => {
+    const source = allTeacherClasses || classes || [];
     const m = {};
-    (classes || []).forEach(c => { m[c.id] = c; });
+    source.forEach(c => { m[c.id] = c; });
     return m;
-  }, [classes]);
+  }, [allTeacherClasses, classes]);
 
-  // Adding flow: UPDATE unit_id + position on the picked deck.
+  // Adding flow:
+  //   - Same class, different unit → UPDATE (move within the class).
+  //   - Different class           → INSERT a copy (preserve the original).
+  //
+  // The COPY path covers the most common case: teacher uses the same
+  // material in Spanish 1A and Spanish 1B. Each class keeps its own
+  // version with independent stats, retention metrics, and AI narratives.
   // We compute the next position client-side from the current decks list
-  // (the `decks` prop reflects the latest state), which is fine for the
-  // small N per slot. Race-condition tolerable: worst case a teacher
-  // double-adds and gets two decks at the same position; the All-decks
-  // drag-reorder fixes it instantly.
+  // (the `decks` prop reflects the latest state for this class), which is
+  // fine for the small N per slot. Race-condition tolerable: worst case a
+  // teacher double-adds and gets two decks at the same position; the
+  // All-decks drag-reorder fixes it instantly.
   const handlePick = async (deck) => {
     if (adding) return;
     setAdding(true);
@@ -164,18 +215,47 @@ export default function AddToSlotModal({
       ? 0
       : Math.max(...inSameSlot.map(d => d.position || 0)) + 1;
 
-    // The deck might currently belong to a different class — if so,
-    // also update class_id. Most teachers keep decks in their original
-    // class but the library shows all of theirs, so this covers the
-    // cross-class reuse case.
+    const isCrossClass = deck.class_id !== classId;
+
+    if (isCrossClass) {
+      // ── COPY path: duplicate the deck into this class ─────────────
+      // Strip identity/stat fields so the new row starts fresh. The
+      // questions array is the actual reusable payload.
+      const copy = {
+        author_id: deck.author_id,
+        title: deck.title,
+        description: deck.description,
+        subject: deck.subject,
+        grade: deck.grade,
+        language: deck.language,
+        questions: deck.questions,
+        tags: deck.tags || [],
+        is_public: false,            // copy is private by default
+        section: deck.section,
+        class_id: classId,
+        unit_id: activeUnit.id,
+        position: nextPos,
+        // uses_count, rating, review_count default to 0/0/0
+      };
+      const { data, error } = await supabase
+        .from("decks")
+        .insert(copy)
+        .select()
+        .single();
+      setAdding(false);
+      if (error || !data) {
+        setErrorMsg(t.addingError);
+        return;
+      }
+      onPicked && onPicked(data);
+      return;
+    }
+
+    // ── MOVE path: same class, just relocate within units ──
     const updates = {
       unit_id: activeUnit.id,
       position: nextPos,
     };
-    if (deck.class_id !== classId) {
-      updates.class_id = classId;
-    }
-
     const { data, error } = await supabase
       .from("decks")
       .update(updates)
@@ -187,7 +267,6 @@ export default function AddToSlotModal({
       setErrorMsg(t.addingError);
       return;
     }
-    // Bubble up to PlanView so it can re-fetch / patch state and close
     onPicked && onPicked(data);
   };
 
@@ -345,7 +424,9 @@ export default function AddToSlotModal({
                   fontSize: 13,
                   lineHeight: 1.5,
                 }}>
-                  {search.trim() ? t.emptySearch : t.emptyLibrary}
+                  {loadingDecks
+                    ? t.loadingDecks
+                    : (search.trim() ? t.emptySearch : t.emptyLibrary)}
                 </div>
               ) : (
                 <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -399,6 +480,24 @@ export default function AddToSlotModal({
                               <>
                                 <span style={{ width: 3, height: 3, background: C.textMuted, borderRadius: "50%" }} />
                                 <span>{t.fromClass} {cls.name}</span>
+                                {/* PR 17: visual cue that this deck is in another class,
+                                    so picking it COPIES (preserving the original). */}
+                                {deck.class_id !== classId && (
+                                  <span style={{
+                                    fontSize: 10,
+                                    fontWeight: 600,
+                                    color: C.accent,
+                                    background: C.accentSoft,
+                                    padding: "1px 6px",
+                                    borderRadius: 5,
+                                    marginLeft: 2,
+                                    textTransform: "uppercase",
+                                    letterSpacing: "0.04em",
+                                    fontFamily: "'Outfit', sans-serif",
+                                  }}>
+                                    {t.willCopy}
+                                  </span>
+                                )}
                               </>
                             )}
                           </div>
