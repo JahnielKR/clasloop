@@ -1415,19 +1415,51 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
         );
       })()}
 
-      {/* PR 19: "+ New unit" affordance for when at least one unit
-          already exists. Previously the only path to create a unit was
-          the empty state (units.length === 0). Once a teacher had even
-          one unit there was no way to make another. This sits below
-          the tab bar, above the PlanView carrousel, so it's visible
-          but doesn't compete with primary unit actions.
-          Reuses the same state (showNewUnit / newUnitName / handleCreateUnit)
-          that the empty state already uses. Interactive: click toggles
-          inline input → Enter or Create button persists. */}
+      {/* ─── TAB: Current unit ─────────────────────────────────────────
+          Plan view + arrows to flip between units like pages. The
+          `currentUnitIdx` points at the unit being shown (any status).
+          Arrows bump the index ±1 within the units array, wrapping
+          disabled at the boundaries. */}
+      {topTab === "current" && units.length > 0 && (() => {
+        const safeIdx = Math.min(Math.max(0, currentUnitIdx), units.length - 1);
+        const shownUnit = units[safeIdx];
+        if (!shownUnit) return null;
+        return (
+          <PlanView
+            classId={classId}
+            classes={classObj ? [classObj] : []}
+            decks={decks}
+            units={units}
+            activeUnit={shownUnit}
+            userId={profile?.id}
+            lang={lang}
+            onRefresh={() => setRefreshTick(n => n + 1)}
+            onUnitChanged={() => setRefreshTick(n => n + 1)}
+            onPrevUnit={safeIdx > 0 ? () => setCurrentUnitIdx(safeIdx - 1) : null}
+            onNextUnit={safeIdx < units.length - 1 ? () => setCurrentUnitIdx(safeIdx + 1) : null}
+            // PR6: close/reopen handlers. Active and planned units can
+            // be closed; closed units can be reopened. PlanView decides
+            // which button to show based on activeUnit.status.
+            onCloseUnit={shownUnit.status !== "closed"
+              ? () => setCloseUnitFlow({ unit: shownUnit, step: 1 })
+              : null}
+            onReopenUnit={shownUnit.status === "closed"
+              ? () => setReopenUnit(shownUnit)
+              : null}
+          />
+        );
+      })()}
+
+      {/* PR 19.1: "+ New unit" affordance shown BELOW the PlanView when
+          at least one unit exists. Previous placement (above PlanView)
+          left too much empty space on screens with short PlanViews.
+          Below feels natural: "you've seen this unit's plan — here's
+          how to add another."
+          Reuses showNewUnit / newUnitName / handleCreateUnit state that
+          the empty-state CTA already uses. */}
       {topTab === "current" && units.length > 0 && !loading && classObj && (
         <div style={{
-          marginTop: 4,
-          marginBottom: 14,
+          marginTop: 14,
           display: "flex",
           justifyContent: "flex-end",
         }}>
@@ -1539,41 +1571,6 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
           )}
         </div>
       )}
-
-      {/* ─── TAB: Current unit ─────────────────────────────────────────
-          Plan view + arrows to flip between units like pages. The
-          `currentUnitIdx` points at the unit being shown (any status).
-          Arrows bump the index ±1 within the units array, wrapping
-          disabled at the boundaries. */}
-      {topTab === "current" && units.length > 0 && (() => {
-        const safeIdx = Math.min(Math.max(0, currentUnitIdx), units.length - 1);
-        const shownUnit = units[safeIdx];
-        if (!shownUnit) return null;
-        return (
-          <PlanView
-            classId={classId}
-            classes={classObj ? [classObj] : []}
-            decks={decks}
-            units={units}
-            activeUnit={shownUnit}
-            userId={profile?.id}
-            lang={lang}
-            onRefresh={() => setRefreshTick(n => n + 1)}
-            onUnitChanged={() => setRefreshTick(n => n + 1)}
-            onPrevUnit={safeIdx > 0 ? () => setCurrentUnitIdx(safeIdx - 1) : null}
-            onNextUnit={safeIdx < units.length - 1 ? () => setCurrentUnitIdx(safeIdx + 1) : null}
-            // PR6: close/reopen handlers. Active and planned units can
-            // be closed; closed units can be reopened. PlanView decides
-            // which button to show based on activeUnit.status.
-            onCloseUnit={shownUnit.status !== "closed"
-              ? () => setCloseUnitFlow({ unit: shownUnit, step: 1 })
-              : null}
-            onReopenUnit={shownUnit.status === "closed"
-              ? () => setReopenUnit(shownUnit)
-              : null}
-          />
-        );
-      })()}
 
       {/* ─── TAB: Past units ───────────────────────────────────────────
           Read-mostly list of closed units. Click on one → jump to it

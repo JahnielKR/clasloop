@@ -1123,7 +1123,7 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
   return (
     <div style={{ padding: "28px 20px" }}>
       <style>{css}</style>
-      <PageHeader title={t.pageTitle} lang={l} setLang={setLang} onOpenMobileMenu={onOpenMobileMenu} />
+      <PageHeader title={t.pageTitle} lang={l} setLang={setLang} maxWidth={900} onOpenMobileMenu={onOpenMobileMenu} />
 
       <div style={{ maxWidth: 900, margin: "0 auto" }}>
         {/* PR 7: Library — class tabs + drag-reorder grid by unit

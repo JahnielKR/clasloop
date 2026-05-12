@@ -34,7 +34,7 @@ import {
 const i18n = {
   en: {
     title: "Deck results",
-    backToDecks: "Back to decks",
+    backToDecks: "Back",
     loading: "Loading results…",
     error: "Could not load results.",
     deckNotFound: "Deck not found.",
@@ -60,7 +60,7 @@ const i18n = {
   },
   es: {
     title: "Resultados del deck",
-    backToDecks: "Volver a decks",
+    backToDecks: "Volver",
     loading: "Cargando resultados…",
     error: "No se pudieron cargar los resultados.",
     deckNotFound: "Deck no encontrado.",
@@ -86,7 +86,7 @@ const i18n = {
   },
   ko: {
     title: "덱 결과",
-    backToDecks: "덱으로 돌아가기",
+    backToDecks: "뒤로",
     loading: "결과 불러오는 중…",
     error: "결과를 불러올 수 없습니다.",
     deckNotFound: "덱을 찾을 수 없습니다.",
@@ -246,9 +246,11 @@ export default function DeckResults({ profile, lang = "en", setLang, onOpenMobil
       />
 
       <div style={{ maxWidth: 820, margin: "0 auto" }}>
-        {/* Back to decks */}
+        {/* Back — goes to wherever the teacher came from (insights, library,
+            community, etc). Previously hardcoded to ROUTES.DECKS, which
+            broke the natural flow when arriving from Insights. */}
         <button
-          onClick={() => navigate(ROUTES.DECKS)}
+          onClick={() => navigate(-1)}
           style={{
             marginBottom: 14,
             padding: "6px 10px",
