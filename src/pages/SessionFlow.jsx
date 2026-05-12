@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useSearchParams, useNavigate, useMatch } from "react-router-dom";
 import { QRCodeSVG } from "qrcode.react";
 import { supabase } from "../lib/supabase";
@@ -68,7 +68,7 @@ const i18n = {
     joinAt: "Join at",
     studentsJoined: "students joined", oneStudentJoined: "1 student joined", noStudentsYet: "No students yet",
     startQuiz: "Start quiz", cancel: "Cancel",
-    kick: "Remove", kickConfirm: "Remove this student from the lobby?", guest: "guest",
+    kick: "Remove", kickConfirm: "Remove this student from the lobby?", guest: "guest", studentDone: "done",
     clickEnlarge: "Click to enlarge", clickClose: "Click anywhere to close",
     liveResults: "Live results", endSession: "End session",
     students: "students", average: "average", waitingResponses: "Waiting for responses...",
@@ -126,7 +126,7 @@ const i18n = {
     joinAt: "Únete en",
     studentsJoined: "estudiantes se unieron", oneStudentJoined: "1 estudiante se unió", noStudentsYet: "Aún no se ha unido nadie",
     startQuiz: "Iniciar quiz", cancel: "Cancelar",
-    kick: "Sacar", kickConfirm: "¿Sacar a este estudiante del lobby?", guest: "invitado",
+    kick: "Sacar", kickConfirm: "¿Sacar a este estudiante del lobby?", guest: "invitado", studentDone: "listo",
     clickEnlarge: "Click para ampliar", clickClose: "Click en cualquier lugar para cerrar",
     liveResults: "Resultados en vivo", endSession: "Terminar sesión",
     students: "estudiantes", average: "promedio", waitingResponses: "Esperando respuestas...",
@@ -184,7 +184,7 @@ const i18n = {
     joinAt: "참여 주소",
     studentsJoined: "명 참여", oneStudentJoined: "1명 참여", noStudentsYet: "아직 참여자 없음",
     startQuiz: "퀴즈 시작", cancel: "취소",
-    kick: "내보내기", kickConfirm: "이 학생을 로비에서 내보내시겠습니까?", guest: "게스트",
+    kick: "내보내기", kickConfirm: "이 학생을 로비에서 내보내시겠습니까?", guest: "게스트", studentDone: "완료",
     clickEnlarge: "클릭하여 확대", clickClose: "아무곳이나 클릭하여 닫기",
     liveResults: "실시간 결과", endSession: "세션 종료",
     students: "학생", average: "평균", waitingResponses: "응답 기다리는 중...",
@@ -675,6 +675,13 @@ function ParticipantChip({ p, t, onKick }) {
 function LiveResults({ session, t, onEnd }) {
   const [participants, setParticipants] = useState([]);
   const [responses, setResponses] = useState([]);
+  // PR 15: prevent the auto-close logic from firing more than once.
+  // Once true, the effect that detects "all completed" no-ops, even if
+  // a late participant updates their completed_at after we've called
+  // handleEnd (which can happen during the few seconds of state
+  // transition). Also prevents re-triggering when the realtime
+  // subscription replays events on reconnect.
+  const autoClosedRef = useRef(false);
 
   useEffect(() => {
     (async () => {
@@ -688,6 +695,22 @@ function LiveResults({ session, t, onEnd }) {
       .on("postgres_changes",
         { event: "INSERT", schema: "public", table: "responses", filter: `session_id=eq.${session.id}` },
         (payload) => setResponses(prev => [...prev, payload.new])
+      )
+      // PR 15: subscribe to participant updates so we see ✓ in realtime
+      // when each student reaches the results screen. We listen to both
+      // INSERT (someone new joined late) and UPDATE (someone completed).
+      .on("postgres_changes",
+        { event: "INSERT", schema: "public", table: "session_participants", filter: `session_id=eq.${session.id}` },
+        (payload) => setParticipants(prev => {
+          if (prev.some(p => p.id === payload.new.id)) return prev;
+          return [...prev, payload.new];
+        })
+      )
+      .on("postgres_changes",
+        { event: "UPDATE", schema: "public", table: "session_participants", filter: `session_id=eq.${session.id}` },
+        (payload) => setParticipants(prev =>
+          prev.map(p => p.id === payload.new.id ? { ...p, ...payload.new } : p)
+        )
       )
       .subscribe();
 
@@ -729,6 +752,29 @@ function LiveResults({ session, t, onEnd }) {
     // is usually ready or almost ready.
     onEnd(session.id);
   };
+
+  // PR 15: auto-close when ALL active participants have reached the
+  // results screen (completed_at is set). Fires once per LiveResults
+  // mount thanks to autoClosedRef.
+  //
+  // What counts as "everyone done":
+  //   - There is at least 1 active participant (not kicked)
+  //   - Every active participant has completed_at != null
+  //
+  // Edge cases handled by the design:
+  //   - 0 participants → never fires (no one to wait for)
+  //   - Late joiner who never reaches results → blocks auto-close,
+  //     teacher closes manually (acceptable per design conversation)
+  //   - Realtime replay on reconnect → autoClosedRef prevents double-fire
+  useEffect(() => {
+    if (autoClosedRef.current) return;
+    if (activeParticipants.length === 0) return;
+    const allDone = activeParticipants.every(p => p.completed_at != null);
+    if (!allDone) return;
+    autoClosedRef.current = true;
+    handleEnd();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeParticipants]);
 
   const retCol = (v) => v >= 70 ? C.green : v >= 40 ? C.orange : C.red;
 
@@ -779,6 +825,27 @@ function LiveResults({ session, t, onEnd }) {
                 <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 4, display: "flex", alignItems: "center", gap: 6 }}>
                   {s.name}
                   {s.is_guest && <span style={{ fontSize: 10, color: C.orange, background: C.orangeSoft, padding: "1px 6px", borderRadius: 6 }}>{t.guest}</span>}
+                  {/* PR 15: ✓ chip when this student reached the results screen.
+                      Updated in realtime via the session_participants subscription. */}
+                  {s.completed_at && (
+                    <span style={{
+                      fontSize: 10,
+                      fontWeight: 600,
+                      color: C.green,
+                      background: (C.greenSoft || "#E6F4EA"),
+                      padding: "1px 7px",
+                      borderRadius: 6,
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 3,
+                      fontFamily: "'Outfit', sans-serif",
+                    }}>
+                      <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M20 6 9 17l-5-5" />
+                      </svg>
+                      {t.studentDone}
+                    </span>
+                  )}
                 </div>
                 <div style={{ background: C.bgSoft, height: 4, borderRadius: 2, overflow: "hidden" }}>
                   <div style={{ height: "100%", width: `${pct}%`, background: retCol(pct), transition: "width .25s ease" }} />

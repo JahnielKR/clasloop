@@ -557,6 +557,40 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [totalTimeLeft, step]);
 
+  // ── PR 15: mark the participant as completed when they reach the
+  // results screen. The teacher's LiveResults view subscribes to this
+  // column and shows a ✓ next to each finished student. When ALL
+  // participants are completed, the session auto-closes.
+  //
+  // "Reached the results screen" is the right marker because:
+  //   - It covers students who answered every question
+  //   - It covers students who skipped/timed-out the last ones
+  //   - It covers late joiners who eventually finish
+  //
+  // We don't track partial progress here — that's what the responses
+  // table is for. This is purely a "they're done with their session"
+  // signal.
+  useEffect(() => {
+    if (step !== "results") return;
+    if (!participant?.id) return; // can't mark a non-existent participant
+    if (isPractice) return;       // practice mode has no live session to close
+    let cancelled = false;
+    (async () => {
+      try {
+        await supabase
+          .from("session_participants")
+          .update({ completed_at: new Date().toISOString() })
+          .eq("id", participant.id)
+          .is("completed_at", null); // idempotent — only set on first arrival
+        // Soft fail by design: if the update errors (network, RLS edge case),
+        // the student's experience is unaffected. The teacher just doesn't
+        // see the ✓ for this student. Better than blocking the results UI.
+      } catch (_) { /* swallow */ }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, participant?.id, isPractice]);
+
   // ── Phase 3: when student reaches results, evaluate avatar unlocks ──
   useEffect(() => {
     if (step !== "results") return;
