@@ -1377,11 +1377,12 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
 
             {/* PR 19.2: "+ Nueva unidad" affordance lives in the tab bar
                 between "General review" and the search input. Visible
-                whenever a class is loaded (works in any topTab — creating
-                a unit is global to the class, not view-specific). When
-                clicked, the inline-create UI pops out absolutely below
-                the button so the tab bar doesn't grow / wrap. */}
-            {!loading && classObj && (
+                whenever a class has at least one unit (when there are zero
+                units the empty-state CTA below handles "+ Nueva unidad",
+                and showing both would share state and look broken).
+                When clicked, the inline-create UI pops out absolutely
+                below the button so the tab bar doesn't grow / wrap. */}
+            {!loading && classObj && units.length > 0 && (
               <div style={{ position: "relative" }}>
                 {!showNewUnit ? (
                   <button
