@@ -444,23 +444,43 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
       // PR 20.1: also fetch lobby_theme_override + the parent class's
       // lobby_theme so the student-side can render in the right theme.
       // Resolution cascade lives in src/lib/themes.js → resolveDeckTheme().
-      const { data, error } = await supabase
+      //
+      // PR 20.2.2: split into two queries instead of using a PostgREST
+      // embed (`class:classes(lobby_theme)`). The embed was returning
+      // 406 on this project — likely because the foreign key isn't
+      // configured to PostgREST's expectations. Two simple queries are
+      // unconditionally robust.
+      const { data: deck, error: deckErr } = await supabase
         .from("decks")
-        .select("section, lobby_theme_override, class:classes(lobby_theme)")
+        .select("section, class_id, lobby_theme_override")
         .eq("id", session.deck_id)
         .single();
       if (cancelled) return;
-      // If the fetch fails (no read access, deleted, etc.) we silently
-      // fall back to null — the quiz still works, it just won't have
-      // section-specific theming. Better to render unthemed than break.
-      if (!error && data?.section) setDeckSection(data.section);
-      // Resolve the theme via the cascade. If the columns don't exist yet
-      // (migration not run), `lobby_theme_override` and `class.lobby_theme`
-      // will simply be undefined and resolveDeckTheme returns 'calm'.
-      if (!error && data) {
-        const themeId = resolveDeckTheme(data, data.class);
-        setLobbyThemeId(themeId);
+
+      // If the deck fetch fails (no read access, deleted, etc.) we
+      // silently fall back — the quiz still works, it just won't be
+      // section-tinted or themed. Better to render unthemed than break.
+      if (deckErr || !deck) return;
+
+      if (deck.section) setDeckSection(deck.section);
+
+      // Now fetch the parent class's lobby_theme for the cascade.
+      let classRow = null;
+      if (deck.class_id) {
+        const { data: cls, error: clsErr } = await supabase
+          .from("classes")
+          .select("lobby_theme")
+          .eq("id", deck.class_id)
+          .single();
+        if (cancelled) return;
+        if (!clsErr && cls) classRow = cls;
       }
+
+      // Resolve via cascade. resolveDeckTheme returns 'calm' if neither
+      // the deck override nor the class theme are set (or the migration
+      // hasn't been run yet — those columns will simply be undefined).
+      const themeId = resolveDeckTheme(deck, classRow);
+      setLobbyThemeId(themeId);
     })();
     return () => { cancelled = true; };
   }, [session?.deck_id, isPractice]);
