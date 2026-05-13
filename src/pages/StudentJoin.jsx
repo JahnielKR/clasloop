@@ -44,6 +44,8 @@ const i18n = {
     // PR 11: practice mode exit button
     exitPractice: "Exit",
     exitPracticeConfirm: "Exit practice? Your progress will be lost.",
+    // PR 20.2.4: confirmation when a student tries to leave a live quiz
+    exitQuizConfirm: "Exit the quiz? Your progress will be lost.",
     timerOnTip: "Timer on. Tap to study without time pressure.",
     timerOffTip: "Timer off. Tap to turn on the recommended timing.",
     totalTimeLabel: "Time left",
@@ -93,6 +95,7 @@ const i18n = {
     segundos: "segundos", tuPuntaje: "Tu puntaje",
     exitPractice: "Salir",
     exitPracticeConfirm: "¿Salir de la práctica? Vas a perder tu progreso.",
+    exitQuizConfirm: "¿Salir del quiz? Tu progreso se perderá.",
     timerOnTip: "Timer activo. Toca para estudiar sin presión.",
     timerOffTip: "Timer apagado. Toca para activar el tiempo recomendado.",
     totalTimeLabel: "Tiempo restante",
@@ -142,6 +145,7 @@ const i18n = {
     segundos: "초", tuPuntaje: "내 점수",
     exitPractice: "나가기",
     exitPracticeConfirm: "연습을 종료할까요? 진행 상황이 사라집니다.",
+    exitQuizConfirm: "퀴즈를 나가시겠어요? 진행 상황이 사라집니다.",
     timerOnTip: "타이머 켜짐. 시간 압박 없이 학습하려면 탭하세요.",
     timerOffTip: "타이머 꺼짐. 권장 시간을 활성화하려면 탭하세요.",
     totalTimeLabel: "남은 시간",
@@ -941,6 +945,30 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
     else setCurrent(c => c + 1);
   };
 
+  // PR 20.2.4: exit handler for live quiz. Reuses the same state reset
+  // as the "Join another session" button on the results page. Practice
+  // mode has its own onPracticeExit prop (kept separate).
+  const handleExitQuiz = () => {
+    if (!confirm(t.exitQuizConfirm)) return;
+    if (isPractice && onPracticeExit) {
+      onPracticeExit();
+      return;
+    }
+    // Live: reset to the join screen
+    setStep("join");
+    setPin("");
+    setName(profile?.full_name || "");
+    setAnswers([]);
+    setCurrent(0);
+    setSession(null);
+    setParticipant(null);
+    setEndedByTeacher(false);
+    setShowReview(false);
+    setMcqSelected(null);
+    setLobbyThemeId(null);
+    setDeckSection(null);
+  };
+
   // ── Joining (guest auto-join in flight) ──
   if (step === "joining") return (
     <>
@@ -1098,6 +1126,20 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
               <div className="stage" data-theme={lobbyThemeId}>
                 <div className="top-strip">
                   <div className="brand-area">
+                    {/* PR 20.2.4: exit button — first thing in the strip
+                        so a student who entered wrong can always escape.
+                        Confirm prevents accidental exits mid-quiz. */}
+                    <button
+                      className="stage-exit-btn"
+                      onClick={handleExitQuiz}
+                      title={t.exitPractice}
+                      aria-label={t.exitPractice}
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18"/>
+                        <line x1="6" y1="6" x2="18" y2="18"/>
+                      </svg>
+                    </button>
                     <span className="brand-name">Clasloop</span>
                     <div className="session-info">
                       <span className="section-pill">{stageLabel}</span>
@@ -1140,10 +1182,22 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
                           const optText = typeof o === "string" ? o : (o?.text || "");
                           const letter = String.fromCharCode(65 + i);
                           const selected = mcqSelected === i;
+                          // PR 20.2.4: reveal states after submit.
+                          // - is-correct: the right answer (green glow)
+                          // - is-wrong: student picked wrong (red glow)
+                          // - is-dimmed: not picked + not the correct one
+                          let revealClass = '';
+                          if (showResult) {
+                            const isCorrectOption = i === q.correct;
+                            const studentPickedThis = selected;
+                            if (isCorrectOption) revealClass = 'is-correct';
+                            else if (studentPickedThis) revealClass = 'is-wrong';
+                            else revealClass = 'is-dimmed';
+                          }
                           return (
                             <button
                               key={i}
-                              className={`answer-tile ${selected ? 'selected' : ''}`}
+                              className={`answer-tile ${selected ? 'selected' : ''} ${revealClass}`}
                               onClick={() => handleTileClick(i)}
                               disabled={showResult}
                             >
@@ -1185,6 +1239,20 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
                         <div className="rail-stat-label">{t.pregunta || "Pregunta"}</div>
                         <div className="rail-stat-value">{current + 1}/{questions.length}</div>
                       </div>
+
+                      {/* PR 20.2.4: Next/Results button only appears once
+                          the student has submitted. Uses handleNext which
+                          is the same handler the legacy render uses. */}
+                      {showResult && (
+                        <button className="stage-next-btn" onClick={handleNext}>
+                          {current + 1 >= questions.length
+                            ? (t.seeResults || "See results")
+                            : (t.next || "Next")}
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M5 12h14M13 6l6 6-6 6"/>
+                          </svg>
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>

@@ -387,7 +387,13 @@
 
 /* ─── Outer page wrapper that centers the stage ──────────────────── */
 .stage-page {
-  min-height: 100vh;
+  /* PR 20.2.4: when the themed quiz mounts we want full-screen takeover
+     so the app's normal sidebar/topbar don't show through. position:fixed
+     + inset:0 + high z-index achieves this without requiring App.jsx to
+     know that the student is in a quiz. */
+  position: fixed;
+  inset: 0;
+  z-index: 200;
   padding: 20px;
   display: flex;
   align-items: center;
@@ -396,4 +402,94 @@
 }
 @media (max-width: 900px) {
   .stage-page { padding: 12px; }
+}
+
+/* ─── PR 20.2.4: exit button (top-left of top-strip) ──────────────────
+ * Lightweight X button. Sits inside .brand-area before the brand name.
+ * Has its own hover/focus ring, uses currentColor so it inherits the
+ * theme's text color automatically. */
+.stage .stage-exit-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: currentColor;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  opacity: 0.6;
+  transition: opacity 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+  flex-shrink: 0;
+}
+.stage .stage-exit-btn:hover {
+  opacity: 1;
+  background: var(--surface-soft);
+  border-color: var(--accent);
+}
+.stage[data-theme="pop"] .stage-exit-btn { border-width: 2px; }
+.stage[data-theme="mono"] .stage-exit-btn { border-radius: 0; }
+
+/* ─── PR 20.2.4: next button (rail bottom, after answer) ──────────────
+ * Big tappable bar. Only renders after showResult flips. Uses the theme's
+ * accent color so it pops as the obvious next action. */
+.stage .stage-next-btn {
+  margin-top: auto;
+  padding: 14px 18px;
+  border-radius: 12px;
+  border: none;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-family: 'Outfit', sans-serif;
+  font-weight: 700;
+  font-size: 15px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.stage .stage-next-btn:hover { transform: translateY(-1px); }
+.stage .stage-next-btn:active { transform: scale(0.98); }
+.stage[data-theme="pop"] .stage-next-btn {
+  border: 2px solid #1F1733;
+  box-shadow: 3px 3px 0 #1F1733;
+}
+.stage[data-theme="pop"] .stage-next-btn:hover {
+  box-shadow: 5px 5px 0 #1F1733;
+}
+.stage[data-theme="mono"] .stage-next-btn { border-radius: 0; }
+
+/* ─── PR 20.2.4: answer-tile reveal states (showResult flow) ─────────
+ * When the student has submitted, the tiles dim. The correct one
+ * glows green, the picked-wrong glows red. Both stack on top of the
+ * theme's normal answer-tile rule via attribute selectors so the look
+ * stays cohesive within the theme. */
+.stage .answer-tile.is-correct {
+  background: rgba(99, 153, 34, 0.18);
+  border-color: #639922;
+  border-width: 2px;
+}
+.stage[data-theme="calm"] .answer-tile.is-correct {
+  background: #EAF3DE;
+}
+.stage[data-theme="pop"] .answer-tile.is-correct {
+  background: #C2E892;
+  box-shadow: 3px 3px 0 #1F1733;
+}
+.stage .answer-tile.is-wrong {
+  background: rgba(196, 77, 77, 0.18);
+  border-color: var(--danger);
+  border-width: 2px;
+}
+.stage[data-theme="calm"] .answer-tile.is-wrong {
+  background: var(--danger-tint);
+}
+.stage[data-theme="pop"] .answer-tile.is-wrong {
+  background: rgba(255, 200, 200, 0.95);
+  box-shadow: 3px 3px 0 #1F1733;
+}
+.stage .answer-tile.is-dimmed {
+  opacity: 0.4;
 }
