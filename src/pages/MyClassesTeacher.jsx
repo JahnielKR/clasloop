@@ -5,6 +5,8 @@ import { CIcon, SchoolIcon } from "../components/Icons";
 import { useIsMobile } from "../components/MobileMenuButton";
 import CreateClassModal from "../components/CreateClassModal";
 import ImportClassModal from "../components/ImportClassModal";
+// PR 22: theme selector modal launched from each class card
+import LobbyThemeSelector from "../components/LobbyThemeSelector";
 import { C, MONO } from "../components/tokens";
 import { ROUTES, QUERY, buildPathWithOpts, buildRoute } from "../routes";
 import { resolveClassAccent } from "../lib/class-hierarchy";
@@ -42,6 +44,7 @@ const i18n = {
     student: "student",
     deck: "deck",
     openClass: "Open",
+    themeButton: "Theme",
     schoolAnalytics: "School analytics",
     importClass: "Import",
     // Real import modal strings (used by ImportClassModal)
@@ -100,6 +103,7 @@ const i18n = {
     student: "estudiante",
     deck: "deck",
     openClass: "Abrir",
+    themeButton: "Tema",
     schoolAnalytics: "Estadísticas escolares",
     importClass: "Importar",
     import_title: "Importar clase",
@@ -156,6 +160,7 @@ const i18n = {
     student: "학생",
     deck: "덱",
     openClass: "열기",
+    themeButton: "테마",
     schoolAnalytics: "학교 분석",
     importClass: "가져오기",
     import_title: "수업 가져오기",
@@ -200,7 +205,7 @@ const i18n = {
 };
 
 // ─── Class Card ─────────────────────────────────────────────────────────
-function ClassCard({ cls, t, lang, onOpen, deckCount = 0, studentCount = 0, highlight = false }) {
+function ClassCard({ cls, t, lang, onOpen, onOpenThemeSelector, deckCount = 0, studentCount = 0, highlight = false }) {
   const [copied, setCopied] = useState(false);
   const accent = resolveClassAccent(cls);
 
@@ -325,7 +330,7 @@ function ClassCard({ cls, t, lang, onOpen, deckCount = 0, studentCount = 0, high
         </button>
       </div>
 
-      {/* Footer: deck/student counts */}
+      {/* Footer: deck/student counts + theme button */}
       <div style={{
         display: "flex",
         alignItems: "center",
@@ -347,6 +352,48 @@ function ClassCard({ cls, t, lang, onOpen, deckCount = 0, studentCount = 0, high
           </svg>
           {studentCount} {studentCount === 1 ? t.student : t.students}
         </span>
+
+        {/* PR 22: Theme button. stopPropagation so clicking it doesn't
+            also trigger onOpen (which navigates into the class). */}
+        {onOpenThemeSelector && (
+          <button
+            onClick={(e) => { e.stopPropagation(); onOpenThemeSelector(); }}
+            title={t.themeButton || "Theme"}
+            style={{
+              marginLeft: "auto",
+              padding: "3px 9px",
+              borderRadius: 6,
+              background: "transparent",
+              color: C.textSecondary,
+              border: `1px solid ${C.border}`,
+              fontSize: 11,
+              fontWeight: 500,
+              cursor: "pointer",
+              fontFamily: "'Outfit', sans-serif",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 4,
+              transition: "border-color .15s ease, color .15s ease",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = accent;
+              e.currentTarget.style.color = accent;
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = C.border;
+              e.currentTarget.style.color = C.textSecondary;
+            }}
+          >
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none">
+              <circle cx="13.5" cy="6.5" r="2.5" fill="currentColor"/>
+              <circle cx="19" cy="13" r="2.5" fill="currentColor"/>
+              <circle cx="6" cy="12" r="2.5" fill="currentColor"/>
+              <circle cx="10" cy="20" r="2.5" fill="currentColor"/>
+              <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c1.4 0 2.5-1.1 2.5-2.5 0-.7-.3-1.3-.7-1.8-.4-.4-.6-1-.6-1.6 0-1.4 1.1-2.5 2.5-2.5h2.4c2.5 0 4.5-2 4.5-4.5C22 6.5 17.5 2 12 2z" stroke="currentColor" strokeWidth="1.5" fill="none"/>
+            </svg>
+            {t.themeButton || "Theme"}
+          </button>
+        )}
       </div>
     </div>
   );
@@ -398,6 +445,8 @@ export default function MyClassesTeacher({ lang = "en", profile, onNavigateToSes
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
+  // PR 22: when non-null, the LobbyThemeSelector modal is open for this class
+  const [themeSelectorClass, setThemeSelectorClass] = useState(null);
   // Highlight + toast for the freshly-created class so the teacher's eye lands
   // on it immediately (the new card animates in at the top of the grid, but
   // a quick visual cue makes "I just made this" obvious).
@@ -769,6 +818,7 @@ export default function MyClassesTeacher({ lang = "en", profile, onNavigateToSes
                   deckCount={deckCounts[cls.id] || 0}
                   studentCount={studentCounts[cls.id] || 0}
                   onOpen={() => handleOpenClass(cls)}
+                  onOpenThemeSelector={() => setThemeSelectorClass(cls)}
                   highlight={cls.id === justCreatedId}
                 />
               ))}
@@ -887,7 +937,28 @@ export default function MyClassesTeacher({ lang = "en", profile, onNavigateToSes
         .cl-class-card-glow { animation: cl-class-glow 1.6s ease-in-out 2; }
         @keyframes ns-fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
         .ns-fade { animation: ns-fadeIn .25s ease; }
+        @keyframes cl-fade-in { from { opacity: 0; } to { opacity: 1; } }
       `}</style>
+
+      {/* PR 22: Theme selector modal. Opens when the teacher clicks the
+          Theme button on any class card. On save, updates the class's
+          lobby_theme locally so the change is immediate. */}
+      {themeSelectorClass && (
+        <LobbyThemeSelector
+          classId={themeSelectorClass.id}
+          currentTheme={themeSelectorClass.lobby_theme || "calm"}
+          className={themeSelectorClass.name}
+          lang={lang}
+          onClose={() => setThemeSelectorClass(null)}
+          onSaved={(newTheme) => {
+            setClasses(prev => prev.map(c =>
+              c.id === themeSelectorClass.id
+                ? { ...c, lobby_theme: newTheme }
+                : c
+            ));
+          }}
+        />
+      )}
     </div>
   );
 }
