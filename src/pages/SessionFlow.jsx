@@ -1484,6 +1484,26 @@ export default function SessionFlow({ lang = "en", setLang, onNavigateToDecks, o
 
     const pin = String(Math.floor(100000 + Math.random() * 900000));
 
+    // PR 20.2.3: resolve the session's theme + section at launch time
+    // and persist them on the session row. The student can't read the
+    // decks/classes tables directly (RLS), so denormalizing onto
+    // sessions is the way they learn the theme.
+    //
+    // Cascade: deck.lobby_theme_override > class.lobby_theme > 'calm'.
+    // We need the class's lobby_theme to compute this. The teacher has
+    // RLS access to their own classes, so fetching is fine.
+    let resolvedTheme = 'calm';
+    if (!deck.lobby_theme_override) {
+      const { data: cls } = await supabase
+        .from('classes')
+        .select('lobby_theme')
+        .eq('id', classId)
+        .single();
+      resolvedTheme = cls?.lobby_theme || 'calm';
+    } else {
+      resolvedTheme = deck.lobby_theme_override;
+    }
+
     const { data, error } = await supabase.from("sessions").insert({
       class_id: classId,
       teacher_id: user.id,
@@ -1493,6 +1513,9 @@ export default function SessionFlow({ lang = "en", setLang, onNavigateToDecks, o
       status: "lobby",
       questions: deck.questions || [],
       allow_guests: allowGuests,
+      // PR 20.2.3: denormalized for student-side reads
+      section: deck.section || null,
+      lobby_theme: resolvedTheme,
       session_settings: {
         // Bloque timer: time_mode dice si correr per-question (cada pregunta
         // tiene su propio time_limit) o total (un solo countdown sobre toda

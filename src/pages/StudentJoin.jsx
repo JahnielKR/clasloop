@@ -11,9 +11,6 @@ import { getPracticeTimerPref, setPracticeTimerPref } from "../lib/practice-time
 import { evaluateAnswer, describeCorrectAnswer, formatStudentAnswer } from "../lib/scoring";
 import { QUERY } from "../routes";
 import { getSectionTheme, getSectionLabel, SectionIconSVG } from "../lib/section-theme";
-// PR 20.1: resolve the cascade for which lobby/student theme applies.
-// Resolution: deck.lobby_theme_override > class.lobby_theme > 'calm' fallback.
-import { resolveDeckTheme } from "../lib/themes";
 
 // Quiz option colors — kahoot-style fixed palette. NOT theme-aware on purpose:
 // students need to see the same colors the teacher launches the session with.
@@ -435,55 +432,17 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
   useEffect(() => {
     if (isPractice) return;
     if (!session?.deck_id) return;
-    let cancelled = false;
-    // Reset to null so the previous deck's theming clears immediately.
-    // The new value lands as soon as the fetch resolves.
-    setDeckSection(null);
-    setLobbyThemeId(null);
-    (async () => {
-      // PR 20.1: also fetch lobby_theme_override + the parent class's
-      // lobby_theme so the student-side can render in the right theme.
-      // Resolution cascade lives in src/lib/themes.js → resolveDeckTheme().
-      //
-      // PR 20.2.2: split into two queries instead of using a PostgREST
-      // embed (`class:classes(lobby_theme)`). The embed was returning
-      // 406 on this project — likely because the foreign key isn't
-      // configured to PostgREST's expectations. Two simple queries are
-      // unconditionally robust.
-      const { data: deck, error: deckErr } = await supabase
-        .from("decks")
-        .select("section, class_id, lobby_theme_override")
-        .eq("id", session.deck_id)
-        .single();
-      if (cancelled) return;
-
-      // If the deck fetch fails (no read access, deleted, etc.) we
-      // silently fall back — the quiz still works, it just won't be
-      // section-tinted or themed. Better to render unthemed than break.
-      if (deckErr || !deck) return;
-
-      if (deck.section) setDeckSection(deck.section);
-
-      // Now fetch the parent class's lobby_theme for the cascade.
-      let classRow = null;
-      if (deck.class_id) {
-        const { data: cls, error: clsErr } = await supabase
-          .from("classes")
-          .select("lobby_theme")
-          .eq("id", deck.class_id)
-          .single();
-        if (cancelled) return;
-        if (!clsErr && cls) classRow = cls;
-      }
-
-      // Resolve via cascade. resolveDeckTheme returns 'calm' if neither
-      // the deck override nor the class theme are set (or the migration
-      // hasn't been run yet — those columns will simply be undefined).
-      const themeId = resolveDeckTheme(deck, classRow);
-      setLobbyThemeId(themeId);
-    })();
-    return () => { cancelled = true; };
-  }, [session?.deck_id, isPractice]);
+    // PR 20.2.3: read section + theme directly from the session row.
+    // The student has RLS access to sessions (joined via pin/participant),
+    // unlike decks/classes which they cannot read. SessionFlow now copies
+    // these values onto the session at launch time.
+    //
+    // Falls back to 'calm' if the column is missing (e.g. the migration
+    // wasn't run yet — graceful degradation to the legacy render).
+    if (session?.section) setDeckSection(session.section);
+    if (session?.lobby_theme) setLobbyThemeId(session.lobby_theme);
+    else setLobbyThemeId('calm');
+  }, [session?.deck_id, session?.section, session?.lobby_theme, isPractice]);
 
   // ── Realtime: react to session status changes ──
   useEffect(() => {
@@ -1112,24 +1071,6 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
       Array.isArray(q?.options) &&
       !Array.isArray(q?.correct) && // single-correct only
       q.options.every(o => typeof o === 'string' || (typeof o === 'object' && !o?.image_url));
-
-    // PR 20.2 DEBUG — temporary: helps diagnose why themed render
-    // didn't activate when the teacher expected it to. Remove this in
-    // PR 20.3 once the path is well-tested.
-    if (typeof window !== 'undefined' && !window.__claudethemedebug) {
-      window.__claudethemedebug = true;
-      console.log('[PR 20.2 theme debug]', {
-        themedRenderEligible,
-        isPractice,
-        lobbyThemeId,
-        qType,
-        hasOptions: Array.isArray(q?.options),
-        optionsCount: q?.options?.length,
-        correctIsArray: Array.isArray(q?.correct),
-        firstOptionType: typeof q?.options?.[0],
-        firstOptionHasImage: typeof q?.options?.[0] === 'object' && !!q?.options?.[0]?.image_url,
-      });
-    }
 
     if (themedRenderEligible) {
       const totalScore = answers.reduce((s, a) => s + (a?.points || 0), 0);
