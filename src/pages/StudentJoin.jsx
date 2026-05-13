@@ -41,6 +41,13 @@ const i18n = {
     // PR 20.2: themed quiz render labels
     pregunta: "Question", de: "of", elegiRespuesta: "Pick the right answer",
     segundos: "seconds", tuPuntaje: "Your score",
+    // PR 20.3: themed Join + Waiting strings
+    liveSession: "Live session", joinSubtitle: "Your teacher just launched a quiz. Ask them for the code and join with your name.",
+    enterSession: "Enter session",
+    waitingDeckLabel: "You'll play", question_singular: "question", question_plural: "questions",
+    readyName: "Ready, {name}.", waitForTeacher: "Hold tight. Your teacher will start when everyone is in.",
+    studentInRoom: "student in the room", studentsInRoom: "students in the room",
+    live: "live",
     // PR 11: practice mode exit button
     exitPractice: "Exit",
     exitPracticeConfirm: "Exit practice? Your progress will be lost.",
@@ -93,6 +100,13 @@ const i18n = {
     // PR 20.2: themed quiz render labels
     pregunta: "Pregunta", de: "de", elegiRespuesta: "Elegí la respuesta",
     segundos: "segundos", tuPuntaje: "Tu puntaje",
+    // PR 20.3: themed Join + Waiting strings
+    liveSession: "Sesión en vivo", joinSubtitle: "Tu profe acaba de lanzar un quiz. Pedile el código y entrá con tu nombre.",
+    enterSession: "Entrar a la sesión",
+    waitingDeckLabel: "Vas a jugar", question_singular: "pregunta", question_plural: "preguntas",
+    readyName: "Listo, {name}.", waitForTeacher: "Esperá un momento. Tu profe va a empezar cuando todos estén adentro.",
+    studentInRoom: "estudiante en sala", studentsInRoom: "estudiantes en sala",
+    live: "en vivo",
     exitPractice: "Salir",
     exitPracticeConfirm: "¿Salir de la práctica? Vas a perder tu progreso.",
     exitQuizConfirm: "¿Salir del quiz? Tu progreso se perderá.",
@@ -143,6 +157,13 @@ const i18n = {
     // PR 20.2: themed quiz render labels
     pregunta: "문제", de: "/", elegiRespuesta: "정답을 선택하세요",
     segundos: "초", tuPuntaje: "내 점수",
+    // PR 20.3: themed Join + Waiting strings
+    liveSession: "실시간 세션", joinSubtitle: "선생님이 퀴즈를 시작했어요. 코드를 받아 이름과 함께 입장하세요.",
+    enterSession: "세션 입장",
+    waitingDeckLabel: "플레이할 덱", question_singular: "문제", question_plural: "문제",
+    readyName: "준비 완료, {name}.", waitForTeacher: "잠시 기다리세요. 모두 입장하면 선생님이 시작합니다.",
+    studentInRoom: "명 입장 중", studentsInRoom: "명 입장 중",
+    live: "라이브",
     exitPractice: "나가기",
     exitPracticeConfirm: "연습을 종료할까요? 진행 상황이 사라집니다.",
     exitQuizConfirm: "퀴즈를 나가시겠어요? 진행 상황이 사라집니다.",
@@ -286,6 +307,11 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
     isPractice ? 'calm' : null
   );
   const [participant, setParticipant] = useState(null);
+  // PR 20.3: room count for the themed Waiting state. Updated via a
+  // realtime subscription on session_participants when the student
+  // is in step === "waiting". Starts at 1 (themselves) once they're
+  // joined, ticks up as classmates come in. Reset to 0 on exit/reset.
+  const [roomCount, setRoomCount] = useState(0);
   const [current, setCurrent] = useState(0);
   // PR 20.2.5: question transition animation state.
   // - quizAnimating: true during the slide-out + slide-in window
@@ -494,6 +520,35 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
       ).subscribe();
     return () => supabase.removeChannel(ch);
   }, [session?.id, step]);
+
+  // ── PR 20.3: Realtime count of how many students are in the lobby ──
+  // Only subscribes while step === "waiting". Counts session_participants
+  // rows for this session, refreshes on insert/update/delete. The shown
+  // number powers the themed WaitingState's room counter.
+  useEffect(() => {
+    if (!session?.id || step !== "waiting" || session._isPractice) return;
+
+    let cancelled = false;
+    const fetchCount = async () => {
+      const { count, error } = await supabase
+        .from("session_participants")
+        .select("id", { count: "exact", head: true })
+        .eq("session_id", session.id);
+      if (cancelled) return;
+      if (!error && typeof count === "number") setRoomCount(count);
+    };
+
+    fetchCount(); // initial
+    const ch = supabase.channel(`waiting-roster:${session.id}`)
+      .on("postgres_changes",
+        { event: "*", schema: "public", table: "session_participants", filter: `session_id=eq.${session.id}` },
+        () => fetchCount()
+      ).subscribe();
+    return () => {
+      cancelled = true;
+      supabase.removeChannel(ch);
+    };
+  }, [session?.id, step, session?._isPractice]);
 
   // ── Realtime: detect when this guest gets kicked from the lobby ──
   // The teacher sets is_kicked=true on a participant row. We listen for that
@@ -1047,6 +1102,100 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
   );
 
   // ── Join ──
+  // PR 20.3: themed Join state. Since the student doesn't know the
+  // session's theme yet (haven't joined), we fall back to 'calm' for
+  // the first time, then keep showing the previous theme if they exit
+  // and come back. The Pop/Ocean/Mono jump to a different theme only
+  // happens at the Waiting step (which is where they spend time).
+  if (step === "join" && !isPractice && !isGuest) {
+    const joinTheme = lobbyThemeId || 'calm';
+    const canEnter = pin.length >= 4 && (isLoggedIn || name.trim().length > 0);
+    return (
+      <>
+        <style>{css}</style>
+        <div className="stage-page">
+          <div className="stage-wrap">
+            <div className="stage" data-theme={joinTheme}>
+              <div className="top-strip">
+                <div className="brand-area">
+                  <span className="brand-name">Clasloop</span>
+                </div>
+                {isLoggedIn && profile?.full_name && (
+                  <div className="student-block">
+                    <div className="student-meta-text">
+                      <div className="student-name-top">{profile.full_name}</div>
+                    </div>
+                    <div className="student-avatar">
+                      {profile.full_name.trim().charAt(0).toUpperCase()}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="content">
+                <div className="join-state">
+                  <div className="join-left">
+                    <div className="join-eyebrow">{t.liveSession || "Sesión en vivo"}</div>
+                    <div className="join-title-big">{t.joinSession}</div>
+                    <div className="join-sub-big">
+                      {t.joinSubtitle || "Tu profe acaba de lanzar un quiz. Pedile el código y entrá con tu nombre."}
+                    </div>
+                  </div>
+                  <div className="join-right">
+                    {error && (
+                      <div style={{
+                        padding: "10px 14px", borderRadius: 8,
+                        background: "rgba(196, 77, 77, 0.12)",
+                        color: "var(--danger)",
+                        fontSize: 13, marginBottom: 4,
+                        display: "flex", alignItems: "center", gap: 6,
+                        fontFamily: "'Outfit', sans-serif",
+                      }}>
+                        {error}
+                      </div>
+                    )}
+                    <input
+                      className="input-field pin-input"
+                      type="text"
+                      inputMode="numeric"
+                      value={pin}
+                      maxLength={6}
+                      onChange={e => setPin(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                      onKeyDown={e => e.key === "Enter" && canEnter && handleJoin()}
+                      placeholder="• • • •"
+                    />
+                    {!isLoggedIn && (
+                      <input
+                        className="input-field"
+                        type="text"
+                        value={name}
+                        onChange={e => setName(e.target.value)}
+                        onKeyDown={e => e.key === "Enter" && canEnter && handleJoin()}
+                        placeholder={t.yourName || "Tu nombre"}
+                      />
+                    )}
+                    <button
+                      className="primary-btn"
+                      disabled={!canEnter}
+                      onClick={handleJoin}
+                    >
+                      {t.enterSession || "Entrar a la sesión"}
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <line x1="5" y1="12" x2="19" y2="12"/>
+                        <polyline points="12 5 19 12 12 19"/>
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  // ── Join (legacy) ──
   if (step === "join") return (
     <>
       <style>{css}</style>
@@ -1104,6 +1253,97 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
   );
 
   // ── Waiting ──
+  // PR 20.3: themed render when lobby_theme is set (any of the 4).
+  // Falls through to the legacy waiting screen when no theme.
+  if (step === "waiting" && !isPractice && lobbyThemeId) {
+    const studentFirstName = (participant?.student_name || "").split(" ")[0] || (participant?.student_name || "");
+    const totalQs = (session?.questions || []).length;
+    return (
+      <>
+        <style>{css}</style>
+        <div className="stage-page">
+          <div className="stage-wrap">
+            <div className="stage" data-theme={lobbyThemeId}>
+              <div className="top-strip">
+                <div className="brand-area">
+                  <button
+                    className="stage-exit-btn"
+                    onClick={handleExitQuiz}
+                    title={t.exitPractice}
+                    aria-label={t.exitPractice}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <line x1="18" y1="6" x2="6" y2="18"/>
+                      <line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                  </button>
+                  <span className="brand-name">Clasloop</span>
+                  <div className="session-info">
+                    {deckSection && (
+                      <>
+                        <span className="section-pill">{getSectionLabel(deckSection, l) || deckSection}</span>
+                        <span className="dot"></span>
+                      </>
+                    )}
+                    <span>{session?.topic || ""}</span>
+                  </div>
+                </div>
+                <div className="student-block">
+                  <div className="student-meta-text">
+                    <div className="student-name-top">{participant?.student_name || ""}</div>
+                    <div className="student-class">PIN: {session?.pin || ""}</div>
+                  </div>
+                  <div className="student-avatar">
+                    {((participant?.student_name || "?").trim().charAt(0).toUpperCase()) || "?"}
+                  </div>
+                </div>
+              </div>
+
+              <div className="content">
+                <div className="waiting-state">
+                  <div className="waiting-side-card">
+                    <div className="side-card-label">{t.waitingDeckLabel || "Vas a jugar"}</div>
+                    <div className="side-card-value">{session?.topic || ""}</div>
+                    <div className="side-card-sub">{totalQs} {totalQs === 1 ? (t.question_singular || "pregunta") : (t.question_plural || "preguntas")}</div>
+                  </div>
+
+                  <div className="waiting-center">
+                    <div className="waiting-icon-big">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <circle cx="12" cy="12" r="10"/>
+                        <polyline points="12 6 12 12 16 14"/>
+                      </svg>
+                    </div>
+                    <div className="waiting-title-big">
+                      {(t.readyName || "Listo, {name}.").replace("{name}", studentFirstName || "")}
+                    </div>
+                    <div className="waiting-sub-big">
+                      {t.waitForTeacher || "Esperá un momento. Tu profe va a empezar cuando todos estén adentro."}
+                    </div>
+                  </div>
+
+                  <div className="room-counter">
+                    <div className="room-count-big">{roomCount}</div>
+                    <div className="room-count-label">
+                      {roomCount === 1
+                        ? (t.studentInRoom || "estudiante en sala")
+                        : (t.studentsInRoom || "estudiantes en sala")}
+                    </div>
+                    <div className="pulse-dot-row">
+                      <div className="pulse-dot"></div>
+                      <span>{t.live || "en vivo"}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  // ── Waiting (legacy) ──
   if (step === "waiting") return (
     <>
       <style>{css}</style>
