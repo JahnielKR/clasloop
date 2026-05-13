@@ -652,6 +652,115 @@
   50% { opacity: 0.4; transform: scale(0.8); }
 }
 
+/* ─── PR 20.3.2: themed confirm modal (replaces native confirm()) ────
+ * Renders INSIDE the .stage so it picks up --accent, --surface, etc
+ * from the active theme. Centered via fixed positioning + flex.
+ * z-index higher than .stage-page (200) so it sits on top of the
+ * full-screen takeover. */
+.stage-confirm-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 250;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  animation: cl-confirm-fade-in 0.18s ease;
+}
+@keyframes cl-confirm-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes cl-confirm-pop-in {
+  from { opacity: 0; transform: scale(0.94) translateY(8px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+.stage-confirm-modal {
+  background: var(--surface);
+  color: currentColor;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 32px 36px 24px;
+  max-width: 440px;
+  width: 100%;
+  text-align: center;
+  animation: cl-confirm-pop-in 0.22s ease;
+}
+.stage[data-theme="pop"] .stage-confirm-modal {
+  border-width: 2px;
+  box-shadow: 6px 6px 0 #1F1733;
+}
+.stage[data-theme="mono"] .stage-confirm-modal { border-radius: 0; }
+.stage[data-theme="ocean"] .stage-confirm-modal {
+  background: #0A1F3F;
+  border-color: rgba(255,255,255,0.15);
+}
+
+.stage-confirm-title {
+  font-family: 'Outfit', sans-serif;
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.25;
+  margin-bottom: 10px;
+  letter-spacing: -0.01em;
+}
+.stage[data-theme="mono"] .stage-confirm-title {
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.stage-confirm-body {
+  font-size: 15px;
+  color: var(--text-soft);
+  line-height: 1.5;
+  margin-bottom: 24px;
+}
+
+.stage-confirm-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+.stage-confirm-actions button {
+  font-family: 'Outfit', sans-serif;
+  font-weight: 600;
+  font-size: 15px;
+  padding: 12px 22px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.15s;
+  min-width: 120px;
+}
+.stage-confirm-actions button:hover { transform: translateY(-1px); }
+.stage-confirm-actions button:active { transform: scale(0.98); }
+
+.stage-confirm-primary {
+  background: var(--accent);
+  color: var(--on-accent);
+  border: none;
+}
+.stage[data-theme="pop"] .stage-confirm-primary {
+  box-shadow: 3px 3px 0 rgba(31,23,51,0.5);
+}
+.stage[data-theme="mono"] .stage-confirm-primary {
+  border-radius: 0;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.stage-confirm-secondary {
+  background: transparent;
+  color: currentColor;
+  border: 1px solid var(--border);
+}
+.stage-confirm-secondary:hover {
+  border-color: currentColor;
+}
+.stage[data-theme="pop"] .stage-confirm-secondary { border-width: 2px; }
+.stage[data-theme="mono"] .stage-confirm-secondary {
+  border-radius: 0;
+  font-family: 'JetBrains Mono', monospace;
+}
+
 /* ─── Outer page wrapper — full-screen takeover ──────────────────── */
 .stage-page {
   /* PR 20.2.4 + 20.2.7: position fixed + inset 0 to cover the app's

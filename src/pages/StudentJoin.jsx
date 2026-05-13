@@ -53,6 +53,13 @@ const i18n = {
     exitPracticeConfirm: "Exit practice? Your progress will be lost.",
     // PR 20.2.4: confirmation when a student tries to leave a live quiz
     exitQuizConfirm: "Exit the quiz? Your progress will be lost.",
+    // PR 20.3.2: themed confirm modal
+    exitWaitingTitle: "Leave the room?",
+    exitWaitingBody: "You'll go back to the join screen. You can come back with the same PIN.",
+    exitQuizTitle: "Exit the quiz?",
+    exitQuizBody: "Your answers and points so far will be lost.",
+    exitCancel: "Stay",
+    exitConfirm: "Leave",
     timerOnTip: "Timer on. Tap to study without time pressure.",
     timerOffTip: "Timer off. Tap to turn on the recommended timing.",
     totalTimeLabel: "Time left",
@@ -110,6 +117,12 @@ const i18n = {
     exitPractice: "Salir",
     exitPracticeConfirm: "¿Salir de la práctica? Vas a perder tu progreso.",
     exitQuizConfirm: "¿Salir del quiz? Tu progreso se perderá.",
+    exitWaitingTitle: "¿Salir de la sala?",
+    exitWaitingBody: "Vas a volver a la pantalla de entrada. Podés volver a entrar con el mismo PIN.",
+    exitQuizTitle: "¿Salir del quiz?",
+    exitQuizBody: "Vas a perder tus respuestas y puntos.",
+    exitCancel: "Quedarme",
+    exitConfirm: "Salir",
     timerOnTip: "Timer activo. Toca para estudiar sin presión.",
     timerOffTip: "Timer apagado. Toca para activar el tiempo recomendado.",
     totalTimeLabel: "Tiempo restante",
@@ -167,6 +180,12 @@ const i18n = {
     exitPractice: "나가기",
     exitPracticeConfirm: "연습을 종료할까요? 진행 상황이 사라집니다.",
     exitQuizConfirm: "퀴즈를 나가시겠어요? 진행 상황이 사라집니다.",
+    exitWaitingTitle: "대기실을 나가시겠어요?",
+    exitWaitingBody: "입장 화면으로 돌아갑니다. 같은 PIN으로 다시 들어올 수 있어요.",
+    exitQuizTitle: "퀴즈를 나가시겠어요?",
+    exitQuizBody: "답변과 점수가 사라집니다.",
+    exitCancel: "계속하기",
+    exitConfirm: "나가기",
     timerOnTip: "타이머 켜짐. 시간 압박 없이 학습하려면 탭하세요.",
     timerOffTip: "타이머 꺼짐. 권장 시간을 활성화하려면 탭하세요.",
     totalTimeLabel: "남은 시간",
@@ -312,6 +331,10 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
   // is in step === "waiting". Starts at 1 (themselves) once they're
   // joined, ticks up as classmates come in. Reset to 0 on exit/reset.
   const [roomCount, setRoomCount] = useState(0);
+  // PR 20.3.2: themed confirm modal — when true, renders a centered
+  // dialog INSIDE the .stage instead of using the browser's native
+  // confirm(). The dialog inherits the active theme.
+  const [exitConfirmOpen, setExitConfirmOpen] = useState(false);
   const [current, setCurrent] = useState(0);
   // PR 20.2.5: question transition animation state.
   // - quizAnimating: true during the slide-out + slide-in window
@@ -1061,16 +1084,30 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
     else setCurrent(c => c + 1);
   };
 
-  // PR 20.2.4: exit handler for live quiz. Reuses the same state reset
-  // as the "Join another session" button on the results page. Practice
-  // mode has its own onPracticeExit prop (kept separate).
+  // PR 20.2.4 + 20.3.2: exit handler for live quiz/waiting.
+  //
+  // PR 20.2.4 used the native confirm() dialog, which always shows at
+  // the top of the browser and ignores the theme. PR 20.3.2 splits the
+  // flow into two functions:
+  //   - handleExitQuiz: triggered by the X button. Opens the themed
+  //     confirm modal. The modal text adapts to step (Waiting vs Quiz).
+  //   - handleExitConfirm: triggered by the modal's primary button.
+  //     Actually resets state and bails to the join screen.
   const handleExitQuiz = () => {
-    if (!confirm(t.exitQuizConfirm)) return;
+    // Practice mode never had a themed Waiting/Quiz path, so keep its
+    // existing native-confirm flow (cheaper to maintain).
     if (isPractice && onPracticeExit) {
+      if (!confirm(t.exitPracticeConfirm)) return;
       onPracticeExit();
       return;
     }
-    // Live: reset to the join screen
+    // Live: open the themed modal. handleExitConfirm does the actual
+    // state reset when the student confirms.
+    setExitConfirmOpen(true);
+  };
+
+  const handleExitConfirm = () => {
+    setExitConfirmOpen(false);
     setStep("join");
     setPin("");
     setName(profile?.full_name || "");
@@ -1257,6 +1294,60 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
     </>
   );
 
+  // PR 20.3.2: themed exit-confirm modal markup, reused by both
+  // the Waiting state and the Question state.
+  //
+  // titleKey is `exitWaitingTitle` or `exitQuizTitle`; bodyKey is the
+  // matching body string. Both are looked up against the active i18n.
+  const renderExitConfirmModal = (titleKey, bodyKey) => {
+    if (!exitConfirmOpen) return null;
+    return (
+      <div
+        className="stage-confirm-overlay"
+        onClick={() => setExitConfirmOpen(false)}
+        data-theme={lobbyThemeId || 'calm'}
+      >
+        {/* Inner .stage so the modal reads --accent etc. from the theme.
+            The overlay is outside the .stage tree because it covers the
+            entire viewport including the stage. */}
+        <div
+          className="stage"
+          data-theme={lobbyThemeId || 'calm'}
+          style={{
+            // Override the stage's full-viewport sizing — the modal is
+            // a small centered card, not the whole screen.
+            width: 'auto',
+            height: 'auto',
+            background: 'transparent',
+            display: 'block',
+            position: 'static',
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="stage-confirm-modal">
+            <div className="stage-confirm-title">{t[titleKey] || ""}</div>
+            <div className="stage-confirm-body">{t[bodyKey] || ""}</div>
+            <div className="stage-confirm-actions">
+              <button
+                className="stage-confirm-secondary"
+                onClick={handleExitConfirm}
+              >
+                {t.exitConfirm || "Leave"}
+              </button>
+              <button
+                className="stage-confirm-primary"
+                onClick={() => setExitConfirmOpen(false)}
+                autoFocus
+              >
+                {t.exitCancel || "Stay"}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   // ── Waiting ──
   // PR 20.3: themed render when lobby_theme is set (any of the 4).
   // Falls through to the legacy waiting screen when no theme.
@@ -1344,6 +1435,7 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
             </div>
           </div>
         </div>
+        {renderExitConfirmModal("exitWaitingTitle", "exitWaitingBody")}
       </>
     );
   }
@@ -1591,6 +1683,7 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
               </div>
             </div>
           </div>
+          {renderExitConfirmModal("exitQuizTitle", "exitQuizBody")}
         </>
       );
     }
