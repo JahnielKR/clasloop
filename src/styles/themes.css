@@ -178,14 +178,24 @@
   grid-template-columns: 1fr 240px;
 }
 .stage .question-main {
-  padding: 28px 40px 32px;
+  /* PR 20.2.8: more breathing room with the full-screen stage. The
+     question text is now centered between the top meta and the answers
+     at the bottom, instead of crammed near the top. */
+  padding: 28px 60px 60px;
   display: flex;
   flex-direction: column;
-  /* PR 20.2.6: min-height/min-width 0 prevent the column from expanding
-     beyond its grid track size. Especially important on long prompts. */
   min-height: 0;
   min-width: 0;
   overflow: hidden;
+}
+/* The "middle block" (label + prompt) takes whatever vertical space is
+ * left after meta and answers, and centers its content. */
+.stage .question-center {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 0;
 }
 .stage .question-meta {
   display: flex;
@@ -223,12 +233,26 @@
   margin-bottom: 6px;
 }
 .stage .question-text-tablet {
+  /* PR 20.2.8: bigger + centered in the full-screen stage. Was 32px
+     left-aligned cramped near the top; now 42px center-aligned in the
+     middle band of the screen. The margin-bottom is no longer needed
+     because .question-center handles vertical positioning, and the
+     answers below sit at their own fixed grid. */
   font-family: 'Outfit', sans-serif;
-  font-size: 32px;
+  font-size: 42px;
   font-weight: 600;
-  line-height: 1.25;
-  letter-spacing: -0.01em;
-  margin-bottom: 28px;
+  line-height: 1.2;
+  letter-spacing: -0.015em;
+  text-align: center;
+  margin: 0;
+  max-width: 900px;
+  margin-left: auto;
+  margin-right: auto;
+}
+.stage .question-prompt-label {
+  /* PR 20.2.8: centered with the prompt now */
+  text-align: center;
+  margin-bottom: 14px;
 }
 .stage[data-theme="mono"] .question-text-tablet {
   font-family: 'JetBrains Mono', monospace;
@@ -246,15 +270,15 @@
 .stage .answers-grid {
   /* PR 20.2.5: fixed-height rows so tile size never changes between
      questions, regardless of how much text the prompt or options have.
-     Previously rows were `1fr 1fr` which redistributed the available
-     space based on prompt length, causing tiles to visually "jump"
-     between questions. */
-  flex: 1;
+     PR 20.2.8: removed flex: 1 — the grid now sits at the bottom of
+     .question-main at its natural fixed height (110px × 2 rows + gap),
+     while .question-center above absorbs the leftover vertical space
+     so the prompt is centered. */
   display: grid;
   grid-template-columns: 1fr 1fr;
-  grid-template-rows: 110px 110px;
+  grid-template-rows: 130px 130px;
   gap: 14px;
-  align-content: start;
+  flex-shrink: 0;
 }
 .stage .answer-tile {
   background: var(--surface);

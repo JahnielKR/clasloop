@@ -1255,8 +1255,14 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
                         </div>
                       </div>
 
-                      <div className="question-prompt-label">{t.elegiRespuesta || "Elegí la respuesta"}</div>
-                      <div className="question-text-tablet" style={{ whiteSpace: "pre-wrap" }}>{displayedQ.q}</div>
+                      {/* PR 20.2.8: wrap label + prompt in .question-center
+                          so the flex:1 styling centers them vertically
+                          in the space between .question-meta (top) and
+                          .answers-grid (bottom). */}
+                      <div className="question-center">
+                        <div className="question-prompt-label">{t.elegiRespuesta || "Elegí la respuesta"}</div>
+                        <div className="question-text-tablet" style={{ whiteSpace: "pre-wrap" }}>{displayedQ.q}</div>
+                      </div>
 
                       <div className="answers-grid">
                         {displayedQ.options.map((o, i) => {
