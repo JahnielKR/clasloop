@@ -1,0 +1,255 @@
+/* ─── Lobby & Live themes ───────────────────────────────────────────────
+ *
+ * Every themed element is rendered into a wrapper with
+ *   class="themed-stage" data-theme="<id>"
+ *
+ * CSS attribute selectors apply the theme tokens. This file is the
+ * single source of truth for theme visuals — overlays live separately
+ * in theme-overlays.css.
+ *
+ * Z-index convention:
+ *   0  — base background (the .themed-stage itself)
+ *   1  — backgroundOverlay (starfield, scanlines) via ::before
+ *   2+ — actual content (.themed-stage > * gets z-index 2)
+ *
+ * Content elements that want to participate in the theme MUST include
+ * .themed inside the wrapper, or carry one of the structural classes
+ * below (.theme-pin, .theme-section-tag, .theme-deck-name, etc).
+ */
+
+/* ─── Base wrapper (applies to all themes) ──────────────────────────── */
+
+.themed-stage {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  transition: background 0.5s ease, color 0.25s ease;
+}
+
+.themed-stage > * {
+  position: relative;
+  z-index: 2;
+}
+
+/* Default-safe inheriting children so legacy code styled with inline
+ * tokens (var(--c-*)) still works inside non-Calm themes — the wrapper
+ * just *adds* atmosphere, it doesn't tear out the existing styles. */
+
+/* ─── CALM (default) ────────────────────────────────────────────────── */
+
+.themed-stage[data-theme="calm"] {
+  background: #FAFAF8;
+  color: #2C2A26;
+  font-family: 'Inter', system-ui, sans-serif;
+}
+
+.themed-stage[data-theme="calm"] .theme-deck-name,
+.themed-stage[data-theme="calm"] .theme-pin {
+  font-family: 'Outfit', sans-serif;
+  color: #2C2A26;
+}
+
+.themed-stage[data-theme="calm"] .theme-pin {
+  font-size: clamp(120px, 18vw, 220px);
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  line-height: 0.95;
+  color: #2C2A26;
+}
+
+.themed-stage[data-theme="calm"] .theme-section-tag {
+  background: rgba(15, 123, 108, 0.08);
+  color: #0F7B6C;
+  border: 1px solid rgba(15, 123, 108, 0.18);
+}
+
+.themed-stage[data-theme="calm"] .theme-class-name,
+.themed-stage[data-theme="calm"] .theme-prompt {
+  color: #6B6760;
+}
+
+.themed-stage[data-theme="calm"] .theme-chip {
+  background: rgba(15, 123, 108, 0.06);
+  border: 1px solid rgba(15, 123, 108, 0.18);
+  color: #2C2A26;
+}
+
+.themed-stage[data-theme="calm"] .theme-card {
+  background: #FFFFFF;
+  border: 1px solid #E8E6E1;
+  border-radius: 16px;
+}
+
+/* ─── OCEAN ─────────────────────────────────────────────────────────── */
+
+.themed-stage[data-theme="ocean"] {
+  background: radial-gradient(ellipse at top, #1A3D6B 0%, #0A1F3F 55%, #050E20 100%);
+  color: #E8F0FF;
+  font-family: 'Inter', system-ui, sans-serif;
+}
+
+.themed-stage[data-theme="ocean"] .theme-deck-name {
+  font-family: 'Outfit', sans-serif;
+  color: #E8F0FF;
+  font-weight: 600;
+}
+
+.themed-stage[data-theme="ocean"] .theme-pin {
+  font-family: 'Outfit', sans-serif;
+  font-size: clamp(120px, 18vw, 220px);
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  line-height: 0.95;
+  color: #FFFFFF;
+  text-shadow:
+    0 0 32px rgba(120, 220, 180, 0.4),
+    0 0 64px rgba(120, 220, 180, 0.2);
+}
+
+.themed-stage[data-theme="ocean"] .theme-section-tag {
+  background: rgba(120, 220, 180, 0.15);
+  color: rgb(120, 220, 180);
+  border: 1px solid rgba(120, 220, 180, 0.3);
+}
+
+.themed-stage[data-theme="ocean"] .theme-class-name,
+.themed-stage[data-theme="ocean"] .theme-prompt {
+  color: rgba(232, 240, 255, 0.7);
+}
+
+.themed-stage[data-theme="ocean"] .theme-chip {
+  background: rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #E8F0FF;
+}
+
+.themed-stage[data-theme="ocean"] .theme-card {
+  background: rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 16px;
+}
+
+/* ─── POP ───────────────────────────────────────────────────────────── */
+
+.themed-stage[data-theme="pop"] {
+  background: linear-gradient(135deg, #FFD93D 0%, #FF6B9D 50%, #C147FF 100%);
+  color: #1F1733;
+  font-family: 'Outfit', sans-serif;
+}
+
+.themed-stage[data-theme="pop"] .theme-deck-name {
+  font-family: 'Outfit', sans-serif;
+  font-weight: 700;
+  color: #1F1733;
+}
+
+.themed-stage[data-theme="pop"] .theme-pin {
+  font-family: 'Outfit', sans-serif;
+  font-size: clamp(120px, 18vw, 220px);
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  line-height: 0.95;
+  color: #1F1733;
+  animation: themePopBounce 2.5s ease-in-out infinite;
+}
+
+@keyframes themePopBounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+.themed-stage[data-theme="pop"] .theme-section-tag {
+  background: #1F1733;
+  color: #FFD93D;
+  border: 2px solid #1F1733;
+  box-shadow: 3px 3px 0 rgba(31, 23, 51, 0.4);
+}
+
+.themed-stage[data-theme="pop"] .theme-class-name,
+.themed-stage[data-theme="pop"] .theme-prompt {
+  color: rgba(31, 23, 51, 0.75);
+  font-weight: 600;
+}
+
+.themed-stage[data-theme="pop"] .theme-chip {
+  background: rgba(255, 255, 255, 0.92);
+  border: 2px solid #1F1733;
+  color: #1F1733;
+  box-shadow: 3px 3px 0 #1F1733;
+  font-weight: 600;
+}
+
+.themed-stage[data-theme="pop"] .theme-card {
+  background: rgba(255, 255, 255, 0.92);
+  border: 3px solid #1F1733;
+  border-radius: 16px;
+  box-shadow: 4px 4px 0 #1F1733;
+}
+
+/* ─── MONO ──────────────────────────────────────────────────────────── */
+
+.themed-stage[data-theme="mono"] {
+  background: #000000;
+  color: #FFFFFF;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.themed-stage[data-theme="mono"] .theme-deck-name {
+  font-family: 'JetBrains Mono', monospace;
+  color: #FFFFFF;
+  font-weight: 700;
+}
+
+.themed-stage[data-theme="mono"] .theme-pin {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: clamp(120px, 18vw, 220px);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  line-height: 0.95;
+  color: #FFFFFF;
+  position: relative;
+}
+
+.themed-stage[data-theme="mono"] .theme-pin::after {
+  content: "_";
+  margin-left: 0.1em;
+  animation: themeMonoCursor 1s steps(1) infinite;
+}
+
+@keyframes themeMonoCursor {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}
+
+.themed-stage[data-theme="mono"] .theme-section-tag {
+  background: transparent;
+  color: #FFFFFF;
+  border: 1px solid #FFFFFF;
+  font-family: 'JetBrains Mono', monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
+.themed-stage[data-theme="mono"] .theme-class-name,
+.themed-stage[data-theme="mono"] .theme-prompt {
+  color: rgba(255, 255, 255, 0.7);
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.themed-stage[data-theme="mono"] .theme-chip {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  color: #FFFFFF;
+  border-radius: 0;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.themed-stage[data-theme="mono"] .theme-card {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 0;
+}

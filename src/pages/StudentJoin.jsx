@@ -11,6 +11,9 @@ import { getPracticeTimerPref, setPracticeTimerPref } from "../lib/practice-time
 import { evaluateAnswer, describeCorrectAnswer, formatStudentAnswer } from "../lib/scoring";
 import { QUERY } from "../routes";
 import { getSectionTheme, getSectionLabel, SectionIconSVG } from "../lib/section-theme";
+// PR 20.1: resolve the cascade for which lobby/student theme applies.
+// Resolution: deck.lobby_theme_override > class.lobby_theme > 'calm' fallback.
+import { resolveDeckTheme } from "../lib/themes";
 
 // Quiz option colors — kahoot-style fixed palette. NOT theme-aware on purpose:
 // students need to see the same colors the teacher launches the session with.
@@ -264,6 +267,14 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
   const [deckSection, setDeckSection] = useState(
     isPractice ? (practiceDeck?.section || null) : null
   );
+  // PR 20.1: the resolved lobby/student theme for this deck. Cascade is:
+  // deck.lobby_theme_override > class.lobby_theme > 'calm' fallback.
+  // Set null until the fetch resolves; defaults to 'calm' when rendered.
+  // For practice mode we don't fetch anything — practice always uses 'calm'
+  // since there's no class/deck theme context to resolve from.
+  const [lobbyThemeId, setLobbyThemeId] = useState(
+    isPractice ? 'calm' : null
+  );
   const [participant, setParticipant] = useState(null);
   const [current, setCurrent] = useState(0);
   const [answers, setAnswers] = useState([]); // [{ isCorrect, raw, points, maxPoints, needsReview }]
@@ -419,10 +430,14 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
     // Reset to null so the previous deck's theming clears immediately.
     // The new value lands as soon as the fetch resolves.
     setDeckSection(null);
+    setLobbyThemeId(null);
     (async () => {
+      // PR 20.1: also fetch lobby_theme_override + the parent class's
+      // lobby_theme so the student-side can render in the right theme.
+      // Resolution cascade lives in src/lib/themes.js → resolveDeckTheme().
       const { data, error } = await supabase
         .from("decks")
-        .select("section")
+        .select("section, lobby_theme_override, class:classes(lobby_theme)")
         .eq("id", session.deck_id)
         .single();
       if (cancelled) return;
@@ -430,6 +445,13 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
       // fall back to null — the quiz still works, it just won't have
       // section-specific theming. Better to render unthemed than break.
       if (!error && data?.section) setDeckSection(data.section);
+      // Resolve the theme via the cascade. If the columns don't exist yet
+      // (migration not run), `lobby_theme_override` and `class.lobby_theme`
+      // will simply be undefined and resolveDeckTheme returns 'calm'.
+      if (!error && data) {
+        const themeId = resolveDeckTheme(data, data.class);
+        setLobbyThemeId(themeId);
+      }
     })();
     return () => { cancelled = true; };
   }, [session?.deck_id, isPractice]);

@@ -1,0 +1,47 @@
+/* ─── Theme overlays ─────────────────────────────────────────────────
+ *
+ * Two themes use a background overlay pattern beyond their flat color:
+ *   - Ocean: twinkling starfield
+ *   - Mono : subtle horizontal scanlines (CRT vibe)
+ *
+ * Overlays are attached to .themed-stage::before with z-index 1.
+ * Content uses z-index 2+ to render above.
+ */
+
+.themed-stage[data-theme="ocean"]::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image:
+    radial-gradient(1px 1px at 15% 20%, rgba(255,255,255,0.5), transparent),
+    radial-gradient(1px 1px at 85% 70%, rgba(255,255,255,0.6), transparent),
+    radial-gradient(2px 2px at 45% 40%, rgba(255,255,255,0.3), transparent),
+    radial-gradient(1px 1px at 75% 25%, rgba(255,255,255,0.4), transparent),
+    radial-gradient(1px 1px at 25% 75%, rgba(255,255,255,0.4), transparent),
+    radial-gradient(1.5px 1.5px at 60% 85%, rgba(255,255,255,0.35), transparent),
+    radial-gradient(1px 1px at 92% 15%, rgba(255,255,255,0.45), transparent),
+    radial-gradient(1px 1px at 10% 50%, rgba(255,255,255,0.4), transparent);
+  z-index: 1;
+  pointer-events: none;
+  animation: themeOceanStarTwinkle 8s ease-in-out infinite;
+}
+
+@keyframes themeOceanStarTwinkle {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+.themed-stage[data-theme="mono"]::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(255,255,255,0.02) 2px,
+    rgba(255,255,255,0.02) 4px
+  );
+  z-index: 1;
+  pointer-events: none;
+}

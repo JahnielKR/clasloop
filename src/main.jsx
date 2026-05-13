@@ -4,6 +4,10 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import App from './App'
 import GuestJoin from './pages/GuestJoin'
 import './index.css'
+// PR 20: theme stylesheets for lobby + live screens. Loaded eagerly
+// since they're small (~5KB) and avoid a flash when the lobby mounts.
+import './styles/themes.css'
+import './styles/theme-overlays.css'
 import { ensureThemeCss, applyTheme, getStoredTheme } from './components/tokens'
 import { ROUTE_PATTERNS } from './routes'
 
