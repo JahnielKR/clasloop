@@ -41,6 +41,9 @@ const i18n = {
     reviewQuestion: "Question {n} of {total}",
     pointsLabel: "{points}/{max} points",
     joinAnother: "Join another session", noQuestions: "No questions available",
+    // PR 20.2: themed quiz render labels
+    pregunta: "Question", de: "of", elegiRespuesta: "Pick the right answer",
+    segundos: "seconds", tuPuntaje: "Your score",
     // PR 11: practice mode exit button
     exitPractice: "Exit",
     exitPracticeConfirm: "Exit practice? Your progress will be lost.",
@@ -88,6 +91,9 @@ const i18n = {
     reviewQuestion: "Pregunta {n} de {total}",
     pointsLabel: "{points}/{max} puntos",
     joinAnother: "Unirse a otra sesión", noQuestions: "No hay preguntas",
+    // PR 20.2: themed quiz render labels
+    pregunta: "Pregunta", de: "de", elegiRespuesta: "Elegí la respuesta",
+    segundos: "segundos", tuPuntaje: "Tu puntaje",
     exitPractice: "Salir",
     exitPracticeConfirm: "¿Salir de la práctica? Vas a perder tu progreso.",
     timerOnTip: "Timer activo. Toca para estudiar sin presión.",
@@ -134,6 +140,9 @@ const i18n = {
     reviewQuestion: "{total}문제 중 {n}번",
     pointsLabel: "{points}/{max} 점",
     joinAnother: "다른 세션 참여", noQuestions: "문제가 없습니다",
+    // PR 20.2: themed quiz render labels
+    pregunta: "문제", de: "/", elegiRespuesta: "정답을 선택하세요",
+    segundos: "초", tuPuntaje: "내 점수",
     exitPractice: "나가기",
     exitPracticeConfirm: "연습을 종료할까요? 진행 상황이 사라집니다.",
     timerOnTip: "타이머 켜짐. 시간 압박 없이 학습하려면 탭하세요.",
@@ -1062,6 +1071,151 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
     // decks or fetch failed).
     const theme = getSectionTheme(deckSection);
     const sectionLabel = getSectionLabel(deckSection, l);
+
+    // ─── PR 20.2: NEW THEMED RENDER (Calm + Pop only) ─────────────────
+    //
+    // For live sessions where a theme is resolved AND the question is a
+    // single-correct MCQ with text options, render the new "stage" layout
+    // from student-prototype.html. For everything else (multi-correct,
+    // fill-blank, sliders, true/false, image options, practice mode
+    // without theme) we fall through to the legacy render below which
+    // is fully feature-complete and unchanged.
+    //
+    // Themes active in this PR: 'calm', 'pop'. 'ocean' and 'mono' have
+    // CSS but aren't selectable yet — when class.lobby_theme is set to
+    // them via SQL they still render, just no UI exposes the choice.
+    const themedRenderEligible =
+      !isPractice &&
+      lobbyThemeId &&
+      ['calm', 'pop'].includes(lobbyThemeId) &&
+      qType === 'mcq' &&
+      Array.isArray(q?.options) &&
+      !Array.isArray(q?.correct) && // single-correct only
+      q.options.every(o => typeof o === 'string' || (typeof o === 'object' && !o?.image_url));
+
+    if (themedRenderEligible) {
+      const totalScore = answers.reduce((s, a) => s + (a?.points || 0), 0);
+      const studentInitial = (participant?.student_name || "?").trim().charAt(0).toUpperCase() || "?";
+      const studentDisplayName = participant?.student_name || "—";
+      const sessionTitle = session?.deck_title || "—";
+      const className = session?.class_name || "";
+      const circumference = 2 * Math.PI * 44;
+      const ringOffset = hasTimer && timeLimit > 0
+        ? circumference * (1 - Math.max(0, timeLeft) / timeLimit)
+        : 0;
+      const progress = ((current + 1) / questions.length) * 100;
+      const stageLabel = sectionLabel || (deckSection ? deckSection : "Quiz");
+
+      const handleTileClick = (idx) => {
+        if (showResult) return;
+        handleMcq(idx);
+      };
+
+      return (
+        <>
+          <style>{css}</style>
+          <div className="stage-page">
+            <div className="stage-wrap">
+              <div className="stage" data-theme={lobbyThemeId}>
+                <div className="top-strip">
+                  <div className="brand-area">
+                    <span className="brand-name">Clasloop</span>
+                    <div className="session-info">
+                      <span className="section-pill">{stageLabel}</span>
+                      <span className="dot"></span>
+                      <span>{sessionTitle}</span>
+                      {className && (
+                        <>
+                          <span className="dot"></span>
+                          <span>{className}</span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                  <div className="student-block">
+                    <div className="student-meta-text">
+                      <div className="student-name-top">{studentDisplayName}</div>
+                      <div className="student-class">{totalScore.toLocaleString()} pts</div>
+                    </div>
+                    <div className="student-avatar">{studentInitial}</div>
+                  </div>
+                </div>
+
+                <div className="content">
+                  <div className="question-state">
+                    <div className="question-main">
+                      <div className="question-meta">
+                        <span className="q-counter">
+                          <strong>{t.pregunta || "Pregunta"} {current + 1}</strong> {t.de || "de"} {questions.length}
+                        </span>
+                        <div className="q-progress">
+                          <div className="q-progress-fill" style={{ width: `${progress}%` }}></div>
+                        </div>
+                      </div>
+
+                      <div className="question-prompt-label">{t.elegiRespuesta || "Elegí la respuesta"}</div>
+                      <div className="question-text-tablet" style={{ whiteSpace: "pre-wrap" }}>{q.q}</div>
+
+                      <div className="answers-grid">
+                        {q.options.map((o, i) => {
+                          const optText = typeof o === "string" ? o : (o?.text || "");
+                          const letter = String.fromCharCode(65 + i);
+                          const selected = mcqSelected === i;
+                          return (
+                            <button
+                              key={i}
+                              className={`answer-tile ${selected ? 'selected' : ''}`}
+                              onClick={() => handleTileClick(i)}
+                              disabled={showResult}
+                            >
+                              <div className="tile-letter">{letter}</div>
+                              <div className="tile-text">{optText}</div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <div className="question-rail">
+                      {hasTimer && (
+                        <div>
+                          <div className="timer-ring-big">
+                            <svg viewBox="0 0 100 100">
+                              <circle className="timer-track" cx="50" cy="50" r="44"/>
+                              <circle
+                                className="timer-fill"
+                                cx="50" cy="50" r="44"
+                                strokeDasharray={circumference}
+                                strokeDashoffset={ringOffset}
+                              />
+                            </svg>
+                            <div className="timer-num">{Math.max(0, timeLeft)}</div>
+                          </div>
+                          <div className="timer-caption">{t.segundos || "segundos"}</div>
+                        </div>
+                      )}
+
+                      {hasTimer && <div className="rail-divider"></div>}
+
+                      <div className="rail-stat">
+                        <div className="rail-stat-label">{t.tuPuntaje || "Tu puntaje"}</div>
+                        <div className="rail-stat-value">{totalScore.toLocaleString()}</div>
+                      </div>
+
+                      <div className="rail-stat">
+                        <div className="rail-stat-label">{t.pregunta || "Pregunta"}</div>
+                        <div className="rail-stat-value">{current + 1}/{questions.length}</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
+      );
+    }
+    // ─── End of themed render. Falls through to legacy render below. ──
 
     return (
       <>
