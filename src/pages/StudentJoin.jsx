@@ -1113,7 +1113,12 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
     return (
       <>
         <style>{css}</style>
-        <div className="stage-page">
+        {/* PR 20.3.1: Join uses an inline wrapper (not the fixed-position
+            stage-page used by Waiting/Quiz) so the app sidebar stays
+            visible — students need a way to leave the join screen
+            without entering a session. Once they submit a PIN and
+            land in Waiting/Quiz, those go full-screen as before. */}
+        <div className="stage-page-inline">
           <div className="stage-wrap">
             <div className="stage" data-theme={joinTheme}>
               <div className="top-strip">

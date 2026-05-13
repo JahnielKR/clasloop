@@ -667,6 +667,36 @@
   background: #0a0a0a;
 }
 
+/* PR 20.3.1: inline variant for the Join state — flows in the normal
+ * document so the app sidebar stays visible. The student can navigate
+ * away without committing to a session. Once they submit a PIN, they
+ * transition to Waiting which uses .stage-page (full-screen takeover). */
+.stage-page-inline {
+  width: 100%;
+  min-height: calc(100vh - 80px); /* leave room for any app header */
+  display: flex;
+  align-items: stretch;
+  justify-content: stretch;
+  padding: 20px;
+  box-sizing: border-box;
+}
+.stage-page-inline .stage-wrap {
+  /* Override the full-viewport sizing — within an inline wrapper the
+   * stage should respect the surrounding layout, not blow past it. */
+  width: 100%;
+  height: auto;
+  min-height: 600px;
+  max-width: 1240px;
+  margin: 0 auto;
+  border-radius: 18px;
+  box-shadow: 0 30px 80px rgba(0,0,0,0.3), 0 10px 30px rgba(0,0,0,0.2);
+}
+.stage-page-inline .stage {
+  /* Match the wrap exactly */
+  height: 100%;
+  min-height: 600px;
+}
+
 /* ─── PR 20.2.4: exit button (top-left of top-strip) ──────────────────
  * Lightweight X button. Sits inside .brand-area before the brand name.
  * Has its own hover/focus ring, uses currentColor so it inherits the
