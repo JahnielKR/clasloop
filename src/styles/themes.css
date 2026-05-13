@@ -11,22 +11,22 @@
 
 /* ── stage wrapper ───────────────────────────────────────────────────── */
 .stage-wrap {
-  max-width: 1240px;
-  margin: 0 auto;
-  border-radius: 18px;
+  /* PR 20.2.7: full-screen takeover. Was max-width 1240px + box-shadow
+     for a "card on dark page" look. Now the stage IS the page —
+     guarantees a single fixed viewport-sized rectangle that never
+     changes between questions, since the viewport itself is the size
+     reference. Also nicer on tablets/Chromebooks where the wasted
+     letterbox space around a 1240px card was a complaint. */
+  width: 100vw;
+  height: 100vh;
   overflow: hidden;
-  box-shadow: 0 30px 80px rgba(0,0,0,0.6), 0 10px 30px rgba(0,0,0,0.5);
 }
 .stage {
-  /* PR 20.2.6: width fixed via the parent .stage-wrap max-width 1240px,
-     height locked to a ratio of viewport so it's the same on every
-     question. Was using aspect-ratio + min-height: 600px, which let the
-     content (especially when the Next button appears in the rail)
-     push the stage taller — making each question render at a slightly
-     different stage size. Now: a single computed height that doesn't
-     depend on content. */
+  /* PR 20.2.7: take the full wrap (which is the full viewport). No
+     aspect-ratio, no max-width, no min-height — those all leaked
+     content-driven sizing into the stage. */
   width: 100%;
-  height: min(78vh, 760px);
+  height: 100%;
   position: relative;
   overflow: hidden;
   transition: background 0.4s ease, color 0.4s ease;
@@ -414,23 +414,19 @@
   margin-top: 4px;
 }
 
-/* ─── Outer page wrapper that centers the stage ──────────────────── */
+/* ─── Outer page wrapper — full-screen takeover ──────────────────── */
 .stage-page {
-  /* PR 20.2.4: when the themed quiz mounts we want full-screen takeover
-     so the app's normal sidebar/topbar don't show through. position:fixed
-     + inset:0 + high z-index achieves this without requiring App.jsx to
-     know that the student is in a quiz. */
+  /* PR 20.2.4 + 20.2.7: position fixed + inset 0 to cover the app's
+     sidebar/topbar. No padding so the stage fills the viewport
+     completely — guarantees a single fixed size for the cuadro
+     regardless of content. */
   position: fixed;
   inset: 0;
   z-index: 200;
-  padding: 20px;
   display: flex;
-  align-items: center;
-  justify-content: center;
+  align-items: stretch;
+  justify-content: stretch;
   background: #0a0a0a;
-}
-@media (max-width: 900px) {
-  .stage-page { padding: 12px; }
 }
 
 /* ─── PR 20.2.4: exit button (top-left of top-strip) ──────────────────
