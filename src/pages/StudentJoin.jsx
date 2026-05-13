@@ -1093,6 +1093,24 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
       !Array.isArray(q?.correct) && // single-correct only
       q.options.every(o => typeof o === 'string' || (typeof o === 'object' && !o?.image_url));
 
+    // PR 20.2 DEBUG — temporary: helps diagnose why themed render
+    // didn't activate when the teacher expected it to. Remove this in
+    // PR 20.3 once the path is well-tested.
+    if (typeof window !== 'undefined' && !window.__claudethemedebug) {
+      window.__claudethemedebug = true;
+      console.log('[PR 20.2 theme debug]', {
+        themedRenderEligible,
+        isPractice,
+        lobbyThemeId,
+        qType,
+        hasOptions: Array.isArray(q?.options),
+        optionsCount: q?.options?.length,
+        correctIsArray: Array.isArray(q?.correct),
+        firstOptionType: typeof q?.options?.[0],
+        firstOptionHasImage: typeof q?.options?.[0] === 'object' && !!q?.options?.[0]?.image_url,
+      });
+    }
+
     if (themedRenderEligible) {
       const totalScore = answers.reduce((s, a) => s + (a?.points || 0), 0);
       const studentInitial = (participant?.student_name || "?").trim().charAt(0).toUpperCase() || "?";
