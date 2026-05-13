@@ -225,11 +225,17 @@
 }
 
 .stage .answers-grid {
+  /* PR 20.2.5: fixed-height rows so tile size never changes between
+     questions, regardless of how much text the prompt or options have.
+     Previously rows were `1fr 1fr` which redistributed the available
+     space based on prompt length, causing tiles to visually "jump"
+     between questions. */
   flex: 1;
   display: grid;
   grid-template-columns: 1fr 1fr;
-  grid-template-rows: 1fr 1fr;
+  grid-template-rows: 110px 110px;
   gap: 14px;
+  align-content: start;
 }
 .stage .answer-tile {
   background: var(--surface);
@@ -492,4 +498,18 @@
 }
 .stage .answer-tile.is-dimmed {
   opacity: 0.4;
+}
+
+/* ─── PR 20.2.5: slide transition between questions ──────────────────
+ * When the student taps "Next", the current question slides out to
+ * the left (32px + fade) and the new question slides in from the
+ * right (also 32px + fade). Mirror of the PlanView unit-carrousel
+ * pattern. Total duration: 200ms out + 240ms in = ~440ms. */
+@keyframes cl-quiz-slide-out-left {
+  from { transform: translateX(0); opacity: 1; }
+  to   { transform: translateX(-32px); opacity: 0; }
+}
+@keyframes cl-quiz-slide-in-from-right {
+  from { transform: translateX(32px); opacity: 0; }
+  to   { transform: translateX(0); opacity: 1; }
 }

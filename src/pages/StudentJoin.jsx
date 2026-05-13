@@ -287,6 +287,13 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
   );
   const [participant, setParticipant] = useState(null);
   const [current, setCurrent] = useState(0);
+  // PR 20.2.5: question transition animation state.
+  // - quizAnimating: true during the slide-out + slide-in window
+  // - displayedQuestionIdx: the index actually rendered. Lags one step
+  //   behind `current` during the 200ms slide-out, then catches up at
+  //   the swap boundary. Same pattern used in PlanView for units.
+  const [quizAnimating, setQuizAnimating] = useState(false);
+  const [displayedQuestionIdx, setDisplayedQuestionIdx] = useState(0);
   const [answers, setAnswers] = useState([]); // [{ isCorrect, raw, points, maxPoints, needsReview }]
   // When the student opens the "see correct answers" review at the end
   // of the session. Toggles between the results summary and the per-
@@ -652,6 +659,13 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
   };
 
   // ── Reset per-question state on question change ──
+  // PR 20.2.5: track displayedQuestionIdx (which lags current by 200ms
+  // during the themed slide-out animation) instead of current. This
+  // means the answer feedback (green/red tile + "Next" button) stays
+  // visible during the slide-out, then the new question slides in with
+  // a clean slate. Without this change, current would change immediately
+  // and reset the feedback before the slide-out finished, causing a
+  // jarring visual flash mid-animation.
   useEffect(() => {
     setTimeLeft(timeLimit);
     setShowResult(false);
@@ -665,7 +679,7 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
     setOrderPicked([]);
     setMatchPicks({});
     setMatchActiveLeft(null);
-  }, [current, timeLimit]);
+  }, [displayedQuestionIdx, timeLimit]);
 
   // Guest auto-redirect: when the teacher ends the session before the guest
   // has answered anything, there's nothing to show — bounce them back to the
@@ -940,6 +954,53 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
     setMatchPicks(rest);
   };
 
+  // PR 20.2.5: react to `current` changes by playing the slide-out →
+  // swap → slide-in animation. Only applies in the themed render
+  // (where the .stage wrapper carries the animation class). Legacy
+  // render skips the animation: displayedQuestionIdx catches up to
+  // current immediately so the reset effect (keyed on
+  // displayedQuestionIdx) runs without delay.
+  //
+  // Pattern lifted from PlanView's unit carrousel: outgoing animates
+  // for 200ms (the slide-out keyframe in themes.css), then we swap
+  // displayedQuestionIdx to the new value and let the slide-in run
+  // for another 240ms.
+  useEffect(() => {
+    if (current === displayedQuestionIdx) return;
+    // Check if THIS question (the one we're leaving from) was rendered
+    // with the themed path. Use the same eligibility predicate. If not
+    // themed, skip the animation and update displayed immediately.
+    const prevQ = questions[displayedQuestionIdx];
+    const prevQType = prevQ ? (prevQ.type || session?.activity_type || 'mcq') : null;
+    const prevWasThemed =
+      !isPractice &&
+      lobbyThemeId &&
+      ['calm', 'pop'].includes(lobbyThemeId) &&
+      prevQType === 'mcq' &&
+      prevQ &&
+      Array.isArray(prevQ.options) &&
+      !Array.isArray(prevQ.correct) &&
+      prevQ.options.every(o => typeof o === 'string' || (typeof o === 'object' && !o?.image_url));
+
+    if (!prevWasThemed) {
+      // Legacy render — skip animation, sync immediately
+      setDisplayedQuestionIdx(current);
+      return;
+    }
+
+    // Themed: animate.
+    setQuizAnimating(true);
+    const swapTimer = setTimeout(() => {
+      setDisplayedQuestionIdx(current);
+      const inTimer = setTimeout(() => {
+        setQuizAnimating(false);
+      }, 240);
+      return () => clearTimeout(inTimer);
+    }, 200);
+    return () => clearTimeout(swapTimer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [current]);
+
   const handleNext = () => {
     if (current + 1 >= questions.length) setStep("results");
     else setCurrent(c => c + 1);
@@ -1110,8 +1171,24 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
       const ringOffset = hasTimer && timeLimit > 0
         ? circumference * (1 - Math.max(0, timeLeft) / timeLimit)
         : 0;
-      const progress = ((current + 1) / questions.length) * 100;
+      // PR 20.2.5: render the DISPLAYED question (which lags `current`
+      // by 200ms during the slide-out animation). After the swap,
+      // displayedQuestionIdx catches up and rendering reflects the
+      // new question, which then slides in.
+      const displayedQ = questions[displayedQuestionIdx] || q;
+      const displayedProgress = ((displayedQuestionIdx + 1) / questions.length) * 100;
       const stageLabel = sectionLabel || (deckSection ? deckSection : "Quiz");
+
+      // PR 20.2.5: which animation phase are we in?
+      // - quizAnimating + current !== displayed: in OUT phase (sliding old away)
+      // - quizAnimating + current === displayed: in IN phase (sliding new in)
+      const inOutPhase = quizAnimating && current !== displayedQuestionIdx;
+      const inInPhase = quizAnimating && current === displayedQuestionIdx;
+      const stateAnimation = inOutPhase
+        ? 'cl-quiz-slide-out-left 200ms ease forwards'
+        : inInPhase
+          ? 'cl-quiz-slide-in-from-right 240ms ease forwards'
+          : 'none';
 
       const handleTileClick = (idx) => {
         if (showResult) return;
@@ -1163,22 +1240,26 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
                 </div>
 
                 <div className="content">
-                  <div className="question-state">
+                  <div
+                    className="question-state"
+                    key={displayedQuestionIdx}
+                    style={{ animation: stateAnimation }}
+                  >
                     <div className="question-main">
                       <div className="question-meta">
                         <span className="q-counter">
-                          <strong>{t.pregunta || "Pregunta"} {current + 1}</strong> {t.de || "de"} {questions.length}
+                          <strong>{t.pregunta || "Pregunta"} {displayedQuestionIdx + 1}</strong> {t.de || "de"} {questions.length}
                         </span>
                         <div className="q-progress">
-                          <div className="q-progress-fill" style={{ width: `${progress}%` }}></div>
+                          <div className="q-progress-fill" style={{ width: `${displayedProgress}%` }}></div>
                         </div>
                       </div>
 
                       <div className="question-prompt-label">{t.elegiRespuesta || "Elegí la respuesta"}</div>
-                      <div className="question-text-tablet" style={{ whiteSpace: "pre-wrap" }}>{q.q}</div>
+                      <div className="question-text-tablet" style={{ whiteSpace: "pre-wrap" }}>{displayedQ.q}</div>
 
                       <div className="answers-grid">
-                        {q.options.map((o, i) => {
+                        {displayedQ.options.map((o, i) => {
                           const optText = typeof o === "string" ? o : (o?.text || "");
                           const letter = String.fromCharCode(65 + i);
                           const selected = mcqSelected === i;
@@ -1188,7 +1269,7 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
                           // - is-dimmed: not picked + not the correct one
                           let revealClass = '';
                           if (showResult) {
-                            const isCorrectOption = i === q.correct;
+                            const isCorrectOption = i === displayedQ.correct;
                             const studentPickedThis = selected;
                             if (isCorrectOption) revealClass = 'is-correct';
                             else if (studentPickedThis) revealClass = 'is-wrong';
@@ -1237,7 +1318,7 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
 
                       <div className="rail-stat">
                         <div className="rail-stat-label">{t.pregunta || "Pregunta"}</div>
-                        <div className="rail-stat-value">{current + 1}/{questions.length}</div>
+                        <div className="rail-stat-value">{displayedQuestionIdx + 1}/{questions.length}</div>
                       </div>
 
                       {/* PR 20.2.4: Next/Results button only appears once
