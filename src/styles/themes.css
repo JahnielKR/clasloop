@@ -2133,11 +2133,21 @@
   /* High-contrast default fill. Themed overrides below tune per theme. */
   background: rgba(0, 0, 0, 0.55);
   z-index: 0;
-  transition: none;
+  /* PR 24.4.7: transition is on the base rule so width 0 → 100%
+   * animates when .is-auto-advancing is added. The previous version
+   * defined transition only on .is-auto-advancing, which made the
+   * browser interpret the class swap as transition: none → transition: 3s
+   * and skip the animation. Defining transition on the base means the
+   * browser always knows width is animatable.
+   *
+   * Note: when the class is REMOVED (e.g. on question advance), this
+   * would also animate width 100% → 0 over 3s. Acceptable because the
+   * button unmounts on next question (showResult resets to false), so
+   * nobody actually sees that reverse animation. */
+  transition: width 3000ms linear;
 }
 .stage .stage-next-btn.is-auto-advancing::before {
   width: 100%;
-  transition: width 3000ms linear;
 }
 
 /* Per-theme fill color tuning.
