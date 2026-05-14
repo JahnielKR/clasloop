@@ -1771,6 +1771,142 @@
   font-family: 'JetBrains Mono', monospace;
 }
 
+/* ─── PR 21.3: themed confirm modal for the teacher (lobby + live) ───
+ *
+ * Shares the same UX as the student exit modal (PR 20.3.2) but uses
+ * its own class names so it can be invoked from anywhere a theme
+ * context exists. The themed colors come from the .teacher-lobby or
+ * .teacher-live data-theme attribute on the parent.
+ */
+.teacher-confirm-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 300; /* above .teacher-lobby-page (200) */
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  animation: tc-fade-in 0.18s ease;
+}
+@keyframes tc-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes tc-pop-in {
+  from { opacity: 0; transform: scale(0.94) translateY(8px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.teacher-confirm-modal {
+  border-radius: 18px;
+  padding: 32px 36px 24px;
+  max-width: 440px;
+  width: 100%;
+  text-align: center;
+  animation: tc-pop-in 0.22s ease;
+  font-family: 'Inter', system-ui, sans-serif;
+}
+
+/* Theme variants — selected by data-theme on the modal itself.
+ * (We can't rely on parent context here because the modal is rendered
+ *  at the end of body, outside the .teacher-lobby/.teacher-live tree.) */
+.teacher-confirm-modal[data-theme="calm"] {
+  background: #FFFFFF;
+  color: #2C2A26;
+  border: 1px solid #E8E6E1;
+}
+.teacher-confirm-modal[data-theme="ocean"] {
+  background: #0A1F3F;
+  color: #E8F0FF;
+  border: 1px solid rgba(255,255,255,0.15);
+}
+.teacher-confirm-modal[data-theme="pop"] {
+  background: #FFFFFF;
+  color: #1F1733;
+  border: 2px solid #1F1733;
+  box-shadow: 6px 6px 0 #1F1733;
+}
+.teacher-confirm-modal[data-theme="mono"] {
+  background: #000000;
+  color: #FFFFFF;
+  border: 1px solid rgba(255,255,255,0.25);
+  border-radius: 0;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.teacher-confirm-title {
+  font-family: 'Outfit', sans-serif;
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.25;
+  margin-bottom: 10px;
+  letter-spacing: -0.01em;
+}
+.teacher-confirm-modal[data-theme="mono"] .teacher-confirm-title {
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.teacher-confirm-body {
+  font-size: 15px;
+  opacity: 0.75;
+  line-height: 1.5;
+  margin-bottom: 24px;
+}
+
+.teacher-confirm-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+.teacher-confirm-actions button {
+  font-family: 'Outfit', sans-serif;
+  font-weight: 600;
+  font-size: 15px;
+  padding: 12px 22px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.15s;
+  min-width: 120px;
+}
+.teacher-confirm-actions button:hover { transform: translateY(-1px); }
+.teacher-confirm-actions button:active { transform: scale(0.98); }
+.teacher-confirm-modal[data-theme="mono"] .teacher-confirm-actions button {
+  font-family: 'JetBrains Mono', monospace;
+  border-radius: 0;
+}
+
+/* Primary button = the safe option (Stay / Don't cancel). */
+.teacher-confirm-primary {
+  background: transparent;
+  color: currentColor;
+  border: 1px solid currentColor;
+  opacity: 0.7;
+}
+.teacher-confirm-primary:hover { opacity: 1; }
+.teacher-confirm-modal[data-theme="pop"] .teacher-confirm-primary {
+  border-width: 2px;
+  opacity: 1;
+}
+
+/* Secondary = the destructive option (End / Cancel session). */
+.teacher-confirm-secondary {
+  background: #C44D4D;
+  color: #FFFFFF;
+  border: none;
+}
+.teacher-confirm-secondary:hover { filter: brightness(1.05); }
+.teacher-confirm-modal[data-theme="pop"] .teacher-confirm-secondary {
+  background: #1F1733;
+  color: #FFD93D;
+  border: 2px solid #1F1733;
+  box-shadow: 3px 3px 0 rgba(31,23,51,0.4);
+}
+.teacher-confirm-modal[data-theme="mono"] .teacher-confirm-secondary {
+  background: #FFFFFF;
+  color: #000000;
+}
+
 /* ─── Outer page wrapper — full-screen takeover ──────────────────── */
 .stage-page {
   /* PR 20.2.4 + 20.2.7: position fixed + inset 0 to cover the app's

@@ -83,6 +83,15 @@ const i18n = {
     liveProgressEyebrow: "Class progress", liveOfTotal: "of", liveAnswers: "answers",
     liveNoOneYet: "Waiting for students to join…",
     joinPinLabel: "PIN", endSessionConfirm: "End this session now?",
+    // PR 21.3: themed teacher confirm modal
+    cancelLobbyTitle: "Cancel this session?",
+    cancelLobbyBody: "Students who joined will be sent back to the join screen.",
+    keepLobby: "Keep waiting",
+    confirmCancelLobby: "Cancel session",
+    endSessionTitle: "End the session?",
+    endSessionBody: "This closes the quiz for everyone. Students will see their results.",
+    keepLive: "Keep going",
+    confirmEndSession: "End now",
     sessionNeedsClass: "This deck isn't linked to a class yet. Open the deck and add it to a class to start a session.",
     sessionCreateFailed: "Could not create session. Please try again.",
   },
@@ -152,6 +161,15 @@ const i18n = {
     liveProgressEyebrow: "Progreso de la clase", liveOfTotal: "de", liveAnswers: "respuestas",
     liveNoOneYet: "Esperando que entren estudiantes…",
     joinPinLabel: "PIN", endSessionConfirm: "¿Terminar esta sesión ahora?",
+    // PR 21.3: themed teacher confirm modal
+    cancelLobbyTitle: "¿Cancelar esta sesión?",
+    cancelLobbyBody: "Los estudiantes que entraron volverán a la pantalla de entrada.",
+    keepLobby: "Seguir esperando",
+    confirmCancelLobby: "Cancelar sesión",
+    endSessionTitle: "¿Terminar la sesión?",
+    endSessionBody: "Esto cierra el quiz para todos. Los estudiantes verán sus resultados.",
+    keepLive: "Seguir",
+    confirmEndSession: "Terminar",
     sessionNeedsClass: "Este deck todavía no está asignado a una clase. Abrí el deck y agregalo a una clase para iniciar una sesión.",
     sessionCreateFailed: "No se pudo crear la sesión. Probá de nuevo.",
   },
@@ -221,6 +239,15 @@ const i18n = {
     liveProgressEyebrow: "수업 진행도", liveOfTotal: "/", liveAnswers: "응답",
     liveNoOneYet: "학생 입장 대기 중…",
     joinPinLabel: "PIN", endSessionConfirm: "지금 세션을 종료할까요?",
+    // PR 21.3: themed teacher confirm modal
+    cancelLobbyTitle: "이 세션을 취소하시겠어요?",
+    cancelLobbyBody: "입장한 학생들은 입장 화면으로 돌아갑니다.",
+    keepLobby: "계속 대기",
+    confirmCancelLobby: "세션 취소",
+    endSessionTitle: "세션을 종료하시겠어요?",
+    endSessionBody: "모두에게 퀴즈가 닫힙니다. 학생들은 결과를 보게 됩니다.",
+    keepLive: "계속하기",
+    confirmEndSession: "종료",
     sessionNeedsClass: "이 덱은 아직 수업에 연결되지 않았습니다. 덱을 열고 수업에 추가한 후 세션을 시작하세요.",
     sessionCreateFailed: "세션을 만들 수 없습니다. 다시 시도하세요.",
   },
@@ -527,6 +554,9 @@ function Toggle({ label, hint, value, onChange }) {
 function SessionLobbyThemed({ session, deck, t, lang, onStart, onCancel }) {
   const [participants, setParticipants] = useState([]);
   const [showQRLarge, setShowQRLarge] = useState(false);
+  // PR 21.3: themed confirm modal — replaces the native confirm() that
+  // used to fire when the teacher cancels the session from the lobby.
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const themeId = session?.lobby_theme || 'calm';
 
   useEffect(() => {
@@ -562,10 +592,12 @@ function SessionLobbyThemed({ session, deck, t, lang, onStart, onCancel }) {
     onStart();
   };
 
-  const handleCancelClick = () => {
-    // For now use a native confirm. PR 21.2+ could add a themed modal
-    // (similar to the student exit modal in PR 20.3.2) if Jota wants.
-    if (!confirm(t.cancelLobbyConfirm || t.cancel || "Cancel session?")) return;
+  // PR 21.3: replaced native confirm() with a themed modal. The X
+  // button and "Cancel" call open the modal; "End session" inside the
+  // modal triggers the actual cancel.
+  const handleCancelClick = () => setConfirmOpen(true);
+  const handleCancelConfirm = () => {
+    setConfirmOpen(false);
     onCancel();
   };
 
@@ -611,6 +643,7 @@ function SessionLobbyThemed({ session, deck, t, lang, onStart, onCancel }) {
   };
 
   return (
+    <>
     <div className="teacher-lobby-page">
       <button
         className="teacher-lobby-exit"
@@ -713,6 +746,43 @@ function SessionLobbyThemed({ session, deck, t, lang, onStart, onCancel }) {
         {t.startQuiz || "Empezar"} {activeParticipants.length > 0 && `(${activeParticipants.length})`}
       </button>
     </div>
+
+    {/* PR 21.3: themed confirm modal (replaces native confirm()) */}
+    {confirmOpen && (
+      <div
+        className="teacher-confirm-overlay"
+        onClick={() => setConfirmOpen(false)}
+      >
+        <div
+          className="teacher-confirm-modal"
+          data-theme={themeId}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="teacher-confirm-title">
+            {t.cancelLobbyTitle || "¿Cancelar sesión?"}
+          </div>
+          <div className="teacher-confirm-body">
+            {t.cancelLobbyBody || t.cancelLobbyConfirm || "Los estudiantes que entraron serán expulsados."}
+          </div>
+          <div className="teacher-confirm-actions">
+            <button
+              className="teacher-confirm-primary"
+              onClick={() => setConfirmOpen(false)}
+              autoFocus
+            >
+              {t.keepLobby || "Volver"}
+            </button>
+            <button
+              className="teacher-confirm-secondary"
+              onClick={handleCancelConfirm}
+            >
+              {t.confirmCancelLobby || "Cancelar sesión"}
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   );
 }
 
@@ -910,6 +980,10 @@ function LiveResultsThemed({ session, deck, t, lang, onEnd }) {
   const [responses, setResponses] = useState([]);
   const autoClosedRef = useRef(false);
   const themeId = session?.lobby_theme || 'calm';
+  // PR 21.3: themed confirm modal — replaces native confirm() for the
+  // "End session" action. Auto-close still bypasses it (no need to
+  // confirm when everyone is done — that's the natural finish).
+  const [endConfirmOpen, setEndConfirmOpen] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -989,8 +1063,16 @@ function LiveResultsThemed({ session, deck, t, lang, onEnd }) {
        : deck.section)
     : null;
 
-  const handleEndClick = async () => {
-    if (!confirm(t.endSessionConfirm || 'End this session?')) return;
+  // PR 21.3: split end flow into:
+  //   - handleEndClick: triggered by the X button or "End session" — opens
+  //                     the themed confirm modal
+  //   - handleEndConfirm: triggered by the modal's destructive button or
+  //                       by the auto-close effect (no modal needed when
+  //                       everyone finished naturally)
+  const handleEndClick = () => setEndConfirmOpen(true);
+
+  const handleEndConfirm = async () => {
+    setEndConfirmOpen(false);
     try { await processSessionResults(session); } catch (err) { console.error("SM-2 error:", err); }
     if (session.deck_id) {
       const { data: dk } = await supabase.from("decks").select("uses_count").eq("id", session.deck_id).maybeSingle();
@@ -1006,12 +1088,14 @@ function LiveResultsThemed({ session, deck, t, lang, onEnd }) {
   // PR 15 carry-over: auto-close when everyone is done.
   // Same logic as legacy LiveResults — kept in this themed copy so the
   // teacher's class flow works the same way regardless of theme.
+  // Bypasses the confirm modal (calls handleEndConfirm directly): when
+  // everyone finishes naturally there's nothing to confirm.
   useEffect(() => {
     if (autoClosedRef.current) return;
     if (activeParticipants.length === 0) return;
     if (rows.every(r => r.done)) {
       autoClosedRef.current = true;
-      handleEndClick();
+      handleEndConfirm();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rows.map(r => r.done).join(",")]);
@@ -1116,6 +1200,42 @@ function LiveResultsThemed({ session, deck, t, lang, onEnd }) {
           </div>
         </div>
       </div>
+
+      {/* PR 21.3: themed confirm modal (replaces native confirm()) */}
+      {endConfirmOpen && (
+        <div
+          className="teacher-confirm-overlay"
+          onClick={() => setEndConfirmOpen(false)}
+        >
+          <div
+            className="teacher-confirm-modal"
+            data-theme={themeId}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="teacher-confirm-title">
+              {t.endSessionTitle || "¿Terminar sesión?"}
+            </div>
+            <div className="teacher-confirm-body">
+              {t.endSessionBody || t.endSessionConfirm || "Esto cierra el quiz para todos. Los estudiantes verán sus resultados."}
+            </div>
+            <div className="teacher-confirm-actions">
+              <button
+                className="teacher-confirm-primary"
+                onClick={() => setEndConfirmOpen(false)}
+                autoFocus
+              >
+                {t.keepLive || "Volver"}
+              </button>
+              <button
+                className="teacher-confirm-secondary"
+                onClick={handleEndConfirm}
+              >
+                {t.confirmEndSession || "Terminar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

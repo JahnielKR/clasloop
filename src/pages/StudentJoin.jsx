@@ -1059,7 +1059,6 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
     const prevWasThemed =
       !isPractice &&
       lobbyThemeId &&
-      ['calm', 'pop'].includes(lobbyThemeId) &&
       prevQType === 'mcq' &&
       prevQ &&
       Array.isArray(prevQ.options) &&
@@ -1492,13 +1491,17 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
     // without theme) we fall through to the legacy render below which
     // is fully feature-complete and unchanged.
     //
-    // Themes active in this PR: 'calm', 'pop'. 'ocean' and 'mono' have
-    // CSS but aren't selectable yet — when class.lobby_theme is set to
-    // them via SQL they still render, just no UI exposes the choice.
+    // PR 21.3: all 4 themes (calm/pop/ocean/mono) are now active for the
+    // Question state on MCQ questions. Originally we gated to just
+    // calm/pop while ocean/mono CSS was unverified; after PRs 21.1/21.2
+    // landed the same themes everywhere, removing the gate.
+    //
+    // Other question types (TF, Fill, Slider, Match, Order, Free)
+    // continue to fall through to the legacy render — they don't have
+    // themed CSS yet and adding it is its own PR.
     const themedRenderEligible =
       !isPractice &&
       lobbyThemeId &&
-      ['calm', 'pop'].includes(lobbyThemeId) &&
       qType === 'mcq' &&
       Array.isArray(q?.options) &&
       !Array.isArray(q?.correct) && // single-correct only
