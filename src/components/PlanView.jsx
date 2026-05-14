@@ -64,7 +64,7 @@ const i18n = {
     kebabAria: "More options",
     removeFromUnit: "Remove from unit",
     editDeck: "Edit deck",
-    removeConfirm: "Remove \"{title}\" from this unit? The deck will move back to your general decks — no data is lost.",
+    removeConfirm: "Remove \"{title}\" from this unit? The deck stays in this class — you can re-attach it to another unit later.",
     removeError: "Could not remove the deck. Try again.",
     questions: "questions",
     statusActive: "Active",
@@ -99,7 +99,7 @@ const i18n = {
     kebabAria: "Más opciones",
     removeFromUnit: "Quitar de la unidad",
     editDeck: "Editar deck",
-    removeConfirm: "¿Quitar \"{title}\" de esta unidad? El deck vuelve a tu lista general — no se borran datos.",
+    removeConfirm: "¿Quitar \"{title}\" de esta unidad? El deck queda en la clase — podés volver a adjuntarlo a otra unidad después.",
     removeError: "No se pudo quitar el deck. Intenta de nuevo.",
     questions: "preguntas",
     daysCount: "{n} días planeados",
@@ -129,7 +129,7 @@ const i18n = {
     kebabAria: "더 보기",
     removeFromUnit: "유닛에서 빼기",
     editDeck: "덱 편집",
-    removeConfirm: "이 유닛에서 \"{title}\"을(를) 빼시겠습니까? 덱은 일반 덱 목록으로 돌아갑니다 — 데이터는 사라지지 않습니다.",
+    removeConfirm: "이 유닛에서 \"{title}\"을(를) 빼시겠습니까? 덱은 이 수업에 남아 있으며, 나중에 다른 유닛에 다시 연결할 수 있습니다.",
     removeError: "덱을 뺄 수 없습니다. 다시 시도하세요.",
     questions: "문제",
     daysCount: "{n}일 계획됨",
@@ -1289,22 +1289,26 @@ export default function PlanView({
   const handleLaunch = (deck) => {
     navigate(buildRoute.sessionsOptions(deck.id));
   };
-  // PR 24.9: remove a deck from this unit. The deck itself isn't
-  // deleted — it just gets unit_id=null and section='general_review'
-  // so it disappears from the unit plan and lands back in the
-  // teacher's general decks list, where they can reuse it elsewhere.
-  //   - position is reset to 0 (any non-removed deck takes its slot
-  //     in the daycount automatically because buildDayRows uses
-  //     position-1 for indexing).
-  //   - Only allowed when the deck has NEVER been used (usedDeckIds
-  //     gate is enforced in the Slot UI; this handler is just the
-  //     mutation).
+  // PR 24.9 + 24.9.1: remove a deck from this unit. The deck itself
+  // isn't deleted — it just gets unit_id=null so it disappears from
+  // the unit plan and falls into the class's "Unassigned" bucket
+  // (visible in the all-decks view of this class), where the teacher
+  // can drag it into another unit later.
+  //
+  // PR 24.9.1: keep `section` intact. The old code set section to
+  // 'general_review' which broke the deck's identity — a warmup
+  // re-attaching to another unit later expected to still be a warmup,
+  // not a general review. position is reset to 0 because position is
+  // meaningless outside a unit.
+  //
+  // Only allowed when the deck has NEVER been used (usedDeckIds gate
+  // is enforced in the Slot UI; this handler is just the mutation).
   const handleRemoveDeck = async (deck) => {
     const ok = window.confirm(t.removeConfirm.replace("{title}", deck.title));
     if (!ok) return;
     const { error } = await supabase
       .from("decks")
-      .update({ unit_id: null, section: "general_review", position: 0 })
+      .update({ unit_id: null, position: 0 })
       .eq("id", deck.id);
     if (error) {
       console.error("[clasloop] removeDeck failed:", error);
