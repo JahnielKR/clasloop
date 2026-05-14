@@ -721,8 +721,6 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
     if (step !== "join") return;
     let cancelled = false;
 
-    console.log("[clasloop] rehydrate: starting for profile", profile.id);
-
     (async () => {
       // PR 23.10.1: refactored to TWO separate queries instead of a
       // joined inner. The previous attempt at `.eq("sessions.status",
@@ -743,26 +741,28 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
         .limit(10);
 
       if (cancelled) return;
-      console.log("[clasloop] rehydrate: participants query result", { count: parts?.length, error: pErr });
       if (pErr || !parts || parts.length === 0) {
         if (pErr) console.error("[clasloop] rehydrate participants query failed:", pErr);
         return;
       }
 
       // Step B: find which of those sessions is currently active.
+      //
+      // Use select("*") not an explicit column list — some of the
+      // fields the UI reads (deck_title, class_name, session_settings,
+      // etc.) are added by various migrations and don't all exist on
+      // every database. PR 23.10's explicit list crashed on a fresh
+      // DB because deck_title isn't a column. select(*) returns
+      // whatever IS there; the UI already handles missing fields
+      // with optional chaining and "—" fallbacks.
       const sessionIds = parts.map(p => p.session_id);
       const { data: activeSessions, error: sErr } = await supabase
         .from("sessions")
-        .select(`
-          id, status, deck_id, deck_title, class_id, class_name,
-          section, lobby_theme, questions, topic,
-          session_settings, started_at
-        `)
+        .select("*")
         .in("id", sessionIds)
         .eq("status", "active");
 
       if (cancelled) return;
-      console.log("[clasloop] rehydrate: active sessions query result", { count: activeSessions?.length, error: sErr });
       if (sErr || !activeSessions || activeSessions.length === 0) {
         if (sErr) console.error("[clasloop] rehydrate sessions query failed:", sErr);
         return;
@@ -772,17 +772,10 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
       // is in the active set.
       const activeSet = new Map(activeSessions.map(s => [s.id, s]));
       const matchingParticipant = parts.find(p => activeSet.has(p.session_id));
-      if (!matchingParticipant) {
-        console.log("[clasloop] rehydrate: no matching active participant");
-        return;
-      }
+      if (!matchingParticipant) return;
       const sess = activeSet.get(matchingParticipant.session_id);
       const p = matchingParticipant;
-      if (!sess.questions || sess.questions.length === 0) {
-        console.log("[clasloop] rehydrate: session has no questions, aborting");
-        return;
-      }
-      console.log("[clasloop] rehydrate: matched session", sess.id, "with participant", p.id);
+      if (!sess.questions || sess.questions.length === 0) return;
 
       // Fetch this participant's responses in order
       const { data: responses } = await supabase
@@ -812,21 +805,11 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
         a === undefined ? null : a
       );
 
-      // Apply state
-      setSession({
-        id: sess.id,
-        deck_id: sess.deck_id,
-        deck_title: sess.deck_title,
-        class_id: sess.class_id,
-        class_name: sess.class_name,
-        questions: sess.questions,
-        topic: sess.topic,
-        status: sess.status,
-        session_settings: sess.session_settings,
-        started_at: sess.started_at,
-        lobby_theme: sess.lobby_theme,
-        section: sess.section,
-      });
+      // Apply state. We spread sess wholesale rather than pick named
+      // columns — robust against columns that may or may not exist
+      // depending on which migrations have run. The UI uses optional
+      // chaining everywhere for these fields anyway.
+      setSession({ ...sess });
       setParticipant({
         id: p.id,
         student_name: p.student_name,
@@ -844,7 +827,6 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
       setAnswers(answeredPrefix);
       setCurrent(allAnswered ? sess.questions.length - 1 : firstUnanswered);
       setStep(allAnswered ? "results" : "quiz");
-      console.log("[clasloop] rehydrate: restored to step", allAnswered ? "results" : "quiz", "at question", allAnswered ? sess.questions.length - 1 : firstUnanswered);
     })();
 
     return () => { cancelled = true; };
