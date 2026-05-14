@@ -171,7 +171,7 @@ const Card = ({ children, style = {}, onClick, className = "" }) => (
 const retCol = (r) => r >= 80 ? C.green : r >= 60 ? C.orange : C.red;
 
 // ─── Main page ──────────────────────────────────────────────────────────────
-export default function MyClasses({ lang: pageLang = "en", setLang: pageSetLang, profile = null, onLaunchPractice = null, onOpenMobileMenu }) {
+export default function MyClasses({ lang: pageLang = "en", setLang: pageSetLang, profile = null, onLaunchPractice = null, onOpenMobileMenu, studentJoinedTick = 0 }) {
   const l = pageLang || "en";
   const t = i18n[l] || i18n.en;
   const setLang = pageSetLang || (() => {});
@@ -200,7 +200,11 @@ export default function MyClasses({ lang: pageLang = "en", setLang: pageSetLang,
   const joinFormRef = useRef(null);
   const classRefs = useRef({});
 
-  useEffect(() => { loadAll(); }, [profile?.id]);
+  // PR 26.2: studentJoinedTick increments every time the student joins
+  // a class via the gating ClassCodeModal. Including it in deps causes
+  // loadAll to re-run, so the freshly-joined class appears here
+  // without needing a page reload.
+  useEffect(() => { loadAll(); }, [profile?.id, studentJoinedTick]);
 
   const loadAll = async () => {
     if (!profile?.id) { setLoading(false); return; }

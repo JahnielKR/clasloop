@@ -294,6 +294,11 @@ export default function App() {
   // haven't checked yet (don't show the modal). false → modal opens
   // and blocks. true → modal stays closed. Recomputed when the
   // student joins a class via the modal.
+  // PR 26.2: bump on every successful class join via the gating
+  // modal. Pages that show student data (MyClasses) add this to
+  // their useEffect deps so they re-fetch automatically without
+  // needing a full page reload.
+  const [studentJoinedTick, setStudentJoinedTick] = useState(0);
   const [studentHasClass, setStudentHasClass] = useState(null);
   // Count of free-text responses pending the current teacher's review.
   // Drives the red badge on the "To review" sidebar item. Same pattern
@@ -813,6 +818,11 @@ export default function App() {
               lang={lang}
               setLang={setLang}
               profile={profile}
+              // PR 26.2: incremented when the student joins a class via the
+              // ClassCodeModal. Student-facing pages (MyClasses) include this
+              // in their useEffect deps so they re-fetch immediately after a
+              // join — no reload needed. Teacher pages ignore it.
+              studentJoinedTick={studentJoinedTick}
               // Refrescar el profile del state global (App). Lo llaman pantallas
               // que muten profile en DB (ej. Settings cambiando avatar/foto/full_name)
               // para que el sidebar y el resto del app vean el cambio sin refresh.
@@ -858,10 +868,13 @@ export default function App() {
           profile={profile}
           lang={lang}
           onJoined={() => {
-            // Re-check membership. Setting to true unblocks the UI
-            // immediately; the next interactions (Today, MyClasses)
-            // will fetch the full class data via their own queries.
+            // PR 26.2: flip the gate AND bump the refresh tick.
+            // Flipping unblocks the UI immediately; the tick tells
+            // student pages (MyClasses) to re-fetch their data so
+            // the freshly-joined class shows up without a manual
+            // page reload.
             setStudentHasClass(true);
+            setStudentJoinedTick(n => n + 1);
           }}
         />
       )}
