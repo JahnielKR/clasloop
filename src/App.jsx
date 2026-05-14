@@ -65,6 +65,7 @@ import { useIsMobile } from './components/MobileMenuButton';
 import { countVisibleNotifications, countPendingReviewsForTeacher } from './lib/notifications';
 import { C } from './components/tokens';
 import Sidebar from './components/Sidebar';
+import ClassCodeModal from './components/ClassCodeModal';
 
 // MyClasses wrapper — /classes is shared between roles and now has a
 // nested route for class detail:
@@ -288,6 +289,12 @@ export default function App() {
   // sidebar icon. Source of truth lives in Notifications.jsx — App just
   // mirrors the number for display.
   const [notifsCount, setNotifsCount] = useState(0);
+  // PR 26: Class membership gate for students. Tracks whether the
+  // current student account belongs to any class. While null, we
+  // haven't checked yet (don't show the modal). false → modal opens
+  // and blocks. true → modal stays closed. Recomputed when the
+  // student joins a class via the modal.
+  const [studentHasClass, setStudentHasClass] = useState(null);
   // Count of free-text responses pending the current teacher's review.
   // Drives the red badge on the "To review" sidebar item. Same pattern
   // as notifsCount: count on profile load, refresh whenever `page`
@@ -666,6 +673,39 @@ export default function App() {
     );
   }
 
+  // PR 26: Check whether a student account has at least one class
+  // membership. Runs once when the profile finishes loading. If false,
+  // the ClassCodeModal opens below (after the avatar onboarding check)
+  // and blocks further interaction.
+  //
+  // Teachers and unauthenticated users skip this — the field stays at
+  // its initial null and the gating block downstream never triggers.
+  useEffect(() => {
+    if (!profile || profile.role !== "student") {
+      setStudentHasClass(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const { count, error } = await supabase
+        .from("class_members")
+        .select("id", { count: "exact", head: true })
+        .eq("student_id", profile.id);
+      if (cancelled) return;
+      if (error) {
+        // Defensive: on query error, default to "has class" so the
+        // modal doesn't lock the student out if the DB hiccups.
+        // Teachers can investigate via logs; students aren't punished
+        // by infra problems.
+        console.error("[clasloop] class membership check failed:", error);
+        setStudentHasClass(true);
+        return;
+      }
+      setStudentHasClass((count || 0) > 0);
+    })();
+    return () => { cancelled = true; };
+  }, [profile?.id, profile?.role]);
+
   // First-time avatar pick for students. We only intercept if we have the
   // profile loaded (so we know the role) and they're a student without an
   // avatar yet. Teachers skip this — their value flow starts with creating
@@ -802,6 +842,25 @@ export default function App() {
           )}
         </Suspense>
       </div>
+
+      {/* PR 26: gating modal for students with no class membership.
+          Renders on top of the dimmed app shell — the student CAN see
+          the platform behind, but can't interact with it until they
+          join a class or sign out. studentHasClass starts null while
+          we check, false after we confirm "no membership"; the modal
+          opens only when false. */}
+      {profile?.role === "student" && studentHasClass === false && (
+        <ClassCodeModal
+          profile={profile}
+          lang={lang}
+          onJoined={() => {
+            // Re-check membership. Setting to true unblocks the UI
+            // immediately; the next interactions (Today, MyClasses)
+            // will fetch the full class data via their own queries.
+            setStudentHasClass(true);
+          }}
+        />
+      )}
     </div>
   );
 }
