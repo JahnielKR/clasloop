@@ -2388,6 +2388,72 @@ export default function SessionFlow({ lang = "en", setLang, onNavigateToDecks, o
     return () => clearTimeout(timer);
   }, [toast]);
 
+  // PR 23.11: when a teacher closes the tab / navigates away while in
+  // an active session (lobby or live), mark the session as
+  // pending_close_at = now() so the cleanup RPC can close it later.
+  // If they come back within 2 min, the lobby/live re-mount effect
+  // clears the flag (see below).
+  //
+  // Why beforeunload + sendBeacon: at unload, regular fetch/supabase
+  // calls can be cancelled by the browser. sendBeacon is the official
+  // "fire and forget" channel for telemetry-on-unload. Supabase REST
+  // accepts plain JSON PATCH via fetch with keepalive=true; that's the
+  // closest equivalent we can do here.
+  useEffect(() => {
+    if (!session?.id) return;
+    if (session?._isPractice) return;
+    if (step !== "lobby" && step !== "live") return;
+
+    const onBeforeUnload = () => {
+      try {
+        // Use keepalive: true so the request survives the unload.
+        // Direct REST call — supabase-js fetch sometimes doesn't
+        // honor keepalive depending on transport.
+        const supabaseUrl = supabase.supabaseUrl || import.meta.env.VITE_SUPABASE_URL;
+        const authToken = supabase.auth.session?.()?.access_token
+          || supabase.supabaseKey
+          || import.meta.env.VITE_SUPABASE_ANON_KEY;
+        if (!supabaseUrl || !authToken) return;
+        fetch(`${supabaseUrl}/rest/v1/sessions?id=eq.${session.id}`, {
+          method: "PATCH",
+          keepalive: true,
+          headers: {
+            "Content-Type": "application/json",
+            "apikey": import.meta.env.VITE_SUPABASE_ANON_KEY,
+            "Authorization": `Bearer ${authToken}`,
+            "Prefer": "return=minimal",
+          },
+          body: JSON.stringify({ pending_close_at: new Date().toISOString() }),
+        });
+      } catch (e) {
+        // beforeunload runs at a delicate moment; never throw
+        console.warn("[clasloop] beforeunload pending_close_at:", e);
+      }
+    };
+
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [session?.id, step, session?._isPractice]);
+
+  // PR 23.11: when SessionFlow mounts (or re-mounts) into an active
+  // session that has pending_close_at set, the teacher has come back.
+  // Clear the flag so the zombie cleanup doesn't fire on us.
+  useEffect(() => {
+    if (!session?.id || session?._isPractice) return;
+    if (step !== "lobby" && step !== "live") return;
+    // Only act if pending_close_at is set
+    if (!session.pending_close_at) return;
+    (async () => {
+      await supabase
+        .from("sessions")
+        .update({ pending_close_at: null })
+        .eq("id", session.id)
+        .eq("status", "active");
+    })();
+    // Reflect locally so the next render doesn't re-fire
+    setSession(s => s ? { ...s, pending_close_at: null } : s);
+  }, [session?.id, session?.pending_close_at, step, session?._isPractice]);
+
   const handleLaunch = async (config) => {
     const { deck, classId, timeLimit, timeMode, showLeaderboard, showAnswers, allowGuests } = config;
 
@@ -2422,6 +2488,19 @@ export default function SessionFlow({ lang = "en", setLang, onNavigateToDecks, o
       resolvedTheme = cls?.lobby_theme || 'calm';
     } else {
       resolvedTheme = deck.lobby_theme_override;
+    }
+
+    // PR 23.11: before creating a new session, force-close any of the
+    // teacher's own sessions that are zombie-pending (closed tab
+    // without End test). Per Jota: "si vas a mis classes y lanzas
+    // otro deck, lo que estaba abierto debe de cerrarse". The RPC is
+    // SECURITY DEFINER and uses auth.uid() internally so it only
+    // touches THIS teacher's sessions. Non-fatal if it errors (the
+    // INSERT below still proceeds).
+    try {
+      await supabase.rpc("force_close_my_pending_sessions");
+    } catch (e) {
+      console.warn("[clasloop] force_close_my_pending_sessions:", e);
     }
 
     const { data, error } = await supabase.from("sessions").insert({

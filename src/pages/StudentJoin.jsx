@@ -703,6 +703,36 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // PR 23.11: sessionStorage flag for quiz-in-progress, used by the
+  // rehydration effect below to decide whether a refresh should
+  // restore state. Cleared on every transition out of quiz/waiting.
+  //
+  // sessionStorage is per-tab and clears when the tab closes. So:
+  //   - F5/Cmd+R during quiz → flag survives → rehydrate
+  //   - Click "Join session" in sidebar (route change) → this effect
+  //     fires with step="join" → flag cleared → no restore on next
+  //     mount
+  //   - Tab closed and reopened → flag gone → no restore
+  //   - Quiz finishes naturally (step→"results") → flag cleared
+  //   - Exit confirm (step→"join") → flag cleared
+  const QUIZ_FLAG_KEY = "clasloop:in-quiz";
+  useEffect(() => {
+    if (isPractice || isGuest) return;
+    if (step === "quiz" && session?.id && profile?.id) {
+      try {
+        sessionStorage.setItem(QUIZ_FLAG_KEY, JSON.stringify({
+          sessionId: session.id,
+          studentId: profile.id,
+        }));
+      } catch (_) { /* sessionStorage disabled */ }
+    } else if (step !== "quiz" && step !== "waiting") {
+      // Outside the in-flight quiz states → clear. We keep the flag
+      // through "waiting" since the student is still engaged with
+      // this session.
+      try { sessionStorage.removeItem(QUIZ_FLAG_KEY); } catch (_) {}
+    }
+  }, [step, session?.id, profile?.id, isPractice, isGuest]);
+
   // PR 23.10: rehydrate the quiz state on refresh / tab reopen.
   //
   // Without this, a refresh during a live quiz dumps the student back
@@ -735,6 +765,23 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
       setRehydrating(false);
       return;
     }
+
+    // PR 23.11: only rehydrate if the student was actively in a quiz
+    // before the page unloaded. We track this with a sessionStorage
+    // flag set when entering step="quiz" (see effect below) and
+    // cleared on results/join/exit. Refresh during quiz preserves
+    // the flag → rehydrate. Sidebar click "Join session" cleared
+    // the flag earlier → don't rehydrate, show fresh join screen.
+    let inQuizFlag = null;
+    try {
+      const raw = sessionStorage.getItem(QUIZ_FLAG_KEY);
+      if (raw) inQuizFlag = JSON.parse(raw);
+    } catch (_) { /* ignore */ }
+    if (!inQuizFlag || !inQuizFlag.sessionId || inQuizFlag.studentId !== profile.id) {
+      setRehydrating(false);
+      return;
+    }
+
     let cancelled = false;
 
     (async () => {
@@ -746,6 +793,17 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
       // through. Splitting makes the data flow explicit and easier
       // to debug if it fails again.
       //
+      // PR 23.11: lazy cleanup. Call close_zombie_sessions BEFORE
+      // checking for an active session to restore — this way any
+      // session whose teacher abandoned the tab >2min ago AND has
+      // no responses in the last 60s gets transitioned to "completed"
+      // first. The subsequent query then correctly ignores them.
+      try {
+        await supabase.rpc("close_zombie_sessions");
+      } catch (e) {
+        console.warn("[clasloop] close_zombie_sessions:", e);
+      }
+
       // Step A: get all session_participants rows for this student,
       // most-recent first. There usually aren't many — a student is
       // in maybe 1-2 active sessions at most.
@@ -817,6 +875,16 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
       // unanswered question.
       let firstUnanswered = reconstructed.findIndex(a => a === undefined);
       const allAnswered = firstUnanswered === -1;
+
+      // PR 23.11: if every question is already answered, don't
+      // rehydrate. The student finished the quiz; restoring them
+      // to the results screen on a fresh "Join session" click is
+      // confusing. They wanted to join a NEW session.
+      if (allAnswered) {
+        try { sessionStorage.removeItem(QUIZ_FLAG_KEY); } catch (_) {}
+        return;
+      }
+
       const filledAnswers = reconstructed.map(a =>
         a === undefined ? null : a
       );
@@ -841,8 +909,8 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
         ? filledAnswers
         : filledAnswers.slice(0, firstGap);
       setAnswers(answeredPrefix);
-      setCurrent(allAnswered ? sess.questions.length - 1 : firstUnanswered);
-      setStep(allAnswered ? "results" : "quiz");
+      setCurrent(firstUnanswered);
+      setStep("quiz");
     })().finally(() => {
       // PR 23.10.3: clear rehydrating regardless of outcome. If we
       // restored, step is now "quiz"/"results" and rehydrating=false
