@@ -2303,6 +2303,158 @@
   font-family: 'JetBrains Mono', monospace;
 }
 
+/* ─── PR 24.3: MATCH (parear) themed render ──────────────────────────
+ * Two columns of chips with SVG thread connections between paired
+ * items. Three size tiers based on pair count:
+ *   - is-large:  3-4 pairs
+ *   - is-medium: 5-7 pairs (default)
+ *   - is-small:  8 pairs
+ *
+ * The SVG overlay sits on top of the chips but with pointer-events:none
+ * so clicks still go to the chips. Bezier curves go from the right edge
+ * of each left chip to the left edge of its picked right chip. The
+ * coordinates are computed in JS by reading getBoundingClientRect on
+ * the chip refs (because the chips reflow based on content).
+ */
+.stage .match-area {
+  position: relative;
+  width: 100%;
+  max-width: 900px;
+  margin: 0 auto;
+  flex-shrink: 0;
+}
+.stage .match-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 60px;
+  position: relative;
+}
+.stage .match-col {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.stage .match-chip {
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 16px;
+  font-family: 'Outfit', sans-serif;
+  font-weight: 600;
+  font-size: 16px;
+  text-align: left;
+  cursor: pointer;
+  color: currentColor;
+  transition: all 0.15s ease;
+  position: relative;
+  z-index: 2; /* above the SVG overlay */
+}
+.stage .match-chip:hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: var(--accent);
+}
+.stage .match-chip:active { transform: scale(0.98); }
+.stage .match-chip:disabled { cursor: default; }
+.stage[data-theme="mono"] .match-chip {
+  font-family: 'JetBrains Mono', monospace;
+  border-radius: 0;
+}
+.stage[data-theme="pop"] .match-chip {
+  border: 2px solid #1F1733;
+  box-shadow: 2px 2px 0 #1F1733;
+}
+.stage[data-theme="ocean"] .match-chip {
+  background: rgba(255,255,255,0.05);
+  backdrop-filter: blur(10px);
+}
+
+/* Sizing tiers — applied to .match-area */
+.stage .match-area.is-large .match-chip {
+  padding: 18px 22px;
+  font-size: 20px;
+}
+.stage .match-area.is-large .match-col { gap: 14px; }
+
+.stage .match-area.is-medium .match-chip {
+  padding: 12px 16px;
+  font-size: 16px;
+}
+.stage .match-area.is-medium .match-col { gap: 10px; }
+
+.stage .match-area.is-small .match-chip {
+  padding: 8px 12px;
+  font-size: 13px;
+}
+.stage .match-area.is-small .match-col { gap: 6px; }
+
+/* State: active left chip (waiting for right click) */
+.stage .match-chip.is-active {
+  border-color: var(--accent);
+  background: var(--accent-tint);
+}
+
+/* State: paired (left or right, before reveal) */
+.stage .match-chip.is-paired {
+  border-color: var(--accent);
+  background: var(--accent-tint);
+}
+
+/* State: dimmed (right column, already used) */
+.stage .match-chip.is-dimmed { opacity: 0.4; }
+
+/* Reveal states */
+.stage .match-chip.is-correct {
+  border-color: var(--success);
+  background: var(--success-tint);
+}
+.stage .match-chip.is-wrong {
+  border-color: var(--danger);
+  background: var(--danger-tint);
+}
+
+/* SVG overlay for the thread connections */
+.stage .match-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 1;
+  overflow: visible;
+}
+.stage .match-thread {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 3;
+  stroke-linecap: round;
+  opacity: 0.7;
+  transition: stroke 0.3s ease, opacity 0.3s ease;
+}
+.stage .match-thread.is-correct {
+  stroke: var(--success);
+  opacity: 1;
+}
+.stage .match-thread.is-wrong {
+  stroke: var(--danger);
+  opacity: 1;
+}
+.stage[data-theme="pop"] .match-thread {
+  stroke-width: 4;
+}
+.stage[data-theme="mono"] .match-thread {
+  stroke: #FFFFFF;
+  stroke-dasharray: 4 4;
+}
+
+/* "Tocá una palabra de la izquierda" hint above the columns */
+.stage .match-hint {
+  text-align: center;
+  font-size: 13px;
+  opacity: 0.6;
+  margin-bottom: 14px;
+  letter-spacing: 0.02em;
+}
+
 /* ─── PR 20.2.5: slide transition between questions ──────────────────
  * When the student taps "Next", the current question slides out to
  * the left (32px + fade) and the new question slides in from the

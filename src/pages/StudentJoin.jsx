@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef, useLayoutEffect, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { LogoMark, CIcon } from "../components/Icons";
@@ -39,7 +39,7 @@ const i18n = {
     pointsLabel: "{points}/{max} points",
     joinAnother: "Join another session", noQuestions: "No questions available",
     // PR 20.2: themed quiz render labels
-    pregunta: "Question", de: "of", elegiRespuesta: "Pick the right answer", elegiTrueFalse: "True or False?", elegiFill: "Fill in the blank",
+    pregunta: "Question", de: "of", elegiRespuesta: "Pick the right answer", elegiTrueFalse: "True or False?", elegiFill: "Fill in the blank", elegiMatch: "Match the pairs",
     segundos: "seconds", tuPuntaje: "Your score",
     // PR 20.3: themed Join + Waiting strings
     liveSession: "Live session", joinSubtitle: "Your teacher just launched a quiz. Ask them for the code and join with your name.",
@@ -107,7 +107,7 @@ const i18n = {
     pointsLabel: "{points}/{max} puntos",
     joinAnother: "Unirse a otra sesión", noQuestions: "No hay preguntas",
     // PR 20.2: themed quiz render labels
-    pregunta: "Pregunta", de: "de", elegiRespuesta: "Elegí la respuesta", elegiTrueFalse: "¿Verdadero o falso?", elegiFill: "Rellená el espacio",
+    pregunta: "Pregunta", de: "de", elegiRespuesta: "Elegí la respuesta", elegiTrueFalse: "¿Verdadero o falso?", elegiFill: "Rellená el espacio", elegiMatch: "Pareá las palabras",
     segundos: "segundos", tuPuntaje: "Tu puntaje",
     // PR 20.3: themed Join + Waiting strings
     liveSession: "Sesión en vivo", joinSubtitle: "Tu profe acaba de lanzar un quiz. Pedile el código y entrá con tu nombre.",
@@ -172,7 +172,7 @@ const i18n = {
     pointsLabel: "{points}/{max} 점",
     joinAnother: "다른 세션 참여", noQuestions: "문제가 없습니다",
     // PR 20.2: themed quiz render labels
-    pregunta: "문제", de: "/", elegiRespuesta: "정답을 선택하세요", elegiTrueFalse: "참 또는 거짓?", elegiFill: "빈칸 채우기",
+    pregunta: "문제", de: "/", elegiRespuesta: "정답을 선택하세요", elegiTrueFalse: "참 또는 거짓?", elegiFill: "빈칸 채우기", elegiMatch: "짝 맞추기",
     segundos: "초", tuPuntaje: "내 점수",
     // PR 20.3: themed Join + Waiting strings
     liveSession: "실시간 세션", joinSubtitle: "선생님이 퀴즈를 시작했어요. 코드를 받아 이름과 함께 입장하세요.",
@@ -292,6 +292,181 @@ const shuffle = (arr) => {
 // — single source of truth shared with the teacher's To Review page.
 // The local copy that used to live here has been removed; if you're
 // looking for the per-type grading logic, that's the place.
+
+// ─── PR 24.3: themed Match panel (with SVG thread connections) ──────
+// Renders 2 columns of chips with curved SVG threads connecting the
+// pairs the student has made. Recalculates the thread paths whenever
+// the picks change or the layout reflows (window resize, font load).
+//
+// Props:
+//   - pairs: q.pairs (array of { left, right })
+//   - shuffledRights: rights in shuffled display order
+//   - matchPicks: { [left]: right }
+//   - matchActiveLeft: which left chip is currently selected (or null)
+//   - showResult: whether to show reveal coloring
+//   - handleMatchLeft, handleMatchRight, handleMatchUndo: handlers
+//   - t: i18n object
+function MatchPanel({
+  pairs,
+  shuffledRights,
+  matchPicks,
+  matchActiveLeft,
+  showResult,
+  handleMatchLeft,
+  handleMatchRight,
+  handleMatchUndo,
+  t,
+}) {
+  const areaRef = useRef(null);
+  const leftRefs = useRef({});  // { [left]: HTMLElement }
+  const rightRefs = useRef({}); // { [right]: HTMLElement }
+  const [threads, setThreads] = useState([]); // [{ from: [x,y], to: [x,y], status }]
+
+  // Size tier based on pair count.
+  const sizeTier =
+    pairs.length <= 4 ? "is-large"
+    : pairs.length <= 7 ? "is-medium"
+    : "is-small";
+
+  // Recompute thread paths whenever picks change or the layout might
+  // have changed. useLayoutEffect runs synchronously after DOM mutation
+  // so the threads are positioned correctly on the next paint.
+  const recompute = useCallback(() => {
+    const area = areaRef.current;
+    if (!area) return;
+    const areaRect = area.getBoundingClientRect();
+    const next = [];
+    for (const [left, right] of Object.entries(matchPicks)) {
+      const leftEl = leftRefs.current[left];
+      const rightEl = rightRefs.current[right];
+      if (!leftEl || !rightEl) continue;
+      const lr = leftEl.getBoundingClientRect();
+      const rr = rightEl.getBoundingClientRect();
+      // Thread starts at the right edge of the left chip and ends at
+      // the left edge of the right chip. Vertically centered on each.
+      const from = [
+        lr.right - areaRect.left,
+        lr.top + lr.height / 2 - areaRect.top,
+      ];
+      const to = [
+        rr.left - areaRect.left,
+        rr.top + rr.height / 2 - areaRect.top,
+      ];
+      // Reveal-aware status
+      let status = "pending";
+      if (showResult) {
+        const correctPair = pairs.find(p => p.left === left);
+        status = correctPair && correctPair.right === right ? "correct" : "wrong";
+      }
+      next.push({ from, to, key: `${left}__${right}`, status });
+    }
+    setThreads(next);
+  }, [matchPicks, pairs, showResult]);
+
+  useLayoutEffect(() => {
+    recompute();
+  }, [recompute]);
+
+  // Recompute on window resize too — chips reflow with viewport width.
+  useEffect(() => {
+    const handler = () => recompute();
+    window.addEventListener("resize", handler);
+    return () => window.removeEventListener("resize", handler);
+  }, [recompute]);
+
+  // Helper for the bezier path.
+  const pathFor = (from, to) => {
+    const [x1, y1] = from;
+    const [x2, y2] = to;
+    const dx = (x2 - x1) * 0.5;
+    const cp1 = [x1 + dx, y1];
+    const cp2 = [x2 - dx, y2];
+    return `M${x1},${y1} C${cp1[0]},${cp1[1]} ${cp2[0]},${cp2[1]} ${x2},${y2}`;
+  };
+
+  return (
+    <div ref={areaRef} className={`match-area ${sizeTier}`}>
+      <div className="match-hint">
+        {showResult ? "" : (t.tapMatch || "Tocá una palabra y luego su par")}
+      </div>
+      <div className="match-columns">
+        {/* Left column */}
+        <div className="match-col">
+          {pairs.map((p) => {
+            const picked = matchPicks[p.left];
+            const isActive = matchActiveLeft === p.left;
+            let revealClass = "";
+            if (showResult) {
+              const ok = picked === p.right;
+              revealClass = picked ? (ok ? "is-correct" : "is-wrong") : "";
+            } else if (isActive) {
+              revealClass = "is-active";
+            } else if (picked) {
+              revealClass = "is-paired";
+            }
+            return (
+              <button
+                key={p.left}
+                ref={(el) => { if (el) leftRefs.current[p.left] = el; }}
+                className={`match-chip ${revealClass}`}
+                onClick={() => picked ? handleMatchUndo(p.left) : handleMatchLeft(p.left)}
+                disabled={showResult}
+              >
+                {p.left}
+              </button>
+            );
+          })}
+        </div>
+        {/* Right column */}
+        <div className="match-col">
+          {shuffledRights.map((right) => {
+            const used = Object.values(matchPicks).includes(right);
+            let revealClass = "";
+            if (showResult) {
+              const pairedLeft = Object.entries(matchPicks).find(([_, r]) => r === right)?.[0];
+              const correctLeft = pairs.find(p => p.right === right)?.left;
+              if (pairedLeft) {
+                const ok = pairedLeft === correctLeft;
+                revealClass = ok ? "is-correct" : "is-wrong";
+              } else {
+                revealClass = "is-dimmed";
+              }
+            } else if (used) {
+              revealClass = "is-paired";
+            }
+            return (
+              <button
+                key={right}
+                ref={(el) => { if (el) rightRefs.current[right] = el; }}
+                className={`match-chip ${revealClass}`}
+                onClick={() => handleMatchRight(right)}
+                disabled={showResult || used || !matchActiveLeft}
+              >
+                {right}
+              </button>
+            );
+          })}
+        </div>
+        {/* SVG threads — rendered last so they sit above the chips
+            visually, but z-indexed below them so clicks pass through.
+            pointer-events: none on the SVG makes that explicit. */}
+        <svg className="match-svg" aria-hidden="true">
+          {threads.map(t_ => (
+            <path
+              key={t_.key}
+              d={pathFor(t_.from, t_.to)}
+              className={`match-thread ${
+                t_.status === "correct" ? "is-correct"
+                : t_.status === "wrong" ? "is-wrong"
+                : ""
+              }`}
+            />
+          ))}
+        </svg>
+      </div>
+    </div>
+  );
+}
 
 export default function StudentJoin({ lang: pageLang = "en", profile = null, practiceDeck = null, onPracticeExit = null, guestMode = false, guestPin = "", guestName = "", guestToken = "", onGuestKicked = null }) {
   // Practice mode: start straight in the quiz with the deck's questions, no PIN, no live session.
@@ -1100,10 +1275,17 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
       prevQ &&
       typeof prevQ.answer === 'string' &&
       prevQ.answer.trim().length > 0;
+    const prevMatchThemed =
+      prevQType === 'match' &&
+      prevQ &&
+      Array.isArray(prevQ.pairs) &&
+      prevQ.pairs.length > 0 &&
+      prevQ.pairs.length <= 8 &&
+      prevQ.pairs.every(p => typeof p?.left === 'string' && typeof p?.right === 'string');
     const prevWasThemed =
       !isPractice &&
       lobbyThemeId &&
-      (prevMcqThemed || prevTfThemed || prevFillThemed);
+      (prevMcqThemed || prevTfThemed || prevFillThemed || prevMatchThemed);
 
     if (!prevWasThemed) {
       // Legacy render — skip animation, sync immediately
@@ -1559,10 +1741,21 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
     const themedFillEligible =
       qType === 'fill' &&
       (typeof q?.answer === 'string' && q.answer.trim().length > 0);
+    // PR 24.3: Match themed eligibility.
+    //   - q.pairs is a non-empty array of { left, right } objects
+    //   - Max 8 pairs (above that the SVG threads + sizing get
+    //     cramped — fall through to the legacy chip render, which
+    //     handles arbitrary lengths without the visual flair).
+    const themedMatchEligible =
+      qType === 'match' &&
+      Array.isArray(q?.pairs) &&
+      q.pairs.length > 0 &&
+      q.pairs.length <= 8 &&
+      q.pairs.every(p => typeof p?.left === 'string' && typeof p?.right === 'string');
     const themedRenderEligible =
       !isPractice &&
       lobbyThemeId &&
-      (themedMcqEligible || themedTfEligible || themedFillEligible);
+      (themedMcqEligible || themedTfEligible || themedFillEligible || themedMatchEligible);
 
     if (themedRenderEligible) {
       const totalScore = answers.reduce((s, a) => s + (a?.points || 0), 0);
@@ -1668,7 +1861,9 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
                             ? (t.elegiTrueFalse || t.elegiRespuesta || "True or False?")
                             : qType === 'fill'
                               ? (t.elegiFill || "Rellená el espacio")
-                              : (t.elegiRespuesta || "Elegí la respuesta")}
+                              : qType === 'match'
+                                ? (t.elegiMatch || "Pareá las palabras")
+                                : (t.elegiRespuesta || "Elegí la respuesta")}
                         </div>
                         <div className="question-text-tablet" style={{ whiteSpace: "pre-wrap" }}>{displayedQ.q}</div>
                       </div>
@@ -1789,6 +1984,20 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
                           </div>
                         )}
                       </div>
+                      )}
+
+                      {qType === 'match' && Array.isArray(displayedQ.pairs) && (
+                        <MatchPanel
+                          pairs={displayedQ.pairs}
+                          shuffledRights={shuffledRights}
+                          matchPicks={matchPicks}
+                          matchActiveLeft={matchActiveLeft}
+                          showResult={showResult}
+                          handleMatchLeft={handleMatchLeft}
+                          handleMatchRight={handleMatchRight}
+                          handleMatchUndo={handleMatchUndo}
+                          t={t}
+                        />
                       )}
                     </div>
 
