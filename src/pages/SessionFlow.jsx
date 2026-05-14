@@ -78,6 +78,11 @@ const i18n = {
     clickEnlarge: "Click to enlarge", clickClose: "Click anywhere to close",
     liveResults: "Live results", endSession: "End session",
     students: "students", average: "average", waitingResponses: "Waiting for responses...",
+    // PR 21.2: themed teacher live dashboard
+    liveAverage: "average", liveDone: "completed",
+    liveProgressEyebrow: "Class progress", liveOfTotal: "of", liveAnswers: "answers",
+    liveNoOneYet: "Waiting for students to join…",
+    joinPinLabel: "PIN", endSessionConfirm: "End this session now?",
     sessionNeedsClass: "This deck isn't linked to a class yet. Open the deck and add it to a class to start a session.",
     sessionCreateFailed: "Could not create session. Please try again.",
   },
@@ -142,6 +147,11 @@ const i18n = {
     clickEnlarge: "Click para ampliar", clickClose: "Click en cualquier lugar para cerrar",
     liveResults: "Resultados en vivo", endSession: "Terminar sesión",
     students: "estudiantes", average: "promedio", waitingResponses: "Esperando respuestas...",
+    // PR 21.2: themed teacher live dashboard
+    liveAverage: "promedio", liveDone: "completados",
+    liveProgressEyebrow: "Progreso de la clase", liveOfTotal: "de", liveAnswers: "respuestas",
+    liveNoOneYet: "Esperando que entren estudiantes…",
+    joinPinLabel: "PIN", endSessionConfirm: "¿Terminar esta sesión ahora?",
     sessionNeedsClass: "Este deck todavía no está asignado a una clase. Abrí el deck y agregalo a una clase para iniciar una sesión.",
     sessionCreateFailed: "No se pudo crear la sesión. Probá de nuevo.",
   },
@@ -206,6 +216,11 @@ const i18n = {
     clickEnlarge: "클릭하여 확대", clickClose: "아무곳이나 클릭하여 닫기",
     liveResults: "실시간 결과", endSession: "세션 종료",
     students: "학생", average: "평균", waitingResponses: "응답 기다리는 중...",
+    // PR 21.2: themed teacher live dashboard
+    liveAverage: "평균", liveDone: "완료",
+    liveProgressEyebrow: "수업 진행도", liveOfTotal: "/", liveAnswers: "응답",
+    liveNoOneYet: "학생 입장 대기 중…",
+    joinPinLabel: "PIN", endSessionConfirm: "지금 세션을 종료할까요?",
     sessionNeedsClass: "이 덱은 아직 수업에 연결되지 않았습니다. 덱을 열고 수업에 추가한 후 세션을 시작하세요.",
     sessionCreateFailed: "세션을 만들 수 없습니다. 다시 시도하세요.",
   },
@@ -886,6 +901,225 @@ function ParticipantChip({ p, t, onKick }) {
 }
 
 // ─── Step 4: Live Results ──────────────────────────────────────────────────
+// ─── PR 21.2: Live dashboard themed (auto-paced) ────────────────────
+// Full-screen version of LiveResults for the projected screen during
+// a session. Same data flow (participants + responses + realtime),
+// different visual. Mounted when session.lobby_theme is set.
+function LiveResultsThemed({ session, deck, t, lang, onEnd }) {
+  const [participants, setParticipants] = useState([]);
+  const [responses, setResponses] = useState([]);
+  const autoClosedRef = useRef(false);
+  const themeId = session?.lobby_theme || 'calm';
+
+  useEffect(() => {
+    (async () => {
+      const { data: pp } = await supabase.from("session_participants").select("*").eq("session_id", session.id);
+      const { data: rr } = await supabase.from("responses").select("*").eq("session_id", session.id);
+      setParticipants(pp || []);
+      setResponses(rr || []);
+    })();
+
+    const ch = supabase.channel(`live-themed:${session.id}`)
+      .on("postgres_changes",
+        { event: "INSERT", schema: "public", table: "responses", filter: `session_id=eq.${session.id}` },
+        (payload) => setResponses(prev => [...prev, payload.new])
+      )
+      .on("postgres_changes",
+        { event: "INSERT", schema: "public", table: "session_participants", filter: `session_id=eq.${session.id}` },
+        (payload) => setParticipants(prev => {
+          if (prev.some(p => p.id === payload.new.id)) return prev;
+          return [...prev, payload.new];
+        })
+      )
+      .on("postgres_changes",
+        { event: "UPDATE", schema: "public", table: "session_participants", filter: `session_id=eq.${session.id}` },
+        (payload) => setParticipants(prev =>
+          prev.map(p => p.id === payload.new.id ? { ...p, ...payload.new } : p)
+        )
+      )
+      .subscribe();
+
+    return () => supabase.removeChannel(ch);
+  }, [session.id]);
+
+  const questions = session.questions || [];
+  const totalQ = questions.length;
+  const activeParticipants = participants.filter(p => !p.is_kicked);
+
+  // Build leaderboard rows: name, correct count, answered count.
+  // Score = number of correct responses (MVP — see PR 21.2 comments).
+  const rows = activeParticipants.map(p => {
+    const pResp = responses.filter(r => r.participant_id === p.id);
+    return {
+      ...p,
+      name: p.is_guest ? p.guest_name : p.student_name,
+      correct: pResp.filter(r => r.is_correct).length,
+      answered: pResp.length,
+      done: !!p.completed_at,
+    };
+  }).sort((a, b) => {
+    if (b.correct !== a.correct) return b.correct - a.correct;
+    return b.answered - a.answered; // tiebreaker: more answered = ahead
+  });
+
+  // Summary numbers shown at the top.
+  const studentsWhoAnswered = rows.filter(r => r.answered > 0);
+  const avgPct = studentsWhoAnswered.length > 0
+    ? Math.round(
+        studentsWhoAnswered.reduce((s, r) => s + (r.correct / r.answered) * 100, 0) /
+        studentsWhoAnswered.length
+      )
+    : 0;
+  const completedCount = rows.filter(r => r.done).length;
+  // Hero number: % of questions answered across the class.
+  // Total possible answers = activeParticipants × totalQ.
+  // Total actual answers = sum of `answered`.
+  const totalPossible = activeParticipants.length * totalQ;
+  const totalActual = rows.reduce((s, r) => s + r.answered, 0);
+  const classProgressPct = totalPossible > 0
+    ? Math.round((totalActual / totalPossible) * 100)
+    : 0;
+
+  // Section label — reuse the same map as the themed lobby.
+  const sectionLabel = deck?.section
+    ? (deck.section === 'warmup' ? (t.sectionWarmup || 'Warmup')
+       : deck.section === 'exit' ? (t.sectionExit || 'Exit Ticket')
+       : deck.section === 'review' ? (t.sectionReview || 'Review')
+       : deck.section === 'practice' ? (t.sectionPractice || 'Practice')
+       : deck.section)
+    : null;
+
+  const handleEndClick = async () => {
+    if (!confirm(t.endSessionConfirm || 'End this session?')) return;
+    try { await processSessionResults(session); } catch (err) { console.error("SM-2 error:", err); }
+    if (session.deck_id) {
+      const { data: dk } = await supabase.from("decks").select("uses_count").eq("id", session.deck_id).maybeSingle();
+      await supabase.from("decks").update({ uses_count: (dk?.uses_count || 0) + 1 }).eq("id", session.deck_id);
+    }
+    await supabase.from("sessions").update({
+      status: "completed",
+      completed_at: new Date().toISOString(),
+    }).eq("id", session.id);
+    onEnd(session.id);
+  };
+
+  // PR 15 carry-over: auto-close when everyone is done.
+  // Same logic as legacy LiveResults — kept in this themed copy so the
+  // teacher's class flow works the same way regardless of theme.
+  useEffect(() => {
+    if (autoClosedRef.current) return;
+    if (activeParticipants.length === 0) return;
+    if (rows.every(r => r.done)) {
+      autoClosedRef.current = true;
+      handleEndClick();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows.map(r => r.done).join(",")]);
+
+  return (
+    <>
+      <button
+        className="teacher-live-exit"
+        onClick={handleEndClick}
+        title={t.endSession || "End"}
+        aria-label={t.endSession || "End"}
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18"/>
+          <line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+
+      <div className="teacher-live-page">
+        <div className="teacher-live" data-theme={themeId}>
+          <div className="teacher-live-inner">
+
+            {/* TOP — brand + deck info + summary stats */}
+            <div className="teacher-live-top">
+              <div className="live-brand">
+                <div className="live-brand-logo">C</div>
+                <div className="live-deck-info">
+                  {sectionLabel && <div className="live-section-pill">{sectionLabel}</div>}
+                  <div className="live-deck-name">{deck?.title || session?.topic || "—"}</div>
+                </div>
+              </div>
+              <div className="live-summary-stats">
+                <div className="live-stat">
+                  <div className="live-stat-value">{rows.length}</div>
+                  <div className="live-stat-label">{rows.length === 1 ? (t.studentInRoom || 'estudiante') : (t.studentsInRoom || 'estudiantes')}</div>
+                </div>
+                <div className="live-stat">
+                  <div className="live-stat-value">{avgPct}%</div>
+                  <div className="live-stat-label">{t.liveAverage || 'promedio'}</div>
+                </div>
+                <div className="live-stat">
+                  <div className="live-stat-value">{completedCount}/{rows.length}</div>
+                  <div className="live-stat-label">{t.liveDone || 'completados'}</div>
+                </div>
+              </div>
+            </div>
+
+            {/* CENTER — hero progress + leaderboard */}
+            <div className="teacher-live-center">
+              <div className="live-hero">
+                <div className="live-hero-eyebrow">{t.liveProgressEyebrow || 'Progreso de la clase'}</div>
+                <div className="live-hero-num">{classProgressPct}%</div>
+                <div className="live-hero-suffix">
+                  {totalActual} {t.liveOfTotal || 'de'} {totalPossible} {t.liveAnswers || 'respuestas'}
+                </div>
+              </div>
+
+              <div className="live-leaderboard">
+                {rows.length === 0 ? (
+                  <div style={{
+                    gridColumn: '1 / -1',
+                    textAlign: 'center',
+                    padding: '60px 20px',
+                    opacity: 0.55,
+                    fontSize: 16,
+                  }}>
+                    {t.liveNoOneYet || 'Esperando que entren estudiantes…'}
+                  </div>
+                ) : rows.map((r, i) => (
+                  <div
+                    key={r.id}
+                    className={`live-row ${i === 0 ? 'is-top1' : ''} ${r.done ? 'is-done' : ''}`}
+                  >
+                    <div className={`live-row-rank ${i < 3 ? 'is-top' : ''}`}>
+                      {i + 1}
+                    </div>
+                    <div className="live-row-name">{r.name}</div>
+                    <div className="live-row-progress">{r.answered}/{totalQ}</div>
+                    <div className="live-row-score">{r.correct}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* BOTTOM — pin + end button */}
+            <div className="teacher-live-bottom">
+              <div className="live-pin-display">
+                {t.joinPinLabel || 'PIN'}
+                <span className="live-pin-display-num">{session.pin}</span>
+              </div>
+              <button
+                className="teacher-live-end-btn"
+                onClick={handleEndClick}
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="6" y="6" width="12" height="12" rx="1" fill="currentColor"/>
+                </svg>
+                {t.endSession || 'Terminar sesión'}
+              </button>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
 function LiveResults({ session, t, onEnd }) {
   const [participants, setParticipants] = useState([]);
   const [responses, setResponses] = useState([]);
@@ -1984,11 +2218,24 @@ export default function SessionFlow({ lang = "en", setLang, onNavigateToDecks, o
         )}
 
         {step === "live" && session && (
-          <LiveResults
-            session={session}
-            t={t}
-            onEnd={handleEnd}
-          />
+          // PR 21.2: route to themed full-screen live dashboard if the
+          // session has a theme. Falls back to the legacy LiveResults
+          // (in-page panel) when no theme is set.
+          session.lobby_theme ? (
+            <LiveResultsThemed
+              session={session}
+              deck={selectedDeck}
+              t={t}
+              lang={lang}
+              onEnd={handleEnd}
+            />
+          ) : (
+            <LiveResults
+              session={session}
+              t={t}
+              onEnd={handleEnd}
+            />
+          )
         )}
       </div>
 
