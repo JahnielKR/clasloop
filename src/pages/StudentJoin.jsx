@@ -39,7 +39,7 @@ const i18n = {
     pointsLabel: "{points}/{max} points",
     joinAnother: "Join another session", noQuestions: "No questions available",
     // PR 20.2: themed quiz render labels
-    pregunta: "Question", de: "of", elegiRespuesta: "Pick the right answer",
+    pregunta: "Question", de: "of", elegiRespuesta: "Pick the right answer", elegiTrueFalse: "True or False?",
     segundos: "seconds", tuPuntaje: "Your score",
     // PR 20.3: themed Join + Waiting strings
     liveSession: "Live session", joinSubtitle: "Your teacher just launched a quiz. Ask them for the code and join with your name.",
@@ -107,7 +107,7 @@ const i18n = {
     pointsLabel: "{points}/{max} puntos",
     joinAnother: "Unirse a otra sesión", noQuestions: "No hay preguntas",
     // PR 20.2: themed quiz render labels
-    pregunta: "Pregunta", de: "de", elegiRespuesta: "Elegí la respuesta",
+    pregunta: "Pregunta", de: "de", elegiRespuesta: "Elegí la respuesta", elegiTrueFalse: "¿Verdadero o falso?",
     segundos: "segundos", tuPuntaje: "Tu puntaje",
     // PR 20.3: themed Join + Waiting strings
     liveSession: "Sesión en vivo", joinSubtitle: "Tu profe acaba de lanzar un quiz. Pedile el código y entrá con tu nombre.",
@@ -172,7 +172,7 @@ const i18n = {
     pointsLabel: "{points}/{max} 점",
     joinAnother: "다른 세션 참여", noQuestions: "문제가 없습니다",
     // PR 20.2: themed quiz render labels
-    pregunta: "문제", de: "/", elegiRespuesta: "정답을 선택하세요",
+    pregunta: "문제", de: "/", elegiRespuesta: "정답을 선택하세요", elegiTrueFalse: "참 또는 거짓?",
     segundos: "초", tuPuntaje: "내 점수",
     // PR 20.3: themed Join + Waiting strings
     liveSession: "실시간 세션", joinSubtitle: "선생님이 퀴즈를 시작했어요. 코드를 받아 이름과 함께 입장하세요.",
@@ -1082,16 +1082,23 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
     // Check if THIS question (the one we're leaving from) was rendered
     // with the themed path. Use the same eligibility predicate. If not
     // themed, skip the animation and update displayed immediately.
+    // PR 24.1: includes TF alongside MCQ.
     const prevQ = questions[displayedQuestionIdx];
     const prevQType = prevQ ? (prevQ.type || session?.activity_type || 'mcq') : null;
-    const prevWasThemed =
-      !isPractice &&
-      lobbyThemeId &&
+    const prevMcqThemed =
       prevQType === 'mcq' &&
       prevQ &&
       Array.isArray(prevQ.options) &&
       !Array.isArray(prevQ.correct) &&
       prevQ.options.every(o => typeof o === 'string' || (typeof o === 'object' && !o?.image_url));
+    const prevTfThemed =
+      prevQType === 'tf' &&
+      prevQ &&
+      (prevQ.correct === true || prevQ.correct === false);
+    const prevWasThemed =
+      !isPractice &&
+      lobbyThemeId &&
+      (prevMcqThemed || prevTfThemed);
 
     if (!prevWasThemed) {
       // Legacy render — skip animation, sync immediately
@@ -1527,13 +1534,25 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
     // Other question types (TF, Fill, Slider, Match, Order, Free)
     // continue to fall through to the legacy render — they don't have
     // themed CSS yet and adding it is its own PR.
+    // PR 24.1: themed render eligibility now includes TF as well as MCQ.
+    // Both must be live (not practice) + have a theme set. Specific
+    // shape requirements per type:
+    //   - MCQ: single-correct, text-only options (no image_url objects)
+    //   - TF: q.correct is true or false
+    // Other types (Fill/Slider/Match/Order/Free) fall through to legacy
+    // until their own themed renders ship in later PRs.
+    const themedMcqEligible =
+      qType === 'mcq' &&
+      Array.isArray(q?.options) &&
+      !Array.isArray(q?.correct) &&
+      q.options.every(o => typeof o === 'string' || (typeof o === 'object' && !o?.image_url));
+    const themedTfEligible =
+      qType === 'tf' &&
+      (q?.correct === true || q?.correct === false);
     const themedRenderEligible =
       !isPractice &&
       lobbyThemeId &&
-      qType === 'mcq' &&
-      Array.isArray(q?.options) &&
-      !Array.isArray(q?.correct) && // single-correct only
-      q.options.every(o => typeof o === 'string' || (typeof o === 'object' && !o?.image_url));
+      (themedMcqEligible || themedTfEligible);
 
     if (themedRenderEligible) {
       const totalScore = answers.reduce((s, a) => s + (a?.points || 0), 0);
@@ -1634,10 +1653,18 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
                           in the space between .question-meta (top) and
                           .answers-grid (bottom). */}
                       <div className="question-center">
-                        <div className="question-prompt-label">{t.elegiRespuesta || "Elegí la respuesta"}</div>
+                        <div className="question-prompt-label">
+                          {qType === 'tf'
+                            ? (t.elegiTrueFalse || t.elegiRespuesta || "True or False?")
+                            : (t.elegiRespuesta || "Elegí la respuesta")}
+                        </div>
                         <div className="question-text-tablet" style={{ whiteSpace: "pre-wrap" }}>{displayedQ.q}</div>
                       </div>
 
+                      {/* PR 24.1: branch render by question type.
+                          - MCQ: existing 2×2 tile grid (PR 20.2)
+                          - TF: two large side-by-side buttons */}
+                      {qType === 'mcq' && (
                       <div className="answers-grid">
                         {displayedQ.options.map((o, i) => {
                           const optText = typeof o === "string" ? o : (o?.text || "");
@@ -1668,6 +1695,51 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
                           );
                         })}
                       </div>
+                      )}
+
+                      {qType === 'tf' && (
+                      <div className="tf-grid">
+                        {[
+                          { val: true,  label: t.true_  || "Verdadero" },
+                          { val: false, label: t.false_ || "Falso" },
+                        ].map(({ val, label }) => {
+                          // Reveal classes mirror the MCQ logic:
+                          // - is-correct: this is the right answer
+                          // - is-wrong: student picked this but it's wrong
+                          // - is-dimmed: not picked and not correct
+                          let revealClass = '';
+                          if (showResult) {
+                            const isCorrect = val === displayedQ.correct;
+                            const studentPicked = val === tfSelected;
+                            if (isCorrect) revealClass = 'is-correct';
+                            else if (studentPicked) revealClass = 'is-wrong';
+                            else revealClass = 'is-dimmed';
+                          }
+                          return (
+                            <button
+                              key={String(val)}
+                              className={`tf-option ${revealClass}`}
+                              onClick={() => handleTf(val)}
+                              disabled={showResult}
+                            >
+                              <div className="tf-option-icon">
+                                {val ? (
+                                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                                    <polyline points="20 6 9 17 4 12"/>
+                                  </svg>
+                                ) : (
+                                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                                    <line x1="18" y1="6" x2="6" y2="18"/>
+                                    <line x1="6" y1="6" x2="18" y2="18"/>
+                                  </svg>
+                                )}
+                              </div>
+                              <div className="tf-option-label">{label}</div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                      )}
                     </div>
 
                     <div className="question-rail">

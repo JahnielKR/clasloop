@@ -47,6 +47,8 @@
   --text-muted: #9C9890;
   --danger: #C44D4D;
   --danger-tint: #FBECEC;
+  --success: #0F7B6C;
+  --success-tint: #E5F3F0;
   --on-accent: #FAFAF8;
 }
 .stage[data-theme="ocean"] {
@@ -61,6 +63,8 @@
   --text-muted: rgba(232, 240, 255, 0.45);
   --danger: rgb(255, 130, 130);
   --danger-tint: rgba(255, 130, 130, 0.15);
+  --success: rgb(120, 220, 180);
+  --success-tint: rgba(120, 220, 180, 0.15);
   --on-accent: #050E20;
 }
 .stage[data-theme="pop"] {
@@ -75,6 +79,8 @@
   --text-muted: rgba(31, 23, 51, 0.55);
   --danger: #C44D4D;
   --danger-tint: rgba(196, 77, 77, 0.15);
+  --success: rgb(40, 160, 110);
+  --success-tint: rgba(120, 220, 180, 0.3);
   --on-accent: #FFD93D;
 }
 .stage[data-theme="mono"] {
@@ -89,6 +95,8 @@
   --text-muted: rgba(255, 255, 255, 0.45);
   --danger: #FFFFFF;
   --danger-tint: rgba(255,255,255,0.05);
+  --success: #FFFFFF;
+  --success-tint: rgba(255,255,255,0.05);
   --on-accent: #000000;
 }
 
@@ -2082,6 +2090,101 @@
 .stage .answer-tile.is-dimmed {
   opacity: 0.4;
 }
+
+/* ─── PR 24.1: TF (True/False) themed render ─────────────────────────
+ * Two large side-by-side buttons taking the same horizontal slot the
+ * answers-grid would occupy. Reuses the answer-tile reveal classes
+ * (is-correct / is-wrong / is-dimmed) so the right/wrong feedback
+ * matches the MCQ language. */
+.stage .tf-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 200px;
+  gap: 20px;
+  flex-shrink: 0;
+}
+.stage .tf-option {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: inherit;
+  color: currentColor;
+}
+.stage .tf-option:hover {
+  transform: translateY(-2px);
+  border-color: var(--accent);
+}
+.stage .tf-option:active { transform: scale(0.98); }
+.stage[data-theme="pop"] .tf-option {
+  border: 2px solid #1F1733;
+  box-shadow: 4px 4px 0 #1F1733;
+}
+.stage[data-theme="pop"] .tf-option:hover {
+  box-shadow: 6px 6px 0 #1F1733;
+}
+.stage[data-theme="mono"] .tf-option { border-radius: 0; }
+.stage[data-theme="ocean"] .tf-option {
+  background: rgba(255,255,255,0.05);
+  backdrop-filter: blur(10px);
+}
+
+.stage .tf-option-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--surface-soft);
+  display: grid;
+  place-items: center;
+  color: currentColor;
+  transition: all 0.2s ease;
+}
+.stage[data-theme="mono"] .tf-option-icon { border-radius: 0; }
+.stage .tf-option-icon svg { width: 28px; height: 28px; }
+.stage .tf-option-label {
+  font-family: 'Outfit', sans-serif;
+  font-weight: 600;
+  font-size: 26px;
+  letter-spacing: -0.01em;
+}
+.stage[data-theme="mono"] .tf-option-label {
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* Reveal states (same modifier classes used for MCQ). */
+.stage .tf-option.is-correct {
+  border-color: var(--success);
+  background: var(--success-tint);
+}
+.stage .tf-option.is-correct .tf-option-icon {
+  background: var(--success);
+  color: var(--surface);
+}
+.stage[data-theme="calm"] .tf-option.is-correct { background: var(--success-tint); }
+.stage[data-theme="pop"] .tf-option.is-correct {
+  background: rgba(120, 220, 180, 0.95);
+  box-shadow: 4px 4px 0 #1F1733;
+}
+.stage .tf-option.is-wrong {
+  border-color: var(--danger);
+  background: var(--danger-tint);
+}
+.stage .tf-option.is-wrong .tf-option-icon {
+  background: var(--danger);
+  color: var(--surface);
+}
+.stage[data-theme="pop"] .tf-option.is-wrong {
+  background: rgba(255, 200, 200, 0.95);
+  box-shadow: 4px 4px 0 #1F1733;
+}
+.stage .tf-option.is-dimmed { opacity: 0.4; }
 
 /* ─── PR 20.2.5: slide transition between questions ──────────────────
  * When the student taps "Next", the current question slides out to
