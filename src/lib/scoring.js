@@ -57,7 +57,12 @@ export function evaluateAnswer(q, type, raw) {
       points: 0,
       maxPoints: maxForEmpty,
       isCorrect: false,
-      stored: null,
+      // PR 24.4.5: was `null`, which serializes to SQL NULL via
+      // supabase-js and violates the `answer jsonb NOT NULL` constraint
+      // on responses. Result: 400 (Bad Request) on every timer-expiry
+      // submit. Use empty string so the upsert succeeds while still
+      // signaling "no submission" to the teacher review screen.
+      stored: "",
       needsReview: false,
     };
   }

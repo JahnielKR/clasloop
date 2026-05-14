@@ -1232,7 +1232,14 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
         await supabase.from("responses").upsert(insertData, {
           onConflict: "session_id,participant_id,question_index",
         });
-      } catch (_) { /* swallow – UI already reflects state */ }
+      } catch (err) {
+        // PR 24.4.5: was silently swallowed. That hid the 400-on-empty
+        // submission bug for weeks. Log to console so future failures
+        // are visible. The UI state (showResult, answers) is already
+        // updated above, so swallowing the error here is still safe —
+        // the student's UI keeps flowing even if the DB write fails.
+        console.error("[clasloop] response upsert failed:", err);
+      }
     }
   };
 
