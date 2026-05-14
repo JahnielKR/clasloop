@@ -3221,3 +3221,48 @@
   .stage .waiting-icon-big svg { width: 26px; height: 26px; }
   .stage .waiting-side-card { padding: 12px 14px; }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════
+ * PR 23.5: MCQ image-mode portrait
+ *
+ * .answers-grid.is-image-mode has higher specificity than the portrait
+ * rules in PR 23.1, so it kept the landscape 220px row heights even on
+ * phones. Result: 4 images × 220px = 880px tall — way more than fits
+ * in a phone viewport, and overflow: hidden on .content meant students
+ * couldn't scroll to see the bottom options. They were stuck.
+ *
+ * Fix:
+ *   1. Override row heights for image MCQs in portrait (140px on
+ *      tablets, 110px on phones).
+ *   2. Allow scrolling inside .question-main when content overflows.
+ *   3. Bump z-index of the floating Next button so it stays above
+ *      the scrolling content.
+ * ═══════════════════════════════════════════════════════════════════════ */
+
+@media (orientation: portrait) {
+  /* Image MCQs: smaller tiles. Specificity matches .answers-grid.is-image-mode
+     (PR 23.1's plain .answers-grid rule was being overridden). */
+  .stage .answers-grid.is-image-mode {
+    grid-template-rows: repeat(4, 140px);
+    gap: 10px;
+  }
+  /* Allow scrolling in the question area when content (especially
+     image MCQs) is taller than the available height. The next button
+     stays anchored to the stage via absolute positioning, so the
+     scroll happens BEHIND it without affecting button placement. */
+  .stage .question-main {
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  /* z-index bump so the floating Next sits above scrolled content */
+  .stage .stage-next-btn {
+    z-index: 20;
+  }
+}
+
+@media (orientation: portrait) and (max-width: 600px) {
+  .stage .answers-grid.is-image-mode {
+    grid-template-rows: repeat(4, 110px);
+    gap: 8px;
+  }
+}
