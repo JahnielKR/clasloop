@@ -3285,14 +3285,19 @@
  * Phones/tablets in portrait are handled by PR 23.5 (separate rules).
  * ═══════════════════════════════════════════════════════════════════════ */
 
-@media (orientation: landscape) and (max-width: 1180px) {
-  /* PR 23.9: pushed from 180px → 140px because Jota still saw the
-     question text getting clipped above. iPad landscape (1024×768)
-     loses ~64px to Safari URL bar + ~64px to top-strip + ~100px
-     to padding/question text → 540px usable, two tiles at 180px =
-     360px plus the 90px next-button clearance = 450px → leaves
-     only 90px for the question prompt. At 140px tiles we have
-     200px more breathing room. */
+/* PR 23.10: target tablets-in-landscape by VIEWPORT HEIGHT, not width.
+   The original `max-width: 1180px` missed the Galaxy Tab S9 (1280px
+   landscape) and other Android tablets >1180. Real symptom is that
+   the screen is SHORT (<850px tall), not narrow. */
+@media (orientation: landscape) and (max-height: 850px) {
+  /* PR 23.9/10: pushed image MCQ tiles to 140px because Jota
+     reported them still covering the question text on Galaxy Tab S9
+     (1280 × 800 in landscape). iPad landscape (1024 × 768) loses
+     ~64px to Safari URL bar + ~64px to top-strip + ~100px padding/
+     question text → 540px usable. Two tiles at 180px = 376px PLUS
+     the 90px next-button clearance = 466px → very little room for
+     the question prompt. At 140px tiles we have 200px more breathing
+     room. */
   .stage .answers-grid.is-image-mode {
     grid-template-rows: 140px 140px;
     gap: 10px;
@@ -3302,9 +3307,9 @@
   .stage .question-main {
     padding: 16px 40px 24px;
   }
-  /* Question prompt: smaller on cramped tablets so it never wraps
-     into 3+ lines (would push answers off-screen). The class is
-     .question-text-tablet (default 42px) — quite large by design
+  /* Question prompt: smaller on cramped landscape tablets so it
+     never wraps into 3+ lines (would push answers off-screen). The
+     class is .question-text-tablet (default 42px) — large by design
      for desktop landscape. */
   .stage .question-text-tablet {
     font-size: 26px;

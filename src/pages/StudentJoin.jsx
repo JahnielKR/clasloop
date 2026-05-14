@@ -693,6 +693,130 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // PR 23.10: rehydrate the quiz state on refresh / tab reopen.
+  //
+  // Without this, a refresh during a live quiz dumps the student back
+  // to the "Enter PIN" screen — they lose visual progress (the answers
+  // they submitted ARE persisted in DB, but the UI restarts from
+  // zero). Jota saw this on his Galaxy Tab: refresh mid-quiz → back
+  // to join.
+  //
+  // Strategy: when a logged-in student mounts in step="join" with no
+  // active session, look for an open session they've already joined.
+  // If found:
+  //   1. Restore session, participant, deckSection state from DB.
+  //   2. Reconstruct the `answers` array from their responses rows.
+  //   3. Set current = first unanswered question index.
+  //   4. Jump to step="quiz" (or "results" if all questions were
+  //      already answered before the refresh).
+  //
+  // Excluded from rehydration:
+  //   - Practice mode (no session row, all state was ephemeral)
+  //   - Guest mode (uses its own localStorage-based reconnect at
+  //     line ~1075; that path is separate)
+  //   - Already past step="join" (effect just runs at initial mount)
+  useEffect(() => {
+    if (isPractice || isGuest) return;
+    if (!profile?.id) return;
+    if (step !== "join") return;
+    let cancelled = false;
+
+    (async () => {
+      // Find an active session this student has joined. We look at
+      // session_participants rows for the user, joining sessions to
+      // filter for status=active. Most recent wins (in case there
+      // are stale rows from a previous quiz that was never properly
+      // ended).
+      const { data: participants, error: pErr } = await supabase
+        .from("session_participants")
+        .select(`
+          id, session_id, student_name, joined_at,
+          sessions!inner (
+            id, status, deck_id, deck_title, class_id, class_name,
+            section, lobby_theme, questions, topic,
+            session_settings, started_at
+          )
+        `)
+        .eq("student_id", profile.id)
+        .eq("sessions.status", "active")
+        .order("joined_at", { ascending: false })
+        .limit(1);
+
+      if (cancelled) return;
+      if (pErr || !participants || participants.length === 0) return;
+
+      const p = participants[0];
+      const sess = p.sessions;
+      if (!sess || !sess.questions || sess.questions.length === 0) return;
+
+      // Fetch this participant's responses in order
+      const { data: responses } = await supabase
+        .from("responses")
+        .select("question_index, answer, is_correct, points, max_points, needs_review")
+        .eq("participant_id", p.id)
+        .order("question_index", { ascending: true });
+      if (cancelled) return;
+
+      // Reconstruct answers array indexed by question_index
+      const reconstructed = new Array(sess.questions.length).fill(undefined);
+      (responses || []).forEach(r => {
+        reconstructed[r.question_index] = {
+          isCorrect: r.needs_review ? null : r.is_correct,
+          raw: r.answer,
+          points: r.points ?? 0,
+          maxPoints: r.max_points ?? 0,
+          needsReview: !!r.needs_review,
+        };
+      });
+
+      // Find the first slot that's still undefined — that's the next
+      // unanswered question.
+      let firstUnanswered = reconstructed.findIndex(a => a === undefined);
+      const allAnswered = firstUnanswered === -1;
+      const filledAnswers = reconstructed.map(a =>
+        a === undefined ? null : a
+      );
+
+      // Apply state
+      setSession({
+        id: sess.id,
+        deck_id: sess.deck_id,
+        deck_title: sess.deck_title,
+        class_id: sess.class_id,
+        class_name: sess.class_name,
+        questions: sess.questions,
+        topic: sess.topic,
+        status: sess.status,
+        session_settings: sess.session_settings,
+        started_at: sess.started_at,
+        lobby_theme: sess.lobby_theme,
+        section: sess.section,
+      });
+      setParticipant({
+        id: p.id,
+        student_name: p.student_name,
+      });
+      if (sess.section) setDeckSection(sess.section);
+      if (sess.lobby_theme) setLobbyThemeId(sess.lobby_theme);
+      // Filter to only the actually-answered slots for the answers
+      // array (the UI consumes it as a sequential list, not indexed).
+      // We rebuild from filtered values up to the first gap to
+      // preserve the "answered prefix" pattern.
+      const firstGap = filledAnswers.indexOf(null);
+      const answeredPrefix = firstGap === -1
+        ? filledAnswers
+        : filledAnswers.slice(0, firstGap);
+      setAnswers(answeredPrefix);
+      setCurrent(allAnswered ? sess.questions.length - 1 : firstUnanswered);
+      setStep(allAnswered ? "results" : "quiz");
+    })();
+
+    return () => { cancelled = true; };
+    // Runs once at mount per profile/step change — deliberately not
+    // depending on session/participant/answers so we don't loop.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profile?.id]);
+
   const questions = session?.questions || [];
   const q = questions[current];
   const qType = getQType(q, session);
