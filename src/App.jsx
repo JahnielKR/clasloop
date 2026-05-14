@@ -563,6 +563,43 @@ export default function App() {
     return () => { cancelled = true; };
   }, [profile, page]);
 
+  // PR 26: Check whether a student account has at least one class
+  // membership. If false, the ClassCodeModal opens (rendered near
+  // the bottom of the component) and blocks further interaction.
+  //
+  // CRITICAL: this effect MUST live above all the early returns of
+  // this component (auth loading, AvatarOnboarding, etc.). Putting
+  // it after them causes React error #310 ("rendered more hooks
+  // than during the previous render") because the early returns
+  // sometimes skip past this hook call and sometimes don't.
+  //
+  // Teachers and unauthenticated users skip the work — the field
+  // stays at its initial null and the gating block downstream never
+  // triggers.
+  useEffect(() => {
+    if (!profile || profile.role !== "student") {
+      setStudentHasClass(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const { count, error } = await supabase
+        .from("class_members")
+        .select("id", { count: "exact", head: true })
+        .eq("student_id", profile.id);
+      if (cancelled) return;
+      if (error) {
+        // On query error default to "has class" so the modal doesn't
+        // trap students if the DB hiccups.
+        console.error("[clasloop] class membership check failed:", error);
+        setStudentHasClass(true);
+        return;
+      }
+      setStudentHasClass((count || 0) > 0);
+    })();
+    return () => { cancelled = true; };
+  }, [profile?.id, profile?.role]);
+
   const fetchProfile = async (id, isInitial = true) => {
     try {
       let { data, error } = await supabase.from("profiles").select("*").eq("id", id).single();
@@ -672,39 +709,6 @@ export default function App() {
       />
     );
   }
-
-  // PR 26: Check whether a student account has at least one class
-  // membership. Runs once when the profile finishes loading. If false,
-  // the ClassCodeModal opens below (after the avatar onboarding check)
-  // and blocks further interaction.
-  //
-  // Teachers and unauthenticated users skip this — the field stays at
-  // its initial null and the gating block downstream never triggers.
-  useEffect(() => {
-    if (!profile || profile.role !== "student") {
-      setStudentHasClass(null);
-      return;
-    }
-    let cancelled = false;
-    (async () => {
-      const { count, error } = await supabase
-        .from("class_members")
-        .select("id", { count: "exact", head: true })
-        .eq("student_id", profile.id);
-      if (cancelled) return;
-      if (error) {
-        // Defensive: on query error, default to "has class" so the
-        // modal doesn't lock the student out if the DB hiccups.
-        // Teachers can investigate via logs; students aren't punished
-        // by infra problems.
-        console.error("[clasloop] class membership check failed:", error);
-        setStudentHasClass(true);
-        return;
-      }
-      setStudentHasClass((count || 0) > 0);
-    })();
-    return () => { cancelled = true; };
-  }, [profile?.id, profile?.role]);
 
   // First-time avatar pick for students. We only intercept if we have the
   // profile loaded (so we know the role) and they're a student without an
