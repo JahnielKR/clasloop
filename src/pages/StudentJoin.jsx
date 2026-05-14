@@ -2025,12 +2025,20 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
                       {/* PR 24.1: branch render by question type.
                           - MCQ: existing 2×2 tile grid (PR 20.2)
                           - TF: two large side-by-side buttons */}
-                      {qType === 'mcq' && (() => {
+                      {qType === 'mcq' && Array.isArray(displayedQ.options) && (() => {
                         // PR 24.4.2: detect image-mode MCQ. The grid
                         // gets .is-image-mode and each tile renders
                         // its image on top + text below.
+                        // PR 24.4.3: bug fix — `qType` is derived from
+                        // the CURRENT question (`q`), but `displayedQ`
+                        // can be a DIFFERENT question during the slide
+                        // animation. If the previous question was a
+                        // non-MCQ (Match, Order, Fill, TF...), then
+                        // `displayedQ.options` is undefined and the
+                        // .some() call crashes the whole stage. Guard
+                        // with Array.isArray on the wrapper condition.
                         const isImageMode = displayedQ.options.some(
-                          o => typeof o === 'object' && o?.image_url
+                          o => o && typeof o === 'object' && typeof o.image_url === 'string' && o.image_url.length > 0
                         );
                         return (
                       <div className={`answers-grid ${isImageMode ? 'is-image-mode' : ''}`}>
