@@ -8,6 +8,7 @@
 // (e.g. "homework") only need a one-line edit here.
 
 import { C } from "../components/tokens";
+import { supabase } from "./supabase";
 
 export const SECTIONS = [
   {
@@ -183,4 +184,169 @@ export function unitStatusLabel(status, lang = "en") {
     ko: { planned: "예정", active: "진행 중", closed: "종료됨" },
   };
   return labels[lang]?.[status] || labels.en[status] || status;
+}
+
+// ─── PR 25.0: Day dates helpers ──────────────────────────────────────────
+//
+// Day dates live in units.day_dates as a date[] array. The array is
+// 0-indexed at the database level, but every UI-facing call uses
+// 1-based dayNumber to match the "Day 1, Day 2, Day 3" UI vocabulary.
+//
+// FORMAT
+//   Dates are stored as ISO date strings (YYYY-MM-DD) — Postgres date
+//   type. We never store times. A class on Monday May 26 is "Day 1"
+//   regardless of whether it's at 8am or 3pm.
+//
+// MODEL DETAILS
+//   - day_dates.length may be SHORTER than the number of days the unit
+//     actually has. That's fine: positions beyond the array length
+//     just don't have a date assigned yet. The UI shows "Day N · sin
+//     fecha" in that case.
+//   - day_dates may have a longer length than active days if a deck
+//     was removed. Trailing nulls/dates are harmless — they get
+//     filtered out when the UI queries for "today" or "upcoming".
+//   - Skipping is allowed: day_dates[0] set + day_dates[1] null +
+//     day_dates[2] set is valid (rare in practice but legal). In SQL
+//     this would be an array with a NULL element; in JS we treat
+//     null/undefined the same.
+
+// Returns the date assigned to dayNumber in this unit, or null if
+// unassigned. dayNumber is 1-based (Day 1 → index 0).
+//
+// Returns a JS Date object (not a string) for easier comparison;
+// callers comparing against "today" should use Date.prototype methods.
+export function getDayDate(unit, dayNumber) {
+  if (!unit || typeof dayNumber !== "number" || dayNumber < 1) return null;
+  const arr = Array.isArray(unit.day_dates) ? unit.day_dates : [];
+  const raw = arr[dayNumber - 1];
+  if (!raw) return null;
+  // raw can be a string (YYYY-MM-DD) from Supabase or a Date if a
+  // caller passed pre-parsed data. Normalize to Date.
+  const d = raw instanceof Date ? raw : new Date(raw);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+// Writes a date for one specific day in a unit. Reads the current
+// array, expands it (filling missing slots with null) if dayNumber
+// exceeds current length, sets the target slot, and writes back.
+//
+// `date` can be:
+//   - a Date object (will be converted to YYYY-MM-DD)
+//   - a string (assumed already YYYY-MM-DD)
+//   - null/undefined (to clear a previously-set date)
+//
+// Returns { error } on failure, { unit } on success.
+export async function setDayDate(unitId, dayNumber, date) {
+  if (!unitId || typeof dayNumber !== "number" || dayNumber < 1) {
+    return { error: "invalid args" };
+  }
+
+  // Normalize date to YYYY-MM-DD or null
+  let dateStr = null;
+  if (date instanceof Date) {
+    if (!Number.isNaN(date.getTime())) {
+      const yyyy = date.getFullYear();
+      const mm = String(date.getMonth() + 1).padStart(2, "0");
+      const dd = String(date.getDate()).padStart(2, "0");
+      dateStr = `${yyyy}-${mm}-${dd}`;
+    }
+  } else if (typeof date === "string" && date.length > 0) {
+    dateStr = date;
+  }
+
+  // Read current array
+  const { data: cur, error: readErr } = await supabase
+    .from("units")
+    .select("day_dates")
+    .eq("id", unitId)
+    .single();
+  if (readErr || !cur) return { error: readErr || "unit not found" };
+
+  // Expand or shrink as needed
+  const arr = Array.isArray(cur.day_dates) ? [...cur.day_dates] : [];
+  while (arr.length < dayNumber) arr.push(null);
+  arr[dayNumber - 1] = dateStr;
+
+  const { data, error } = await supabase
+    .from("units")
+    .update({ day_dates: arr })
+    .eq("id", unitId)
+    .select()
+    .single();
+
+  if (error) return { error };
+  return { unit: data };
+}
+
+// Returns true if `date` (Date or YYYY-MM-DD string) equals "today"
+// in the user's local timezone. Centralized so all callers agree on
+// what "today" means (no UTC/local mismatches).
+export function isToday(date) {
+  if (!date) return false;
+  const d = date instanceof Date ? date : new Date(date);
+  if (Number.isNaN(d.getTime())) return false;
+  const today = new Date();
+  return (
+    d.getFullYear() === today.getFullYear() &&
+    d.getMonth() === today.getMonth() &&
+    d.getDate() === today.getDate()
+  );
+}
+
+// Returns true if `date` is strictly in the future (any day after
+// today). Used by the "Coming up" sidebar.
+export function isFuture(date) {
+  if (!date) return false;
+  const d = date instanceof Date ? date : new Date(date);
+  if (Number.isNaN(d.getTime())) return false;
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+  const candStart = new Date(d);
+  candStart.setHours(0, 0, 0, 0);
+  return candStart.getTime() > todayStart.getTime();
+}
+
+// Returns true if `date` is within the next `days` days (1-based,
+// inclusive of `days`). E.g. daysAhead(date, 7) returns true if date
+// is today through 7 days from now. Used to cap "Coming up" to a
+// 7-day horizon.
+export function isWithinDays(date, days) {
+  if (!date) return false;
+  const d = date instanceof Date ? date : new Date(date);
+  if (Number.isNaN(d.getTime())) return false;
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+  const limit = new Date(todayStart);
+  limit.setDate(limit.getDate() + days);
+  const candStart = new Date(d);
+  candStart.setHours(0, 0, 0, 0);
+  return (
+    candStart.getTime() >= todayStart.getTime() &&
+    candStart.getTime() <= limit.getTime()
+  );
+}
+
+// Suggests the next sensible date when adding a new day to a unit:
+// the day after the latest existing day_date, skipping weekends.
+// Returns a Date or null if no existing dates to anchor on (caller
+// should default to today in that case).
+export function suggestNextDayDate(unit) {
+  if (!unit) return null;
+  const arr = Array.isArray(unit.day_dates) ? unit.day_dates : [];
+  // Find the latest non-null date
+  let latest = null;
+  for (const raw of arr) {
+    if (!raw) continue;
+    const d = raw instanceof Date ? raw : new Date(raw);
+    if (Number.isNaN(d.getTime())) continue;
+    if (!latest || d.getTime() > latest.getTime()) latest = d;
+  }
+  if (!latest) return null;
+  // Add 1 day, skip weekends (Sat=6, Sun=0)
+  const next = new Date(latest);
+  next.setDate(next.getDate() + 1);
+  while (next.getDay() === 0 || next.getDay() === 6) {
+    next.setDate(next.getDate() + 1);
+  }
+  return next;
 }

@@ -1,0 +1,86 @@
+-- ============================================
+-- PHASE 25.0 MIGRATION — units.day_dates
+-- Run in Supabase SQL Editor.
+--
+-- Adds an optional date array to units, indexed by day number:
+--   day_dates[0] = date of Day 1
+--   day_dates[1] = date of Day 2
+--   ...
+--   day_dates[N-1] = date of Day N
+--
+-- WHY THIS MODEL
+--
+-- Today's "what should be launched right now" decision is based on
+-- a fragile heuristic: "most recently active unit, most recently
+-- launched day". The heuristic confuses teachers who prepare future
+-- units ahead of time — those decks show up alongside today's stuff
+-- and there's no way to say "this deck is for next Monday, not now".
+--
+-- A date-per-day fixes this: the teacher explicitly schedules Day 1
+-- of Unit 5 for "Monday May 26", and Today filters by today() to
+-- show only the decks whose day_date matches the current calendar
+-- day. Future days appear in a "Coming up" sidebar; past days fall
+-- off Today entirely.
+--
+-- The date is per-day, NOT per-deck:
+--   - Warmup + exit_ticket of the same day share the date (they're
+--     taught the same class period)
+--   - Decks within a unit are still ordered by position, with
+--     day_dates[position-1] giving the calendar date
+--
+-- POSTGRES MODEL
+--
+-- We use a date[] array on units rather than a separate days table
+-- because:
+--   1. Days have no other properties besides date and position. A
+--      whole new table would be 90% indirection for one date column.
+--   2. Updates are fully tied to the unit lifecycle — when a unit is
+--      deleted, its day_dates go with it. No FK cascade gymnastics.
+--   3. PostgreSQL array operations (array_length, indexed access)
+--      are fast enough for the typical case (5-20 days per unit).
+--   4. We never query days BY date directly — we query units, then
+--      derive the day from the array. So no index on dates is needed
+--      and we save the FK overhead.
+--
+-- The downside is that "what's scheduled for Monday May 26" requires
+-- scanning units' day_dates arrays rather than a direct index lookup,
+-- but each teacher has O(10) active units max so this is a non-issue.
+--
+-- BACKFILL STRATEGY
+--
+-- Default value is empty array. Existing units start with no scheduled
+-- dates and stay invisible from Today until the teacher explicitly
+-- schedules them. This matches PR 25's user-facing choice: "no
+-- fallback, units without dates don't appear in Today".
+--
+-- The PlanView UI in PR 25.1 will prompt the teacher to set a date
+-- when they create the first deck of a day in a unit that has fewer
+-- day_dates than days. So the transition is gradual and the teacher
+-- chooses when to migrate each unit.
+-- ============================================
+
+-- ── 1. Add the day_dates array column ─────────────────────────────────
+-- date[] (not timestamptz[]) because we care about the calendar day,
+-- not the wall-clock time. A class on Monday May 26 is "Day 1" whether
+-- it's at 8am or 3pm.
+--
+-- DEFAULT '{}'::date[] gives existing rows an empty array implicitly;
+-- new inserts that don't specify day_dates get the same.
+alter table public.units
+  add column if not exists day_dates date[] not null default '{}'::date[];
+
+-- ── 2. No index — we don't query by date directly ──────────────────────
+-- See the rationale in the comment block above. Adding an index on a
+-- date[] is non-trivial (would need GIN), and we don't need it: Today
+-- pulls all units for the user's classes (already fast) and filters in
+-- JS by matching today() against array elements.
+
+-- ============================================
+-- DONE
+--
+-- Helpers in src/lib/class-hierarchy.js read the array via
+-- getDayDate(unit, dayNumber) and write it via setDayDate(unitId,
+-- dayNumber, date). PostgreSQL array indexing is 1-based at SQL level
+-- but the helpers expose a 1-based dayNumber API to match the UI
+-- ("Day 1" → array index 0 internally, but the caller passes 1).
+-- ============================================
