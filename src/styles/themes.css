@@ -3286,8 +3286,28 @@
  * ═══════════════════════════════════════════════════════════════════════ */
 
 @media (orientation: landscape) and (max-width: 1180px) {
+  /* PR 23.9: pushed from 180px → 140px because Jota still saw the
+     question text getting clipped above. iPad landscape (1024×768)
+     loses ~64px to Safari URL bar + ~64px to top-strip + ~100px
+     to padding/question text → 540px usable, two tiles at 180px =
+     360px plus the 90px next-button clearance = 450px → leaves
+     only 90px for the question prompt. At 140px tiles we have
+     200px more breathing room. */
   .stage .answers-grid.is-image-mode {
-    grid-template-rows: 180px 180px;
-    gap: 12px;
+    grid-template-rows: 140px 140px;
+    gap: 10px;
+  }
+  /* Tighter question-main padding so the prompt has more room
+     between the top-strip and the answer grid. */
+  .stage .question-main {
+    padding: 16px 40px 24px;
+  }
+  /* Question prompt: smaller on cramped tablets so it never wraps
+     into 3+ lines (would push answers off-screen). The class is
+     .question-text-tablet (default 42px) — quite large by design
+     for desktop landscape. */
+  .stage .question-text-tablet {
+    font-size: 26px;
+    line-height: 1.18;
   }
 }
