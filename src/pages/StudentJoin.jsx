@@ -721,33 +721,68 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
     if (step !== "join") return;
     let cancelled = false;
 
+    console.log("[clasloop] rehydrate: starting for profile", profile.id);
+
     (async () => {
-      // Find an active session this student has joined. We look at
-      // session_participants rows for the user, joining sessions to
-      // filter for status=active. Most recent wins (in case there
-      // are stale rows from a previous quiz that was never properly
-      // ended).
-      const { data: participants, error: pErr } = await supabase
+      // PR 23.10.1: refactored to TWO separate queries instead of a
+      // joined inner. The previous attempt at `.eq("sessions.status",
+      // "active")` on an inner-joined select didn't return results in
+      // production — most likely PostgREST didn't apply the nested
+      // filter the way the docs suggest, leaving every joined row
+      // through. Splitting makes the data flow explicit and easier
+      // to debug if it fails again.
+      //
+      // Step A: get all session_participants rows for this student,
+      // most-recent first. There usually aren't many — a student is
+      // in maybe 1-2 active sessions at most.
+      const { data: parts, error: pErr } = await supabase
         .from("session_participants")
-        .select(`
-          id, session_id, student_name, joined_at,
-          sessions!inner (
-            id, status, deck_id, deck_title, class_id, class_name,
-            section, lobby_theme, questions, topic,
-            session_settings, started_at
-          )
-        `)
+        .select("id, session_id, student_name, joined_at")
         .eq("student_id", profile.id)
-        .eq("sessions.status", "active")
         .order("joined_at", { ascending: false })
-        .limit(1);
+        .limit(10);
 
       if (cancelled) return;
-      if (pErr || !participants || participants.length === 0) return;
+      console.log("[clasloop] rehydrate: participants query result", { count: parts?.length, error: pErr });
+      if (pErr || !parts || parts.length === 0) {
+        if (pErr) console.error("[clasloop] rehydrate participants query failed:", pErr);
+        return;
+      }
 
-      const p = participants[0];
-      const sess = p.sessions;
-      if (!sess || !sess.questions || sess.questions.length === 0) return;
+      // Step B: find which of those sessions is currently active.
+      const sessionIds = parts.map(p => p.session_id);
+      const { data: activeSessions, error: sErr } = await supabase
+        .from("sessions")
+        .select(`
+          id, status, deck_id, deck_title, class_id, class_name,
+          section, lobby_theme, questions, topic,
+          session_settings, started_at
+        `)
+        .in("id", sessionIds)
+        .eq("status", "active");
+
+      if (cancelled) return;
+      console.log("[clasloop] rehydrate: active sessions query result", { count: activeSessions?.length, error: sErr });
+      if (sErr || !activeSessions || activeSessions.length === 0) {
+        if (sErr) console.error("[clasloop] rehydrate sessions query failed:", sErr);
+        return;
+      }
+
+      // Pair them up: take the most-recent participant whose session
+      // is in the active set.
+      const activeSet = new Map(activeSessions.map(s => [s.id, s]));
+      const matchingParticipant = parts.find(p => activeSet.has(p.session_id));
+      if (!matchingParticipant) {
+        console.log("[clasloop] rehydrate: no matching active participant");
+        return;
+      }
+      const sess = activeSet.get(matchingParticipant.session_id);
+      const p = matchingParticipant;
+      if (!sess.questions || sess.questions.length === 0) {
+        console.log("[clasloop] rehydrate: session has no questions, aborting");
+        return;
+      }
+      console.log("[clasloop] rehydrate: matched session", sess.id, "with participant", p.id);
 
       // Fetch this participant's responses in order
       const { data: responses } = await supabase
@@ -809,6 +844,7 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
       setAnswers(answeredPrefix);
       setCurrent(allAnswered ? sess.questions.length - 1 : firstUnanswered);
       setStep(allAnswered ? "results" : "quiz");
+      console.log("[clasloop] rehydrate: restored to step", allAnswered ? "results" : "quiz", "at question", allAnswered ? sess.questions.length - 1 : firstUnanswered);
     })();
 
     return () => { cancelled = true; };
