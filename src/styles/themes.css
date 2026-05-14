@@ -3266,3 +3266,28 @@
     gap: 8px;
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════
+ * PR 23.6: Image MCQ on tablets in LANDSCAPE
+ *
+ * Jota reports the image MCQ "eats" the question text on tablet
+ * landscape. The original .answers-grid.is-image-mode is 220px × 2 rows
+ * = 440px. On iPad landscape (1024 × 768), with the top-strip (~64px),
+ * the question-main padding, the section pill row, the question text,
+ * AND the answer grid, content can overflow vertically — pushing the
+ * question text upward or clipping it.
+ *
+ * Fix: in landscape orientation between 769–1180px width (typical
+ * tablet landscape sizes), shrink image tiles from 220px → 180px.
+ * Pure landscape laptops/desktops keep the original 220px since they
+ * have more vertical space.
+ *
+ * Phones/tablets in portrait are handled by PR 23.5 (separate rules).
+ * ═══════════════════════════════════════════════════════════════════════ */
+
+@media (orientation: landscape) and (max-width: 1180px) {
+  .stage .answers-grid.is-image-mode {
+    grid-template-rows: 180px 180px;
+    gap: 12px;
+  }
+}

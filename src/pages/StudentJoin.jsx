@@ -3296,15 +3296,22 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
       );
     }
 
-    // PR 20.4: themed Results render. Only kicks in when:
-    //   - Theme is set (live session with class theme)
-    //   - Not a guest (guest flow has its own redirect logic)
-    //   - Not currently in the review sub-state
-    //   - Not the "ended-by-teacher empty" edge case (we have a
-    //     dedicated screen for that — kept legacy)
+    // PR 23.6: themed Results render. Now ALWAYS preferred over the
+    // legacy render whenever we're in a live student session (not
+    // practice, not guest). The original condition required
+    // `lobbyThemeId` to be truthy and excluded the
+    // "ended-by-teacher empty" edge case — but reports came in of
+    // tablets landing on the legacy render after finishing a quiz
+    // normally, which suggests `lobbyThemeId` was occasionally null
+    // (perhaps a race between the realtime UPDATE that flips status
+    // → "completed" and the theme-loading useEffect).
     //
-    // Falls through to the legacy render below for everything else.
-    if (lobbyThemeId && !isPractice && !isGuest && !(endedByTeacher && answers.length === 0)) {
+    // Fix: render themed with 'calm' fallback so we never fall to
+    // legacy by accident. The ended-by-teacher edge case (no
+    // answers) is handled inline via a different motivational
+    // string, not a different render.
+    if (!isPractice && !isGuest) {
+      const themeForResults = lobbyThemeId || 'calm';
       const motivational = endedByTeacher
         ? (t.teacherEndedHint || "")
         : (graded.length === 0 ? (t.greatJob || "")
@@ -3317,7 +3324,7 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
           <style>{css}</style>
           <div className="stage-page">
             <div className="stage-wrap">
-              <div className="stage" data-theme={lobbyThemeId}>
+              <div className="stage" data-theme={themeForResults}>
                 <div className="top-strip">
                   <div className="brand-area">
                     <span className="brand-name">Clasloop</span>
