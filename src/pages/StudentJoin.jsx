@@ -561,6 +561,16 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
   const urlPin = (!isPractice && !isGuest) ? (searchParams.get(QUERY.PIN) || "") : "";
 
   const [step, setStep] = useState(isPractice ? "quiz" : (isGuest ? "joining" : "join"));
+  // PR 23.10.3: gate the visible UI while we try to restore from DB
+  // on refresh. Starts true only for logged-in live students (the
+  // only path that runs the rehydration effect). If the effect
+  // finds an active session it'll jump us straight to quiz/results;
+  // if it doesn't find anything, it flips this to false and we
+  // proceed to the normal join screen. Either way we avoid showing
+  // a flash of join → quiz on refresh.
+  const [rehydrating, setRehydrating] = useState(
+    !isPractice && !isGuest
+  );
   const [pin, setPin] = useState(isGuest ? guestPin : urlPin);
   const [name, setName] = useState(isGuest ? guestName : (profile?.full_name || ""));
   const isLoggedIn = !isGuest && Boolean(profile?.full_name);
@@ -716,9 +726,15 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
   //     line ~1075; that path is separate)
   //   - Already past step="join" (effect just runs at initial mount)
   useEffect(() => {
-    if (isPractice || isGuest) return;
-    if (!profile?.id) return;
-    if (step !== "join") return;
+    if (isPractice || isGuest) {
+      setRehydrating(false);
+      return;
+    }
+    if (!profile?.id) return; // wait for profile to load — keep rehydrating UI
+    if (step !== "join") {
+      setRehydrating(false);
+      return;
+    }
     let cancelled = false;
 
     (async () => {
@@ -827,7 +843,14 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
       setAnswers(answeredPrefix);
       setCurrent(allAnswered ? sess.questions.length - 1 : firstUnanswered);
       setStep(allAnswered ? "results" : "quiz");
-    })();
+    })().finally(() => {
+      // PR 23.10.3: clear rehydrating regardless of outcome. If we
+      // restored, step is now "quiz"/"results" and rehydrating=false
+      // means the join screen wouldn't show anyway. If we didn't find
+      // anything (no active participant, query error, etc.) we drop
+      // back to the join screen normally.
+      if (!cancelled) setRehydrating(false);
+    });
 
     return () => { cancelled = true; };
     // Runs once at mount per profile/step change — deliberately not
@@ -1622,6 +1645,41 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
   // ── Join ──
   // PR 20.3: themed Join state. Since the student doesn't know the
   // session's theme yet (haven't joined), we fall back to 'calm' for
+  // PR 23.10.3: while rehydrating from DB, show a soft loader instead
+  // of the join screen. Without this, refresh during a quiz flashes
+  // the join page for ~300ms before the effect resolves and jumps us
+  // back to the quiz — feels broken even though the data is fine.
+  // The themed loader is intentionally minimal (no background, no
+  // heavy chrome) since it's only on-screen for a fraction of a
+  // second in the common case.
+  if (rehydrating && !isPractice && !isGuest && step === "join") {
+    return (
+      <>
+        <style>{css}</style>
+        <div style={{
+          minHeight: "calc(100vh - 80px)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: 20,
+        }}>
+          <div className="fade-up" style={{ textAlign: "center" }}>
+            <div style={{ display: "inline-flex", marginBottom: 14 }}>
+              <LogoMark size={40} />
+            </div>
+            <p style={{
+              fontSize: 13, color: C.textMuted,
+              fontFamily: "'Outfit', sans-serif",
+              margin: 0,
+            }}>
+              {t.loading || "Loading…"}
+            </p>
+          </div>
+        </div>
+      </>
+    );
+  }
+
   // the first time, then keep showing the previous theme if they exit
   // and come back. The Pop/Ocean/Mono jump to a different theme only
   // happens at the Waiting step (which is where they spend time).
