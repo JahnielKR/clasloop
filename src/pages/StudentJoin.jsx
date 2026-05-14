@@ -865,6 +865,7 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
       // records the empty response and triggers the reveal. We then
       // kick off the auto-advance fill so the student gets 2 seconds
       // to see the correct answer before we move on for them.
+      console.log('[clasloop-debug] timer expired → submitAnswer(null) + setAutoAdvanceStart');
       submitAnswer(null);
       setAutoAdvanceStart(Date.now());
     }
@@ -876,11 +877,17 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
   // the button visually completes its fill the moment handleNext fires.
   // Manual click during the fill still cancels the timer immediately.
   useEffect(() => {
+    console.log('[clasloop-debug] autoAdvanceStart effect, value:', autoAdvanceStart);
     if (autoAdvanceStart === null) return;
+    console.log('[clasloop-debug] scheduling handleNext in 3000ms');
     const tm = setTimeout(() => {
+      console.log('[clasloop-debug] 3s passed → handleNext()');
       handleNext();
     }, 3000);
-    return () => clearTimeout(tm);
+    return () => {
+      console.log('[clasloop-debug] cleanup: clearTimeout');
+      clearTimeout(tm);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoAdvanceStart]);
 
@@ -2204,9 +2211,12 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
                       {/* PR 20.2.4: Next/Results button only appears once
                           the student has submitted. Uses handleNext which
                           is the same handler the legacy render uses. */}
-                      {showResult && (
+                      {showResult && (() => {
+                        const isAdvancing = autoAdvanceStart !== null;
+                        console.log('[clasloop-debug] rendering Next themed, autoAdvanceStart:', autoAdvanceStart, 'isAdvancing:', isAdvancing);
+                        return (
                         <button
-                          className={`stage-next-btn ${autoAdvanceStart !== null ? 'is-auto-advancing' : ''}`}
+                          className={`stage-next-btn ${isAdvancing ? 'is-auto-advancing' : ''}`}
                           onClick={handleNext}
                         >
                           {current + 1 >= questions.length
@@ -2216,7 +2226,7 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
                             <path d="M5 12h14M13 6l6 6-6 6"/>
                           </svg>
                         </button>
-                      )}
+                        );})()}
                     </div>
                   </div>
                 </div>
