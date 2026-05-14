@@ -2102,12 +2102,18 @@
 }
 .stage[data-theme="mono"] .stage-next-btn { border-radius: 0; }
 
-/* PR 24.0: auto-advance fill animation.
+/* PR 24.0 + PR 24.4.4: auto-advance fill animation.
  *
  * When the timer expires without an answer, we add the
  * `is-auto-advancing` modifier to the button. A ::before pseudo-element
- * with the same color but slightly darker fills horizontally from 0%
- * to 100% in 2 seconds, then JS calls handleNext.
+ * fills horizontally from 0% to 100% in 3 seconds, then JS calls
+ * handleNext.
+ *
+ * PR 24.4.4: bumped from 2s → 3s (more time to read the reveal) and
+ * raised the fill's contrast so it's actually visible — the previous
+ * rgba(0,0,0,0.22) was a faint tint students didn't notice. Now each
+ * theme gets a fill color picked to clearly stand out against its
+ * button background.
  *
  * The button content (text + arrow) stays on top thanks to z-index.
  * Cancel = student clicks → JS removes the class and clears the
@@ -2124,20 +2130,36 @@
   left: 0;
   bottom: 0;
   width: 0;
-  background: rgba(0, 0, 0, 0.22);
+  /* High-contrast default fill. Themed overrides below tune per theme. */
+  background: rgba(0, 0, 0, 0.55);
   z-index: 0;
   transition: none;
 }
 .stage .stage-next-btn.is-auto-advancing::before {
   width: 100%;
-  transition: width 2000ms linear;
+  transition: width 3000ms linear;
 }
-/* Theme-specific fill colors: invert for dark themes so the fill is visible.
- * On dark accents (e.g. mono's white, ocean's bright button), the dark
- * shadow above works. On light accents (calm cream, pop yellow), we keep
- * the same darken — already visible. */
+
+/* Per-theme fill color tuning.
+ * Goal: fill must clearly contrast with the button's resting color
+ * so students see the progress bar advance toward the right.
+ *
+ *  - calm:  button is dark (#2C2A26), so fill goes LIGHT
+ *  - ocean: button is mint green, so fill goes DARK
+ *  - pop:   button is dark purple (#1F1733), so fill goes LIGHT
+ *  - mono:  button is white, so fill goes BLACK
+ */
+.stage[data-theme="calm"] .stage-next-btn::before {
+  background: rgba(255, 255, 255, 0.35);
+}
+.stage[data-theme="ocean"] .stage-next-btn::before {
+  background: rgba(0, 0, 0, 0.45);
+}
+.stage[data-theme="pop"] .stage-next-btn::before {
+  background: rgba(255, 255, 255, 0.4);
+}
 .stage[data-theme="mono"] .stage-next-btn::before {
-  background: rgba(0, 0, 0, 0.35);
+  background: rgba(0, 0, 0, 0.85);
 }
 
 /* ─── PR 20.2.4: answer-tile reveal states (showResult flow) ─────────
