@@ -2124,53 +2124,42 @@
   z-index: 1;
 }
 .stage .stage-next-btn::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  bottom: 0;
-  width: 0;
-  height: 100%;
-  /* High-contrast default fill. Themed overrides below tune per theme. */
-  background: rgba(0, 0, 0, 0.55);
-  z-index: 0;
+  /* PR 24.4.9: kept for backward compatibility but no longer used for
+   * the fill effect. Earlier approaches (width-transition, keyframes)
+   * didn't reliably animate in production. Switched to a filter-based
+   * fill on the button itself (see .is-auto-advancing rule below). */
+  content: none;
 }
-/* PR 24.4.8: switch from `transition: width` to a CSS keyframe
- * animation. Reason: React applies .is-auto-advancing in the same
- * commit cycle as showResult=true (the button's first render), so
- * the browser never "sees" the initial width: 0 state — it computes
- * the post-class state directly and there's nothing to transition
- * FROM. A keyframes animation forces the browser to play 0% → 100%
- * regardless of what the pre-state looked like. */
+
+/* PR 24.4.9: progressive brightness "fill" on the button itself.
+ *
+ * The button starts dim (brightness < 1, less saturated) and animates
+ * to full brightness (brightness 1) over 3 seconds. Visually this
+ * looks like the button "fills with color" as the deadline approaches.
+ *
+ * Why this approach: `filter: brightness(N)` animates reliably across
+ * browsers regardless of when the class is applied — unlike width
+ * transitions which need a pre-state frame to interpolate FROM. The
+ * keyframes animation here is identical to the width approach in
+ * spirit, but operates on a property the browser always animates
+ * predictably.
+ */
 @keyframes cl-next-fill {
-  from { width: 0; }
-  to   { width: 100%; }
+  from {
+    filter: brightness(0.55) saturate(0.6);
+  }
+  to {
+    filter: brightness(1) saturate(1);
+  }
 }
-.stage .stage-next-btn.is-auto-advancing::before {
+.stage .stage-next-btn.is-auto-advancing {
   animation: cl-next-fill 3000ms linear forwards;
 }
 
-/* Per-theme fill color tuning.
- * Goal: fill must clearly contrast with the button's resting color
- * so students see the progress bar advance toward the right.
- *
- *  - calm:  button is dark (#2C2A26), so fill goes LIGHT
- *  - ocean: button is mint green, so fill goes DARK
- *  - pop:   button is dark purple (#1F1733), so fill goes LIGHT
- *  - mono:  button is white, so fill goes BLACK
- */
-.stage[data-theme="calm"] .stage-next-btn::before {
-  background: rgba(255, 255, 255, 0.35);
-}
-.stage[data-theme="ocean"] .stage-next-btn::before {
-  background: rgba(0, 0, 0, 0.45);
-}
-.stage[data-theme="pop"] .stage-next-btn::before {
-  background: rgba(255, 255, 255, 0.4);
-}
-.stage[data-theme="mono"] .stage-next-btn::before {
-  background: rgba(0, 0, 0, 0.85);
-}
+/* PR 24.4.9: the per-theme background overrides for ::before are gone
+ * because we no longer use a pseudo-element fill. The brightness
+ * animation applies to the whole button, so per-theme tuning isn't
+ * needed — the button's own theme color is what darkens/brightens. */
 
 /* ─── PR 20.2.4: answer-tile reveal states (showResult flow) ─────────
  * When the student has submitted, the tiles dim. The correct one
