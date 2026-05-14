@@ -6,6 +6,7 @@ import { uploadProfileAvatar, deleteProfileAvatar } from "../lib/avatar-storage"
 import { useIsMobile } from "../components/MobileMenuButton";
 import PageHeader from "../components/PageHeader";
 import { C } from "../components/tokens";
+import DeleteAccountModal from "../components/DeleteAccountModal";
 import useTheme from "../hooks/useTheme";
 
 const i18n = {
@@ -174,6 +175,9 @@ export default function Settings({ lang: pageLang = "en", setLang: pageSetLang, 
 
   // Notifications (stored locally for now)
   const [notifs, setNotifs] = useState({ email: true, push: true, weekly: true, studyRemind: true, streakRemind: true });
+
+  // PR 28: irreversible account deletion modal
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   // ── Avatar / Profile picture ──
   const [avatarUrl, setAvatarUrl] = useState(null);   // photo URL if any
@@ -608,12 +612,26 @@ export default function Settings({ lang: pageLang = "en", setLang: pageSetLang, 
 
             <Section title={t.dangerZone} icon="alert" style={{ borderColor: C.red + "33" }}>
               <SettingRow label={t.deleteAccount} desc={t.deleteAccountDesc} right={
-                <button className="st-btn-danger" style={{ padding: "8px 16px", borderRadius: 8, fontSize: 13, fontWeight: 600, background: C.redSoft, color: C.red, border: "none", cursor: "pointer", fontFamily: "'Outfit',sans-serif" }}>{t.deleteAccountBtn}</button>
+                <button
+                  className="st-btn-danger"
+                  onClick={() => setShowDeleteModal(true)}
+                  style={{ padding: "8px 16px", borderRadius: 8, fontSize: 13, fontWeight: 600, background: C.redSoft, color: C.red, border: "none", cursor: "pointer", fontFamily: "'Outfit',sans-serif" }}
+                >{t.deleteAccountBtn}</button>
               } />
             </Section>
           </div>
         )}
       </div>
+
+      {/* PR 28: Delete account modal — opens from the Danger zone
+          button above. Renders only when triggered, lives outside
+          the tab content so it overlays everything. */}
+      <DeleteAccountModal
+        open={showDeleteModal}
+        profile={profile}
+        lang={lang}
+        onClose={() => setShowDeleteModal(false)}
+      />
     </div>
   );
 }
