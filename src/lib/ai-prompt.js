@@ -272,7 +272,7 @@ Esquema de salida para cada FILL:
 
     order: {
       en: `RULES FOR ORDERING (ORDER)
-- 4 to 6 items per question.
+- 4 to 6 items per question. NEVER more than 8 (hard limit).
 - The correct order must be OBJECTIVELY correct: chronology, process steps, hierarchy, magnitude, cause-and-effect chain. Do NOT use subjective orders ("from most to least important" unless the source explicitly ranks them).
 - Each item must be SHORT (max 10 words). Long items are unreadable in a 5-minute warmup.
 - Items must be at the same conceptual level — don't mix "the French Revolution" with "Bastille was stormed" in the same set.
@@ -283,7 +283,7 @@ Output schema for each ORDER:
 { "type": "order", "q": "Put these in chronological order:", "items": ["First step", "Second step", "Third step", "Fourth step"] }`,
 
       es: `REGLAS PARA ORDENAR (ORDER)
-- 4 a 6 ítems por pregunta.
+- 4 a 6 ítems por pregunta. NUNCA más de 8 (límite estricto).
 - El orden correcto debe ser OBJETIVAMENTE correcto: cronología, pasos de un proceso, jerarquía, magnitud, cadena causa-efecto. NO uses órdenes subjetivos ("de más a menos importante" salvo que la fuente los ranquée explícitamente).
 - Cada ítem debe ser CORTO (máx 10 palabras). Los ítems largos son ilegibles en un warmup de 5 minutos.
 - Los ítems deben estar al mismo nivel conceptual — no mezcles "la Revolución Francesa" con "Toma de la Bastilla" en el mismo set.
@@ -294,7 +294,7 @@ Esquema de salida para cada ORDER:
 { "type": "order", "q": "Ordena cronológicamente:", "items": ["Primer paso", "Segundo paso", "Tercer paso", "Cuarto paso"] }`,
 
       ko: `순서 정하기(ORDER) 규칙
-- 문제당 4~6개 항목.
+- 문제당 4~6개 항목. 절대 8개를 넘기지 마세요 (엄격한 제한).
 - 올바른 순서는 객관적으로 정해져야 합니다: 시간순, 절차 단계, 위계, 크기, 인과 사슬. 자료가 명시적으로 순위를 매기지 않은 한 주관적 순서("중요한 순서대로" 등)는 사용하지 마세요.
 - 각 항목은 짧아야 합니다(최대 10단어). 긴 항목은 5분 워밍업에서 읽기 어렵습니다.
 - 항목들은 같은 개념 수준이어야 합니다 — "프랑스 혁명"과 "바스티유 함락"을 같은 세트에 섞지 마세요.
@@ -307,7 +307,7 @@ Esquema de salida para cada ORDER:
 
     match: {
       en: `RULES FOR MATCHING PAIRS (MATCH)
-- 4 to 5 pairs per question.
+- 4 to 5 pairs per question. NEVER more than 8 (hard limit).
 - Each "left" must have ONE clear and unique match in "right". No left item should plausibly match more than one right item.
 - Common patterns: term ↔ definition, cause ↔ effect, person ↔ contribution, country ↔ capital, formula ↔ name.
 - Keep both sides SHORT (max 8 words each side).
@@ -319,7 +319,7 @@ Output schema for each MATCH:
 { "type": "match", "q": "Match each term with its definition:", "pairs": [{"left": "Term1", "right": "Def1"}, {"left": "Term2", "right": "Def2"}, {"left": "Term3", "right": "Def3"}, {"left": "Term4", "right": "Def4"}] }`,
 
       es: `REGLAS PARA EMPAREJAR (MATCH)
-- 4 a 5 pares por pregunta.
+- 4 a 5 pares por pregunta. NUNCA más de 8 (límite estricto).
 - Cada "left" debe tener UN solo match claro y único en "right". Ningún ítem de la izquierda debería poder emparejarse plausiblemente con más de uno de la derecha.
 - Patrones comunes: término ↔ definición, causa ↔ efecto, persona ↔ aporte, país ↔ capital, fórmula ↔ nombre.
 - Mantén ambos lados CORTOS (máx 8 palabras por lado).
@@ -331,7 +331,7 @@ Esquema de salida para cada MATCH:
 { "type": "match", "q": "Empareja cada término con su definición:", "pairs": [{"left": "Término1", "right": "Def1"}, {"left": "Término2", "right": "Def2"}, {"left": "Término3", "right": "Def3"}, {"left": "Término4", "right": "Def4"}] }`,
 
       ko: `짝 맞추기(MATCH) 규칙
-- 문제당 4~5쌍.
+- 문제당 4~5쌍. 절대 8쌍을 넘기지 마세요 (엄격한 제한).
 - 각 "left" 항목은 "right"에 단 하나의 명확한 짝이 있어야 합니다. 왼쪽 항목이 오른쪽의 여러 항목과 그럴듯하게 짝지어지면 안 됩니다.
 - 흔한 패턴: 용어 ↔ 정의, 원인 ↔ 결과, 인물 ↔ 업적, 국가 ↔ 수도, 공식 ↔ 이름.
 - 양쪽 모두 짧게 유지하세요 (각 측 최대 8단어).

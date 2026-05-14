@@ -808,9 +808,14 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
       }
       if (base.type === "order") {
         if (!Array.isArray(base.items)) base.items = [];
+        // PR 24.4.1: cap at 8 to match the themed render limit. If the
+        // AI returns more, keep the first 8 in their canonical order.
+        if (base.items.length > 8) base.items = base.items.slice(0, 8);
       }
       if (base.type === "match") {
         if (!Array.isArray(base.pairs)) base.pairs = [];
+        // PR 24.4.1: same cap as order.
+        if (base.pairs.length > 8) base.pairs = base.pairs.slice(0, 8);
       }
       if (base.type === "sentence") {
         if (typeof base.required_word !== "string") base.required_word = "";
@@ -957,8 +962,13 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
 
   // ── Dynamic add/remove for options, items, pairs ──
   const MAX_OPTIONS = 8;
-  const MAX_ITEMS = 12;
-  const MAX_PAIRS = 12;
+  // PR 24.4.1: caps lowered from 12 to 8 to match the themed render
+  // limits in StudentJoin.jsx (themedMatchEligible, themedOrderEligible
+  // both require length ≤ 8). Above 8 the themed UI gets cramped and
+  // would fall through to the legacy render — easier to just prevent
+  // creating those questions in the first place.
+  const MAX_ITEMS = 8;
+  const MAX_PAIRS = 8;
 
   const addOption = (qIdx) => setQuestions(prev => prev.map((q, i) => {
     if (i !== qIdx || (q.options || []).length >= MAX_OPTIONS) return q;
