@@ -39,7 +39,7 @@ const i18n = {
     pointsLabel: "{points}/{max} points",
     joinAnother: "Join another session", noQuestions: "No questions available",
     // PR 20.2: themed quiz render labels
-    pregunta: "Question", de: "of", elegiRespuesta: "Pick the right answer", elegiTrueFalse: "True or False?",
+    pregunta: "Question", de: "of", elegiRespuesta: "Pick the right answer", elegiTrueFalse: "True or False?", elegiFill: "Fill in the blank",
     segundos: "seconds", tuPuntaje: "Your score",
     // PR 20.3: themed Join + Waiting strings
     liveSession: "Live session", joinSubtitle: "Your teacher just launched a quiz. Ask them for the code and join with your name.",
@@ -107,7 +107,7 @@ const i18n = {
     pointsLabel: "{points}/{max} puntos",
     joinAnother: "Unirse a otra sesión", noQuestions: "No hay preguntas",
     // PR 20.2: themed quiz render labels
-    pregunta: "Pregunta", de: "de", elegiRespuesta: "Elegí la respuesta", elegiTrueFalse: "¿Verdadero o falso?",
+    pregunta: "Pregunta", de: "de", elegiRespuesta: "Elegí la respuesta", elegiTrueFalse: "¿Verdadero o falso?", elegiFill: "Rellená el espacio",
     segundos: "segundos", tuPuntaje: "Tu puntaje",
     // PR 20.3: themed Join + Waiting strings
     liveSession: "Sesión en vivo", joinSubtitle: "Tu profe acaba de lanzar un quiz. Pedile el código y entrá con tu nombre.",
@@ -172,7 +172,7 @@ const i18n = {
     pointsLabel: "{points}/{max} 점",
     joinAnother: "다른 세션 참여", noQuestions: "문제가 없습니다",
     // PR 20.2: themed quiz render labels
-    pregunta: "문제", de: "/", elegiRespuesta: "정답을 선택하세요", elegiTrueFalse: "참 또는 거짓?",
+    pregunta: "문제", de: "/", elegiRespuesta: "정답을 선택하세요", elegiTrueFalse: "참 또는 거짓?", elegiFill: "빈칸 채우기",
     segundos: "초", tuPuntaje: "내 점수",
     // PR 20.3: themed Join + Waiting strings
     liveSession: "실시간 세션", joinSubtitle: "선생님이 퀴즈를 시작했어요. 코드를 받아 이름과 함께 입장하세요.",
@@ -1095,10 +1095,15 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
       prevQType === 'tf' &&
       prevQ &&
       (prevQ.correct === true || prevQ.correct === false);
+    const prevFillThemed =
+      prevQType === 'fill' &&
+      prevQ &&
+      typeof prevQ.answer === 'string' &&
+      prevQ.answer.trim().length > 0;
     const prevWasThemed =
       !isPractice &&
       lobbyThemeId &&
-      (prevMcqThemed || prevTfThemed);
+      (prevMcqThemed || prevTfThemed || prevFillThemed);
 
     if (!prevWasThemed) {
       // Legacy render — skip animation, sync immediately
@@ -1539,7 +1544,9 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
     // shape requirements per type:
     //   - MCQ: single-correct, text-only options (no image_url objects)
     //   - TF: q.correct is true or false
-    // Other types (Fill/Slider/Match/Order/Free) fall through to legacy
+    //   - FILL: q.answer is a non-empty string (or q.alternatives if
+    //     accepting multiple correct strings)
+    // Other types (Slider/Match/Order/Free) fall through to legacy
     // until their own themed renders ship in later PRs.
     const themedMcqEligible =
       qType === 'mcq' &&
@@ -1549,10 +1556,13 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
     const themedTfEligible =
       qType === 'tf' &&
       (q?.correct === true || q?.correct === false);
+    const themedFillEligible =
+      qType === 'fill' &&
+      (typeof q?.answer === 'string' && q.answer.trim().length > 0);
     const themedRenderEligible =
       !isPractice &&
       lobbyThemeId &&
-      (themedMcqEligible || themedTfEligible);
+      (themedMcqEligible || themedTfEligible || themedFillEligible);
 
     if (themedRenderEligible) {
       const totalScore = answers.reduce((s, a) => s + (a?.points || 0), 0);
@@ -1656,7 +1666,9 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
                         <div className="question-prompt-label">
                           {qType === 'tf'
                             ? (t.elegiTrueFalse || t.elegiRespuesta || "True or False?")
-                            : (t.elegiRespuesta || "Elegí la respuesta")}
+                            : qType === 'fill'
+                              ? (t.elegiFill || "Rellená el espacio")
+                              : (t.elegiRespuesta || "Elegí la respuesta")}
                         </div>
                         <div className="question-text-tablet" style={{ whiteSpace: "pre-wrap" }}>{displayedQ.q}</div>
                       </div>
@@ -1738,6 +1750,44 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
                             </button>
                           );
                         })}
+                      </div>
+                      )}
+
+                      {qType === 'fill' && (
+                      <div className="fill-area">
+                        {/* The input itself is the answer area. While
+                            unanswered, the student types. On submit,
+                            the input border + text turn green/red and
+                            the submit button is replaced by an optional
+                            "correct answer was X" hint when wrong. */}
+                        <input
+                          type="text"
+                          className={`fill-input ${
+                            showResult
+                              ? (lastIsCorrect ? 'is-correct' : 'is-wrong')
+                              : ''
+                          }`}
+                          value={fillText}
+                          onChange={e => setFillText(e.target.value)}
+                          onKeyDown={e => e.key === "Enter" && handleFillSubmit()}
+                          placeholder={t.typeAnswer || "Escribí tu respuesta"}
+                          disabled={showResult}
+                          autoFocus
+                        />
+                        {!showResult && (
+                          <button
+                            className="fill-submit"
+                            onClick={handleFillSubmit}
+                            disabled={!fillText.trim()}
+                          >
+                            {t.submit || "Enviar"}
+                          </button>
+                        )}
+                        {showResult && !lastIsCorrect && displayedQ.answer && (
+                          <div className="fill-correct-hint">
+                            <strong>{t.correctAnswer || "Respuesta correcta"}:</strong> {displayedQ.answer}
+                          </div>
+                        )}
                       </div>
                       )}
                     </div>

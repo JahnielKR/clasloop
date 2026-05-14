@@ -2186,6 +2186,123 @@
 }
 .stage .tf-option.is-dimmed { opacity: 0.4; }
 
+/* ─── PR 24.2: FILL (rellenar palabra) themed render ─────────────────
+ * Single large centered input + submit button below. The input itself
+ * acts as the answer area (no surrounding options card). Reveal turns
+ * the input border green/red and shows the correct answer underneath
+ * if the student got it wrong.
+ *
+ * The .fill-area takes the place of .answers-grid in the bottom band
+ * of .question-main. Centered horizontally with max-width 600px so
+ * very wide screens don't stretch the input to absurd widths. */
+.stage .fill-area {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  max-width: 600px;
+  margin: 0 auto;
+  flex-shrink: 0;
+}
+.stage .fill-input {
+  width: 100%;
+  background: var(--surface);
+  border: 2px solid var(--border);
+  border-radius: 14px;
+  padding: 22px 28px;
+  font-family: 'Outfit', sans-serif;
+  font-weight: 600;
+  font-size: 28px;
+  color: currentColor;
+  text-align: center;
+  outline: none;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+.stage .fill-input::placeholder { color: var(--text-muted); }
+.stage .fill-input:focus { border-color: var(--accent); }
+.stage[data-theme="mono"] .fill-input {
+  font-family: 'JetBrains Mono', monospace;
+  border-radius: 0;
+}
+.stage[data-theme="pop"] .fill-input {
+  border-width: 3px;
+  box-shadow: 4px 4px 0 #1F1733;
+}
+.stage[data-theme="ocean"] .fill-input {
+  background: rgba(255,255,255,0.05);
+  backdrop-filter: blur(10px);
+}
+
+/* Reveal states on the input itself. */
+.stage .fill-input.is-correct {
+  border-color: var(--success);
+  background: var(--success-tint);
+  color: var(--success);
+}
+.stage .fill-input.is-wrong {
+  border-color: var(--danger);
+  background: var(--danger-tint);
+  color: var(--danger);
+}
+.stage[data-theme="mono"] .fill-input.is-correct,
+.stage[data-theme="mono"] .fill-input.is-wrong {
+  color: currentColor;
+}
+
+/* Submit button (only visible before reveal). */
+.stage .fill-submit {
+  background: var(--accent);
+  color: var(--on-accent);
+  border: none;
+  border-radius: 12px;
+  padding: 14px 32px;
+  font-family: 'Outfit', sans-serif;
+  font-weight: 700;
+  font-size: 16px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  min-width: 160px;
+}
+.stage .fill-submit:hover { transform: translateY(-1px); }
+.stage .fill-submit:active { transform: scale(0.98); }
+.stage .fill-submit:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none;
+}
+.stage[data-theme="pop"] .fill-submit {
+  border: 2px solid #1F1733;
+  box-shadow: 3px 3px 0 #1F1733;
+}
+.stage[data-theme="mono"] .fill-submit {
+  border-radius: 0;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* "Correct answer was: X" hint shown after a wrong submission. */
+.stage .fill-correct-hint {
+  background: var(--success-tint);
+  border: 1px solid var(--success);
+  border-radius: 10px;
+  padding: 12px 18px;
+  font-size: 15px;
+  color: var(--success);
+  text-align: center;
+  width: 100%;
+}
+.stage[data-theme="mono"] .fill-correct-hint {
+  border-radius: 0;
+  color: currentColor;
+}
+.stage .fill-correct-hint strong {
+  font-family: 'Outfit', sans-serif;
+  font-weight: 700;
+}
+.stage[data-theme="mono"] .fill-correct-hint strong {
+  font-family: 'JetBrains Mono', monospace;
+}
+
 /* ─── PR 20.2.5: slide transition between questions ──────────────────
  * When the student taps "Next", the current question slides out to
  * the left (32px + fade) and the new question slides in from the
