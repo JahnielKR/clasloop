@@ -1997,6 +1997,9 @@
   justify-content: center;
   gap: 8px;
   transition: transform 0.15s ease, box-shadow 0.15s ease;
+  /* PR 24.0: positioning context for the auto-advance fill bar */
+  position: relative;
+  overflow: hidden;
 }
 .stage .stage-next-btn:hover { transform: translateY(-1px); }
 .stage .stage-next-btn:active { transform: scale(0.98); }
@@ -2008,6 +2011,44 @@
   box-shadow: 5px 5px 0 #1F1733;
 }
 .stage[data-theme="mono"] .stage-next-btn { border-radius: 0; }
+
+/* PR 24.0: auto-advance fill animation.
+ *
+ * When the timer expires without an answer, we add the
+ * `is-auto-advancing` modifier to the button. A ::before pseudo-element
+ * with the same color but slightly darker fills horizontally from 0%
+ * to 100% in 2 seconds, then JS calls handleNext.
+ *
+ * The button content (text + arrow) stays on top thanks to z-index.
+ * Cancel = student clicks → JS removes the class and clears the
+ * timer; the ::before snaps back to 0 instantly.
+ */
+.stage .stage-next-btn > * {
+  position: relative;
+  z-index: 1;
+}
+.stage .stage-next-btn::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 0;
+  background: rgba(0, 0, 0, 0.22);
+  z-index: 0;
+  transition: none;
+}
+.stage .stage-next-btn.is-auto-advancing::before {
+  width: 100%;
+  transition: width 2000ms linear;
+}
+/* Theme-specific fill colors: invert for dark themes so the fill is visible.
+ * On dark accents (e.g. mono's white, ocean's bright button), the dark
+ * shadow above works. On light accents (calm cream, pop yellow), we keep
+ * the same darken — already visible. */
+.stage[data-theme="mono"] .stage-next-btn::before {
+  background: rgba(0, 0, 0, 0.35);
+}
 
 /* ─── PR 20.2.4: answer-tile reveal states (showResult flow) ─────────
  * When the student has submitted, the tiles dim. The correct one

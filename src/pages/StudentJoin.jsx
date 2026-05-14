@@ -405,6 +405,13 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
 
   // Per-question working state (cleared when `current` changes)
   const [mcqSelected, setMcqSelected] = useState(null);
+  // PR 24.0: when the timer expires without an answer, we don't snap to
+  // the next question — we give the student 2 seconds to look at the
+  // reveal first. During those 2 seconds the Next button visually fills
+  // with the accent color (a horizontal progress bar inside the button).
+  // null = no auto-advance pending. number = Date.now() when the fill
+  // started, so the CSS animation can run from that moment.
+  const [autoAdvanceStart, setAutoAdvanceStart] = useState(null);
   const [tfSelected, setTfSelected] = useState(null);
   const [fillText, setFillText] = useState("");
   const [freeText, setFreeText] = useState("");
@@ -605,9 +612,28 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
   }, [timeLeft, showResult, step]);
 
   useEffect(() => {
-    if (timeLeft === 0 && !showResult && step === "quiz") submitAnswer(null);
+    if (timeLeft === 0 && !showResult && step === "quiz") {
+      // PR 24.0: timer expired without an answer. submitAnswer(null)
+      // records the empty response and triggers the reveal. We then
+      // kick off the auto-advance fill so the student gets 2 seconds
+      // to see the correct answer before we move on for them.
+      submitAnswer(null);
+      setAutoAdvanceStart(Date.now());
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [timeLeft, showResult, step]);
+
+  // PR 24.0: when autoAdvanceStart is set, schedule handleNext for 2s
+  // later. If the student clicks Next manually before the fill finishes,
+  // handleNext fires immediately and the cleanup cancels this timer.
+  useEffect(() => {
+    if (autoAdvanceStart === null) return;
+    const tm = setTimeout(() => {
+      handleNext();
+    }, 2000);
+    return () => clearTimeout(tm);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoAdvanceStart]);
 
   // ── Total time mode: timer global ──
   // Cuando el modo de la sesión es "total", iniciamos un countdown único al
@@ -763,6 +789,8 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
     setOrderPicked([]);
     setMatchPicks({});
     setMatchActiveLeft(null);
+    // PR 24.0: clear any pending auto-advance from the previous question
+    setAutoAdvanceStart(null);
   }, [displayedQuestionIdx, timeLimit]);
 
   // Guest auto-redirect: when the teacher ends the session before the guest
@@ -1677,7 +1705,10 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
                           the student has submitted. Uses handleNext which
                           is the same handler the legacy render uses. */}
                       {showResult && (
-                        <button className="stage-next-btn" onClick={handleNext}>
+                        <button
+                          className={`stage-next-btn ${autoAdvanceStart !== null ? 'is-auto-advancing' : ''}`}
+                          onClick={handleNext}
+                        >
                           {current + 1 >= questions.length
                             ? (t.seeResults || "See results")
                             : (t.next || "Next")}
