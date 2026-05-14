@@ -3051,3 +3051,70 @@
     gap: 18px;
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════
+ * PR 23.1: PORTRAIT FALLBACK — join screen + answer-tile sizing
+ *
+ * Follow-up to PR 23: the join screen (where students enter the PIN
+ * before joining a session) wasn't covered by the previous portrait
+ * rules. It uses .join-state with a 2-col grid and oversized typography
+ * (48px title, 60px side padding) that breaks badly on phones.
+ *
+ * Also tightens answer tiles: in PR 23 the MCQ grid collapsed to 1×4
+ * but each tile still had 130px row heights — too tall on phones,
+ * causing the last option to clip below the fold.
+ * ═══════════════════════════════════════════════════════════════════════ */
+
+@media (orientation: portrait) {
+  /* ── Join screen: stack left + right vertically ──────────────────── */
+  .stage .join-state {
+    grid-template-columns: 1fr;
+    align-content: start;
+    padding: 18px 0;
+    gap: 18px;
+  }
+  .stage .join-left,
+  .stage .join-right {
+    padding: 0 24px;
+    max-width: 100%;
+  }
+  /* Smaller title — 48px is huge on a 6" screen */
+  .stage .join-title-big {
+    font-size: 32px;
+    margin-bottom: 8px;
+  }
+  .stage .join-eyebrow {
+    font-size: 10px;
+    margin-bottom: 8px;
+  }
+  .stage .join-sub-big {
+    font-size: 14px;
+    max-width: 100%;
+  }
+}
+
+@media (orientation: portrait) and (max-width: 600px) {
+  /* Even smaller for phones */
+  .stage .join-title-big {
+    font-size: 26px;
+  }
+  .stage .join-sub-big {
+    font-size: 13px;
+  }
+  .stage .join-left,
+  .stage .join-right {
+    padding: 0 16px;
+  }
+
+  /* ── Answer tiles: shrink rows in MCQ so 4 options fit on screen ─ */
+  .stage .answers-grid {
+    grid-template-rows: repeat(4, minmax(60px, 1fr));
+    gap: 8px;
+  }
+  /* True/False has only 2 options, give them comfortable height
+     instead of the landscape 200px. */
+  .stage .tf-grid {
+    grid-template-rows: 1fr 1fr;
+    gap: 12px;
+  }
+}

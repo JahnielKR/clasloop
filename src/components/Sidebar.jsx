@@ -479,13 +479,22 @@ export default function Sidebar({
       </div>
 
       {/* ─── Footer: language + profile + signout ─────────────── */}
-      <div style={{ padding: "10px 10px 12px", borderTop: `1px solid ${C.border}` }}>
+      {/* PR 23.2: flex-shrink: 0 prevents the footer from being
+          squashed when the viewport is short (phones in portrait
+          where the available height is small). Without this, the
+          sign-out button got pushed off the bottom of the visible
+          drawer on small screens. */}
+      <div style={{
+        padding: isMobile ? "8px 10px 10px" : "10px 10px 12px",
+        borderTop: `1px solid ${C.border}`,
+        flexShrink: 0,
+      }}>
         {showLabels ? (
           <>
             {/* Language selector (preserved from previous sidebar — Jota
                 deliberately moved this here so it lives with user-prefs,
                 not page chrome). */}
-            <div style={{ display: "flex", gap: 4, marginBottom: 10 }}>
+            <div style={{ display: "flex", gap: 4, marginBottom: isMobile ? 6 : 10 }}>
               {[["en", "EN"], ["es", "ES"], ["ko", "한"]].map(([code, label]) => (
                 <button
                   key={code}
