@@ -699,6 +699,13 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
     });
   };
 
+  // PR 24.9: Set of deck IDs that have at least one session attached
+  // (excluding cancelled ones — those were never actually launched).
+  // Decks in this set are "used" and can't be removed from their unit
+  // — they're locked in place because they have student responses.
+  // Decks NOT in this set are still movable/removable.
+  const [usedDeckIds, setUsedDeckIds] = useState(new Set());
+
   // Hydrate class + its decks + its units. We refetch when classId changes
   // so the page works correctly when a teacher navigates between two classes.
   useEffect(() => {
@@ -707,10 +714,21 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
     (async () => {
       setLoading(true);
       setNotFound(false);
-      const [classRes, decksRes, unitsRes] = await Promise.all([
+      const [classRes, decksRes, unitsRes, usedRes] = await Promise.all([
         supabase.from("classes").select("*").eq("id", classId).maybeSingle(),
         supabase.from("decks").select("*").eq("class_id", classId).order("position", { ascending: true }).order("created_at", { ascending: false }),
         supabase.from("units").select("*").eq("class_id", classId).order("position", { ascending: true }),
+        // PR 24.9: any deck with at least one non-cancelled session is
+        // considered "used" and gets locked in place. We pull deck_ids
+        // from sessions of this class with status in ('lobby','active','completed').
+        // 'cancelled' sessions don't count — the teacher bailed before
+        // students engaged.
+        supabase
+          .from("sessions")
+          .select("deck_id")
+          .eq("class_id", classId)
+          .in("status", ["lobby", "active", "completed"])
+          .not("deck_id", "is", null),
       ]);
       if (cancelled) return;
       if (!classRes.data) {
@@ -735,6 +753,12 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
       }
       setClassObj(classRes.data);
       setDecks(decksRes.data || []);
+      // PR 24.9: build the Set of used deck IDs from sessions result.
+      const used = new Set();
+      (usedRes?.data || []).forEach(s => {
+        if (s?.deck_id) used.add(s.deck_id);
+      });
+      setUsedDeckIds(used);
       const newUnits = unitsRes.data || [];
       setUnits(newUnits);
       // PR5.1: when units (re)load, point currentUnitIdx at the active
@@ -1574,6 +1598,7 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
             decks={decks}
             units={units}
             activeUnit={shownUnit}
+            usedDeckIds={usedDeckIds}
             userId={profile?.id}
             lang={lang}
             onRefresh={() => setRefreshTick(n => n + 1)}

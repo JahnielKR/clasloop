@@ -60,6 +60,12 @@ const i18n = {
     addExit: "+ Add exit ticket",
     addDay: "+ Add Day {n}",
     launch: "Launch",
+    // PR 24.9: kebab menu actions on unused decks
+    kebabAria: "More options",
+    removeFromUnit: "Remove from unit",
+    editDeck: "Edit deck",
+    removeConfirm: "Remove \"{title}\" from this unit? The deck will move back to your general decks — no data is lost.",
+    removeError: "Could not remove the deck. Try again.",
     questions: "questions",
     statusActive: "Active",
     statusPlanned: "Planned",
@@ -90,6 +96,11 @@ const i18n = {
     addExit: "+ Añadir exit ticket",
     addDay: "+ Añadir Día {n}",
     launch: "Lanzar",
+    kebabAria: "Más opciones",
+    removeFromUnit: "Quitar de la unidad",
+    editDeck: "Editar deck",
+    removeConfirm: "¿Quitar \"{title}\" de esta unidad? El deck vuelve a tu lista general — no se borran datos.",
+    removeError: "No se pudo quitar el deck. Intenta de nuevo.",
     questions: "preguntas",
     daysCount: "{n} días planeados",
     daysCountOne: "1 día planeado",
@@ -115,6 +126,11 @@ const i18n = {
     addExit: "+ 종료 티켓 추가",
     addDay: "+ {n}일차 추가",
     launch: "시작",
+    kebabAria: "더 보기",
+    removeFromUnit: "유닛에서 빼기",
+    editDeck: "덱 편집",
+    removeConfirm: "이 유닛에서 \"{title}\"을(를) 빼시겠습니까? 덱은 일반 덱 목록으로 돌아갑니다 — 데이터는 사라지지 않습니다.",
+    removeError: "덱을 뺄 수 없습니다. 다시 시도하세요.",
     questions: "문제",
     daysCount: "{n}일 계획됨",
     daysCountOne: "1일 계획됨",
@@ -605,7 +621,140 @@ function UnitSwitcher({ allUnits, activeUnit, classId, lang = "en", onSwitched }
   );
 }
 
-function Slot({ deck, slotKind, t, lang, onLaunch, onSlotClick }) {
+// ─── PR 24.9: KebabMenu — three-dot menu with Remove + Edit actions ──
+//
+// Shown only on slots whose deck has NEVER been used (no sessions
+// attached). Click the three dots → small popover with two items.
+// Outside-click and Esc close it.
+function KebabMenu({ deck, t, onRemove, onEdit }) {
+  const [open, setOpen] = useState(false);
+
+  // Close on outside-click + Esc
+  useEffect(() => {
+    if (!open) return;
+    const onDocClick = (e) => {
+      if (!e.target.closest("[data-kebab-root]")) setOpen(false);
+    };
+    const onKey = (e) => { if (e.key === "Escape") setOpen(false); };
+    document.addEventListener("mousedown", onDocClick);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDocClick);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  const handleRemove = (e) => {
+    e.stopPropagation();
+    setOpen(false);
+    onRemove(deck);
+  };
+  const handleEdit = (e) => {
+    e.stopPropagation();
+    setOpen(false);
+    onEdit(deck);
+  };
+
+  return (
+    <div data-kebab-root style={{ position: "relative", flexShrink: 0 }}>
+      <button
+        type="button"
+        aria-label={t.kebabAria}
+        onClick={(e) => { e.stopPropagation(); setOpen(v => !v); }}
+        style={{
+          width: 28, height: 28,
+          padding: 0,
+          background: "transparent",
+          border: "none",
+          borderRadius: 6,
+          cursor: "pointer",
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          color: C.textSecondary,
+        }}
+        onMouseEnter={(e) => { e.currentTarget.style.background = C.bgSoft; }}
+        onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+          <circle cx="5" cy="12" r="1.7"/>
+          <circle cx="12" cy="12" r="1.7"/>
+          <circle cx="19" cy="12" r="1.7"/>
+        </svg>
+      </button>
+      {open && (
+        <div style={{
+          position: "absolute",
+          top: "100%",
+          right: 0,
+          marginTop: 4,
+          background: C.bg,
+          border: `1px solid ${C.border}`,
+          borderRadius: 8,
+          boxShadow: "0 4px 16px rgba(0,0,0,0.10)",
+          minWidth: 160,
+          zIndex: 30,
+          overflow: "hidden",
+        }}>
+          <button
+            type="button"
+            onClick={handleEdit}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              width: "100%",
+              padding: "10px 14px",
+              background: "transparent",
+              border: "none",
+              cursor: "pointer",
+              fontFamily: "'Outfit', sans-serif",
+              fontSize: 13,
+              color: C.text,
+              textAlign: "left",
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = C.bgSoft; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+            </svg>
+            {t.editDeck}
+          </button>
+          <button
+            type="button"
+            onClick={handleRemove}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              width: "100%",
+              padding: "10px 14px",
+              background: "transparent",
+              border: "none",
+              cursor: "pointer",
+              fontFamily: "'Outfit', sans-serif",
+              fontSize: 13,
+              color: "#C44D4D",
+              textAlign: "left",
+              borderTop: `1px solid ${C.border}`,
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(196, 77, 77, 0.06)"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+            </svg>
+            {t.removeFromUnit}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Slot({ deck, slotKind, t, lang, onLaunch, onSlotClick, isUsed, onRemove, onEdit }) {
   // slotKind: "warmup" | "exit" — used for the empty-slot label and
   // for routing the new-deck flow (so the deck editor pre-fills the
   // section).
@@ -674,6 +823,17 @@ function Slot({ deck, slotKind, t, lang, onLaunch, onSlotClick }) {
         >
           {t.launch} →
         </button>
+        {/* PR 24.9: kebab menu — only when the deck hasn't been used.
+            Used decks lock in place because they have student responses
+            tied to their unit position. */}
+        {!isUsed && (
+          <KebabMenu
+            deck={deck}
+            t={t}
+            onRemove={onRemove}
+            onEdit={onEdit}
+          />
+        )}
       </div>
     );
   }
@@ -717,7 +877,7 @@ function Slot({ deck, slotKind, t, lang, onLaunch, onSlotClick }) {
 }
 
 // ─── DayBlock — header + warmup slot + exit slot ───────────────────────
-function DayBlock({ row, t, lang, onLaunch, onSlotClick }) {
+function DayBlock({ row, t, lang, onLaunch, onSlotClick, usedDeckIds, onRemove, onEdit }) {
   return (
     <div style={{ marginBottom: 22 }}>
       <div style={{
@@ -737,6 +897,9 @@ function DayBlock({ row, t, lang, onLaunch, onSlotClick }) {
           t={t} lang={lang}
           onLaunch={onLaunch}
           onSlotClick={() => onSlotClick("warmup", row.dayNumber)}
+          isUsed={row.warmup ? usedDeckIds.has(row.warmup.id) : false}
+          onRemove={onRemove}
+          onEdit={onEdit}
         />
         <Slot
           deck={row.exit}
@@ -744,6 +907,9 @@ function DayBlock({ row, t, lang, onLaunch, onSlotClick }) {
           t={t} lang={lang}
           onLaunch={onLaunch}
           onSlotClick={() => onSlotClick("exit", row.dayNumber)}
+          isUsed={row.exit ? usedDeckIds.has(row.exit.id) : false}
+          onRemove={onRemove}
+          onEdit={onEdit}
         />
       </div>
     </div>
@@ -1042,6 +1208,9 @@ export default function PlanView({
   decks,
   units = [],          // all units of the class
   activeUnit,
+  // PR 24.9: Set of deck IDs that have been used (at least one session).
+  // Decks in this set lock their slot in place — no Remove/Edit menu.
+  usedDeckIds = new Set(),
   userId,
   lang = "en",
   onRefresh,           // called after the modal attaches a deck to a slot
@@ -1119,6 +1288,35 @@ export default function PlanView({
   // Action handlers
   const handleLaunch = (deck) => {
     navigate(buildRoute.sessionsOptions(deck.id));
+  };
+  // PR 24.9: remove a deck from this unit. The deck itself isn't
+  // deleted — it just gets unit_id=null and section='general_review'
+  // so it disappears from the unit plan and lands back in the
+  // teacher's general decks list, where they can reuse it elsewhere.
+  //   - position is reset to 0 (any non-removed deck takes its slot
+  //     in the daycount automatically because buildDayRows uses
+  //     position-1 for indexing).
+  //   - Only allowed when the deck has NEVER been used (usedDeckIds
+  //     gate is enforced in the Slot UI; this handler is just the
+  //     mutation).
+  const handleRemoveDeck = async (deck) => {
+    const ok = window.confirm(t.removeConfirm.replace("{title}", deck.title));
+    if (!ok) return;
+    const { error } = await supabase
+      .from("decks")
+      .update({ unit_id: null, section: "general_review", position: 0 })
+      .eq("id", deck.id);
+    if (error) {
+      console.error("[clasloop] removeDeck failed:", error);
+      alert(t.removeError);
+      return;
+    }
+    onRefresh && onRefresh();
+  };
+  // PR 24.9: jump to the deck editor. Same destination as clicking
+  // an existing deck elsewhere — the editor handles its own state.
+  const handleEditDeck = (deck) => {
+    navigate(buildRoute.deckEdit(deck.id));
   };
   // Click on an empty slot opens the AddToSlotModal — the teacher picks
   // an existing deck from their library OR jumps to the editor.
@@ -1428,6 +1626,9 @@ export default function PlanView({
               t={t} lang={lang}
               onLaunch={handleLaunch}
               onSlotClick={handleSlotClick}
+              usedDeckIds={usedDeckIds}
+              onRemove={handleRemoveDeck}
+              onEdit={handleEditDeck}
             />
           ))}
 
