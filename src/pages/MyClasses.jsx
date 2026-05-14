@@ -378,7 +378,6 @@ export default function MyClasses({ lang: pageLang = "en", setLang: pageSetLang,
           lang={l}
           onBack={() => { navigate(ROUTES.CLASSES); loadAll(); }}
           onLaunchPractice={onLaunchPractice}
-          notifyMembershipChanged={notifyMembershipChanged}
         />
       </div>
     );
@@ -735,13 +734,13 @@ function SavedDeckCard({ deck, t, lang, onPractice, onToggleFavorite, onUnsave }
 }
 
 // ─── Class Detail ───────────────────────────────────────────────────────────
-function ClassDetail({ cls, profile, t, lang, onBack, onLaunchPractice, notifyMembershipChanged }) {
+function ClassDetail({ cls, profile, t, lang, onBack, onLaunchPractice }) {
   const isMobile = useIsMobile();
   const [activeTab, setActiveTab] = useState("reviews");
   const [decks, setDecks] = useState([]);
   const [progress, setProgress] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [leavingConfirm, setLeavingConfirm] = useState(false);
+  // PR 27: leavingConfirm state and handleLeave removed.
 
   useEffect(() => { loadDetail(); }, [cls.id, profile?.id]);
 
@@ -754,36 +753,6 @@ function ClassDetail({ cls, profile, t, lang, onBack, onLaunchPractice, notifyMe
     setDecks(decksData || []);
     setProgress(progressData || []);
     setLoading(false);
-  };
-
-  const handleLeave = async () => {
-    // PR 26.3: capture the response to verify the delete actually
-    // affected rows. Pre-PR-26.3 the class_members table had no
-    // DELETE policy, so Supabase silently returned 0 rows touched
-    // and the "Leave class" button did nothing. After the migration
-    // this works; the count check below catches future RLS
-    // regressions so we don't silently fail again.
-    const { error, count } = await supabase.from("class_members").delete({ count: "exact" })
-      .eq("class_id", cls.id)
-      .eq("student_id", profile.id);
-    if (error) {
-      console.error("[clasloop] Leave class failed:", error);
-      alert(t.leaveError || "Could not leave the class. Try again.");
-      return;
-    }
-    if (count === 0) {
-      // Probably an RLS policy missing. Don't lie to the user.
-      console.error("[clasloop] Leave class affected 0 rows (RLS?)");
-      alert(t.leaveError || "Could not leave the class. Try again.");
-      return;
-    }
-    setLeavingConfirm(false);
-    // PR 26.3: notify App.jsx so it re-checks membership. If this was
-    // the student's only class, the gating ClassCodeModal opens again.
-    // If they're still in other classes, MyClasses just refreshes
-    // its list (the leave row is gone).
-    if (notifyMembershipChanged) notifyMembershipChanged();
-    onBack();
   };
 
   // Reviews due (retention < 65%)
@@ -843,33 +812,12 @@ function ClassDetail({ cls, profile, t, lang, onBack, onLaunchPractice, notifyMe
               {cls.subject} · {cls.grade} · {teacher?.full_name || t.teacher}
             </p>
           </div>
-          {!isMobile && (
-            <button
-              onClick={() => setLeavingConfirm(true)}
-              style={{
-                padding: "6px 12px", borderRadius: 7, fontSize: 12, fontWeight: 500,
-                background: "transparent", color: C.red,
-                border: `1px solid ${C.redSoft}`, cursor: "pointer",
-                fontFamily: "'Outfit',sans-serif",
-                flexShrink: 0,
-              }}
-            >{t.leaveClass}</button>
-          )}
+          {/* PR 27: "Leave class" button removed. Students no longer
+              control their own membership — the teacher decides who's
+              in the class via the new "View students" panel. */}
         </div>
 
-        {isMobile && (
-          <button
-            onClick={() => setLeavingConfirm(true)}
-            style={{
-              width: "100%",
-              padding: "8px 12px", borderRadius: 7, fontSize: 12, fontWeight: 500,
-              background: "transparent", color: C.red,
-              border: `1px solid ${C.redSoft}`, cursor: "pointer",
-              fontFamily: "'Outfit',sans-serif",
-              marginBottom: 12,
-            }}
-          >{t.leaveClass}</button>
-        )}
+        {/* PR 27: mobile "Leave class" also removed for the same reason. */}
 
         {avgRetention > 0 && (
           <div style={{ display: "flex", alignItems: "center", gap: 14, paddingTop: 12, borderTop: `1px solid ${C.border}` }}>
@@ -886,16 +834,7 @@ function ClassDetail({ cls, profile, t, lang, onBack, onLaunchPractice, notifyMe
         )}
       </Card>
 
-      {/* Leave confirm */}
-      {leavingConfirm && (
-        <Card className="fade-up" style={{ marginBottom: 16, borderLeft: `3px solid ${C.red}` }}>
-          <p style={{ fontSize: 14, fontWeight: 500, marginBottom: 12, margin: "0 0 12px" }}>{t.leaveConfirm}</p>
-          <div style={{ display: "flex", gap: 8 }}>
-            <button onClick={() => setLeavingConfirm(false)} style={{ flex: 1, padding: 8, borderRadius: 8, fontSize: 13, fontWeight: 500, background: C.bg, color: C.textSecondary, border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: "'Outfit',sans-serif" }}>{t.leaveNo}</button>
-            <button onClick={handleLeave} style={{ flex: 1, padding: 8, borderRadius: 8, fontSize: 13, fontWeight: 600, background: C.red, color: "#fff", border: "none", cursor: "pointer", fontFamily: "'Outfit',sans-serif" }}>{t.leaveYes}</button>
-          </div>
-        </Card>
-      )}
+      {/* PR 27: leave confirm panel removed — button is gone */}
 
       {/* Tabs */}
       <div className={isMobile ? "mc-scroll-x" : ""} style={{

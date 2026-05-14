@@ -18,6 +18,7 @@ import { CIcon } from "../components/Icons";
 import { DeckCover, resolveColor as resolveDeckColor } from "../lib/deck-cover";
 import { useIsMobile } from "../components/MobileMenuButton";
 import EditClassModal from "../components/EditClassModal";
+import StudentsModal from "../components/StudentsModal";
 import SectionBadge, { sectionAccent } from "../components/SectionBadge";
 import PlanView from "../components/PlanView";
 import { CloseUnitConfirmModal, CloseUnitSummary, ReopenUnitModal } from "../components/CloseUnitFlow";
@@ -68,6 +69,8 @@ const i18n = {
     auto: "auto",
     editClass: "Edit class",
     insights: "Insights",
+    // PR 27: students panel
+    viewStudents: "View students",
     classNotFound: "Class not found",
     classNotFoundSub: "It might have been deleted, or the link is wrong.",
     goBack: "Back to My Classes",
@@ -137,6 +140,7 @@ const i18n = {
     auto: "auto",
     editClass: "Editar clase",
     insights: "Insights",
+    viewStudents: "Ver estudiantes",
     classNotFound: "Clase no encontrada",
     classNotFoundSub: "Puede que haya sido eliminada, o el enlace está mal.",
     goBack: "Volver a Mis clases",
@@ -205,6 +209,7 @@ const i18n = {
     auto: "자동",
     editClass: "수업 편집",
     insights: "인사이트",
+    viewStudents: "학생 보기",
     classNotFound: "수업을 찾을 수 없음",
     classNotFoundSub: "삭제되었거나 링크가 잘못되었습니다.",
     goBack: "내 수업으로 돌아가기",
@@ -633,6 +638,8 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
   const [unitFilter, setUnitFilter] = useState(null);
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  // PR 27: students list modal (avatar + name + remove)
+  const [showStudentsModal, setShowStudentsModal] = useState(false);
   const [copied, setCopied] = useState(false);
   const [showNewUnit, setShowNewUnit] = useState(false);
   const [newUnitName, setNewUnitName] = useState("");
@@ -1208,6 +1215,39 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
               </div>
             </div>
           </div>
+          {/* PR 27: "View students" button — blue, prominent.
+              Sits between the class title block and the small action
+              icons (Insights / Theme / Edit). Opens StudentsModal
+              with the list of students who joined this class. */}
+          <button
+            onClick={() => setShowStudentsModal(true)}
+            style={{
+              padding: "8px 14px",
+              borderRadius: 8,
+              background: C.accent,
+              color: "#FFFFFF",
+              border: "none",
+              fontFamily: "'Outfit', sans-serif",
+              fontSize: 13,
+              fontWeight: 600,
+              cursor: "pointer",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              flexShrink: 0,
+              transition: "background .15s ease",
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = "#1A6FCE"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = C.accent; }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+              <circle cx="9" cy="7" r="4"/>
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+              <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+            </svg>
+            {t.viewStudents}
+          </button>
           {/* Action icons */}
           <div style={{ display: "flex", gap: 4, flexShrink: 0, position: "relative" }}>
             {/* Insights — per-deck aggregate stats for this class. Shown
@@ -2165,6 +2205,18 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
           onClose={() => setShowEditModal(false)}
           onSaved={handleClassSaved}
           onDeleted={handleClassDeleted}
+        />
+      )}
+
+      {/* PR 27: students modal — list of all students who joined this
+          class, with avatars, names, joined dates, and Remove buttons. */}
+      {classObj && (
+        <StudentsModal
+          open={showStudentsModal}
+          classId={classObj.id}
+          className={classObj.name}
+          lang={lang}
+          onClose={() => setShowStudentsModal(false)}
         />
       )}
 
