@@ -493,6 +493,12 @@
   font-size: 26px;
   color: var(--accent);
 }
+/* PR 24.6: total-time mode shows "mm:ss" (e.g. "4:30") instead of
+ * a single 1-2 digit number. The string is wider, so font drops to
+ * 20px to fit inside the timer ring. */
+.stage .timer-num-total {
+  font-size: 20px;
+}
 .stage .timer-caption {
   text-align: center;
   font-size: 10px;
@@ -2418,9 +2424,22 @@
   border-radius: 0;
   color: currentColor;
 }
+/* PR 24.7: in Pop, the success green text on the semi-transparent
+ * green tint reads poorly against the colorful Pop gradient
+ * background. Bump text contrast: darker green + slight bg opacity
+ * boost so the hint is readable without changing Pop's overall
+ * sticker aesthetic (border stays the same, no shadow added). */
+.stage[data-theme="pop"] .fill-correct-hint {
+  background: rgba(40, 160, 110, 0.18);
+  color: #0E5B3E;
+  font-weight: 600;
+}
 .stage .fill-correct-hint strong {
   font-family: 'Outfit', sans-serif;
   font-weight: 700;
+}
+.stage[data-theme="pop"] .fill-correct-hint strong {
+  color: #0E5B3E;
 }
 .stage[data-theme="mono"] .fill-correct-hint strong {
   font-family: 'JetBrains Mono', monospace;

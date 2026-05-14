@@ -40,7 +40,7 @@ const i18n = {
     joinAnother: "Join another session", noQuestions: "No questions available",
     // PR 20.2: themed quiz render labels
     pregunta: "Question", de: "of", elegiRespuesta: "Pick the right answer", elegiTrueFalse: "True or False?", elegiFill: "Fill in the blank", elegiMatch: "Match the pairs", elegiOrder: "Put in order", elegiFree: "Write your answer", freeSubmittedTitle: "Answer submitted", freeSubmittedHint: "Waiting for the teacher to grade it",
-    segundos: "seconds", tuPuntaje: "Your score",
+    segundos: "seconds", tiempoTotal: "total time", tuPuntaje: "Your score",
     // PR 20.3: themed Join + Waiting strings
     liveSession: "Live session", joinSubtitle: "Your teacher just launched a quiz. Ask them for the code and join with your name.",
     enterSession: "Enter session",
@@ -108,7 +108,7 @@ const i18n = {
     joinAnother: "Unirse a otra sesión", noQuestions: "No hay preguntas",
     // PR 20.2: themed quiz render labels
     pregunta: "Pregunta", de: "de", elegiRespuesta: "Elegí la respuesta", elegiTrueFalse: "¿Verdadero o falso?", elegiFill: "Rellená el espacio", elegiMatch: "Pareá las palabras", elegiOrder: "Poné en orden", elegiFree: "Escribí tu respuesta", freeSubmittedTitle: "Respuesta enviada", freeSubmittedHint: "Esperando que el profe la califique",
-    segundos: "segundos", tuPuntaje: "Tu puntaje",
+    segundos: "segundos", tiempoTotal: "tiempo total", tuPuntaje: "Tu puntaje",
     // PR 20.3: themed Join + Waiting strings
     liveSession: "Sesión en vivo", joinSubtitle: "Tu profe acaba de lanzar un quiz. Pedile el código y entrá con tu nombre.",
     enterSession: "Entrar a la sesión",
@@ -173,7 +173,7 @@ const i18n = {
     joinAnother: "다른 세션 참여", noQuestions: "문제가 없습니다",
     // PR 20.2: themed quiz render labels
     pregunta: "문제", de: "/", elegiRespuesta: "정답을 선택하세요", elegiTrueFalse: "참 또는 거짓?", elegiFill: "빈칸 채우기", elegiMatch: "짝 맞추기", elegiOrder: "순서대로 놓기", elegiFree: "답을 작성하세요", freeSubmittedTitle: "답안 제출됨", freeSubmittedHint: "선생님의 채점을 기다리는 중",
-    segundos: "초", tuPuntaje: "내 점수",
+    segundos: "초", tiempoTotal: "총 시간", tuPuntaje: "내 점수",
     // PR 20.3: themed Join + Waiting strings
     liveSession: "실시간 세션", joinSubtitle: "선생님이 퀴즈를 시작했어요. 코드를 받아 이름과 함께 입장하세요.",
     enterSession: "세션 입장",
@@ -1882,6 +1882,27 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
       const ringOffset = hasTimer && timeLimit > 0
         ? circumference * (1 - Math.max(0, timeLeft) / timeLimit)
         : 0;
+      // PR 24.6: total-time mode also gets a ring in the rail. The
+      // `hasTimer` flag only covers per-question — when the session
+      // uses time_mode === 'total', timeLimit is null and we use
+      // totalTimeLeft + the session's total time_limit.
+      const totalTimeMode = session?.session_settings?.time_mode === 'total';
+      const totalSec = session?.session_settings?.time_limit;
+      const hasTotalTimer = totalTimeMode &&
+        typeof totalSec === 'number' && totalSec > 0 &&
+        typeof totalTimeLeft === 'number';
+      const totalRingOffset = hasTotalTimer
+        ? circumference * (1 - Math.max(0, totalTimeLeft) / totalSec)
+        : 0;
+      // Format MM:SS for total time (60-second max for per-question
+      // means showing just the seconds is fine, but total can be 5+
+      // minutes so we use a mm:ss display).
+      const formatTotalTime = (sec) => {
+        const s = Math.max(0, Math.floor(sec));
+        const m = Math.floor(s / 60);
+        const r = s % 60;
+        return `${m}:${r.toString().padStart(2, '0')}`;
+      };
       // PR 20.2.5: render the DISPLAYED question (which lags `current`
       // by 200ms during the slide-out animation). After the swap,
       // displayedQuestionIdx catches up and rendering reflects the
@@ -2244,7 +2265,31 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
                         </div>
                       )}
 
-                      {hasTimer && <div className="rail-divider"></div>}
+                      {/* PR 24.6: total-time mode timer in the rail.
+                          Renders only if there's NO per-question timer
+                          (the two are mutually exclusive in practice —
+                          you either time per question or total). */}
+                      {!hasTimer && hasTotalTimer && (
+                        <div>
+                          <div className="timer-ring-big">
+                            <svg viewBox="0 0 100 100">
+                              <circle className="timer-track" cx="50" cy="50" r="44"/>
+                              <circle
+                                className="timer-fill"
+                                cx="50" cy="50" r="44"
+                                strokeDasharray={circumference}
+                                strokeDashoffset={totalRingOffset}
+                              />
+                            </svg>
+                            <div className="timer-num timer-num-total">
+                              {formatTotalTime(totalTimeLeft)}
+                            </div>
+                          </div>
+                          <div className="timer-caption">{t.tiempoTotal || "tiempo total"}</div>
+                        </div>
+                      )}
+
+                      {(hasTimer || hasTotalTimer) && <div className="rail-divider"></div>}
 
                       <div className="rail-stat">
                         <div className="rail-stat-label">{t.tuPuntaje || "Tu puntaje"}</div>
