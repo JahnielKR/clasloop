@@ -60,6 +60,8 @@ const i18n = {
     exitQuizBody: "Your answers and points so far will be lost.",
     exitCancel: "Stay",
     exitConfirm: "Leave",
+    // PR 20.4: themed Results
+    scoreOf: "of correct", solidWork: "Solid work. Keep going!",
     timerOnTip: "Timer on. Tap to study without time pressure.",
     timerOffTip: "Timer off. Tap to turn on the recommended timing.",
     totalTimeLabel: "Time left",
@@ -123,6 +125,8 @@ const i18n = {
     exitQuizBody: "Vas a perder tus respuestas y puntos.",
     exitCancel: "Quedarme",
     exitConfirm: "Salir",
+    // PR 20.4: themed Results
+    scoreOf: "de aciertos", solidWork: "Buen trabajo. ¡Seguí así!",
     timerOnTip: "Timer activo. Toca para estudiar sin presión.",
     timerOffTip: "Timer apagado. Toca para activar el tiempo recomendado.",
     totalTimeLabel: "Tiempo restante",
@@ -186,6 +190,8 @@ const i18n = {
     exitQuizBody: "답변과 점수가 사라집니다.",
     exitCancel: "계속하기",
     exitConfirm: "나가기",
+    // PR 20.4: themed Results
+    scoreOf: "정답률", solidWork: "잘했어요. 계속 가요!",
     timerOnTip: "타이머 켜짐. 시간 압박 없이 학습하려면 탭하세요.",
     timerOffTip: "타이머 꺼짐. 권장 시간을 활성화하려면 탭하세요.",
     totalTimeLabel: "남은 시간",
@@ -2626,6 +2632,127 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
             >
               {t.backToResults}
             </button>
+          </div>
+        </>
+      );
+    }
+
+    // PR 20.4: themed Results render. Only kicks in when:
+    //   - Theme is set (live session with class theme)
+    //   - Not a guest (guest flow has its own redirect logic)
+    //   - Not currently in the review sub-state
+    //   - Not the "ended-by-teacher empty" edge case (we have a
+    //     dedicated screen for that — kept legacy)
+    //
+    // Falls through to the legacy render below for everything else.
+    if (lobbyThemeId && !isPractice && !isGuest && !(endedByTeacher && answers.length === 0)) {
+      const motivational = endedByTeacher
+        ? (t.teacherEndedHint || "")
+        : (graded.length === 0 ? (t.greatJob || "")
+           : (pct >= 80 ? (t.greatJob || "")
+              : pct >= 50 ? (t.solidWork || t.greatJob || "")
+              : (t.keepPracticing || "")));
+
+      return (
+        <>
+          <style>{css}</style>
+          <div className="stage-page">
+            <div className="stage-wrap">
+              <div className="stage" data-theme={lobbyThemeId}>
+                <div className="top-strip">
+                  <div className="brand-area">
+                    <span className="brand-name">Clasloop</span>
+                    <div className="session-info">
+                      {deckSection && (
+                        <>
+                          <span className="section-pill">{getSectionLabel(deckSection, l) || deckSection}</span>
+                          <span className="dot"></span>
+                        </>
+                      )}
+                      <span>{session?.topic || ""}</span>
+                    </div>
+                  </div>
+                  <div className="student-block">
+                    <div className="student-meta-text">
+                      <div className="student-name-top">{participant?.student_name || ""}</div>
+                      <div className="student-class">{t.sessionComplete || "Quiz complete"}</div>
+                    </div>
+                    <div className="student-avatar">
+                      {((participant?.student_name || "?").trim().charAt(0).toUpperCase()) || "?"}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="content">
+                  <div className="results-state">
+                    <div className="results-score-ring">
+                      <div>
+                        <div className="results-score-num">
+                          {graded.length > 0 ? `${pct}%` : "—"}
+                        </div>
+                        {graded.length > 0 && (
+                          <div className="results-score-suffix">
+                            {t.scoreOf || "de aciertos"}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <h1 className="results-title">{t.sessionComplete}</h1>
+                    <p className="results-subtitle">{motivational}</p>
+
+                    <div className="results-stats">
+                      <div className="results-stat">
+                        <div className="results-stat-value is-correct">{correct}</div>
+                        <div className="results-stat-label">{t.correctLabel}</div>
+                      </div>
+                      <div className="results-stat">
+                        <div className="results-stat-value is-wrong">{incorrect}</div>
+                        <div className="results-stat-label">{t.incorrectLabel}</div>
+                      </div>
+                      {ungraded > 0 && (
+                        <div className="results-stat">
+                          <div className="results-stat-value">{ungraded}</div>
+                          <div className="results-stat-label">{t.notGraded}</div>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="results-actions">
+                      {/* Review = secondary button — uses existing showReview state */}
+                      {answers.length > 0 && (
+                        <button
+                          className="results-action-btn secondary"
+                          onClick={() => setShowReview(true)}
+                        >
+                          {t.seeAnswers || "See answers"}
+                        </button>
+                      )}
+                      <button
+                        className="results-action-btn primary"
+                        onClick={() => {
+                          // Same reset as the legacy "joinAnother" button.
+                          setStep("join");
+                          setPin("");
+                          setName(profile?.full_name || "");
+                          setAnswers([]);
+                          setCurrent(0);
+                          setSession(null);
+                          setParticipant(null);
+                          setEndedByTeacher(false);
+                          setShowReview(false);
+                          setMcqSelected(null);
+                          setLobbyThemeId(null);
+                          setDeckSection(null);
+                        }}
+                      >
+                        {t.joinAnother || "Join another"}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </>
       );
