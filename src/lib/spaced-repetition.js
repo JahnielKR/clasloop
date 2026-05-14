@@ -969,3 +969,213 @@ export async function getUnitRetentionSummary(unitId) {
     weakTopics,
   };
 }
+
+// ─── PR 25.2: getScheduledPlan — filter by day_dates ─────────────────────
+//
+// Returns the decks scheduled for a target date (today, by default).
+// Unlike getTodayPlan which uses heuristics (most recently active unit,
+// recent launches), this function uses the explicit `units.day_dates`
+// array set by the teacher via DayDateModal.
+//
+// Each result item has the same shape as getTodayPlan items:
+//   { deck, class, unit, dayNumber, status, lastLaunchedAt }
+//
+// `status` is one of:
+//   - "launched_today" : a session was created for this deck today
+//   - "pending"        : not yet launched today
+//
+// Decks belong to a day if their position-1 equals the index of a
+// day_date that matches the target date. So a deck with position=2
+// belongs to Day 2; its date is unit.day_dates[1].
+//
+// No fallback: units WITHOUT day_dates at all don't appear in this
+// list. Teachers who haven't migrated their units to dates get an
+// empty Today (intentional — per Jota's choice).
+
+export async function getScheduledPlan(teacherId, targetDate = null) {
+  if (!teacherId) return [];
+
+  // Anchor target = local-midnight of targetDate (or today). All
+  // comparisons against day_dates strings happen at calendar-day
+  // resolution.
+  const target = targetDate instanceof Date ? new Date(targetDate) : new Date();
+  target.setHours(0, 0, 0, 0);
+  const targetMs = target.getTime();
+
+  // 1. Classes
+  const { data: classes } = await supabase
+    .from('classes')
+    .select('id, name, subject, grade, color_id')
+    .eq('teacher_id', teacherId)
+    .order('name', { ascending: true });
+  if (!classes || classes.length === 0) return [];
+
+  const classIds = classes.map(c => c.id);
+
+  // 2. Units (need day_dates here)
+  const { data: allUnits } = await supabase
+    .from('units')
+    .select('id, class_id, section, name, position, status, day_dates, created_at')
+    .in('class_id', classIds);
+  if (!allUnits || allUnits.length === 0) return [];
+
+  // 3. Decks belonging to these units
+  const unitIds = allUnits.map(u => u.id);
+  const { data: allDecks } = await supabase
+    .from('decks')
+    .select('*')
+    .in('unit_id', unitIds);
+  if (!allDecks || allDecks.length === 0) return [];
+
+  // 4. Sessions launched today for these decks (to set status)
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+  const { data: todaySessions } = await supabase
+    .from('sessions')
+    .select('id, deck_id, created_at')
+    .in('class_id', classIds)
+    .in('status', ['lobby', 'active', 'completed'])
+    .gte('created_at', todayStart.toISOString())
+    .not('deck_id', 'is', null);
+  const launchedTodayMap = new Map();
+  (todaySessions || []).forEach(s => {
+    if (!launchedTodayMap.has(s.deck_id)) launchedTodayMap.set(s.deck_id, s);
+  });
+
+  // 5. Build the output list. For each unit, walk through day_dates
+  //    and find decks whose position matches a date hit.
+  const out = [];
+  const classById = new Map(classes.map(c => [c.id, c]));
+
+  for (const unit of allUnits) {
+    const dates = Array.isArray(unit.day_dates) ? unit.day_dates : [];
+    if (dates.length === 0) continue;
+
+    // For every day_date that matches target, find the warmup/exit
+    // decks at that position.
+    dates.forEach((raw, idx) => {
+      if (!raw) return;
+      const d = raw instanceof Date ? raw : new Date(raw);
+      if (Number.isNaN(d.getTime())) return;
+      d.setHours(0, 0, 0, 0);
+      if (d.getTime() !== targetMs) return;
+
+      const dayNumber = idx + 1;
+      const decksAtPos = allDecks.filter(dk =>
+        dk.unit_id === unit.id && (dk.position || 0) === dayNumber
+      );
+      decksAtPos.forEach(deck => {
+        const lastSession = launchedTodayMap.get(deck.id) || null;
+        out.push({
+          deck,
+          class: classById.get(unit.class_id),
+          unit,
+          dayNumber,
+          status: lastSession ? "launched_today" : "pending",
+          lastLaunchedAt: lastSession?.created_at || null,
+        });
+      });
+    });
+  }
+
+  // 6. Sort: pending first, then by class name, then by section
+  //    (warmup before exit_ticket within a class/day).
+  const sectionRank = { warmup: 0, exit_ticket: 1, general_review: 2 };
+  out.sort((a, b) => {
+    const aStatus = a.status === "pending" ? 0 : 1;
+    const bStatus = b.status === "pending" ? 0 : 1;
+    if (aStatus !== bStatus) return aStatus - bStatus;
+    const cn = (a.class?.name || "").localeCompare(b.class?.name || "");
+    if (cn !== 0) return cn;
+    return (sectionRank[a.deck.section] || 99) - (sectionRank[b.deck.section] || 99);
+  });
+
+  return out;
+}
+
+// ─── PR 25.2: getUpcomingPlan — next N days ──────────────────────────────
+//
+// Returns decks scheduled within (today, today + N days] — strictly
+// future, not today. Grouped by day for sidebar display.
+//
+// Returns: [{ date: Date, items: [{ deck, class, unit, dayNumber }] }]
+//          sorted by date ascending.
+//
+// `days` defaults to 7. Used by Today's "Coming up" sidebar.
+
+export async function getUpcomingPlan(teacherId, days = 7) {
+  if (!teacherId) return [];
+
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+  const limit = new Date(todayStart);
+  limit.setDate(limit.getDate() + days);
+
+  // Reuse the classes + units + decks queries from getScheduledPlan.
+  // We could share via a helper but two duplications is cheaper than
+  // a refactor that risks breaking Today's primary query.
+  const { data: classes } = await supabase
+    .from('classes')
+    .select('id, name, subject, grade, color_id')
+    .eq('teacher_id', teacherId)
+    .order('name', { ascending: true });
+  if (!classes || classes.length === 0) return [];
+
+  const classIds = classes.map(c => c.id);
+  const { data: allUnits } = await supabase
+    .from('units')
+    .select('id, class_id, section, name, position, status, day_dates, created_at')
+    .in('class_id', classIds);
+  if (!allUnits || allUnits.length === 0) return [];
+
+  const unitIds = allUnits.map(u => u.id);
+  const { data: allDecks } = await supabase
+    .from('decks')
+    .select('*')
+    .in('unit_id', unitIds);
+  if (!allDecks || allDecks.length === 0) return [];
+
+  // Walk all units, collect (date, items) buckets within (today, +N days]
+  const byDate = new Map(); // "YYYY-MM-DD" → { date: Date, items: [] }
+  const classById = new Map(classes.map(c => [c.id, c]));
+
+  for (const unit of allUnits) {
+    const dates = Array.isArray(unit.day_dates) ? unit.day_dates : [];
+    dates.forEach((raw, idx) => {
+      if (!raw) return;
+      const d = raw instanceof Date ? raw : new Date(raw);
+      if (Number.isNaN(d.getTime())) return;
+      d.setHours(0, 0, 0, 0);
+      // Strictly after today, up to and including `limit`
+      if (d.getTime() <= todayStart.getTime() || d.getTime() > limit.getTime()) return;
+
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      if (!byDate.has(key)) byDate.set(key, { date: d, items: [] });
+
+      const dayNumber = idx + 1;
+      const decksAtPos = allDecks.filter(dk =>
+        dk.unit_id === unit.id && (dk.position || 0) === dayNumber
+      );
+      decksAtPos.forEach(deck => {
+        byDate.get(key).items.push({
+          deck,
+          class: classById.get(unit.class_id),
+          unit,
+          dayNumber,
+        });
+      });
+    });
+  }
+
+  // Sort by date ascending, sort items within each day by section
+  const sectionRank = { warmup: 0, exit_ticket: 1, general_review: 2 };
+  const result = [...byDate.values()].sort((a, b) => a.date.getTime() - b.date.getTime());
+  result.forEach(group => {
+    group.items.sort((a, b) => {
+      const cn = (a.class?.name || "").localeCompare(b.class?.name || "");
+      if (cn !== 0) return cn;
+      return (sectionRank[a.deck.section] || 99) - (sectionRank[b.deck.section] || 99);
+    });
+  });
+  return result;
+}

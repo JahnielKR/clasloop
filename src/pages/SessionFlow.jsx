@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import { useSearchParams, useNavigate, useMatch } from "react-router-dom";
 import { QRCodeSVG } from "qrcode.react";
 import { supabase } from "../lib/supabase";
-import { processSessionResults, getSuggestedDecksForToday, getTodayPlan } from "../lib/spaced-repetition";
+import { processSessionResults, getSuggestedDecksForToday, getScheduledPlan, getUpcomingPlan } from "../lib/spaced-repetition";
 import { CIcon } from "../components/Icons";
 import { DeckCover, resolveColor } from "../lib/deck-cover";
 import MobileMenuButton, { useIsMobile } from "../components/MobileMenuButton";
@@ -25,6 +25,12 @@ const i18n = {
     yourPlanEmptyHint: "Open a class to set up warmups and exit tickets, or browse Decks.",
     yourPlanItemCount: "{n} items",
     yourPlanItemCountOne: "1 item",
+    // PR 25.2: sidebar
+    todoTitle: "To do today",
+    todoEmpty: "Nothing pending today.",
+    comingUpTitle: "Next 7 days",
+    comingUpEmpty: "Nothing scheduled in the next week.",
+    relativeTomorrow: "Tomorrow",
     doneToday: "Done today",
     worthReviewingTitle: "Worth reviewing today",
     worthReviewingHint: "Spotted by the retention algorithm — your students could use a refresh.",
@@ -103,6 +109,11 @@ const i18n = {
     yourPlanEmptyHint: "Abre una clase para preparar warmups y exit tickets, o explora Decks.",
     yourPlanItemCount: "{n} items",
     yourPlanItemCountOne: "1 item",
+    todoTitle: "Por hacer hoy",
+    todoEmpty: "Nada pendiente hoy.",
+    comingUpTitle: "Próximos 7 días",
+    comingUpEmpty: "Nada programado esta semana.",
+    relativeTomorrow: "Mañana",
     doneToday: "Hecho hoy",
     worthReviewingTitle: "Vale la pena repasar hoy",
     worthReviewingHint: "Detectado por el algoritmo de retención — a tus estudiantes les vendría bien un repaso.",
@@ -181,6 +192,11 @@ const i18n = {
     yourPlanEmptyHint: "수업을 열어 워밍업과 종료 티켓을 준비하거나 덱을 살펴보세요.",
     yourPlanItemCount: "{n}개 항목",
     yourPlanItemCountOne: "1개 항목",
+    todoTitle: "오늘 할 일",
+    todoEmpty: "오늘 예정된 항목 없음.",
+    comingUpTitle: "다음 7일",
+    comingUpEmpty: "다음 주에 예정된 항목 없음.",
+    relativeTomorrow: "내일",
     doneToday: "오늘 완료",
     worthReviewingTitle: "오늘 복습할 만한 것",
     worthReviewingHint: "보존율 알고리즘이 감지함 — 학생들에게 복습이 필요할 수 있습니다.",
@@ -268,6 +284,21 @@ const css = `
   .ns-fade { animation: ns-fadeIn .25s ease; }
   @media (max-width: 720px) {
     .ns-lobby-top { grid-template-columns: 1fr !important; }
+  }
+  /* PR 25.2: Today layout responsive.
+     Desktop (>=900px): center column + 340px sidebar to the right.
+     Below 900px: stack — sidebar moves above the center content,
+     no sticky positioning. */
+  @media (max-width: 900px) {
+    .today-grid {
+      grid-template-columns: 1fr !important;
+    }
+    .today-sidebar {
+      position: static !important;
+      max-height: none !important;
+      overflow: visible !important;
+      order: -1;
+    }
   }
 `;
 
@@ -1459,7 +1490,7 @@ function LiveResults({ session, t, onEnd }) {
 // so they read like a list of meaningful actions rather than a wall of
 // equivalent options. Each row's section badge + stripe make the role
 // scannable without reading.
-function YourPlanForToday({ teacherId, t, lang = "en", onPickItem }) {
+function YourPlanForToday({ teacherId, t, lang = "en", onPickItem, onLoaded }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -1467,14 +1498,24 @@ function YourPlanForToday({ teacherId, t, lang = "en", onPickItem }) {
     if (!teacherId) return;
     (async () => {
       try {
-        const list = await getTodayPlan(teacherId);
+        // PR 25.2: switched from getTodayPlan (heuristic-based) to
+        // getScheduledPlan (filters by units.day_dates set explicitly
+        // by the teacher). Units without day_dates produce no items
+        // here — there's no fallback, by design (Jota's call).
+        const list = await getScheduledPlan(teacherId);
         setItems(list);
+        // PR 25.2: expose loaded items to parent so the sidebar can
+        // reuse them (filter to pending) without a double-fetch.
+        if (onLoaded) onLoaded(list);
       } catch (e) {
         console.error("Today plan fetch failed:", e);
+        if (onLoaded) onLoaded([]);
       } finally {
         setLoading(false);
       }
     })();
+    // onLoaded intentionally excluded from deps — stable parent callback
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [teacherId]);
 
   // Don't render the heading skeleton during loading — Today already has
@@ -1675,8 +1716,13 @@ function WorthReviewingToday({ teacherId, t, lang = "en", onPickSuggestion, onLo
     (async () => {
       try {
         const list = await getSuggestedDecksForToday(teacherId);
-        setItems(list);
-        if (onLoaded) onLoaded({ count: list.length });
+        // PR 25.2: cap to 6. The algorithm can return up to 9; 9 felt
+        // crowded once the sidebar (To do today + Coming up) took
+        // permanent space in the layout. 6 fits comfortably below the
+        // main plan without dominating the page.
+        const capped = list.slice(0, 6);
+        setItems(capped);
+        if (onLoaded) onLoaded({ count: capped.length });
       } catch (e) {
         console.error("Suggested fetch failed:", e);
         if (onLoaded) onLoaded({ count: 0 });
@@ -1867,6 +1913,309 @@ function SuggestedCard({ item, t, lang = "en", onPick }) {
   );
 }
 
+// ─── PR 25.2: ComingUpSidebar — right-rail "To do today" + "Next 7 days" ──
+//
+// Two stacked sections rendered to the right of the main column on
+// desktop, and stacked above the main column on mobile (<900px).
+//
+// "To do today" reuses the same getScheduledPlan result that the
+// center column has, but filters to status="pending" only (already-
+// launched decks don't need a reminder). Passed down by the parent so
+// we don't double-fetch.
+//
+// "Next 7 days" calls getUpcomingPlan independently — it has its own
+// fetch path because the date range is different.
+
+function ComingUpSidebar({ teacherId, todayPlanItems, t, lang = "en", onPickItem }) {
+  const [upcoming, setUpcoming] = useState([]);
+  const [loadingUpcoming, setLoadingUpcoming] = useState(true);
+
+  useEffect(() => {
+    if (!teacherId) return;
+    (async () => {
+      try {
+        const list = await getUpcomingPlan(teacherId, 7);
+        setUpcoming(list);
+      } catch (e) {
+        console.error("Upcoming plan fetch failed:", e);
+      } finally {
+        setLoadingUpcoming(false);
+      }
+    })();
+  }, [teacherId]);
+
+  // Filter today's items to pending only — already-launched decks
+  // don't need a "to do" reminder.
+  const todoItems = (todayPlanItems || []).filter(it => it.status === "pending");
+  const todoCount = todoItems.length;
+
+  // Format relative day label: "Mañana" if it's tomorrow, else "Mar 27"
+  const formatRelativeDayLabel = (date) => {
+    if (!(date instanceof Date)) return "";
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const candidate = new Date(date);
+    candidate.setHours(0, 0, 0, 0);
+    const locale = lang === "es" ? "es" : lang === "ko" ? "ko" : "en-US";
+    let label;
+    try {
+      label = new Intl.DateTimeFormat(locale, {
+        weekday: "short",
+        month: "short",
+        day: "numeric",
+      }).format(date);
+    } catch {
+      label = date.toDateString();
+    }
+    const isTomorrow = candidate.getTime() === tomorrow.getTime();
+    return { label, relative: isTomorrow ? t.relativeTomorrow : null };
+  };
+
+  const sectionDot = (section) => {
+    const color = section === "warmup" ? C.orange
+      : section === "exit_ticket" ? C.purple
+      : C.textMuted;
+    return (
+      <span style={{
+        width: 7, height: 7, borderRadius: 7,
+        background: color, flexShrink: 0,
+        display: "inline-block",
+      }} />
+    );
+  };
+
+  return (
+    <aside style={{
+      display: "flex",
+      flexDirection: "column",
+      gap: 18,
+    }}>
+      {/* TO DO TODAY */}
+      <section style={{
+        background: C.bg,
+        border: `1px solid ${C.border}`,
+        borderRadius: 12,
+        padding: "16px 16px 14px",
+      }}>
+        <div style={{
+          display: "flex",
+          alignItems: "baseline",
+          justifyContent: "space-between",
+          marginBottom: 12,
+        }}>
+          <h3 style={{
+            fontFamily: "'Outfit', sans-serif",
+            fontWeight: 700, fontSize: 15,
+            color: C.text, margin: 0,
+            letterSpacing: "-0.005em",
+          }}>
+            {t.todoTitle}
+          </h3>
+          <span style={{
+            display: "inline-flex",
+            alignItems: "center", justifyContent: "center",
+            minWidth: 22, height: 22, padding: "0 7px",
+            borderRadius: 11,
+            background: todoCount > 0 ? C.accent : C.bgSoft,
+            color: todoCount > 0 ? "#FFFFFF" : C.textMuted,
+            fontSize: 12, fontWeight: 700,
+            fontFamily: "'Outfit', sans-serif",
+          }}>
+            {todoCount}
+          </span>
+        </div>
+
+        {todoCount === 0 ? (
+          <div style={{
+            padding: "8px 4px",
+            color: C.textMuted,
+            fontSize: 13,
+            textAlign: "center",
+          }}>
+            {t.todoEmpty}
+          </div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column" }}>
+            {todoItems.map((it, idx) => (
+              <button
+                key={`${it.deck.id}-${idx}`}
+                onClick={() => onPickItem(it)}
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 4,
+                  padding: "10px 0",
+                  borderTop: idx === 0 ? "none" : `1px solid ${C.border}`,
+                  background: "transparent",
+                  border: "none",
+                  cursor: "pointer",
+                  textAlign: "left",
+                  width: "100%",
+                  fontFamily: "inherit",
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = C.bgSoft; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  {sectionDot(it.deck.section)}
+                  <span style={{
+                    fontFamily: "'Outfit', sans-serif",
+                    fontWeight: 600, fontSize: 13.5,
+                    color: C.text,
+                    overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                    flex: 1,
+                  }}>
+                    {it.deck.title}
+                  </span>
+                </div>
+                <div style={{
+                  fontSize: 11.5,
+                  color: C.textSecondary,
+                  marginLeft: 13,
+                }}>
+                  {it.class?.name || ""}
+                  {it.unit?.name ? ` · ${it.unit.name}` : ""}
+                  {it.dayNumber ? ` · Day ${it.dayNumber}` : ""}
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* COMING UP — next 7 days */}
+      <section style={{
+        background: C.bg,
+        border: `1px solid ${C.border}`,
+        borderRadius: 12,
+        padding: "16px 16px 14px",
+      }}>
+        <div style={{
+          display: "flex",
+          alignItems: "baseline",
+          justifyContent: "space-between",
+          marginBottom: 12,
+        }}>
+          <h3 style={{
+            fontFamily: "'Outfit', sans-serif",
+            fontWeight: 700, fontSize: 15,
+            color: C.text, margin: 0,
+            letterSpacing: "-0.005em",
+          }}>
+            {t.comingUpTitle}
+          </h3>
+          {!loadingUpcoming && (
+            <span style={{
+              display: "inline-flex",
+              alignItems: "center", justifyContent: "center",
+              minWidth: 22, height: 22, padding: "0 7px",
+              borderRadius: 11,
+              background: upcoming.reduce((s, g) => s + g.items.length, 0) > 0 ? C.accent : C.bgSoft,
+              color: upcoming.reduce((s, g) => s + g.items.length, 0) > 0 ? "#FFFFFF" : C.textMuted,
+              fontSize: 12, fontWeight: 700,
+              fontFamily: "'Outfit', sans-serif",
+            }}>
+              {upcoming.reduce((s, g) => s + g.items.length, 0)}
+            </span>
+          )}
+        </div>
+
+        {loadingUpcoming ? (
+          <div style={{
+            padding: "8px 4px",
+            color: C.textMuted,
+            fontSize: 13,
+            textAlign: "center",
+          }}>
+            …
+          </div>
+        ) : upcoming.length === 0 ? (
+          <div style={{
+            padding: "8px 4px",
+            color: C.textMuted,
+            fontSize: 13,
+            textAlign: "center",
+          }}>
+            {t.comingUpEmpty}
+          </div>
+        ) : (
+          <div>
+            {upcoming.map(group => {
+              const { label, relative } = formatRelativeDayLabel(group.date);
+              return (
+                <div key={group.date.toISOString()} style={{ marginBottom: 12 }}>
+                  <div style={{
+                    fontFamily: "'Outfit', sans-serif",
+                    fontWeight: 700, fontSize: 11,
+                    color: C.textMuted,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.08em",
+                    margin: "0 0 6px",
+                    display: "flex", alignItems: "baseline", gap: 6,
+                  }}>
+                    <span>{label}</span>
+                    {relative && (
+                      <span style={{
+                        color: C.accent,
+                        fontWeight: 600,
+                        textTransform: "none",
+                        letterSpacing: 0,
+                      }}>
+                        · {relative}
+                      </span>
+                    )}
+                  </div>
+                  {group.items.map((it, idx) => (
+                    <button
+                      key={`${group.date.toISOString()}-${it.deck.id}-${idx}`}
+                      onClick={() => onPickItem(it)}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 8,
+                        padding: "7px 8px",
+                        margin: "0 -8px",
+                        cursor: "pointer",
+                        borderRadius: 5,
+                        background: "transparent",
+                        border: "none",
+                        width: "calc(100% + 16px)",
+                        textAlign: "left",
+                        fontFamily: "inherit",
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.background = C.bgSoft; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+                    >
+                      {sectionDot(it.deck.section)}
+                      <span style={{
+                        fontFamily: "'Outfit', sans-serif",
+                        fontWeight: 500, fontSize: 13,
+                        color: C.text,
+                        overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                        flex: 1,
+                      }}>
+                        {it.deck.title}
+                      </span>
+                      <span style={{
+                        fontSize: 11,
+                        color: C.textMuted,
+                        flexShrink: 0,
+                      }}>
+                        {it.class?.grade || ""}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </section>
+    </aside>
+  );
+}
 
 // ─── Main Export ───────────────────────────────────────────────────────────
 export default function SessionFlow({ lang = "en", setLang, onNavigateToDecks, onOpenMobileMenu }) {
@@ -1900,6 +2249,9 @@ export default function SessionFlow({ lang = "en", setLang, onNavigateToDecks, o
   const [selectedDeck, setSelectedDeck] = useState(null);
   const [session, setSession] = useState(null);
   const [toast, setToast] = useState(null); // { message, code? } | null
+  // PR 25.2: share today's plan items between center column and sidebar
+  // to avoid double-fetching. YourPlanForToday's onLoaded sets this.
+  const [todayPlanItems, setTodayPlanItems] = useState([]);
 
   // URL-driven intents:
   //   ?class=<id>    → focus the deck picker on this class
@@ -2188,7 +2540,12 @@ export default function SessionFlow({ lang = "en", setLang, onNavigateToDecks, o
         </div>
       )}
 
-      <div style={{ maxWidth: 800, margin: "0 auto" }}>
+      {/* PR 25.2: pickDeck uses a wider container (1340px) with a
+          2-col grid for sidebar. Other steps stay at maxWidth 800. */}
+      <div style={{
+        maxWidth: step === "pickDeck" ? 1340 : 800,
+        margin: "0 auto",
+      }}>
         {/* Deep-link hydration placeholder. When refreshing /sessions/options/:deckId
             we land with step="options" already (set from optionsMatch) but
             selectedDeck is still null until the deck fetch resolves. Without
@@ -2207,80 +2564,88 @@ export default function SessionFlow({ lang = "en", setLang, onNavigateToDecks, o
         )}
 
         {step === "pickDeck" && (
-          <>
-            <p style={{ fontSize: 14, color: C.textSecondary, marginBottom: 20 }}>{t.subtitle}</p>
+          <div className="today-grid" style={{
+            display: "grid",
+            gridTemplateColumns: "1fr 340px",
+            gap: 28,
+            alignItems: "start",
+          }}>
+            {/* CENTER COLUMN */}
+            <div style={{ minWidth: 0 }}>
+              <p style={{ fontSize: 14, color: C.textSecondary, marginBottom: 20 }}>{t.subtitle}</p>
 
-            {/* The "Today" dashboard. Two blocks now (was three before
-                the PR3 redesign):
-                  1. Your plan for today — protagonist. What the teacher
-                     set up to teach. Active-unit decks per class, plus
-                     anything launched in the last 24h.
-                  2. Worth reviewing today — supporting cast. The retention
-                     algorithm's picks; same data as v1's "Suggested for
-                     today" but reframed so it doesn't compete with the
-                     plan above for attention.
-                Recently-launched as a separate block was removed in PR3
-                because Your Plan now covers that case (a deck launched
-                today shows up there with a "✓ done today" tag).
-                Class creation lives in My Classes; the deck list lives
-                in /decks; this page is just "what should I run today". */}
-            <YourPlanForToday
-              teacherId={user.id}
-              t={t}
-              lang={lang}
-              onPickItem={(item) => navigate(buildRoute.sessionsOptions(item.deck.id))}
-            />
+              <YourPlanForToday
+                teacherId={user.id}
+                t={t}
+                lang={lang}
+                onPickItem={(item) => navigate(buildRoute.sessionsOptions(item.deck.id))}
+                onLoaded={setTodayPlanItems}
+              />
 
-            <WorthReviewingToday
-              teacherId={user.id}
-              t={t}
-              lang={lang}
-              onPickSuggestion={handlePickSuggestion}
-            />
+              <WorthReviewingToday
+                teacherId={user.id}
+                t={t}
+                lang={lang}
+                onPickSuggestion={handlePickSuggestion}
+              />
 
-            {/* Quick link to classes — always visible. The teacher might
-                want a deck that's neither in their plan nor flagged by
-                the algorithm (looking up an old deck, browsing what's
-                organized in a particular class). This is the explicit
-                out for that case so the page never feels like a dead end. */}
-            <div style={{
-              marginTop: 8,
-              padding: "16px 18px",
-              background: C.bgSoft,
-              border: `1px solid ${C.border}`,
-              borderRadius: 12,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: 14,
-              flexWrap: "wrap",
-            }}>
-              <span style={{ fontSize: 13, color: C.textSecondary, flex: 1, minWidth: 200 }}>
-                {t.quickLinkToClasses}
-              </span>
-              <button
-                onClick={() => navigate(ROUTES.CLASSES)}
-                className="clp-lift"
-                style={{
-                  padding: "8px 14px",
-                  borderRadius: 8,
-                  fontSize: 12,
-                  fontWeight: 600,
-                  background: C.accent,
-                  color: "#fff",
-                  border: "none",
-                  cursor: "pointer",
-                  fontFamily: "'Outfit',sans-serif",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 6,
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {t.quickLinkToClassesBtn} →
-              </button>
+              {/* Quick link to classes */}
+              <div style={{
+                marginTop: 8,
+                padding: "16px 18px",
+                background: C.bgSoft,
+                border: `1px solid ${C.border}`,
+                borderRadius: 12,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 14,
+                flexWrap: "wrap",
+              }}>
+                <span style={{ fontSize: 13, color: C.textSecondary, flex: 1, minWidth: 200 }}>
+                  {t.quickLinkToClasses}
+                </span>
+                <button
+                  onClick={() => navigate(ROUTES.CLASSES)}
+                  className="clp-lift"
+                  style={{
+                    padding: "8px 14px",
+                    borderRadius: 8,
+                    fontSize: 12,
+                    fontWeight: 600,
+                    background: C.accent,
+                    color: "#fff",
+                    border: "none",
+                    cursor: "pointer",
+                    fontFamily: "'Outfit',sans-serif",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 6,
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {t.quickLinkToClassesBtn} →
+                </button>
+              </div>
             </div>
-          </>
+
+            {/* RIGHT SIDEBAR */}
+            <div style={{
+              position: "sticky",
+              top: 24,
+              alignSelf: "start",
+              maxHeight: "calc(100vh - 48px)",
+              overflowY: "auto",
+            }} className="today-sidebar">
+              <ComingUpSidebar
+                teacherId={user.id}
+                todayPlanItems={todayPlanItems}
+                t={t}
+                lang={lang}
+                onPickItem={(item) => navigate(buildRoute.sessionsOptions(item.deck.id))}
+              />
+            </div>
+          </div>
         )}
 
         {step === "options" && selectedDeck && (
