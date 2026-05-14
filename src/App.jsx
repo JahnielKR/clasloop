@@ -737,6 +737,10 @@ export default function App() {
     .cl-nav:hover { background: ${C.accentSoft} !important; color: ${C.accent} !important; }
     .cl-nav:active { transform: scale(.97); }
     .cl-nav-active { background: ${C.accentSoft} !important; color: ${C.accent} !important; }
+    /* PR 23.4: sidebar height with dvh fallback. Older browsers
+       (and Safari < 15.4) ignore the dvh rule and keep vh. Newer
+       browsers use dvh which is browser-chrome-aware. */
+    .cl-sidebar-root { height: 100vh; height: 100dvh; }
     .cl-signout { transition: all .15s ease; }
     .cl-signout:hover { color: ${C.red} !important; }
     .cl-collapse { transition: all .15s ease; }

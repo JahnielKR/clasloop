@@ -16,9 +16,13 @@
      guarantees a single fixed viewport-sized rectangle that never
      changes between questions, since the viewport itself is the size
      reference. Also nicer on tablets/Chromebooks where the wasted
-     letterbox space around a 1240px card was a complaint. */
+     letterbox space around a 1240px card was a complaint.
+     PR 23.4: 100vh on Safari iOS doesn't account for the browser
+     chrome (URL bar). Use dynamic viewport height (100dvh) which
+     IS browser-chrome-aware. 100vh fallback for very old browsers. */
   width: 100vw;
   height: 100vh;
+  height: 100dvh;
   overflow: hidden;
 }
 .stage {
@@ -3188,9 +3192,12 @@
     position: absolute;
     left: 16px;
     right: 16px;
-    /* Phones: keep clear of iOS home-bar (env safe-area). On Android
-       and tablets, this collapses to bottom: 16px. */
-    bottom: max(16px, env(safe-area-inset-bottom));
+    /* PR 23.4: bumped from 16px to 24px because Safari iOS reserves
+       a chunk for its browser bar (URL chip at the bottom) that
+       env(safe-area-inset-bottom) doesn't always account for —
+       especially inside a position: fixed parent. 24px ensures the
+       button is clearly above the browser chrome. */
+    bottom: max(24px, env(safe-area-inset-bottom));
     width: auto;
     margin-top: 0;
     z-index: 10;
@@ -3200,9 +3207,10 @@
 
   /* When the next button is absolute-positioned at the bottom, the
      question-main needs extra bottom padding so answer tiles don't
-     get hidden under it. ~70px = button (~50) + gap (16) + safety. */
+     get hidden under it. PR 23.4: bumped to 90px to match the
+     larger button clearance. */
   .stage .question-main {
-    padding-bottom: 78px;
+    padding-bottom: 90px;
   }
 }
 

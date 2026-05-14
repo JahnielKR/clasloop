@@ -331,13 +331,16 @@ export default function Sidebar({
 
   return (
     <div
+      className="cl-sidebar-root"
       style={{
         width: sidebarWidth,
         background: C.bgSoft,
         borderRight: `1px solid ${C.border}`,
         display: "flex",
         flexDirection: "column",
-        height: "100vh",
+        /* PR 23.4: height comes from .cl-sidebar-root class with
+           100vh + 100dvh fallback (in App.jsx's sidebarCSS). dvh
+           accounts for Safari iOS browser chrome that vh doesn't. */
         position: "fixed",
         left: 0,
         top: 0,
@@ -486,6 +489,10 @@ export default function Sidebar({
           drawer on small screens. */}
       <div style={{
         padding: isMobile ? "8px 10px 10px" : "10px 10px 12px",
+        /* PR 23.4: extra bottom padding for iOS home indicator / Safari
+           browser bar. Without this, sign-out gets clipped on iPhones
+           with rounded bottom corners. */
+        paddingBottom: isMobile ? `max(10px, env(safe-area-inset-bottom))` : "12px",
         borderTop: `1px solid ${C.border}`,
         flexShrink: 0,
       }}>
