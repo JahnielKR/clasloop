@@ -1854,7 +1854,13 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
                       {/* PR 20.2.8: wrap label + prompt in .question-center
                           so the flex:1 styling centers them vertically
                           in the space between .question-meta (top) and
-                          .answers-grid (bottom). */}
+                          .answers-grid (bottom).
+                          PR 24.3.1: for match questions the MatchPanel
+                          ALSO renders inside .question-center (after
+                          the prompt text), so the whole question +
+                          pairs block is centered and there's natural
+                          breathing room below — instead of the panel
+                          being stuck at the bottom of the screen. */}
                       <div className="question-center">
                         <div className="question-prompt-label">
                           {qType === 'tf'
@@ -1865,7 +1871,26 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
                                 ? (t.elegiMatch || "Pareá las palabras")
                                 : (t.elegiRespuesta || "Elegí la respuesta")}
                         </div>
-                        <div className="question-text-tablet" style={{ whiteSpace: "pre-wrap" }}>{displayedQ.q}</div>
+                        <div
+                          className={`question-text-tablet ${qType === 'match' ? 'is-match' : ''}`}
+                          style={{ whiteSpace: "pre-wrap" }}
+                        >
+                          {displayedQ.q}
+                        </div>
+
+                        {qType === 'match' && Array.isArray(displayedQ.pairs) && (
+                          <MatchPanel
+                            pairs={displayedQ.pairs}
+                            shuffledRights={shuffledRights}
+                            matchPicks={matchPicks}
+                            matchActiveLeft={matchActiveLeft}
+                            showResult={showResult}
+                            handleMatchLeft={handleMatchLeft}
+                            handleMatchRight={handleMatchRight}
+                            handleMatchUndo={handleMatchUndo}
+                            t={t}
+                          />
+                        )}
                       </div>
 
                       {/* PR 24.1: branch render by question type.
@@ -1984,20 +2009,6 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
                           </div>
                         )}
                       </div>
-                      )}
-
-                      {qType === 'match' && Array.isArray(displayedQ.pairs) && (
-                        <MatchPanel
-                          pairs={displayedQ.pairs}
-                          shuffledRights={shuffledRights}
-                          matchPicks={matchPicks}
-                          matchActiveLeft={matchActiveLeft}
-                          showResult={showResult}
-                          handleMatchLeft={handleMatchLeft}
-                          handleMatchRight={handleMatchRight}
-                          handleMatchUndo={handleMatchUndo}
-                          t={t}
-                        />
                       )}
                     </div>
 

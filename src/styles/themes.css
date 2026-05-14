@@ -257,6 +257,14 @@
   margin-left: auto;
   margin-right: auto;
 }
+/* PR 24.3.1: when the question is a Match, the prompt text is smaller
+ * so the MatchPanel (rendered right below it, inside .question-center)
+ * has more room to breathe. Match prompts also tend to be short
+ * ("Pareá los verbos con sus traducciones"), so 28px is plenty. */
+.stage .question-text-tablet.is-match {
+  font-size: 28px;
+  margin-bottom: 32px;
+}
 .stage .question-prompt-label {
   /* PR 20.2.8: centered with the prompt now */
   text-align: center;
