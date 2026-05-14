@@ -871,15 +871,16 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [timeLeft, showResult, step]);
 
-  // PR 24.0 + PR 24.4.4: when autoAdvanceStart is set, schedule handleNext
-  // for 3s later (was 2s). The CSS fill animation also runs 3000ms so
-  // the button visually completes its fill the moment handleNext fires.
-  // Manual click during the fill still cancels the timer immediately.
+  // PR 24.0 + PR 24.4.4 + PR 24.4.11: when autoAdvanceStart is set,
+  // schedule handleNext for 4s later. The CSS fill+pulse animation
+  // also runs 4000ms so the button visually completes its build-up
+  // the moment handleNext fires. Manual click during the animation
+  // still cancels the timer immediately.
   useEffect(() => {
     if (autoAdvanceStart === null) return;
     const tm = setTimeout(() => {
       handleNext();
-    }, 3000);
+    }, 4000);
     return () => clearTimeout(tm);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoAdvanceStart]);
