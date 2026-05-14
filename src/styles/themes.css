@@ -3291,3 +3291,49 @@
     gap: 12px;
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════
+ * PR 23.8: shrink the ABCD letter badge on image MCQs
+ *
+ * Jota: "los ABCD de fotos siguen siendo demasiados grandes"
+ *
+ * The letter badge stays at 32×32 with 14px font regardless of tile
+ * size. When tiles shrink (110px on phone portrait, 140px on tablet
+ * portrait, 180px on tablet landscape), the badge looks oversized
+ * relative to the image — visually noisy.
+ *
+ * Scale the badge proportionally:
+ *   - Tablet landscape (tile 180px): 28×28, 13px font
+ *   - Tablet portrait (tile 140px):  26×26, 12px font
+ *   - Phone portrait (tile 110px):   22×22, 11px font
+ * ═══════════════════════════════════════════════════════════════════════ */
+
+@media (orientation: landscape) and (max-width: 1180px) {
+  .stage .answers-grid.is-image-mode .tile-letter {
+    width: 28px;
+    height: 28px;
+    font-size: 13px;
+    top: 8px;
+    left: 8px;
+  }
+}
+
+@media (orientation: portrait) {
+  .stage .answers-grid.is-image-mode .tile-letter {
+    width: 26px;
+    height: 26px;
+    font-size: 12px;
+    top: 7px;
+    left: 7px;
+  }
+}
+
+@media (orientation: portrait) and (max-width: 600px) {
+  .stage .answers-grid.is-image-mode .tile-letter {
+    width: 22px;
+    height: 22px;
+    font-size: 11px;
+    top: 6px;
+    left: 6px;
+  }
+}
