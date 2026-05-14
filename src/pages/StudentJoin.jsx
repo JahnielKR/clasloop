@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef, useLayoutEffect, useCallback } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { LogoMark, CIcon } from "../components/Icons";
 import { Avatar } from "../components/Avatars";
@@ -553,6 +553,11 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
   // We consume it once on mount and clear it from the URL with replace=true
   // so a back/forward or refresh doesn't re-prefill an old PIN.
   const [searchParams, setSearchParams] = useSearchParams();
+  // PR 23.3: needed for the exit button on the Join themed screen.
+  // Students on mobile portrait couldn't navigate away from /join
+  // because the themed render fills the viewport (no burger menu).
+  // The X button in the top-strip now navigates to /classes via this.
+  const navigate = useNavigate();
   const urlPin = (!isPractice && !isGuest) ? (searchParams.get(QUERY.PIN) || "") : "";
 
   const [step, setStep] = useState(isPractice ? "quiz" : (isGuest ? "joining" : "join"));
@@ -1484,6 +1489,26 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
             <div className="stage" data-theme={joinTheme}>
               <div className="top-strip">
                 <div className="brand-area">
+                  {/* PR 23.3: exit button on the themed Join screen.
+                      Without this, mobile students who land on /join
+                      can't navigate away — the themed render fills
+                      the viewport and there's no burger menu accessible.
+                      Click here returns to /classes (or wherever the
+                      app's default landing is for the user). */}
+                  {!isPractice && !isGuest && (
+                    <button
+                      type="button"
+                      className="stage-exit-btn"
+                      onClick={() => navigate("/classes")}
+                      aria-label={t.exit || "Exit"}
+                      title={t.exit || "Exit"}
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18"/>
+                        <line x1="6" y1="6" x2="18" y2="18"/>
+                      </svg>
+                    </button>
+                  )}
                   <span className="brand-name">Clasloop</span>
                 </div>
                 {isLoggedIn && profile?.full_name && (

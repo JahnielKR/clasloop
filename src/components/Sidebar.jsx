@@ -527,14 +527,14 @@ export default function Sidebar({
                 alignItems: "center",
                 gap: 8,
                 width: "100%",
-                padding: "6px 8px",
+                padding: isMobile ? "4px 6px" : "6px 8px",
                 borderRadius: 7,
                 background: page === "settings" ? C.accentSoft : "transparent",
                 border: "none",
                 cursor: "pointer",
                 textAlign: "left",
                 fontFamily: "'Outfit', sans-serif",
-                marginBottom: 6,
+                marginBottom: isMobile ? 2 : 6,
                 transition: "background .12s ease",
               }}
               onMouseEnter={(e) => {
@@ -592,16 +592,22 @@ export default function Sidebar({
             <button
               onClick={onSignOut}
               style={{
-                fontSize: 11,
-                color: C.textMuted,
+                /* PR 23.3: in mobile, make the sign out a proper
+                   visible secondary button instead of a tiny tertiary
+                   link. Students need to find it easily on phones. */
+                fontSize: isMobile ? 12 : 11,
+                color: isMobile ? C.textSecondary : C.textMuted,
                 background: "transparent",
-                border: "none",
+                border: isMobile ? `1px solid ${C.border}` : "none",
+                borderRadius: isMobile ? 6 : 0,
                 cursor: "pointer",
-                padding: "4px 8px",
+                padding: isMobile ? "6px 10px" : "4px 8px",
                 fontFamily: "'Outfit', sans-serif",
+                width: isMobile ? "100%" : "auto",
+                marginTop: isMobile ? 4 : 0,
               }}
               onMouseEnter={(e) => (e.currentTarget.style.color = C.textSecondary)}
-              onMouseLeave={(e) => (e.currentTarget.style.color = C.textMuted)}
+              onMouseLeave={(e) => (e.currentTarget.style.color = isMobile ? C.textSecondary : C.textMuted)}
             >
               Sign out
             </button>

@@ -3118,3 +3118,98 @@
     gap: 12px;
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════
+ * PR 23.3: Three more portrait fixes
+ *   1. Waiting (lobby) state — was rendering with the landscape 3-col
+ *      grid which left the side cards crushed and the big icon huge.
+ *   2. Next button — in landscape it lived in the rail (column flex,
+ *      `margin-top: auto` pushed it to the bottom of the column). In
+ *      portrait the rail is a horizontal strip at the top, so `margin-top:
+ *      auto` glued the button to the right edge of the strip — far from
+ *      where the student just tapped an answer at the bottom of the screen.
+ *      Fix: in portrait, take the Next button out of the rail flow and
+ *      anchor it to the bottom of the question area as a sticky CTA.
+ *   3. stage-exit-btn — make sure it's properly sized on phones. The
+ *      themed Join page now renders an X button there (PR 23.3 JSX),
+ *      and we need it tappable at thumb size.
+ * ═══════════════════════════════════════════════════════════════════════ */
+
+@media (orientation: portrait) {
+  /* The Next button uses position: absolute below — its anchor needs
+     to be question-state, not .stage (which would put the button
+     over the top-strip too). */
+  .stage .question-state {
+    position: relative;
+  }
+
+  /* ── Waiting/lobby state: 3-col grid → 1-col stack ─────────────── */
+  .stage .waiting-state {
+    grid-template-columns: 1fr;
+    align-items: center;
+    padding: 24px;
+    gap: 18px;
+    /* The .waiting-center is the second of three grid items in DOM
+       order (deck card | center | room counter). In portrait we want
+       it on top, the cards below. Use `order` to swap. */
+  }
+  .stage .waiting-center { order: 0; }
+  .stage .waiting-side-card { order: 1; }
+  .stage .room-counter { order: 2; }
+
+  /* Title and icon shrink for phones */
+  .stage .waiting-title-big {
+    font-size: 22px;
+    margin-bottom: 6px;
+  }
+  .stage .waiting-sub-big {
+    font-size: 13px;
+    max-width: 100%;
+  }
+  .stage .waiting-icon-big {
+    width: 64px;
+    height: 64px;
+    margin-bottom: 14px;
+  }
+  .stage .waiting-icon-big svg { width: 30px; height: 30px; }
+
+  /* Side cards compact */
+  .stage .waiting-side-card {
+    padding: 14px 16px;
+  }
+  .stage .side-card-value {
+    font-size: 18px;
+  }
+
+  /* ── Next button: position fixed to the bottom of the stage so
+   *    students don't have to thumb-reach to the top of the screen. */
+  .stage .stage-next-btn {
+    /* Override `margin-top: auto` from the rail flow */
+    position: absolute;
+    left: 16px;
+    right: 16px;
+    /* Phones: keep clear of iOS home-bar (env safe-area). On Android
+       and tablets, this collapses to bottom: 16px. */
+    bottom: max(16px, env(safe-area-inset-bottom));
+    width: auto;
+    margin-top: 0;
+    z-index: 10;
+    /* Slight shadow so it floats over the answers visually */
+    box-shadow: 0 6px 20px rgba(0,0,0,0.18);
+  }
+
+  /* When the next button is absolute-positioned at the bottom, the
+     question-main needs extra bottom padding so answer tiles don't
+     get hidden under it. ~70px = button (~50) + gap (16) + safety. */
+  .stage .question-main {
+    padding-bottom: 78px;
+  }
+}
+
+@media (orientation: portrait) and (max-width: 600px) {
+  .stage .waiting-title-big { font-size: 20px; }
+  .stage .waiting-sub-big { font-size: 12.5px; }
+  .stage .waiting-icon-big { width: 56px; height: 56px; }
+  .stage .waiting-icon-big svg { width: 26px; height: 26px; }
+  .stage .waiting-side-card { padding: 12px 14px; }
+}
