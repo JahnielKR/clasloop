@@ -2530,7 +2530,13 @@ export default function SessionFlow({ lang = "en", setLang, onNavigateToDecks, o
     <div style={{ padding: "28px 20px" }}>
       <style>{css}</style>
       {step !== "lobby" && step !== "live" && (
-        <PageHeader title={t.pageTitle} lang={lang} setLang={setLang} onOpenMobileMenu={onOpenMobileMenu} />
+        <PageHeader
+          title={t.pageTitle}
+          lang={lang}
+          setLang={setLang}
+          onOpenMobileMenu={onOpenMobileMenu}
+          maxWidth={step === "pickDeck" ? 1340 : 800}
+        />
       )}
       {/* In lobby/live there's no PageHeader, so render the hamburger on its
           own so the user can still open the drawer on mobile. */}
