@@ -257,6 +257,29 @@
   margin-left: auto;
   margin-right: auto;
 }
+
+/* PR 24.4.2: question prompt image. Centered above the question text,
+ * capped at 280px tall so it doesn't blow out the layout on tall
+ * images. object-fit: contain keeps the aspect ratio. */
+.stage .question-image-wrap {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 18px;
+}
+.stage .question-image {
+  max-height: 280px;
+  max-width: min(560px, 80%);
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  border-radius: 12px;
+  background: var(--surface);
+}
+.stage[data-theme="mono"] .question-image { border-radius: 0; }
+.stage[data-theme="pop"] .question-image {
+  border: 2px solid #1F1733;
+  box-shadow: 4px 4px 0 #1F1733;
+}
 /* PR 24.3.1: when the question is a Match, the prompt text is smaller
  * so the MatchPanel (rendered right below it, inside .question-center)
  * has more room to breathe. Match prompts also tend to be short
@@ -363,6 +386,57 @@
 .stage[data-theme="mono"] .tile-text {
   font-family: 'JetBrains Mono', monospace;
   font-weight: 500;
+}
+
+/* ─── PR 24.4.2: MCQ with images in options (image-mode) ──────────
+ * When ANY option has image_url, the whole answers-grid switches to
+ * image-mode. Tiles become taller (220px) and rearrange to show the
+ * image filling most of the tile, with the letter badge in the
+ * top-left corner and optional text below the image. */
+.stage .answers-grid.is-image-mode {
+  grid-template-rows: 220px 220px;
+  gap: 16px;
+}
+.stage .answers-grid.is-image-mode .answer-tile {
+  flex-direction: column;
+  align-items: stretch;
+  padding: 0;
+  gap: 0;
+  position: relative;
+  overflow: hidden;
+}
+.stage .answers-grid.is-image-mode .tile-letter {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  font-size: 14px;
+  z-index: 2;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+}
+.stage[data-theme="mono"] .answers-grid.is-image-mode .tile-letter {
+  border-radius: 0;
+}
+.stage .answer-tile .tile-image {
+  width: 100%;
+  flex: 1;
+  min-height: 0;
+  object-fit: cover;
+  display: block;
+}
+.stage .answer-tile.has-image .tile-text {
+  /* If the tile has both image and text, the text sits in a small
+     band below the image with a slight tinted background. */
+  padding: 8px 14px;
+  font-size: 15px;
+  background: var(--surface-soft);
+  border-top: 1px solid var(--border);
+  flex: none;
+}
+.stage[data-theme="mono"] .answer-tile.has-image .tile-text {
+  border-top: 1px solid rgba(255,255,255,0.25);
 }
 
 .stage .question-rail {

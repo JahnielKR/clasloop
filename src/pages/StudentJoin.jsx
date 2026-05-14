@@ -1345,7 +1345,7 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
       prevQ &&
       Array.isArray(prevQ.options) &&
       !Array.isArray(prevQ.correct) &&
-      prevQ.options.every(o => typeof o === 'string' || (typeof o === 'object' && !o?.image_url));
+      prevQ.options.every(o => typeof o === 'string' || typeof o === 'object');
     const prevTfThemed =
       prevQType === 'tf' &&
       prevQ &&
@@ -1817,11 +1817,14 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
     //     accepting multiple correct strings)
     // Other types (Slider/Match/Order/Free) fall through to legacy
     // until their own themed renders ship in later PRs.
+    // PR 24.4.2: MCQ options with image_url are now ALLOWED in themed
+    // render (previously they fell through to legacy). Each tile can be
+    // text-only, image-only, or image + text.
     const themedMcqEligible =
       qType === 'mcq' &&
       Array.isArray(q?.options) &&
       !Array.isArray(q?.correct) &&
-      q.options.every(o => typeof o === 'string' || (typeof o === 'object' && !o?.image_url));
+      q.options.every(o => typeof o === 'string' || typeof o === 'object');
     const themedTfEligible =
       qType === 'tf' &&
       (q?.correct === true || q?.correct === false);
@@ -1970,6 +1973,21 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
                                   ? (t.elegiOrder || "Poné en orden")
                                   : (t.elegiRespuesta || "Elegí la respuesta")}
                         </div>
+
+                        {/* PR 24.4.2: question prompt image. All themed
+                            question types support q.image_url. The
+                            legacy render had this; the themed render
+                            was missing it. */}
+                        {displayedQ.image_url && (
+                          <div className="question-image-wrap">
+                            <img
+                              className="question-image"
+                              src={displayedQ.image_url}
+                              alt=""
+                            />
+                          </div>
+                        )}
+
                         <div
                           className={`question-text-tablet ${qType === 'match' || qType === 'order' ? 'is-match' : ''}`}
                           style={{ whiteSpace: "pre-wrap" }}
@@ -2007,10 +2025,18 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
                       {/* PR 24.1: branch render by question type.
                           - MCQ: existing 2×2 tile grid (PR 20.2)
                           - TF: two large side-by-side buttons */}
-                      {qType === 'mcq' && (
-                      <div className="answers-grid">
+                      {qType === 'mcq' && (() => {
+                        // PR 24.4.2: detect image-mode MCQ. The grid
+                        // gets .is-image-mode and each tile renders
+                        // its image on top + text below.
+                        const isImageMode = displayedQ.options.some(
+                          o => typeof o === 'object' && o?.image_url
+                        );
+                        return (
+                      <div className={`answers-grid ${isImageMode ? 'is-image-mode' : ''}`}>
                         {displayedQ.options.map((o, i) => {
                           const optText = typeof o === "string" ? o : (o?.text || "");
+                          const optImg = (typeof o === 'object' && o?.image_url) ? o.image_url : null;
                           const letter = String.fromCharCode(65 + i);
                           const selected = mcqSelected === i;
                           // PR 20.2.4: reveal states after submit.
@@ -2028,17 +2054,22 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
                           return (
                             <button
                               key={i}
-                              className={`answer-tile ${selected ? 'selected' : ''} ${revealClass}`}
+                              className={`answer-tile ${selected ? 'selected' : ''} ${revealClass} ${optImg ? 'has-image' : ''}`}
                               onClick={() => handleTileClick(i)}
                               disabled={showResult}
                             >
                               <div className="tile-letter">{letter}</div>
-                              <div className="tile-text">{optText}</div>
+                              {optImg && (
+                                <img className="tile-image" src={optImg} alt="" />
+                              )}
+                              {optText && (
+                                <div className="tile-text">{optText}</div>
+                              )}
                             </button>
                           );
                         })}
                       </div>
-                      )}
+                      );})()}
 
                       {qType === 'tf' && (
                       <div className="tf-grid">
