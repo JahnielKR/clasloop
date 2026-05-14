@@ -766,9 +766,19 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
     // Falls back to 'calm' if the column is missing (e.g. the migration
     // wasn't run yet — graceful degradation to the legacy render).
     if (session?.section) setDeckSection(session.section);
-    if (session?.lobby_theme) setLobbyThemeId(session.lobby_theme);
-    else setLobbyThemeId('calm');
-  }, [session?.deck_id, session?.section, session?.lobby_theme, isPractice]);
+    // PR 23.7: guests always get the neutral 'calm' theme regardless of
+    // the class's configured theme. A guest isn't a member of that
+    // class and shouldn't be branded with its visual identity — keep
+    // their experience clean and generic. Logged-in students keep
+    // their class theme.
+    if (isGuest) {
+      setLobbyThemeId('calm');
+    } else if (session?.lobby_theme) {
+      setLobbyThemeId(session.lobby_theme);
+    } else {
+      setLobbyThemeId('calm');
+    }
+  }, [session?.deck_id, session?.section, session?.lobby_theme, isPractice, isGuest]);
 
   // ── Realtime: react to session status changes ──
   useEffect(() => {
