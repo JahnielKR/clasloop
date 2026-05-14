@@ -2130,24 +2130,24 @@
   left: 0;
   bottom: 0;
   width: 0;
+  height: 100%;
   /* High-contrast default fill. Themed overrides below tune per theme. */
   background: rgba(0, 0, 0, 0.55);
   z-index: 0;
-  /* PR 24.4.7: transition is on the base rule so width 0 → 100%
-   * animates when .is-auto-advancing is added. The previous version
-   * defined transition only on .is-auto-advancing, which made the
-   * browser interpret the class swap as transition: none → transition: 3s
-   * and skip the animation. Defining transition on the base means the
-   * browser always knows width is animatable.
-   *
-   * Note: when the class is REMOVED (e.g. on question advance), this
-   * would also animate width 100% → 0 over 3s. Acceptable because the
-   * button unmounts on next question (showResult resets to false), so
-   * nobody actually sees that reverse animation. */
-  transition: width 3000ms linear;
+}
+/* PR 24.4.8: switch from `transition: width` to a CSS keyframe
+ * animation. Reason: React applies .is-auto-advancing in the same
+ * commit cycle as showResult=true (the button's first render), so
+ * the browser never "sees" the initial width: 0 state — it computes
+ * the post-class state directly and there's nothing to transition
+ * FROM. A keyframes animation forces the browser to play 0% → 100%
+ * regardless of what the pre-state looked like. */
+@keyframes cl-next-fill {
+  from { width: 0; }
+  to   { width: 100%; }
 }
 .stage .stage-next-btn.is-auto-advancing::before {
-  width: 100%;
+  animation: cl-next-fill 3000ms linear forwards;
 }
 
 /* Per-theme fill color tuning.
