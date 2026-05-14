@@ -68,6 +68,12 @@ const i18n = {
     joinAt: "Join at",
     studentsJoined: "students joined", oneStudentJoined: "1 student joined", noStudentsYet: "No students yet",
     startQuiz: "Start quiz", cancel: "Cancel",
+    // PR 21.1: themed teacher lobby
+    joinWithCode: "Join with the code",
+    studentInRoom: "student in the room", studentsInRoom: "students in the room",
+    studentJoinedShort: "joined", studentsJoinedShort: "joined",
+    cancelLobbyConfirm: "Cancel this session? Students who joined will be sent back.",
+    sectionWarmup: "Warmup", sectionExit: "Exit Ticket", sectionReview: "Review", sectionPractice: "Practice",
     kick: "Remove", kickConfirm: "Remove this student from the lobby?", guest: "guest", studentDone: "done",
     clickEnlarge: "Click to enlarge", clickClose: "Click anywhere to close",
     liveResults: "Live results", endSession: "End session",
@@ -126,6 +132,12 @@ const i18n = {
     joinAt: "Únete en",
     studentsJoined: "estudiantes se unieron", oneStudentJoined: "1 estudiante se unió", noStudentsYet: "Aún no se ha unido nadie",
     startQuiz: "Iniciar quiz", cancel: "Cancelar",
+    // PR 21.1: themed teacher lobby
+    joinWithCode: "Únanse con el código",
+    studentInRoom: "estudiante en sala", studentsInRoom: "estudiantes en sala",
+    studentJoinedShort: "inscrito", studentsJoinedShort: "inscritos",
+    cancelLobbyConfirm: "¿Cancelar esta sesión? Los estudiantes que entraron serán expulsados.",
+    sectionWarmup: "Warmup", sectionExit: "Exit Ticket", sectionReview: "Repaso", sectionPractice: "Práctica",
     kick: "Sacar", kickConfirm: "¿Sacar a este estudiante del lobby?", guest: "invitado", studentDone: "listo",
     clickEnlarge: "Click para ampliar", clickClose: "Click en cualquier lugar para cerrar",
     liveResults: "Resultados en vivo", endSession: "Terminar sesión",
@@ -184,6 +196,12 @@ const i18n = {
     joinAt: "참여 주소",
     studentsJoined: "명 참여", oneStudentJoined: "1명 참여", noStudentsYet: "아직 참여자 없음",
     startQuiz: "퀴즈 시작", cancel: "취소",
+    // PR 21.1: themed teacher lobby
+    joinWithCode: "이 코드로 입장하세요",
+    studentInRoom: "명 입장 중", studentsInRoom: "명 입장 중",
+    studentJoinedShort: "명", studentsJoinedShort: "명",
+    cancelLobbyConfirm: "이 세션을 취소하시겠어요? 입장한 학생들은 나가게 됩니다.",
+    sectionWarmup: "Warmup", sectionExit: "Exit Ticket", sectionReview: "복습", sectionPractice: "연습",
     kick: "내보내기", kickConfirm: "이 학생을 로비에서 내보내시겠습니까?", guest: "게스트", studentDone: "완료",
     clickEnlarge: "클릭하여 확대", clickClose: "아무곳이나 클릭하여 닫기",
     liveResults: "실시간 결과", endSession: "세션 종료",
@@ -483,6 +501,202 @@ function Toggle({ label, hint, value, onChange }) {
         <span onClick={() => onChange(!value)} style={{ fontSize: 13, color: C.text, fontWeight: 500, cursor: "pointer" }}>{label}</span>
       </div>
       {hint && <p style={{ fontSize: 11, color: C.textMuted, marginTop: 4, marginLeft: 48, lineHeight: 1.4 }}>{hint}</p>}
+    </div>
+  );
+}
+
+// ─── Step 3a: Lobby themed (PR 21.1) ───────────────────────────────────────
+// Full-screen takeover with theme styling. Mounted when session.lobby_theme
+// is set. Reuses the same realtime subscription pattern as the legacy
+// SessionLobby below, just with a different visual.
+function SessionLobbyThemed({ session, deck, t, lang, onStart, onCancel }) {
+  const [participants, setParticipants] = useState([]);
+  const [showQRLarge, setShowQRLarge] = useState(false);
+  const themeId = session?.lobby_theme || 'calm';
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase.from("session_participants")
+        .select("*").eq("session_id", session.id);
+      setParticipants(data || []);
+    })();
+
+    const channel = supabase.channel(`lobby-themed:${session.id}`)
+      .on("postgres_changes",
+        { event: "INSERT", schema: "public", table: "session_participants", filter: `session_id=eq.${session.id}` },
+        (payload) => setParticipants(prev => [...prev, payload.new])
+      )
+      .on("postgres_changes",
+        { event: "UPDATE", schema: "public", table: "session_participants", filter: `session_id=eq.${session.id}` },
+        (payload) => setParticipants(prev => prev.map(p => p.id === payload.new.id ? payload.new : p))
+      )
+      .subscribe();
+
+    return () => supabase.removeChannel(channel);
+  }, [session.id]);
+
+  const activeParticipants = participants.filter(p => !p.is_kicked);
+
+  const joinUrl = typeof window !== "undefined"
+    ? `${window.location.origin}/join?code=${session.pin}`
+    : `https://clasloop.com/join?code=${session.pin}`;
+  const joinHost = (joinUrl.replace(/^https?:\/\//, "").split("/")[0]);
+
+  const handleStart = async () => {
+    await supabase.from("sessions").update({ status: "active" }).eq("id", session.id);
+    onStart();
+  };
+
+  const handleCancelClick = () => {
+    // For now use a native confirm. PR 21.2+ could add a themed modal
+    // (similar to the student exit modal in PR 20.3.2) if Jota wants.
+    if (!confirm(t.cancelLobbyConfirm || t.cancel || "Cancel session?")) return;
+    onCancel();
+  };
+
+  // Section pill label — fall back to the raw deck.section if no i18n key.
+  const sectionLabel = deck?.section
+    ? (deck.section === 'warmup' ? (t.sectionWarmup || 'Warmup')
+       : deck.section === 'exit' ? (t.sectionExit || 'Exit Ticket')
+       : deck.section === 'review' ? (t.sectionReview || 'Review')
+       : deck.section === 'practice' ? (t.sectionPractice || 'Practice')
+       : deck.section)
+    : null;
+
+  // QR modal — same big-overlay UX as the legacy lobby, kept consistent
+  // visually with the themed palette via a backdrop.
+  if (showQRLarge) {
+    const dim = typeof window !== "undefined" ? Math.min(420, window.innerHeight - 280) : 320;
+    return (
+      <div
+        onClick={() => setShowQRLarge(false)}
+        style={{
+          position: "fixed", inset: 0, background: "rgba(0,0,0,0.92)", zIndex: 1000,
+          display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+          cursor: "pointer", padding: 32,
+        }}
+      >
+        <p style={{ fontSize: 14, color: "rgba(255,255,255,0.7)", marginBottom: 8, fontFamily: "'Outfit',sans-serif" }}>{t.joinAt}</p>
+        <p style={{ fontSize: 22, fontWeight: 600, color: "#fff", marginBottom: 28, fontFamily: "'JetBrains Mono', monospace" }}>{joinHost}/join</p>
+        <div style={{ background: "#fff", padding: 20, borderRadius: 16 }}>
+          <QRCodeSVG value={joinUrl} size={dim} level="M" />
+        </div>
+        <p style={{ fontSize: 64, fontWeight: 800, color: "#fff", fontFamily: "'JetBrains Mono', monospace", marginTop: 28 }}>{session.pin}</p>
+        <p style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", marginTop: 16 }}>{t.clickClose}</p>
+      </div>
+    );
+  }
+
+  // Pretty student names: first name only (chip space is limited).
+  // Falls back to full name if there's only one word.
+  const displayName = (p) => {
+    const raw = p.is_guest ? (p.guest_name || "Guest") : (p.student_name || "—");
+    const parts = raw.trim().split(/\s+/);
+    return parts.length > 1 ? `${parts[0]} ${parts[parts.length - 1][0]}.` : raw;
+  };
+
+  return (
+    <div className="teacher-lobby-page">
+      <button
+        className="teacher-lobby-exit"
+        onClick={handleCancelClick}
+        title={t.cancel || "Cancel"}
+        aria-label={t.cancel || "Cancel"}
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18"/>
+          <line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+
+      <div className="teacher-lobby" data-theme={themeId}>
+        <div className="teacher-lobby-inner">
+
+          {/* TOP */}
+          <div className="teacher-lobby-top">
+            <div className="lobby-brand">
+              <div className="lobby-brand-logo">C</div>
+              <div className="lobby-brand-name">Clasloop</div>
+            </div>
+            <div className="lobby-deck-info">
+              {sectionLabel && <div className="lobby-section-tag">{sectionLabel}</div>}
+              <div className="lobby-deck-name">{deck?.title || session?.topic || "—"}</div>
+              {session?.class_name && (
+                <div className="lobby-class-name">
+                  {session.class_name}
+                  {activeParticipants.length > 0 && (
+                    <> · {activeParticipants.length} {activeParticipants.length === 1 ? (t.studentJoinedShort || 'inscrito') : (t.studentsJoinedShort || 'inscritos')}</>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* CENTER */}
+          <div className="teacher-lobby-center">
+            <div className="lobby-prompt">{t.joinWithCode || "Únanse con el código"}</div>
+            <div className="lobby-pin">{session?.pin || "—"}</div>
+            <div className="lobby-join-info">
+              <button
+                className="lobby-qr-mini"
+                onClick={() => setShowQRLarge(true)}
+                title={t.clickEnlarge || "Enlarge"}
+                style={{ border: 'none', cursor: 'pointer', padding: 0 }}
+              >
+                <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <rect x="3" y="3" width="6" height="6" rx="1"/>
+                  <rect x="15" y="3" width="6" height="6" rx="1"/>
+                  <rect x="3" y="15" width="6" height="6" rx="1"/>
+                  <rect x="11" y="11" width="2" height="2"/>
+                  <rect x="15" y="13" width="2" height="2"/>
+                  <rect x="19" y="15" width="2" height="2"/>
+                  <rect x="13" y="17" width="2" height="2"/>
+                  <rect x="17" y="19" width="2" height="2"/>
+                  <rect x="11" y="19" width="2" height="2"/>
+                </svg>
+              </button>
+              <span>{t.joinAt || "en"} <span className="url">{joinHost}/join</span></span>
+            </div>
+          </div>
+
+          {/* BOTTOM */}
+          <div className="teacher-lobby-bottom">
+            <div className="lobby-count">
+              <div className="lobby-count-dot"></div>
+              <span>
+                {activeParticipants.length} {activeParticipants.length === 1
+                  ? (t.studentInRoom || "estudiante en sala")
+                  : (t.studentsInRoom || "estudiantes en sala")}
+              </span>
+            </div>
+            <div className="lobby-chips">
+              {activeParticipants.map((p, i) => (
+                <span
+                  key={p.id}
+                  className="lobby-chip"
+                  style={{ animationDelay: `${Math.min(i * 0.06, 1.4)}s` }}
+                >
+                  {displayName(p)}
+                </span>
+              ))}
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      {/* Start button (floating, themed via sibling selector) */}
+      <button
+        className="teacher-lobby-start-btn"
+        onClick={handleStart}
+        disabled={activeParticipants.length === 0}
+        style={activeParticipants.length === 0 ? { opacity: 0.4, cursor: 'default' } : {}}
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <polygon points="5 3 19 12 5 21 5 3" fill="currentColor"/>
+        </svg>
+        {t.startQuiz || "Empezar"} {activeParticipants.length > 0 && `(${activeParticipants.length})`}
+      </button>
     </div>
   );
 }
@@ -1745,13 +1959,28 @@ export default function SessionFlow({ lang = "en", setLang, onNavigateToDecks, o
         )}
 
         {step === "lobby" && session && selectedDeck && (
-          <SessionLobby
-            session={session}
-            deck={selectedDeck}
-            t={t}
-            onStart={() => { setStep("live"); navigate(buildRoute.sessionsLive(session.id)); }}
-            onCancel={handleCancel}
-          />
+          // PR 21.1: route to themed full-screen lobby if the session has
+          // a theme set. Falls back to the legacy in-page lobby otherwise.
+          // The themed lobby is `position: fixed inset: 0` so the app
+          // sidebar/topbar are hidden during the projected experience.
+          session.lobby_theme ? (
+            <SessionLobbyThemed
+              session={session}
+              deck={selectedDeck}
+              t={t}
+              lang={lang}
+              onStart={() => { setStep("live"); navigate(buildRoute.sessionsLive(session.id)); }}
+              onCancel={handleCancel}
+            />
+          ) : (
+            <SessionLobby
+              session={session}
+              deck={selectedDeck}
+              t={t}
+              onStart={() => { setStep("live"); navigate(buildRoute.sessionsLive(session.id)); }}
+              onCancel={handleCancel}
+            />
+          )
         )}
 
         {step === "live" && session && (

@@ -926,6 +926,436 @@
   font-family: 'JetBrains Mono', monospace;
 }
 
+/* ─── PR 21.1: TEACHER LOBBY (projected screen) ──────────────────────
+ * Big PIN, deck name, list of joined students. Full-screen takeover
+ * like the student stage. The CSS reuses the theme palette set by
+ * data-theme on the .lobby root (same names as .stage). */
+.teacher-lobby-page {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: #0A0A0A;
+  overflow: hidden;
+}
+.teacher-lobby {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  transition: background 0.5s ease;
+  font-family: 'Inter', system-ui, sans-serif;
+}
+.teacher-lobby-inner {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  height: 100%;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  padding: 56px 80px;
+  gap: 30px;
+}
+@media (max-width: 900px) {
+  .teacher-lobby-inner { padding: 36px 32px; }
+}
+
+/* ── top row: brand left, deck info right ── */
+.teacher-lobby-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+.teacher-lobby .lobby-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.teacher-lobby .lobby-brand-logo {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  font-family: 'Outfit', sans-serif;
+  font-weight: 700;
+  font-size: 17px;
+}
+.teacher-lobby .lobby-brand-name {
+  font-family: 'Outfit', sans-serif;
+  font-weight: 600;
+  font-size: 16px;
+  letter-spacing: 0.01em;
+}
+.teacher-lobby .lobby-deck-info { text-align: right; }
+.teacher-lobby .lobby-section-tag {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+.teacher-lobby .lobby-deck-name {
+  font-family: 'Outfit', sans-serif;
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+  margin-bottom: 4px;
+}
+.teacher-lobby .lobby-class-name {
+  font-size: 13px;
+  opacity: 0.6;
+}
+
+/* ── center: PIN + join URL ── */
+.teacher-lobby-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 24px;
+}
+.teacher-lobby .lobby-prompt {
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  opacity: 0.55;
+}
+.teacher-lobby .lobby-pin {
+  font-family: 'Outfit', sans-serif;
+  font-size: 220px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  line-height: 0.95;
+}
+@media (max-width: 1200px) {
+  .teacher-lobby .lobby-pin { font-size: 160px; }
+}
+@media (max-width: 900px) {
+  .teacher-lobby .lobby-pin { font-size: 110px; }
+}
+.teacher-lobby .lobby-join-info {
+  font-size: 16px;
+  opacity: 0.65;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.teacher-lobby .lobby-join-info .url {
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 600;
+  opacity: 0.9;
+}
+.teacher-lobby .lobby-qr-mini {
+  width: 38px;
+  height: 38px;
+  border-radius: 6px;
+  display: grid;
+  place-items: center;
+}
+.teacher-lobby .lobby-qr-mini svg { width: 28px; height: 28px; }
+
+/* ── bottom: live count + chips ── */
+.teacher-lobby-bottom {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.teacher-lobby .lobby-count {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  opacity: 0.55;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.teacher-lobby .lobby-count-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: pulseLive 2s ease-in-out infinite;
+  opacity: 0.7;
+}
+@keyframes pulseLive {
+  0%, 100% { opacity: 0.4; transform: scale(1); }
+  50%      { opacity: 1; transform: scale(1.2); }
+}
+
+.teacher-lobby .lobby-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.teacher-lobby .lobby-chip {
+  padding: 8px 18px;
+  font-size: 15px;
+  font-weight: 500;
+  border-radius: 999px;
+  animation: chipIn 0.5s ease backwards;
+}
+@keyframes chipIn {
+  from { opacity: 0; transform: translateY(8px) scale(0.92); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* ── start session button (floating) ── */
+.teacher-lobby-start-btn {
+  position: fixed;
+  bottom: 36px;
+  right: 36px;
+  z-index: 250;
+  padding: 14px 28px;
+  border-radius: 999px;
+  border: none;
+  cursor: pointer;
+  font-family: 'Outfit', sans-serif;
+  font-weight: 600;
+  font-size: 15px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.35), 0 2px 4px rgba(0,0,0,0.2);
+  transition: all 0.2s;
+}
+.teacher-lobby-start-btn:hover {
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 12px 32px rgba(0,0,0,0.4), 0 4px 8px rgba(0,0,0,0.25);
+}
+.teacher-lobby-start-btn:active { transform: scale(0.98); }
+.teacher-lobby-start-btn svg { width: 18px; height: 18px; }
+
+/* ── exit/cancel button (top right corner of viewport) ── */
+.teacher-lobby-exit {
+  position: fixed;
+  top: 24px;
+  right: 24px;
+  z-index: 250;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(0,0,0,0.4);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255,255,255,0.15);
+  color: #FFFFFF;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  transition: all 0.15s;
+}
+.teacher-lobby-exit:hover {
+  background: rgba(0,0,0,0.6);
+  transform: scale(1.05);
+}
+
+/* ════════════════════════════════════════════════════════════════
+ *  THEME VARIANTS for .teacher-lobby
+ *  Ported from lobby-live-mockup.html. Themes: calm, ocean, pop, mono.
+ *  (Mockup also had forest/chalkboard — we don't support those.)
+ * ════════════════════════════════════════════════════════════════ */
+
+/* ── CALM ── */
+.teacher-lobby[data-theme="calm"] {
+  background: #FAFAF8;
+  color: #2C2A26;
+}
+.teacher-lobby[data-theme="calm"] .lobby-brand-logo { background: #2C2A26; color: #FAFAF8; }
+.teacher-lobby[data-theme="calm"] .lobby-pin { color: #2C2A26; }
+.teacher-lobby[data-theme="calm"] .lobby-section-tag {
+  background: #0F7B6C;
+  color: #FFFFFF;
+}
+.teacher-lobby[data-theme="calm"] .lobby-chip {
+  background: #FFFFFF;
+  border: 1px solid #E8E6E1;
+  color: #2C2A26;
+}
+.teacher-lobby[data-theme="calm"] .lobby-qr-mini { color: #FAFAF8; background: #2C2A26; }
+.teacher-lobby[data-theme="calm"] ~ .teacher-lobby-start-btn { background: #0F7B6C; color: #FAFAF8; }
+
+/* ── OCEAN ── */
+.teacher-lobby[data-theme="ocean"] {
+  background: radial-gradient(ellipse at top, #1A3D6B 0%, #0A1F3F 55%, #050E20 100%);
+  color: #E8F0FF;
+}
+.teacher-lobby[data-theme="ocean"] .lobby-brand-logo {
+  background: rgba(255,255,255,0.1);
+  color: #E8F0FF;
+  border: 1px solid rgba(255,255,255,0.15);
+}
+.teacher-lobby[data-theme="ocean"] .lobby-pin {
+  color: #FFFFFF;
+  text-shadow:
+    0 0 60px rgba(180, 210, 255, 0.5),
+    0 0 120px rgba(100, 160, 240, 0.3),
+    0 0 200px rgba(60, 120, 200, 0.2);
+}
+.teacher-lobby[data-theme="ocean"] .lobby-section-tag {
+  background: rgba(255,255,255,0.1);
+  color: #FFFFFF;
+  border: 1px solid rgba(255,255,255,0.2);
+}
+.teacher-lobby[data-theme="ocean"] .lobby-chip {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.15);
+  color: #E8F0FF;
+  backdrop-filter: blur(10px);
+}
+.teacher-lobby[data-theme="ocean"] .lobby-qr-mini { color: #1A3D6B; background: #FFFFFF; }
+.teacher-lobby[data-theme="ocean"] ~ .teacher-lobby-start-btn {
+  background: rgb(120, 220, 180);
+  color: #050E20;
+}
+.teacher-lobby[data-theme="ocean"]::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image:
+    radial-gradient(1px 1px at 15% 20%, rgba(255,255,255,0.6), transparent),
+    radial-gradient(1px 1px at 85% 70%, rgba(255,255,255,0.7), transparent),
+    radial-gradient(2px 2px at 45% 40%, rgba(255,255,255,0.4), transparent),
+    radial-gradient(1px 1px at 75% 25%, rgba(255,255,255,0.5), transparent),
+    radial-gradient(1px 1px at 25% 75%, rgba(255,255,255,0.5), transparent),
+    radial-gradient(1.5px 1.5px at 60% 85%, rgba(255,255,255,0.4), transparent),
+    radial-gradient(1px 1px at 92% 15%, rgba(255,255,255,0.5), transparent),
+    radial-gradient(1px 1px at 10% 50%, rgba(255,255,255,0.4), transparent),
+    radial-gradient(1px 1px at 35% 12%, rgba(255,255,255,0.5), transparent);
+  z-index: 1;
+  pointer-events: none;
+  animation: starTwinkle 8s ease-in-out infinite;
+}
+@keyframes starTwinkle {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.7; }
+}
+
+/* ── POP ── */
+.teacher-lobby[data-theme="pop"] {
+  background: linear-gradient(135deg, #FFD93D 0%, #FF6B9D 50%, #C147FF 100%);
+  color: #1F1733;
+  font-family: 'Outfit', sans-serif;
+}
+.teacher-lobby[data-theme="pop"] .lobby-brand-logo {
+  background: #1F1733;
+  color: #FFD93D;
+  border-radius: 10px;
+  box-shadow: 3px 3px 0 rgba(31, 23, 51, 0.3);
+}
+.teacher-lobby[data-theme="pop"] .lobby-pin {
+  font-weight: 800;
+  color: #1F1733;
+  animation: popBounce 2.5s ease-in-out infinite;
+  text-shadow: 4px 4px 0 rgba(31, 23, 51, 0.15);
+}
+@keyframes popBounce {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-10px); }
+}
+.teacher-lobby[data-theme="pop"] .lobby-section-tag {
+  background: #1F1733;
+  color: #FFD93D;
+  box-shadow: 2px 2px 0 rgba(31, 23, 51, 0.3);
+}
+.teacher-lobby[data-theme="pop"] .lobby-chip {
+  background: rgba(255,255,255,0.92);
+  border: 2px solid #1F1733;
+  color: #1F1733;
+  font-weight: 600;
+  box-shadow: 3px 3px 0 #1F1733;
+}
+.teacher-lobby[data-theme="pop"] .lobby-qr-mini { color: #FFD93D; background: #1F1733; }
+.teacher-lobby[data-theme="pop"] .lobby-count-dot { background: #1F1733; }
+.teacher-lobby[data-theme="pop"] ~ .teacher-lobby-start-btn {
+  background: #1F1733;
+  color: #FFD93D;
+  border: 2px solid #1F1733;
+  box-shadow: 4px 4px 0 #1F1733, 0 8px 24px rgba(0,0,0,0.25);
+}
+
+/* ── MONO ── */
+.teacher-lobby[data-theme="mono"] {
+  background: #000000;
+  color: #FFFFFF;
+  font-family: 'JetBrains Mono', monospace;
+}
+.teacher-lobby[data-theme="mono"] .lobby-brand-name { font-family: 'JetBrains Mono', monospace; }
+.teacher-lobby[data-theme="mono"] .lobby-brand-logo {
+  background: #FFFFFF;
+  color: #000000;
+  border-radius: 0;
+  font-family: 'JetBrains Mono', monospace;
+}
+.teacher-lobby[data-theme="mono"] .lobby-pin {
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 700;
+  color: #FFFFFF;
+  letter-spacing: 0.12em;
+}
+.teacher-lobby[data-theme="mono"] .lobby-section-tag {
+  background: transparent;
+  color: #FFFFFF;
+  border: 1px solid rgba(255,255,255,0.3);
+  border-radius: 0;
+  font-family: 'JetBrains Mono', monospace;
+}
+.teacher-lobby[data-theme="mono"] .lobby-deck-name {
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 600;
+}
+.teacher-lobby[data-theme="mono"] .lobby-class-name,
+.teacher-lobby[data-theme="mono"] .lobby-prompt,
+.teacher-lobby[data-theme="mono"] .lobby-count { font-family: 'JetBrains Mono', monospace; }
+.teacher-lobby[data-theme="mono"] .lobby-chip {
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.25);
+  color: #FFFFFF;
+  border-radius: 0;
+  font-family: 'JetBrains Mono', monospace;
+}
+.teacher-lobby[data-theme="mono"] .lobby-qr-mini {
+  color: #000000;
+  background: #FFFFFF;
+  border-radius: 0;
+}
+.teacher-lobby[data-theme="mono"] ~ .teacher-lobby-start-btn {
+  background: #FFFFFF;
+  color: #000000;
+  border-radius: 0;
+  font-family: 'JetBrains Mono', monospace;
+}
+.teacher-lobby[data-theme="mono"]::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(255,255,255,0.02) 2px,
+    rgba(255,255,255,0.02) 4px
+  );
+  z-index: 1;
+  pointer-events: none;
+}
+.teacher-lobby[data-theme="mono"] .lobby-pin::after {
+  content: "_";
+  display: inline-block;
+  margin-left: 0.1em;
+  animation: monoBlink 1.2s steps(1) infinite;
+  opacity: 0.7;
+}
+@keyframes monoBlink {
+  0%, 50%   { opacity: 0.7; }
+  51%, 100% { opacity: 0; }
+}
+
 /* ─── Outer page wrapper — full-screen takeover ──────────────────── */
 .stage-page {
   /* PR 20.2.4 + 20.2.7: position fixed + inset 0 to cover the app's
