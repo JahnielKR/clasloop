@@ -2917,3 +2917,137 @@
   from { transform: translateX(32px); opacity: 0; }
   to   { transform: translateX(0); opacity: 1; }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════
+ * PR 23: PORTRAIT FALLBACK
+ *
+ * The themed quiz layout is designed for landscape: a wide question area
+ * on the left + a 240px rail on the right with timer + meta stats. In
+ * portrait (phone vertical or tablet vertical) this breaks down:
+ * the rail eats the full screen width with stretched empty space,
+ * the question text gets clipped or wraps weirdly, answers stack badly.
+ *
+ * Strategy: stack vertically. Rail becomes a SHORT horizontal strip at
+ * the top (timer left, stats inline). Question takes the rest. This
+ * trades the rail's visual prominence for actually fitting on screen.
+ *
+ * Trigger: `@media (orientation: portrait)`. Applies to every portrait
+ * device including tablets. Jota's call — even an iPad held vertically
+ * gets the adapted layout, because the landscape one wastes space on
+ * a non-typical aspect ratio.
+ * ═══════════════════════════════════════════════════════════════════════ */
+
+@media (orientation: portrait) {
+  /* ── Layout: grid 2-col → grid 2-row ─────────────────────────────── */
+  .stage .question-state {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
+  }
+
+  /* ── Rail: vertical column → horizontal strip ────────────────────── */
+  .stage .question-rail {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    border-left: none;
+    border-bottom: 1px solid var(--border);
+    padding: 12px 16px;
+    gap: 14px;
+    /* Visual order in portrait: rail goes ABOVE the question. The grid
+       defines this — rail is the first child in the DOM. */
+  }
+
+  /* Theme-specific border overrides need to also flip side */
+  .stage[data-theme="ocean"] .question-rail,
+  .stage[data-theme="mono"] .question-rail {
+    border-left: none;
+    border-bottom-color: rgba(255,255,255,0.08);
+  }
+  .stage[data-theme="pop"] .question-rail {
+    border-left: none;
+    border-bottom-color: rgba(31,23,51,0.2);
+  }
+
+  /* ── Timer ring: shrink. 96×96 is too big for a horizontal strip. ── */
+  .stage .timer-ring-big {
+    width: 56px;
+    height: 56px;
+    margin: 0;
+    flex-shrink: 0;
+  }
+  .stage .timer-num {
+    font-size: 17px;
+  }
+  .stage .timer-num-total {
+    font-size: 13px;
+  }
+  .stage .timer-caption {
+    /* In portrait there's no space for the "segundos" caption under
+       a 56px ring — hide it. The ring's color and shape already say
+       "this is a timer". */
+    display: none;
+  }
+
+  /* ── Rail divider: invisible in portrait (sections are spaced via
+   *    gap on the rail itself, not via dividers) ──────────────────── */
+  .stage .rail-divider {
+    display: none;
+  }
+
+  /* ── Rail stats: arrange inline (small horizontal block) ─────────── */
+  .stage .rail-stat {
+    text-align: left;
+    /* The wrapper rail flexes; each stat gets natural width. */
+  }
+  .stage .rail-stat-label {
+    font-size: 9px;
+    margin-bottom: 2px;
+  }
+  .stage .rail-stat-value {
+    font-size: 18px;
+  }
+  .stage .rail-stat-sub {
+    font-size: 10px;
+    margin-top: 2px;
+  }
+
+  /* ── Question main: tighter padding (no more luxurious 60px sides) ─ */
+  .stage .question-main {
+    padding: 18px 18px 22px;
+  }
+
+  /* ── Top-strip (header inside stage with logo + student avatar):
+   *    shrink padding so it doesn't eat half the small portrait
+   *    height ──────────────────────────────────────────────────────── */
+  .stage .top-strip {
+    padding: 10px 14px;
+  }
+
+  /* ── Stickers and answer grids that were 2-column on landscape:
+   *    in narrow portrait (<= 600px) collapse to 1-column. We handle
+   *    this via a SEPARATE media query below (combining "portrait
+   *    AND narrow") because nested @media isn't fully supported
+   *    cross-browser yet (Safari is iffy on iOS < 16). ──────────── */
+}
+
+/* PR 23: extra-narrow portrait (typical phones). Stacks more aggressively. */
+@media (orientation: portrait) and (max-width: 600px) {
+  .stage .question-main {
+    padding: 14px 14px 18px;
+  }
+  /* MCQ grid: collapse 2×2 → 1×4. */
+  .stage .answers-grid {
+    grid-template-columns: 1fr;
+    grid-template-rows: repeat(4, 1fr);
+  }
+  /* True/False: stack vertically. */
+  .stage .tf-grid {
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr 1fr;
+  }
+  /* Match: keep 2-col since pairs need to align side by side.
+     Just reduce the gap. */
+  .stage .match-columns {
+    gap: 18px;
+  }
+}
