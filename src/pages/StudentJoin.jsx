@@ -39,7 +39,7 @@ const i18n = {
     pointsLabel: "{points}/{max} points",
     joinAnother: "Join another session", noQuestions: "No questions available",
     // PR 20.2: themed quiz render labels
-    pregunta: "Question", de: "of", elegiRespuesta: "Pick the right answer", elegiTrueFalse: "True or False?", elegiFill: "Fill in the blank", elegiMatch: "Match the pairs",
+    pregunta: "Question", de: "of", elegiRespuesta: "Pick the right answer", elegiTrueFalse: "True or False?", elegiFill: "Fill in the blank", elegiMatch: "Match the pairs", elegiOrder: "Put in order",
     segundos: "seconds", tuPuntaje: "Your score",
     // PR 20.3: themed Join + Waiting strings
     liveSession: "Live session", joinSubtitle: "Your teacher just launched a quiz. Ask them for the code and join with your name.",
@@ -107,7 +107,7 @@ const i18n = {
     pointsLabel: "{points}/{max} puntos",
     joinAnother: "Unirse a otra sesión", noQuestions: "No hay preguntas",
     // PR 20.2: themed quiz render labels
-    pregunta: "Pregunta", de: "de", elegiRespuesta: "Elegí la respuesta", elegiTrueFalse: "¿Verdadero o falso?", elegiFill: "Rellená el espacio", elegiMatch: "Pareá las palabras",
+    pregunta: "Pregunta", de: "de", elegiRespuesta: "Elegí la respuesta", elegiTrueFalse: "¿Verdadero o falso?", elegiFill: "Rellená el espacio", elegiMatch: "Pareá las palabras", elegiOrder: "Poné en orden",
     segundos: "segundos", tuPuntaje: "Tu puntaje",
     // PR 20.3: themed Join + Waiting strings
     liveSession: "Sesión en vivo", joinSubtitle: "Tu profe acaba de lanzar un quiz. Pedile el código y entrá con tu nombre.",
@@ -172,7 +172,7 @@ const i18n = {
     pointsLabel: "{points}/{max} 점",
     joinAnother: "다른 세션 참여", noQuestions: "문제가 없습니다",
     // PR 20.2: themed quiz render labels
-    pregunta: "문제", de: "/", elegiRespuesta: "정답을 선택하세요", elegiTrueFalse: "참 또는 거짓?", elegiFill: "빈칸 채우기", elegiMatch: "짝 맞추기",
+    pregunta: "문제", de: "/", elegiRespuesta: "정답을 선택하세요", elegiTrueFalse: "참 또는 거짓?", elegiFill: "빈칸 채우기", elegiMatch: "짝 맞추기", elegiOrder: "순서대로 놓기",
     segundos: "초", tuPuntaje: "내 점수",
     // PR 20.3: themed Join + Waiting strings
     liveSession: "실시간 세션", joinSubtitle: "선생님이 퀴즈를 시작했어요. 코드를 받아 이름과 함께 입장하세요.",
@@ -464,6 +464,79 @@ function MatchPanel({
           ))}
         </svg>
       </div>
+    </div>
+  );
+}
+
+// ─── PR 24.4: themed Order panel ────────────────────────────────────
+// Stacked "picked" cards with numbers + pool of remaining items below.
+// Click pool chip → moves to picked (animation: slide-in from below).
+// Click picked card → returns to pool (compact + renumber).
+//
+// Props:
+//   - items: q.items (canonical correct order)
+//   - shuffledItems: items in shuffled display order (for the pool)
+//   - orderPicked: array of items the student has picked, in order
+//   - showResult: whether to show reveal coloring
+//   - handleOrderPick(item): add to picked
+//   - handleOrderRemove(item): remove from picked
+//   - t: i18n object
+function OrderPanel({
+  items,
+  shuffledItems,
+  orderPicked,
+  showResult,
+  handleOrderPick,
+  handleOrderRemove,
+  t,
+}) {
+  return (
+    <div className="order-area">
+      <div className="order-hint">
+        {showResult ? "" : (t.tapToOrder || "Tocá los items en orden")}
+      </div>
+
+      {/* PICKED zone: cards in pick order, numbered 1..N */}
+      <div className="order-picked">
+        {orderPicked.map((item, idx) => {
+          const correctItem = items[idx];
+          let revealClass = "";
+          if (showResult) {
+            revealClass = item === correctItem ? "is-correct" : "is-wrong";
+          }
+          return (
+            <button
+              key={item}
+              className={`order-card ${revealClass}`}
+              onClick={() => handleOrderRemove(item)}
+              disabled={showResult}
+            >
+              <div className="order-card-num">{idx + 1}</div>
+              <div className="order-card-text">{item}</div>
+              {showResult && item !== correctItem && (
+                <div className="order-card-hint">→ {correctItem}</div>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* POOL zone: remaining shuffled items (only before reveal) */}
+      {!showResult && (
+        <div className="order-pool">
+          {shuffledItems
+            .filter(it => !orderPicked.includes(it))
+            .map((item) => (
+              <button
+                key={item}
+                className="order-pool-chip"
+                onClick={() => handleOrderPick(item)}
+              >
+                {item}
+              </button>
+            ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -1220,6 +1293,13 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
     if (showResult) return;
     setOrderPicked(prev => prev.slice(0, -1));
   };
+  // PR 24.4: themed Order lets the student click ANY picked card to
+  // remove it (not just the last one like the legacy Undo button).
+  // The remaining picks compact down so the numbering stays 1..N.
+  const handleOrderRemove = (item) => {
+    if (showResult) return;
+    setOrderPicked(prev => prev.filter(x => x !== item));
+  };
 
   const handleMatchLeft = (left) => {
     if (showResult) return;
@@ -1282,10 +1362,17 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
       prevQ.pairs.length > 0 &&
       prevQ.pairs.length <= 8 &&
       prevQ.pairs.every(p => typeof p?.left === 'string' && typeof p?.right === 'string');
+    const prevOrderThemed =
+      prevQType === 'order' &&
+      prevQ &&
+      Array.isArray(prevQ.items) &&
+      prevQ.items.length > 0 &&
+      prevQ.items.length <= 8 &&
+      prevQ.items.every(it => typeof it === 'string');
     const prevWasThemed =
       !isPractice &&
       lobbyThemeId &&
-      (prevMcqThemed || prevTfThemed || prevFillThemed || prevMatchThemed);
+      (prevMcqThemed || prevTfThemed || prevFillThemed || prevMatchThemed || prevOrderThemed);
 
     if (!prevWasThemed) {
       // Legacy render — skip animation, sync immediately
@@ -1752,10 +1839,20 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
       q.pairs.length > 0 &&
       q.pairs.length <= 8 &&
       q.pairs.every(p => typeof p?.left === 'string' && typeof p?.right === 'string');
+    // PR 24.4: Order themed eligibility.
+    //   - q.items is a non-empty array of strings
+    //   - Max 8 items (same reasoning as Match — above that the cards
+    //     stack too tall on the screen).
+    const themedOrderEligible =
+      qType === 'order' &&
+      Array.isArray(q?.items) &&
+      q.items.length > 0 &&
+      q.items.length <= 8 &&
+      q.items.every(it => typeof it === 'string');
     const themedRenderEligible =
       !isPractice &&
       lobbyThemeId &&
-      (themedMcqEligible || themedTfEligible || themedFillEligible || themedMatchEligible);
+      (themedMcqEligible || themedTfEligible || themedFillEligible || themedMatchEligible || themedOrderEligible);
 
     if (themedRenderEligible) {
       const totalScore = answers.reduce((s, a) => s + (a?.points || 0), 0);
@@ -1869,10 +1966,12 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
                               ? (t.elegiFill || "Rellená el espacio")
                               : qType === 'match'
                                 ? (t.elegiMatch || "Pareá las palabras")
-                                : (t.elegiRespuesta || "Elegí la respuesta")}
+                                : qType === 'order'
+                                  ? (t.elegiOrder || "Poné en orden")
+                                  : (t.elegiRespuesta || "Elegí la respuesta")}
                         </div>
                         <div
-                          className={`question-text-tablet ${qType === 'match' ? 'is-match' : ''}`}
+                          className={`question-text-tablet ${qType === 'match' || qType === 'order' ? 'is-match' : ''}`}
                           style={{ whiteSpace: "pre-wrap" }}
                         >
                           {displayedQ.q}
@@ -1888,6 +1987,18 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
                             handleMatchLeft={handleMatchLeft}
                             handleMatchRight={handleMatchRight}
                             handleMatchUndo={handleMatchUndo}
+                            t={t}
+                          />
+                        )}
+
+                        {qType === 'order' && Array.isArray(displayedQ.items) && (
+                          <OrderPanel
+                            items={displayedQ.items}
+                            shuffledItems={shuffledItems}
+                            orderPicked={orderPicked}
+                            showResult={showResult}
+                            handleOrderPick={handleOrderPick}
+                            handleOrderRemove={handleOrderRemove}
                             t={t}
                           />
                         )}

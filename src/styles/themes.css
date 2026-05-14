@@ -2463,6 +2463,176 @@
   letter-spacing: 0.02em;
 }
 
+/* ─── PR 24.4: ORDER (ordenar) themed render ────────────────────────
+ * Two stacked zones in a centered column:
+ *   1. PICKED area (top) — the items the student has tapped so far,
+ *      numbered 1..N. Cards slide in with a pop animation.
+ *   2. POOL area (bottom) — the remaining shuffled items, presented
+ *      as smaller chips arranged in a wrap-flex.
+ * Click a pool chip → it disappears, a new picked card slides in.
+ * Click a picked card → it returns to the pool.
+ *
+ * Reveal: each picked card turns green if it's in the correct slot,
+ * red otherwise. When red, a small "→ correctItem" hint shows.
+ */
+.stage .order-area {
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  flex-shrink: 0;
+}
+.stage .order-hint {
+  text-align: center;
+  font-size: 13px;
+  opacity: 0.6;
+  letter-spacing: 0.02em;
+}
+
+/* Picked area: stacked cards with numbers. */
+.stage .order-picked {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 64px;
+}
+.stage .order-card {
+  background: var(--surface);
+  border: 1.5px solid var(--accent);
+  border-radius: 12px;
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-family: 'Outfit', sans-serif;
+  font-weight: 600;
+  font-size: 18px;
+  cursor: pointer;
+  color: currentColor;
+  transition: transform 0.12s ease, opacity 0.12s ease;
+  animation: orderSlideIn 0.32s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.stage .order-card:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+.stage .order-card:active { transform: scale(0.98); }
+.stage[data-theme="mono"] .order-card {
+  font-family: 'JetBrains Mono', monospace;
+  border-radius: 0;
+}
+.stage[data-theme="pop"] .order-card {
+  border: 2px solid #1F1733;
+  box-shadow: 3px 3px 0 #1F1733;
+}
+.stage[data-theme="ocean"] .order-card {
+  background: rgba(255,255,255,0.05);
+  backdrop-filter: blur(10px);
+}
+@keyframes orderSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.stage .order-card-num {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--on-accent);
+  display: grid;
+  place-items: center;
+  font-family: 'Outfit', sans-serif;
+  font-weight: 700;
+  font-size: 15px;
+  flex-shrink: 0;
+}
+.stage[data-theme="mono"] .order-card-num {
+  border-radius: 0;
+  font-family: 'JetBrains Mono', monospace;
+}
+.stage .order-card-text {
+  flex: 1;
+}
+.stage .order-card-hint {
+  font-size: 13px;
+  opacity: 0.55;
+  font-weight: 500;
+}
+
+/* Reveal coloring. */
+.stage .order-card.is-correct {
+  border-color: var(--success);
+  background: var(--success-tint);
+}
+.stage .order-card.is-correct .order-card-num {
+  background: var(--success);
+  color: var(--surface);
+}
+.stage .order-card.is-wrong {
+  border-color: var(--danger);
+  background: var(--danger-tint);
+}
+.stage .order-card.is-wrong .order-card-num {
+  background: var(--danger);
+  color: var(--surface);
+}
+.stage[data-theme="mono"] .order-card.is-correct .order-card-num,
+.stage[data-theme="mono"] .order-card.is-wrong .order-card-num {
+  background: #FFFFFF;
+  color: #000000;
+}
+
+/* Pool area: remaining shuffled items as wrap-chips. */
+.stage .order-pool {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  min-height: 50px;
+}
+.stage .order-pool-chip {
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 16px;
+  font-family: 'Outfit', sans-serif;
+  font-weight: 600;
+  font-size: 15px;
+  color: currentColor;
+  cursor: pointer;
+  transition: all 0.12s ease;
+  animation: orderPoolFadeIn 0.2s ease;
+}
+.stage .order-pool-chip:hover {
+  transform: translateY(-1px);
+  border-color: var(--accent);
+}
+.stage .order-pool-chip:active { transform: scale(0.96); }
+.stage[data-theme="mono"] .order-pool-chip {
+  font-family: 'JetBrains Mono', monospace;
+  border-radius: 0;
+}
+.stage[data-theme="pop"] .order-pool-chip {
+  border: 2px solid #1F1733;
+  box-shadow: 2px 2px 0 #1F1733;
+}
+.stage[data-theme="ocean"] .order-pool-chip {
+  background: rgba(255,255,255,0.05);
+  backdrop-filter: blur(10px);
+}
+@keyframes orderPoolFadeIn {
+  from { opacity: 0; transform: scale(0.92); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
 /* ─── PR 20.2.5: slide transition between questions ──────────────────
  * When the student taps "Next", the current question slides out to
  * the left (32px + fade) and the new question slides in from the
