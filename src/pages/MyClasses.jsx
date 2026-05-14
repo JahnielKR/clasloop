@@ -39,6 +39,7 @@ const i18n = {
     leaveClass: "Leave class",
     leaveConfirm: "Leave this class? You can rejoin anytime with the code.",
     leaveYes: "Yes, leave", leaveNo: "Cancel",
+    leaveError: "Could not leave the class. Try again.",
     savedDecks: "Saved from community",
     savedDecksSub: "Decks you bookmarked from the community library.",
     savedFrom: "Saved from",
@@ -77,6 +78,7 @@ const i18n = {
     leaveClass: "Salir de la clase",
     leaveConfirm: "¿Salir de esta clase? Puedes volver con el código.",
     leaveYes: "Sí, salir", leaveNo: "Cancelar",
+    leaveError: "No se pudo salir de la clase. Intentá de nuevo.",
     savedDecks: "Guardados de la comunidad",
     savedDecksSub: "Decks que guardaste de la biblioteca pública.",
     savedFrom: "Guardado de",
@@ -115,6 +117,7 @@ const i18n = {
     leaveClass: "수업에서 나가기",
     leaveConfirm: "이 수업에서 나가시겠습니까? 코드로 다시 참여할 수 있습니다.",
     leaveYes: "네, 나가기", leaveNo: "취소",
+    leaveError: "수업에서 나갈 수 없습니다. 다시 시도하세요.",
     savedDecks: "커뮤니티에서 저장",
     savedDecksSub: "커뮤니티 라이브러리에서 북마크한 덱.",
     savedFrom: "저장 출처",
@@ -171,7 +174,7 @@ const Card = ({ children, style = {}, onClick, className = "" }) => (
 const retCol = (r) => r >= 80 ? C.green : r >= 60 ? C.orange : C.red;
 
 // ─── Main page ──────────────────────────────────────────────────────────────
-export default function MyClasses({ lang: pageLang = "en", setLang: pageSetLang, profile = null, onLaunchPractice = null, onOpenMobileMenu, studentJoinedTick = 0 }) {
+export default function MyClasses({ lang: pageLang = "en", setLang: pageSetLang, profile = null, onLaunchPractice = null, onOpenMobileMenu, studentMembershipTick = 0, notifyMembershipChanged }) {
   const l = pageLang || "en";
   const t = i18n[l] || i18n.en;
   const setLang = pageSetLang || (() => {});
@@ -200,11 +203,11 @@ export default function MyClasses({ lang: pageLang = "en", setLang: pageSetLang,
   const joinFormRef = useRef(null);
   const classRefs = useRef({});
 
-  // PR 26.2: studentJoinedTick increments every time the student joins
-  // a class via the gating ClassCodeModal. Including it in deps causes
-  // loadAll to re-run, so the freshly-joined class appears here
-  // without needing a page reload.
-  useEffect(() => { loadAll(); }, [profile?.id, studentJoinedTick]);
+  // PR 26.2 + 26.3: studentMembershipTick increments every time the
+  // student's class membership changes (join via modal, leave via
+  // class detail). Including it in deps causes loadAll to re-run, so
+  // the list updates immediately without a page reload.
+  useEffect(() => { loadAll(); }, [profile?.id, studentMembershipTick]);
 
   const loadAll = async () => {
     if (!profile?.id) { setLoading(false); return; }
@@ -375,6 +378,7 @@ export default function MyClasses({ lang: pageLang = "en", setLang: pageSetLang,
           lang={l}
           onBack={() => { navigate(ROUTES.CLASSES); loadAll(); }}
           onLaunchPractice={onLaunchPractice}
+          notifyMembershipChanged={notifyMembershipChanged}
         />
       </div>
     );
@@ -731,7 +735,7 @@ function SavedDeckCard({ deck, t, lang, onPractice, onToggleFavorite, onUnsave }
 }
 
 // ─── Class Detail ───────────────────────────────────────────────────────────
-function ClassDetail({ cls, profile, t, lang, onBack, onLaunchPractice }) {
+function ClassDetail({ cls, profile, t, lang, onBack, onLaunchPractice, notifyMembershipChanged }) {
   const isMobile = useIsMobile();
   const [activeTab, setActiveTab] = useState("reviews");
   const [decks, setDecks] = useState([]);
@@ -753,10 +757,32 @@ function ClassDetail({ cls, profile, t, lang, onBack, onLaunchPractice }) {
   };
 
   const handleLeave = async () => {
-    await supabase.from("class_members").delete()
+    // PR 26.3: capture the response to verify the delete actually
+    // affected rows. Pre-PR-26.3 the class_members table had no
+    // DELETE policy, so Supabase silently returned 0 rows touched
+    // and the "Leave class" button did nothing. After the migration
+    // this works; the count check below catches future RLS
+    // regressions so we don't silently fail again.
+    const { error, count } = await supabase.from("class_members").delete({ count: "exact" })
       .eq("class_id", cls.id)
       .eq("student_id", profile.id);
+    if (error) {
+      console.error("[clasloop] Leave class failed:", error);
+      alert(t.leaveError || "Could not leave the class. Try again.");
+      return;
+    }
+    if (count === 0) {
+      // Probably an RLS policy missing. Don't lie to the user.
+      console.error("[clasloop] Leave class affected 0 rows (RLS?)");
+      alert(t.leaveError || "Could not leave the class. Try again.");
+      return;
+    }
     setLeavingConfirm(false);
+    // PR 26.3: notify App.jsx so it re-checks membership. If this was
+    // the student's only class, the gating ClassCodeModal opens again.
+    // If they're still in other classes, MyClasses just refreshes
+    // its list (the leave row is gone).
+    if (notifyMembershipChanged) notifyMembershipChanged();
     onBack();
   };
 

@@ -294,11 +294,14 @@ export default function App() {
   // haven't checked yet (don't show the modal). false → modal opens
   // and blocks. true → modal stays closed. Recomputed when the
   // student joins a class via the modal.
-  // PR 26.2: bump on every successful class join via the gating
-  // modal. Pages that show student data (MyClasses) add this to
-  // their useEffect deps so they re-fetch automatically without
-  // needing a full page reload.
-  const [studentJoinedTick, setStudentJoinedTick] = useState(0);
+  // PR 26.2 + 26.3: bumped on every change to the student's class
+  // membership — joining (modal) AND leaving (class detail page).
+  // Pages that show student data add this to their useEffect deps
+  // so they re-fetch automatically without needing a full reload.
+  // Also feeds the membership-check useEffect below, so the
+  // ClassCodeModal can re-appear if a student leaves their last
+  // class.
+  const [studentMembershipTick, setStudentMembershipTick] = useState(0);
   const [studentHasClass, setStudentHasClass] = useState(null);
   // Count of free-text responses pending the current teacher's review.
   // Drives the red badge on the "To review" sidebar item. Same pattern
@@ -603,7 +606,7 @@ export default function App() {
       setStudentHasClass((count || 0) > 0);
     })();
     return () => { cancelled = true; };
-  }, [profile?.id, profile?.role]);
+  }, [profile?.id, profile?.role, studentMembershipTick]);
 
   const fetchProfile = async (id, isInitial = true) => {
     try {
@@ -818,11 +821,14 @@ export default function App() {
               lang={lang}
               setLang={setLang}
               profile={profile}
-              // PR 26.2: incremented when the student joins a class via the
-              // ClassCodeModal. Student-facing pages (MyClasses) include this
-              // in their useEffect deps so they re-fetch immediately after a
-              // join — no reload needed. Teacher pages ignore it.
-              studentJoinedTick={studentJoinedTick}
+              // PR 26.2 + 26.3: bumped when student membership changes
+              // (joins via modal OR leaves via class detail page). Student-
+              // facing pages include it in useEffect deps so they re-fetch
+              // immediately. Pages that allow leaving a class can also
+              // call notifyMembershipChanged() below to force a re-check
+              // of the gating modal.
+              studentMembershipTick={studentMembershipTick}
+              notifyMembershipChanged={() => setStudentMembershipTick(n => n + 1)}
               // Refrescar el profile del state global (App). Lo llaman pantallas
               // que muten profile en DB (ej. Settings cambiando avatar/foto/full_name)
               // para que el sidebar y el resto del app vean el cambio sin refresh.
@@ -868,13 +874,14 @@ export default function App() {
           profile={profile}
           lang={lang}
           onJoined={() => {
-            // PR 26.2: flip the gate AND bump the refresh tick.
-            // Flipping unblocks the UI immediately; the tick tells
-            // student pages (MyClasses) to re-fetch their data so
-            // the freshly-joined class shows up without a manual
-            // page reload.
+            // PR 26.2 + 26.3: flip the gate AND bump the membership
+            // tick. Flipping unblocks the UI immediately; the tick
+            // tells student pages (MyClasses) to re-fetch so the
+            // freshly-joined class appears without a manual reload,
+            // and re-runs App's own check so the gate state stays
+            // consistent.
             setStudentHasClass(true);
-            setStudentJoinedTick(n => n + 1);
+            setStudentMembershipTick(n => n + 1);
           }}
         />
       )}
