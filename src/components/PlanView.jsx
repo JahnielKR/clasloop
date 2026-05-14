@@ -48,7 +48,8 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import SectionBadge, { sectionAccent } from "./SectionBadge";
 import AddToSlotModal from "./AddToSlotModal";
-import { unitStatusLabel } from "../lib/class-hierarchy";
+import DayDateModal from "./DayDateModal";
+import { unitStatusLabel, getDayDate } from "../lib/class-hierarchy";
 import { C, MONO } from "./tokens";
 import { buildRoute, ROUTES, QUERY } from "../routes";
 
@@ -56,6 +57,9 @@ import { buildRoute, ROUTES, QUERY } from "../routes";
 const i18n = {
   en: {
     dayLabel: "Day {n}",
+    // PR 25.1: date scheduling
+    noDateAssigned: "No date · Assign",
+    changeDate: "Change",
     addWarmup: "+ Add warmup",
     addExit: "+ Add exit ticket",
     addDay: "+ Add Day {n}",
@@ -92,6 +96,8 @@ const i18n = {
   },
   es: {
     dayLabel: "Día {n}",
+    noDateAssigned: "Sin fecha · Asignar",
+    changeDate: "Cambiar",
     addWarmup: "+ Añadir warmup",
     addExit: "+ Añadir exit ticket",
     addDay: "+ Añadir Día {n}",
@@ -122,6 +128,8 @@ const i18n = {
   },
   ko: {
     dayLabel: "{n}일차",
+    noDateAssigned: "날짜 없음 · 지정하기",
+    changeDate: "변경",
     addWarmup: "+ 워밍업 추가",
     addExit: "+ 종료 티켓 추가",
     addDay: "+ {n}일차 추가",
@@ -162,6 +170,27 @@ const i18n = {
 // We don't care if positions skip numbers (1, 3, 5) — we collapse the gaps
 // and number consecutively starting at Day 1. The teacher reads "I have
 // 3 days set up" not "I have days 1, 3, and 5".
+// PR 25.1: format a JS Date as "Mon May 26" (or localized equivalent).
+// Used in DayBlock header to show the scheduled date alongside the
+// dayNumber. Falls back to en-US if the lang locale isn't recognized
+// by Intl. Returns null for invalid dates so caller can render
+// "Sin fecha" instead.
+function formatDayDate(date, lang) {
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return null;
+  // Map app lang ('en'/'es'/'ko') to BCP-47 locale.
+  const locale = lang === "es" ? "es" : lang === "ko" ? "ko" : "en-US";
+  try {
+    // "Mon, May 26" (en) / "lun, 26 may" (es) / "5월 26일 (월)" (ko)
+    return new Intl.DateTimeFormat(locale, {
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+    }).format(date);
+  } catch {
+    return date.toDateString();
+  }
+}
+
 function buildDayRows(decks, activeUnitId) {
   if (!activeUnitId) return [];
   const inUnit = decks.filter(d => d.unit_id === activeUnitId);
@@ -877,18 +906,72 @@ function Slot({ deck, slotKind, t, lang, onLaunch, onSlotClick, isUsed, onRemove
 }
 
 // ─── DayBlock — header + warmup slot + exit slot ───────────────────────
-function DayBlock({ row, t, lang, onLaunch, onSlotClick, usedDeckIds, onRemove, onEdit }) {
+function DayBlock({ row, t, lang, onLaunch, onSlotClick, usedDeckIds, onRemove, onEdit, dayDate, onDateClick }) {
+  const formattedDate = formatDayDate(dayDate, lang);
   return (
     <div style={{ marginBottom: 22 }}>
       <div style={{
-        fontFamily: "'Outfit', sans-serif",
-        fontSize: 13, fontWeight: 700,
-        color: C.textSecondary,
-        textTransform: "uppercase",
-        letterSpacing: "0.07em",
+        display: "flex",
+        alignItems: "baseline",
+        gap: 10,
         marginBottom: 10,
+        flexWrap: "wrap",
       }}>
-        {t.dayLabel.replace("{n}", row.dayNumber)}
+        <span style={{
+          fontFamily: "'Outfit', sans-serif",
+          fontSize: 13, fontWeight: 700,
+          color: C.textSecondary,
+          textTransform: "uppercase",
+          letterSpacing: "0.07em",
+        }}>
+          {t.dayLabel.replace("{n}", row.dayNumber)}
+        </span>
+        {/* PR 25.1: date chip. Clickable — opens DayDateModal to edit.
+            If unassigned, shows a CTA "Sin fecha · Asignar". */}
+        <button
+          type="button"
+          onClick={() => onDateClick(row.dayNumber)}
+          style={{
+            background: formattedDate ? C.accentSoft : "transparent",
+            border: formattedDate ? "none" : `1px dashed ${C.border}`,
+            borderRadius: 6,
+            padding: "3px 9px",
+            fontFamily: "'Outfit', sans-serif",
+            fontSize: 12,
+            fontWeight: 600,
+            color: formattedDate ? C.accent : C.textMuted,
+            cursor: "pointer",
+            textTransform: formattedDate ? "none" : "none",
+            letterSpacing: 0,
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 5,
+          }}
+          onMouseEnter={(e) => {
+            if (formattedDate) {
+              e.currentTarget.style.background = C.accent + "22";
+            } else {
+              e.currentTarget.style.background = C.bgSoft;
+            }
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = formattedDate ? C.accentSoft : "transparent";
+          }}
+        >
+          {formattedDate ? (
+            <>
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2"/>
+                <line x1="16" y1="2" x2="16" y2="6"/>
+                <line x1="8" y1="2" x2="8" y2="6"/>
+                <line x1="3" y1="10" x2="21" y2="10"/>
+              </svg>
+              {formattedDate}
+            </>
+          ) : (
+            t.noDateAssigned
+          )}
+        </button>
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         <Slot
@@ -1231,6 +1314,14 @@ export default function PlanView({
   const [modalSlot, setModalSlot] = useState(null);
   // modalSlot shape: { dayNumber: number, slotKind: "warmup"|"exit" } | null
 
+  // PR 25.1: state for the DayDateModal.
+  //   - dateModal: { dayNumber: number, pendingSlot?: { slotKind, dayNumber } }
+  //   - dayNumber identifies which day's date is being edited.
+  //   - pendingSlot, if set, means the modal was opened as a precursor
+  //     to creating a deck — when the date saves, we open AddToSlotModal
+  //     with pendingSlot. If null, this is just a date edit.
+  const [dateModal, setDateModal] = useState(null);
+
   // PR6 follow-up: animate unit transitions. When activeUnit.id changes
   // (the teacher hit prev/next or jumped from Past/Upcoming/Search),
   // we slide the content out in one direction and the new content in
@@ -1324,8 +1415,36 @@ export default function PlanView({
   };
   // Click on an empty slot opens the AddToSlotModal — the teacher picks
   // an existing deck from their library OR jumps to the editor.
+  // PR 25.1: when the teacher clicks an empty slot, check whether
+  // the target day already has a date. If yes, proceed straight to
+  // the AddToSlotModal (existing flow). If no, open DayDateModal
+  // first; once the date is saved, AddToSlotModal opens with the
+  // remembered slot.
   const handleSlotClick = (slotKind, dayNumber) => {
-    setModalSlot({ slotKind, dayNumber });
+    const existing = getDayDate(renderUnit, dayNumber);
+    if (existing) {
+      setModalSlot({ slotKind, dayNumber });
+    } else {
+      setDateModal({ dayNumber, pendingSlot: { slotKind, dayNumber } });
+    }
+  };
+  // PR 25.1: clicking the date chip in a day header opens the modal
+  // for editing. No pendingSlot — just an edit.
+  const handleDateClick = (dayNumber) => {
+    setDateModal({ dayNumber, pendingSlot: null });
+  };
+  // PR 25.1: after the date modal saves, if there's a pendingSlot,
+  // open AddToSlotModal. Otherwise refresh so the new date shows.
+  const handleDateSaved = (_newDate) => {
+    const pending = dateModal?.pendingSlot;
+    setDateModal(null);
+    onRefresh && onRefresh();
+    if (pending) {
+      // Defer modalSlot until next tick so the date refresh propagates
+      // through onRefresh — otherwise the AddToSlotModal sees the
+      // pre-save renderUnit.
+      setTimeout(() => setModalSlot(pending), 0);
+    }
   };
   // Modal "Create a new one" path — same as the pre-modal behavior:
   // jump to the editor with section + unit + class pre-filled.
@@ -1353,8 +1472,10 @@ export default function PlanView({
   // "+ Add Day N+1" at end of stack — opens the modal for a warmup at
   // the next day. Adding a warmup is the canonical way to seed a day;
   // the matching exit ticket comes after.
+  // PR 25.1: routes through handleSlotClick so the date-gating
+  // happens consistently for new days too.
   const handleAddNewDay = () => {
-    setModalSlot({ slotKind: "warmup", dayNumber: dayCount + 1 });
+    handleSlotClick("warmup", dayCount + 1);
   };
   // "+ Add review" in the General Reviews block — bypasses the modal
   // (general reviews aren't slotted into a day, so the "pick from
@@ -1644,6 +1765,8 @@ export default function PlanView({
               usedDeckIds={usedDeckIds}
               onRemove={handleRemoveDeck}
               onEdit={handleEditDeck}
+              dayDate={getDayDate(renderUnit, row.dayNumber)}
+              onDateClick={handleDateClick}
             />
           ))}
 
@@ -1705,6 +1828,20 @@ export default function PlanView({
         lang={lang}
         onPicked={handlePickedFromLibrary}
         onCreate={handleCreateFromModal}
+      />
+
+      {/* PR 25.1: date modal. Two modes:
+          - Pre-creation gate: opened when a slot click happens on a
+            day with no date yet. After save, AddToSlotModal opens.
+          - Edit: opened when the teacher clicks the date chip in a
+            day header. After save, just refresh. */}
+      <DayDateModal
+        open={dateModal !== null}
+        unit={renderUnit}
+        dayNumber={dateModal?.dayNumber}
+        lang={lang}
+        onClose={() => setDateModal(null)}
+        onSaved={handleDateSaved}
       />
     </div>
   );
