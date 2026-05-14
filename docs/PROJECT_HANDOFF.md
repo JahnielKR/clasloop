@@ -575,4 +575,61 @@ If you're handing this off to anyone else, get Jota's blessing first.
 
 ---
 
-*End of handoff document. ~2,400 words. Update version: 2026-05-10.*
+## 16. Supabase conventions (read before writing any migration)
+
+### Explicit GRANTs are mandatory for new tables
+
+Starting May 30, 2026, new Supabase projects do NOT automatically expose tables in the `public` schema to the Data API (PostgREST, supabase-js, GraphQL). Tables created without explicit GRANTs are invisible to the client and will return a 42501 error.
+
+**This applies to all new tables we create from now on, in this project too** — the deadline for existing projects is October 30, 2026, and it's easier to start writing the grants now than to remember to backfill them.
+
+**Template for every new table in a migration:**
+
+```sql
+create table public.your_table (
+  id uuid default uuid_generate_v4() primary key,
+  -- ... columns ...
+  created_at timestamptz default now()
+);
+
+-- ── Grants for the Data API (PostgREST / supabase-js) ────────────────
+-- Choose the minimum set of grants that matches what the client needs.
+-- 'anon' is for unauthenticated users (e.g. students joining as guests).
+-- 'authenticated' is for logged-in users (teachers + logged-in students).
+-- 'service_role' bypasses RLS (used by server code if we ever have any).
+--
+-- IMPORTANT: GRANTS are the door. RLS is the lock. You need both — a
+-- table with grants but no RLS is publicly readable; a table with RLS
+-- but no grants is invisible from the Data API.
+
+-- Example: a teacher-only writable, student-readable table:
+grant select on public.your_table to anon;
+grant select, insert, update, delete on public.your_table to authenticated;
+grant select, insert, update, delete on public.your_table to service_role;
+
+-- Then enable RLS and add policies as usual:
+alter table public.your_table enable row level security;
+
+create policy "policy name" on public.your_table
+  for select to authenticated
+  using (auth.uid() = some_user_id_column);
+```
+
+**For columns added to existing tables** (`alter table ... add column ...`), no extra grant is needed — existing grants on the table cascade to new columns.
+
+**For functions** (RPC / triggers), the equivalent is:
+```sql
+grant execute on function public.your_func to anon, authenticated;
+```
+
+### How to verify after running a migration
+
+If a student / teacher gets a `42501` PostgreSQL error from the browser, the table is missing a grant. The error message from PostgREST includes the exact GRANT statement to run — paste it into the SQL editor.
+
+### What this changes about how Claude writes migrations
+
+When Claude generates a migration that creates a new table, it MUST include the GRANT block above. No exceptions. RLS policies alone are not enough.
+
+---
+
+*End of handoff document. Update version: 2026-05-14.*
