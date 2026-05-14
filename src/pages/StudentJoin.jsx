@@ -39,7 +39,7 @@ const i18n = {
     pointsLabel: "{points}/{max} points",
     joinAnother: "Join another session", noQuestions: "No questions available",
     // PR 20.2: themed quiz render labels
-    pregunta: "Question", de: "of", elegiRespuesta: "Pick the right answer", elegiTrueFalse: "True or False?", elegiFill: "Fill in the blank", elegiMatch: "Match the pairs", elegiOrder: "Put in order",
+    pregunta: "Question", de: "of", elegiRespuesta: "Pick the right answer", elegiTrueFalse: "True or False?", elegiFill: "Fill in the blank", elegiMatch: "Match the pairs", elegiOrder: "Put in order", elegiFree: "Write your answer", freeSubmittedTitle: "Answer submitted", freeSubmittedHint: "Waiting for the teacher to grade it",
     segundos: "seconds", tuPuntaje: "Your score",
     // PR 20.3: themed Join + Waiting strings
     liveSession: "Live session", joinSubtitle: "Your teacher just launched a quiz. Ask them for the code and join with your name.",
@@ -107,7 +107,7 @@ const i18n = {
     pointsLabel: "{points}/{max} puntos",
     joinAnother: "Unirse a otra sesión", noQuestions: "No hay preguntas",
     // PR 20.2: themed quiz render labels
-    pregunta: "Pregunta", de: "de", elegiRespuesta: "Elegí la respuesta", elegiTrueFalse: "¿Verdadero o falso?", elegiFill: "Rellená el espacio", elegiMatch: "Pareá las palabras", elegiOrder: "Poné en orden",
+    pregunta: "Pregunta", de: "de", elegiRespuesta: "Elegí la respuesta", elegiTrueFalse: "¿Verdadero o falso?", elegiFill: "Rellená el espacio", elegiMatch: "Pareá las palabras", elegiOrder: "Poné en orden", elegiFree: "Escribí tu respuesta", freeSubmittedTitle: "Respuesta enviada", freeSubmittedHint: "Esperando que el profe la califique",
     segundos: "segundos", tuPuntaje: "Tu puntaje",
     // PR 20.3: themed Join + Waiting strings
     liveSession: "Sesión en vivo", joinSubtitle: "Tu profe acaba de lanzar un quiz. Pedile el código y entrá con tu nombre.",
@@ -172,7 +172,7 @@ const i18n = {
     pointsLabel: "{points}/{max} 점",
     joinAnother: "다른 세션 참여", noQuestions: "문제가 없습니다",
     // PR 20.2: themed quiz render labels
-    pregunta: "문제", de: "/", elegiRespuesta: "정답을 선택하세요", elegiTrueFalse: "참 또는 거짓?", elegiFill: "빈칸 채우기", elegiMatch: "짝 맞추기", elegiOrder: "순서대로 놓기",
+    pregunta: "문제", de: "/", elegiRespuesta: "정답을 선택하세요", elegiTrueFalse: "참 또는 거짓?", elegiFill: "빈칸 채우기", elegiMatch: "짝 맞추기", elegiOrder: "순서대로 놓기", elegiFree: "답을 작성하세요", freeSubmittedTitle: "답안 제출됨", freeSubmittedHint: "선생님의 채점을 기다리는 중",
     segundos: "초", tuPuntaje: "내 점수",
     // PR 20.3: themed Join + Waiting strings
     liveSession: "실시간 세션", joinSubtitle: "선생님이 퀴즈를 시작했어요. 코드를 받아 이름과 함께 입장하세요.",
@@ -1378,10 +1378,11 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
       prevQ.items.length > 0 &&
       prevQ.items.length <= 8 &&
       prevQ.items.every(it => typeof it === 'string');
+    const prevFreeThemed = prevQType === 'free' && prevQ;
     const prevWasThemed =
       !isPractice &&
       lobbyThemeId &&
-      (prevMcqThemed || prevTfThemed || prevFillThemed || prevMatchThemed || prevOrderThemed);
+      (prevMcqThemed || prevTfThemed || prevFillThemed || prevMatchThemed || prevOrderThemed || prevFreeThemed);
 
     if (!prevWasThemed) {
       // Legacy render — skip animation, sync immediately
@@ -1861,10 +1862,15 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
       q.items.length > 0 &&
       q.items.length <= 8 &&
       q.items.every(it => typeof it === 'string');
+    // PR 24.5: Free (open-ended text) themed eligibility.
+    //   - The question type is 'free'. No further shape requirements —
+    //     the question just needs a prompt, and the answer is graded
+    //     by the teacher later.
+    const themedFreeEligible = qType === 'free';
     const themedRenderEligible =
       !isPractice &&
       lobbyThemeId &&
-      (themedMcqEligible || themedTfEligible || themedFillEligible || themedMatchEligible || themedOrderEligible);
+      (themedMcqEligible || themedTfEligible || themedFillEligible || themedMatchEligible || themedOrderEligible || themedFreeEligible);
 
     if (themedRenderEligible) {
       const totalScore = answers.reduce((s, a) => s + (a?.points || 0), 0);
@@ -1980,7 +1986,9 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
                                 ? (t.elegiMatch || "Pareá las palabras")
                                 : qType === 'order'
                                   ? (t.elegiOrder || "Poné en orden")
-                                  : (t.elegiRespuesta || "Elegí la respuesta")}
+                                  : qType === 'free'
+                                    ? (t.elegiFree || "Escribí tu respuesta")
+                                    : (t.elegiRespuesta || "Elegí la respuesta")}
                         </div>
 
                         {/* PR 24.4.2: question prompt image. All themed
@@ -1998,7 +2006,7 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
                         )}
 
                         <div
-                          className={`question-text-tablet ${qType === 'match' || qType === 'order' ? 'is-match' : ''}`}
+                          className={`question-text-tablet ${qType === 'match' || qType === 'order' || qType === 'free' ? 'is-match' : ''}`}
                           style={{ whiteSpace: "pre-wrap" }}
                         >
                           {displayedQ.q}
@@ -2165,6 +2173,52 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
                         {showResult && !lastIsCorrect && displayedQ.answer && (
                           <div className="fill-correct-hint">
                             <strong>{t.correctAnswer || "Respuesta correcta"}:</strong> {displayedQ.answer}
+                          </div>
+                        )}
+                      </div>
+                      )}
+
+                      {/* PR 24.5: Free (open-ended text) themed render.
+                          - Multi-line textarea (5 rows) centered
+                          - Enter does a newline (NOT submit) — students
+                            can compose multi-line answers without
+                            accidentally submitting
+                          - Submit button below, disabled while empty
+                          - After submit, the textarea + button are
+                            replaced by a "submitted, waiting for grade"
+                            banner since there's no correct/wrong reveal */}
+                      {qType === 'free' && (
+                      <div className="free-area">
+                        {!showResult && (
+                          <>
+                            <textarea
+                              className="free-textarea"
+                              value={freeText}
+                              onChange={e => setFreeText(e.target.value)}
+                              placeholder={t.typeAnswer || "Escribí tu respuesta"}
+                              autoFocus
+                              rows={5}
+                            />
+                            <button
+                              className="free-submit"
+                              onClick={handleFreeSubmit}
+                              disabled={!freeText.trim()}
+                            >
+                              {t.submit || "Enviar"}
+                            </button>
+                          </>
+                        )}
+                        {showResult && (
+                          <div className="free-submitted-state">
+                            <svg className="free-submitted-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M20 6L9 17l-5-5"/>
+                            </svg>
+                            <div className="free-submitted-title">
+                              {t.freeSubmittedTitle || "Respuesta enviada"}
+                            </div>
+                            <div className="free-submitted-hint">
+                              {t.freeSubmittedHint || "Esperando que el profe la califique"}
+                            </div>
                           </div>
                         )}
                       </div>

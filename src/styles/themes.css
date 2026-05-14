@@ -2426,6 +2426,143 @@
   font-family: 'JetBrains Mono', monospace;
 }
 
+/* ─── PR 24.5: FREE (open-ended text) themed render ─────────────────
+ * A large multi-line textarea where the student composes their answer
+ * + a submit button below. There's no correct/wrong reveal — the
+ * teacher grades it later. After submit, the textarea is replaced
+ * by a "submitted, waiting for grade" banner so the student knows
+ * the answer was recorded.
+ *
+ * Like .fill-area, this sits inside .question-center and centers
+ * vertically along with the prompt text.
+ */
+.stage .free-area {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto;
+  flex-shrink: 0;
+}
+.stage .free-textarea {
+  width: 100%;
+  background: var(--surface);
+  border: 2px solid var(--border);
+  border-radius: 14px;
+  padding: 18px 22px;
+  font-family: 'Outfit', sans-serif;
+  font-weight: 500;
+  font-size: 20px;
+  line-height: 1.45;
+  color: currentColor;
+  resize: vertical;
+  min-height: 160px;
+  outline: none;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+.stage .free-textarea::placeholder { color: var(--text-muted); }
+.stage .free-textarea:focus { border-color: var(--accent); }
+.stage[data-theme="mono"] .free-textarea {
+  font-family: 'JetBrains Mono', monospace;
+  border-radius: 0;
+}
+.stage[data-theme="pop"] .free-textarea {
+  border-width: 3px;
+  box-shadow: 4px 4px 0 #1F1733;
+}
+.stage[data-theme="ocean"] .free-textarea {
+  background: rgba(255,255,255,0.05);
+  backdrop-filter: blur(10px);
+}
+
+/* Submit button (mirrors .fill-submit). */
+.stage .free-submit {
+  background: var(--accent);
+  color: var(--on-accent);
+  border: none;
+  border-radius: 12px;
+  padding: 14px 36px;
+  font-family: 'Outfit', sans-serif;
+  font-weight: 700;
+  font-size: 16px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  min-width: 180px;
+}
+.stage .free-submit:hover { transform: translateY(-1px); }
+.stage .free-submit:active { transform: scale(0.98); }
+.stage .free-submit:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none;
+}
+.stage[data-theme="pop"] .free-submit {
+  border: 2px solid #1F1733;
+  box-shadow: 3px 3px 0 #1F1733;
+}
+.stage[data-theme="mono"] .free-submit {
+  border-radius: 0;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* Post-submit state: a friendly "got it" banner. */
+.stage .free-submitted-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 36px 28px;
+  background: var(--accent-tint);
+  border: 2px solid var(--accent);
+  border-radius: 18px;
+  width: 100%;
+  max-width: 520px;
+  text-align: center;
+  animation: clFreeSubmittedPopIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.stage[data-theme="pop"] .free-submitted-state {
+  border: 2px solid #1F1733;
+  box-shadow: 4px 4px 0 #1F1733;
+}
+.stage[data-theme="mono"] .free-submitted-state {
+  border-radius: 0;
+}
+@keyframes clFreeSubmittedPopIn {
+  from { opacity: 0; transform: scale(0.85); }
+  to   { opacity: 1; transform: scale(1); }
+}
+.stage .free-submitted-icon {
+  width: 48px;
+  height: 48px;
+  color: var(--accent);
+  background: var(--surface);
+  border-radius: 50%;
+  padding: 10px;
+  flex-shrink: 0;
+}
+.stage[data-theme="mono"] .free-submitted-icon { border-radius: 0; }
+.stage .free-submitted-title {
+  font-family: 'Outfit', sans-serif;
+  font-weight: 700;
+  font-size: 22px;
+  color: var(--accent);
+}
+.stage[data-theme="mono"] .free-submitted-title {
+  font-family: 'JetBrains Mono', monospace;
+}
+.stage .free-submitted-hint {
+  font-family: 'Outfit', sans-serif;
+  font-weight: 500;
+  font-size: 15px;
+  opacity: 0.7;
+  max-width: 420px;
+}
+.stage[data-theme="mono"] .free-submitted-hint {
+  font-family: 'JetBrains Mono', monospace;
+}
+
 /* ─── PR 24.3: MATCH (parear) themed render ──────────────────────────
  * Two columns of chips with SVG thread connections between paired
  * items. Three size tiers based on pair count:
