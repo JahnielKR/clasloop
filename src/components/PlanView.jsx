@@ -1329,9 +1329,20 @@ export default function PlanView({
   };
   // Modal "Create a new one" path — same as the pre-modal behavior:
   // jump to the editor with section + unit + class pre-filled.
-  const handleCreateFromModal = (slotKind) => {
+  // PR 24.10: also pass `position` so the editor stamps the deck at
+  // the right day. dayNumber maps to position 1:1 (Day 1 = position 1,
+  // Day 2 = position 2, ...). Without this, every new deck defaulted
+  // to position 0 and landed at Day 1.
+  const handleCreateFromModal = (slotKind, dayNumber) => {
     const section = slotKind === "warmup" ? "warmup" : "exit_ticket";
-    navigate(`${ROUTES.DECKS_NEW}?${QUERY.CLASS}=${encodeURIComponent(classId)}&section=${section}&unit=${encodeURIComponent(renderUnit.id)}`);
+    const params = new URLSearchParams();
+    params.set(QUERY.CLASS, classId);
+    params.set("section", section);
+    params.set("unit", renderUnit.id);
+    if (typeof dayNumber === "number" && dayNumber > 0) {
+      params.set(QUERY.POSITION, String(dayNumber));
+    }
+    navigate(`${ROUTES.DECKS_NEW}?${params.toString()}`);
   };
   // Modal "Pick from library" path — the modal already wrote unit_id
   // and position, so we just close + refresh.

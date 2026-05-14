@@ -597,7 +597,7 @@ function AIGeneratePanel({
   );
 }
 
-function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existingDeck, prefilledClassId = null, prefilledSection = null, prefilledUnitId = null }) {
+function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existingDeck, prefilledClassId = null, prefilledSection = null, prefilledUnitId = null, prefilledPosition = null }) {
   const isMobile = useIsMobile();
   const [title, setTitle] = useState(existingDeck?.title || "");
   const [desc, setDesc] = useState(existingDeck?.description || "");
@@ -1440,6 +1440,14 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
     // so no extra validation needed here.
     if (!existingDeck && prefilledUnitId) {
       payload.unit_id = prefilledUnitId;
+    }
+    // PR 24.10: same idea for position — if PlanView sent ?position=N
+    // because the teacher clicked Day N's empty slot, stamp the deck
+    // at position N so it shows up in Day N (not Day 1 by default).
+    // Only on insert; edits leave existing position alone (manual
+    // drag-reorder handles that).
+    if (!existingDeck && typeof prefilledPosition === "number" && prefilledPosition > 0) {
+      payload.position = prefilledPosition;
     }
     if (existingDeck) {
       await supabase.from("decks").update(payload).eq("id", existingDeck.id);

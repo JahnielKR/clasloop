@@ -551,7 +551,7 @@ export default function AddToSlotModal({
                 }
               </div>
               <button
-                onClick={() => { onClose(); onCreate && onCreate(slotKind); }}
+                onClick={() => { onClose(); onCreate && onCreate(slotKind, dayNumber); }}
                 style={{
                   padding: "10px 18px",
                   borderRadius: 8,

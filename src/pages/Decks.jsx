@@ -829,6 +829,14 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
     // Used when the teacher clicks an empty slot in PlanView — the new
     // deck should land in the active unit at the right (next) position.
     const prefilledUnitId = view === "create" ? (searchParams.get("unit") || null) : null;
+    // PR 24.10: ?position= on /decks/new pre-fills which day's slot
+    // the new deck is filling. Without this every deck created from
+    // PlanView landed at position 0 (Day 1), even if the teacher
+    // clicked an empty slot in Day 3.
+    const prefilledPositionRaw = view === "create" ? searchParams.get(QUERY.POSITION) : null;
+    const prefilledPosition = prefilledPositionRaw && /^\d+$/.test(prefilledPositionRaw)
+      ? parseInt(prefilledPositionRaw, 10)
+      : null;
 
     // Edge case: deep-link refresh on /decks/:id/edit before myDecks finished
     // loading. Show the page-level loader and let the next render resolve
@@ -898,6 +906,7 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
           prefilledClassId={prefilledClassId}
           prefilledSection={prefilledSection}
           prefilledUnitId={prefilledUnitId}
+          prefilledPosition={prefilledPosition}
           onCreated={(d) => {
             if (editing) setMyDecks(prev => prev.map(dk => dk.id === d.id ? d : dk));
             else setMyDecks(prev => [d, ...prev]);

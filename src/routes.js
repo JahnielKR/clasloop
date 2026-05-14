@@ -165,6 +165,10 @@ export const QUERY = {
   CLASS: "class",                 // ?class=<classId>: focus / prefilled class id
   CREATE_CLASS: "createClass",    // ?createClass=1: open the "new class" modal on mount
   PIN: "pin",                     // ?pin=123456: prefilled PIN for student join
+  // PR 24.10: ?position=N lets PlanView tell the editor which day's
+  // slot the new deck is for. The editor stamps decks.position=N on
+  // insert so they land in Day N (not Day 1 by default).
+  POSITION: "position",
 };
 
 // ── Mapping con el viejo state `page` ──────────────────────────────────────
