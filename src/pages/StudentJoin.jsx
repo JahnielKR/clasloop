@@ -718,6 +718,13 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
   const QUIZ_FLAG_KEY = "clasloop:in-quiz";
   useEffect(() => {
     if (isPractice || isGuest) return;
+    // PR 23.11.1: skip while rehydrating from DB. Otherwise on
+    // initial mount after refresh, step="join" briefly causes this
+    // effect to clear the flag BEFORE the rehydration effect runs
+    // and reads it — defeating the entire purpose of the flag.
+    // Once rehydration finishes (success or fail), this effect
+    // resumes normal operation.
+    if (rehydrating) return;
     if (step === "quiz" && session?.id && profile?.id) {
       try {
         sessionStorage.setItem(QUIZ_FLAG_KEY, JSON.stringify({
@@ -731,7 +738,7 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
       // this session.
       try { sessionStorage.removeItem(QUIZ_FLAG_KEY); } catch (_) {}
     }
-  }, [step, session?.id, profile?.id, isPractice, isGuest]);
+  }, [step, session?.id, profile?.id, isPractice, isGuest, rehydrating]);
 
   // PR 23.10: rehydrate the quiz state on refresh / tab reopen.
   //
