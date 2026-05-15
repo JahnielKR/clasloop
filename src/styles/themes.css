@@ -2960,6 +2960,41 @@
   to   { transform: translateX(0); opacity: 1; }
 }
 
+/* PR 28.13: shake the question panel when the timer expires without
+ * an answer. Attention cue for distracted/away students — they often
+ * miss the moment the reveal fires, the shake makes it unmissable.
+ *
+ * Why on .question-main (not .question-state):
+ *   - .question-state already runs the slide-out/slide-in transition
+ *     animations via inline style. Layering a second keyframe on the
+ *     same element fights with the inline style.
+ *   - .question-main is the child that holds the meta + prompt +
+ *     answer grid — exactly the "panel of the question" Jota asked
+ *     for. Top-strip (avatar, score, brand) and the right-side rail
+ *     stay still, so the rest of the UI feels stable.
+ *
+ * Timing: 4 quick oscillations over 500ms, decaying amplitude.
+ * Brief enough that it doesn't read as a glitch; long enough that
+ * a student looking away catches it in peripheral vision.
+ *
+ * Transform-origin: center — purely horizontal shake. We use only
+ * translateX so the layout doesn't shift vertically (which would
+ * push the auto-advance button up/down mid-fill, jarring).
+ */
+@keyframes cl-question-timeout-shake {
+  0%   { transform: translateX(0); }
+  15%  { transform: translateX(-10px); }
+  30%  { transform: translateX(9px); }
+  45%  { transform: translateX(-7px); }
+  60%  { transform: translateX(5px); }
+  75%  { transform: translateX(-3px); }
+  90%  { transform: translateX(1px); }
+  100% { transform: translateX(0); }
+}
+.stage .question-main.is-timeout-shake {
+  animation: cl-question-timeout-shake 500ms ease-out;
+}
+
 /* ═══════════════════════════════════════════════════════════════════════
  * PR 23: PORTRAIT FALLBACK
  *

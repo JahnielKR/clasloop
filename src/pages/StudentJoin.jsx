@@ -730,6 +730,11 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
   // null = no auto-advance pending. number = Date.now() when the fill
   // started, so the CSS animation can run from that moment.
   const [autoAdvanceStart, setAutoAdvanceStart] = useState(null);
+  // PR 28.13: brief shake on the question panel when the timer
+  // expires without an answer — attention cue for distracted
+  // students. Boolean toggle; the CSS animation runs ~500ms and
+  // the effect below clears the flag.
+  const [timeoutShake, setTimeoutShake] = useState(false);
   const [tfSelected, setTfSelected] = useState(null);
   const [fillText, setFillText] = useState("");
   const [freeText, setFreeText] = useState("");
@@ -1248,9 +1253,26 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
       // to see the correct answer before we move on for them.
       submitAnswer(null);
       setAutoAdvanceStart(Date.now());
+      // PR 28.13: shake the question panel as an attention cue.
+      // Distracted/away students often miss the moment the reveal
+      // fires; the shake makes the "something just happened, look"
+      // unmissable. Only fires on timeout (not on wrong answer —
+      // the existing red tile + result-anim shake on the answered
+      // tile already cover that case).
+      setTimeoutShake(true);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [timeLeft, showResult, step]);
+
+  // PR 28.13: clear the shake flag after the CSS animation duration
+  // so the class drops and the keyframes can re-run on the NEXT
+  // timeout (browsers don't restart an already-applied animation on
+  // a re-trigger without a class swap).
+  useEffect(() => {
+    if (!timeoutShake) return;
+    const t = setTimeout(() => setTimeoutShake(false), 520);
+    return () => clearTimeout(t);
+  }, [timeoutShake]);
 
   // PR 24.0 + PR 24.4.4 + PR 24.4.11: when autoAdvanceStart is set,
   // schedule handleNext for 4s later. The CSS fill+pulse animation
@@ -1422,6 +1444,10 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
     setMatchActiveLeft(null);
     // PR 24.0: clear any pending auto-advance from the previous question
     setAutoAdvanceStart(null);
+    // PR 28.13: clear the shake flag in case the student manually
+    // advanced before the 520ms timer fired (otherwise the new
+    // question would never see a fresh class application).
+    setTimeoutShake(false);
   }, [displayedQuestionIdx, timeLimit]);
 
   // Guest auto-redirect: when the teacher ends the session before the guest
@@ -2492,7 +2518,7 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
                     key={displayedQuestionIdx}
                     style={{ animation: stateAnimation }}
                   >
-                    <div className="question-main">
+                    <div className={`question-main ${timeoutShake ? 'is-timeout-shake' : ''}`}>
                       <div className="question-meta">
                         <span className="q-counter">
                           <strong>{t.pregunta || "Pregunta"} {displayedQuestionIdx + 1}</strong> {t.de || "de"} {questions.length}
