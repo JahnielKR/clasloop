@@ -1685,8 +1685,26 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
     setExitConfirmOpen(true);
   };
 
-  const handleExitConfirm = () => {
+  const handleExitConfirm = async () => {
     setExitConfirmOpen(false);
+    // PR 23.12: mark this participant as completed before resetting
+    // local state. SessionFlow's auto-close effect listens for "every
+    // participant has completed_at set" and ends the session — this
+    // ensures a student leaving via X counts as "done", so the teacher's
+    // session doesn't stay zombie active when the last student bails.
+    //
+    // Idempotent (`.is("completed_at", null)`) so re-entering and re-
+    // exiting doesn't overwrite a real finish-time. Errors swallowed —
+    // soft fail keeps UX clean.
+    if (participant?.id && !isPractice) {
+      try {
+        await supabase
+          .from("session_participants")
+          .update({ completed_at: new Date().toISOString() })
+          .eq("id", participant.id)
+          .is("completed_at", null);
+      } catch (_) { /* ignore */ }
+    }
     setStep("join");
     setPin("");
     setName(profile?.full_name || "");

@@ -309,6 +309,10 @@ export default function App() {
   // changes (so navigating into /review and out updates the number after
   // the teacher grades a few). Teacher-only — students never see this.
   const [reviewBadgeCount, setReviewBadgeCount] = useState(0);
+  // PR 23.13: when a teacher has a session live (lobby or active status)
+  // we want the sidebar to surface a "back to session" shortcut. Null
+  // when there's none. Teacher-only.
+  const [activeSessionId, setActiveSessionId] = useState(null);
   // sessionsOpts/decksOpts/studentJoinOpts used to be state here. As of
   // Phase 2 they live in the URL as search params:
   //   sessions: ?createClass=1, ?class=<id>
@@ -571,6 +575,37 @@ export default function App() {
     return () => { cancelled = true; };
   }, [profile, page]);
 
+  // PR 23.13: detect the teacher's current active session, if any. Used
+  // by the sidebar to surface a "back to session" shortcut for teachers
+  // who closed the tab mid-quiz. We poll on profile load and on every
+  // page change — cheap query (status filter + teacher_id, index hit).
+  // No realtime subscription: when the teacher is inside the session
+  // (sessions page) the SessionFlow page handles refresh itself; this
+  // is only for finding their way BACK.
+  useEffect(() => {
+    if (!profile) return;
+    if (profile.role !== "teacher") {
+      setActiveSessionId(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      // Include sessions even if pending_close_at IS set — the teacher
+      // might have closed the tab and is now coming back, which is
+      // exactly the case we want to surface. Just exclude completed.
+      const { data } = await supabase
+        .from("sessions")
+        .select("id")
+        .eq("teacher_id", profile.id)
+        .in("status", ["lobby", "active"])
+        .order("created_at", { ascending: false })
+        .limit(1);
+      if (cancelled) return;
+      setActiveSessionId(data?.[0]?.id || null);
+    })().catch(() => {});
+    return () => { cancelled = true; };
+  }, [profile, page]);
+
   // PR 26: Check whether a student account has at least one class
   // membership. If false, the ClassCodeModal opens (rendered near
   // the bottom of the component) and blocks further interaction.
@@ -748,6 +783,11 @@ export default function App() {
     .cl-profile-chip { transition: all .15s ease; }
     .cl-profile-chip:hover { background: ${C.accentSoft} !important; }
     .cl-profile-chip:active { transform: scale(.98); }
+    /* PR 23.13: pulsing dot for the active-session button */
+    @keyframes cl-pulse {
+      0%, 100% { box-shadow: 0 0 0 0 ${C.red}88; }
+      50%      { box-shadow: 0 0 0 6px ${C.red}00; }
+    }
   `;
 
   const P = COMPONENTS[page];
@@ -796,6 +836,7 @@ export default function App() {
         setMobileDrawerOpen={setMobileDrawerOpen}
         notifsCount={notifsCount}
         reviewBadgeCount={reviewBadgeCount}
+        activeSessionId={activeSessionId}
       />
       <div style={{ marginLeft: isMobile ? 0 : (open ? 210 : 56), flex: 1, transition: "margin-left .2s", minHeight: "100vh", background: C.bgSoft }}>
         <Suspense fallback={<PageSuspenseFallback />}>

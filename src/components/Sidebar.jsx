@@ -35,6 +35,8 @@
 import { LogoMark, TeacherAvatar, StudentAvatar } from "./Icons";
 import { Avatar as ProfileAvatar } from "./Avatars";
 import { C } from "./tokens";
+import { useNavigate } from "react-router-dom";
+import { buildRoute } from "../routes";
 
 // ─── Nav config ────────────────────────────────────────────────────────
 // Glyph chosen per role: each is a single Unicode char that reads at any
@@ -295,6 +297,7 @@ export default function Sidebar({
   setMobileDrawerOpen,
   notifsCount = 0,
   reviewBadgeCount = 0,
+  activeSessionId = null,
 }) {
   // Same role-defaulting logic as before — assume teacher unless the
   // profile says student. This avoids a sidebar-flicker during token
@@ -317,11 +320,28 @@ export default function Sidebar({
 
   // Mobile drawer: every nav action also closes the drawer so the user
   // doesn't have to tap × after picking a destination.
+  const navigate = useNavigate();
   const handleNav = (id) => {
     setPage(id);
     if (onNavClick) onNavClick();
     if (isMobile) setMobileDrawerOpen(false);
   };
+
+  // PR 23.13: click handler for the "Active session" shortcut item.
+  // Navigates the teacher straight to the lobby for their open session.
+  // SessionFlow will then auto-redirect to /sessions/live/<id> if the
+  // session is already in active status.
+  const handleActiveSessionNav = () => {
+    if (!activeSessionId) return;
+    if (onNavClick) onNavClick();
+    if (isMobile) setMobileDrawerOpen(false);
+    navigate(buildRoute.sessionsLobby(activeSessionId));
+  };
+
+  // PR 23.13: i18n for the active session button label
+  const activeSessionLabel = lang === "es" ? "Sesión activa"
+    : lang === "ko" ? "진행 중인 세션"
+    : "Active session";
 
   const badgeFor = (key) => {
     if (key === "review") return reviewBadgeCount;
@@ -447,6 +467,51 @@ export default function Sidebar({
       {/* Padded slightly more than v1 (8 vs 4 top) so the first group's
           title doesn't sit too tight against the brand area. */}
       <div style={{ flex: 1, overflowY: "auto", overflowX: "hidden", padding: "8px 6px" }}>
+        {/* PR 23.13: "Active session" shortcut for teachers who closed
+            the tab mid-quiz and need to find their way back. Renders
+            only when isTeacher AND there's a session in lobby/active
+            for this teacher. Sits ABOVE the regular nav groups so
+            it's the first thing the eye lands on. Red dot + accent
+            color signal urgency. */}
+        {isTeacher && activeSessionId && (
+          <div style={{ marginBottom: 6 }}>
+            <button
+              type="button"
+              onClick={handleActiveSessionNav}
+              className="cl-nav"
+              style={{
+                width: "100%",
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                padding: showLabels ? "10px 12px" : "10px 0",
+                justifyContent: showLabels ? "flex-start" : "center",
+                background: C.redSoft,
+                color: C.red,
+                border: "none",
+                borderRadius: 8,
+                fontFamily: "'Outfit', sans-serif",
+                fontSize: 13,
+                fontWeight: 600,
+                cursor: "pointer",
+                textAlign: "left",
+              }}
+              title={showLabels ? undefined : activeSessionLabel}
+            >
+              {/* Pulsing red dot */}
+              <span style={{
+                width: 8, height: 8,
+                borderRadius: "50%",
+                background: C.red,
+                flexShrink: 0,
+                animation: "cl-pulse 1.4s ease-in-out infinite",
+                boxShadow: `0 0 0 0 ${C.red}`,
+              }} />
+              {showLabels && <span>{activeSessionLabel}</span>}
+            </button>
+          </div>
+        )}
+
         {navGroups.map((group, gIdx) => (
           // In collapsed mode we drop the title (no room for it) but keep
           // a small visual gap between groups via marginTop on the items
