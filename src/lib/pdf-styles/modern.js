@@ -45,8 +45,8 @@ const FONT = {
   option: 10.5,
   hint: 8.5,
   footer: 8,
-  stickerLabel: 7,  // "DECK" inside the sticker seal
-  stickerNum: 14,   // big number inside the sticker
+  stickerLabel: 6,    // PR 29.1.1: was 7, smaller "DECK" label
+  stickerNum: 11,     // PR 29.1.1: was 14, smaller number
 };
 
 const SPACING = {
@@ -272,8 +272,11 @@ export async function renderAnswerKey(doc, deck, classObj, opts = {}) {
 // childish.
 function drawExamHeader(doc, deck, classObj, y, fontFamily, labels, totalQ) {
   const startY = y;
-  // Reserve sticker zone on the right (28mm wide)
-  const stickerR = 14;
+  // PR 29.1.1: was stickerR=14mm (28mm diameter) — too tall, ate ~30mm
+  // of vertical that pushed questions onto the next page. Reduced to
+  // stickerR=10mm (20mm diameter): still readable as a badge, but doesn't
+  // dominate the header.
+  const stickerR = 10;
   const stickerCX = PAGE.marginX + PAGE.contentWidth - stickerR - 2;
   const stickerCY = y + stickerR + 2;
 
@@ -331,20 +334,21 @@ function drawStickerBadge(doc, cx, cy, r, count, fontFamily) {
   setFillColor(doc, COLOR.teal);
   doc.circle(cx, cy, r, "F");
 
-  // Inner thin ring (white, for definition)
+  // Inner thin ring (white, for definition).
+  // PR 29.1.1: was r-1.6, now r-1.2 since outer r=10 (smaller).
   setDrawColor(doc, COLOR.white);
-  doc.setLineWidth(0.7);
-  doc.circle(cx, cy, r - 1.6, "S");
+  doc.setLineWidth(0.5);
+  doc.circle(cx, cy, r - 1.2, "S");
 
-  // "DECK" label
+  // "DECK" label — closer to vertical center since the sticker is smaller
   doc.setFont(fontFamily, "bold");
   doc.setFontSize(FONT.stickerLabel);
   setColor(doc, COLOR.white);
-  doc.text("DECK", cx, cy - 1.5, { align: "center", charSpace: 0.6 });
+  doc.text("DECK", cx, cy - 1, { align: "center", charSpace: 0.6 });
 
-  // Big number
+  // Big number — closer to vertical center
   doc.setFontSize(FONT.stickerNum);
-  doc.text(String(count), cx, cy + 4.5, { align: "center" });
+  doc.text(String(count), cx, cy + 3.5, { align: "center" });
 }
 
 function drawFieldsRow(doc, y, fontFamily, labels) {
@@ -712,12 +716,13 @@ function drawDottedLines(doc, startY, count) {
 }
 
 function estimateQuestionHeight(q, imageCache) {
-  // PR 29.0.6: tightened to match modern's real per-question footprint.
-  // Modern's pill-based MCQ options are ~8.5mm each (pillH 7 + 1.5gap).
-  // TF pill is 10+2 = 12mm. Match pair pill 6.5+1.5 = 8mm.
+  // PR 29.1.2: third recalibration. Jota's third test (after fix to
+  // sticker size) still showed page 1 with only 4 questions when 5
+  // should fit. Lowering base further (5→3) and reducing the prompt
+  // line extra (6→5).
   const promptLen = (q.q || q.prompt || q.question || "").length || 30;
   const promptLines = Math.max(1, Math.ceil(promptLen / 95));
-  const base = 5;
+  const base = 3;
   let imageH = 0;
   if (q.image_url && imageCache?.get(q.image_url)) {
     const img = imageCache.get(q.image_url);
@@ -725,15 +730,15 @@ function estimateQuestionHeight(q, imageCache) {
     imageH = h + SPACING.afterImage;
   }
   const typeH =
-    q.type === "mcq" ? (q.options?.length || 4) * 8.5 :
-    q.type === "tf" ? 12 :
+    q.type === "mcq" ? (q.options?.length || 4) * 8 :
+    q.type === "tf" ? 11 :
     q.type === "fill" ? 0 :
-    q.type === "match" ? (q.pairs?.length || 4) * 8 :
-    q.type === "order" ? (q.items?.length || 4) * 8.5 :
-    q.type === "slider" ? 12 :
+    q.type === "match" ? (q.pairs?.length || 4) * 7 :
+    q.type === "order" ? (q.items?.length || 4) * 8 :
+    q.type === "slider" ? 11 :
     (q.type === "free" || q.type === "open") ? 5 * SPACING.dottedLineGap :
     3 * SPACING.dottedLineGap;
-  return base + promptLines * 6 + imageH + typeH;
+  return base + promptLines * 5 + imageH + typeH;
 }
 
 function drawMatchAnswerBlock(doc, q, num, startY, fontFamily) {

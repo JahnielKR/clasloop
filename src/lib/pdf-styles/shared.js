@@ -299,15 +299,17 @@ export function scaleImageToFit(naturalW, naturalH, maxWmm, maxHmm) {
 // (1-based) so the renderer can preserve the global numbering across the
 // exam, even though display order is regrouped.
 //
-// Example:
-//   Input questions: [mcq, free, mcq, fill, sentence, tf]   (creation order)
-//   _originalNum:     [1,   2,    3,   4,    5,        6]
-//   Output:
-//     selection: [mcq #1, mcq #3, fill #4, tf #6]
-//     written:   [free #2, sentence #5]
-//   Rendered PDF reads "1. mcq · 3. mcq · 4. fill · 6. tf | 2. free · 5. sentence"
-//   That keeps the numbering stable (so the answer key matches) while
-//   the visual grouping is clean.
+// PR 29.1.2: questions within a section are also re-ordered BY TYPE.
+// Jota's request: "todas las ABCD una detras de otra, luego match uno
+// detras de otra, luego cualquier otro que venga". This makes the exam
+// feel structured (the student sees blocks of same-mechanic questions)
+// AND makes pagination math more predictable — runs of identical-height
+// questions are easier to pack onto pages than chaotic mixes.
+//
+// Order within selection: mcq → tf → match → order → slider → fill
+// Order within written:   sentence → free → open
+// Original q._originalNum is preserved so the answer key still lists
+// answers in creation order (matching how the teacher built the deck).
 export const SELECTION_TYPES = new Set([
   "mcq", "tf", "match", "order", "slider", "fill",
 ]);
@@ -315,6 +317,15 @@ export const SELECTION_TYPES = new Set([
 export const WRITTEN_TYPES = new Set([
   "sentence", "free", "open",
 ]);
+
+// Within-section ordering (PR 29.1.2). Lower index = appears first.
+const SELECTION_TYPE_ORDER = ["mcq", "tf", "match", "order", "slider", "fill"];
+const WRITTEN_TYPE_ORDER = ["sentence", "free", "open"];
+
+function typeOrderIndex(type, list) {
+  const idx = list.indexOf(type);
+  return idx === -1 ? 999 : idx;
+}
 
 export function groupQuestionsBySection(questions) {
   const selection = [];
@@ -330,6 +341,20 @@ export function groupQuestionsBySection(questions) {
       // blank-line response area instead of dropping the question).
       written.push(tagged);
     }
+  });
+  // PR 29.1.2: sort within each section by type, preserving original
+  // order among questions of the same type (stable sort).
+  selection.sort((a, b) => {
+    const ai = typeOrderIndex(a.type, SELECTION_TYPE_ORDER);
+    const bi = typeOrderIndex(b.type, SELECTION_TYPE_ORDER);
+    if (ai !== bi) return ai - bi;
+    return a._originalNum - b._originalNum;
+  });
+  written.sort((a, b) => {
+    const ai = typeOrderIndex(a.type, WRITTEN_TYPE_ORDER);
+    const bi = typeOrderIndex(b.type, WRITTEN_TYPE_ORDER);
+    if (ai !== bi) return ai - bi;
+    return a._originalNum - b._originalNum;
   });
   return { selection, written };
 }

@@ -56,8 +56,9 @@ const PAGE = {
 
 const FONT = {
   eyebrow: 8.5,        // SPANISH 1A · WARMUP — tracked small caps
-  title: 26,           // bigger than classic/modern — drop cap demands it
-  dropCap: 42,         // the giant first letter
+  title: 30,           // PR 29.1.2: was 26 (paired with drop cap). After
+                       // removing the drop cap, bumped to 30 so the title
+                       // still has presence on the page.
   byline: 9.5,         // "by Profe Jota · 7° grado"
   meta: 9.5,
   fieldLabel: 9.5,
@@ -272,46 +273,29 @@ function drawExamHeader(doc, deck, classObj, y, fontFamily, labels, totalQ) {
   doc.text(eyebrowText, PAGE.marginX, y, { charSpace: 0.6 });
   y += 9;
 
-  // Title with drop cap
-  // The drop cap is the first letter of the title rendered LARGE on the
-  // left, with the rest of the title text starting to its right, top
-  // baseline matched.
+  // Title block
+  //
+  // PR 29.1.2: removed the drop cap. After two attempts to align a
+  // 42pt initial with 26pt body title using shared baselines, the result
+  // was still visually broken in jsPDF — the giant letter never lined
+  // up reliably with the rest of the title because jsPDF's text baseline
+  // is the ALPHABETIC baseline and font ascender heights vary.
+  //
+  // Replacement: title rendered LARGE (32pt) in one font run, no
+  // initial-letter trick. Editorial identity still comes from:
+  //   - tracked small-caps eyebrow above
+  //   - thick black rule below
+  //   - monospace question numbers in the gutter
+  //   - em-dash MCQ bullets
+  //   - tiny square section bullet
+  //
+  // The drop cap was a "nice to have" — these other elements carry the
+  // editorial feel without the rendering risk.
   const title = deck.title || "Deck";
-  const firstChar = title.charAt(0);
-  const restOfTitle = title.substring(1);
-
-  // Drop cap glyph
-  doc.setFont(fontFamily, "bold");
-  doc.setFontSize(FONT.dropCap);
-  setColor(doc, COLOR.textBlack);
-  const dropCapW = doc.getTextWidth(firstChar);
-  // Drawn 1mm above the title's normal baseline so the cap's top aligns
-  // with the small-cap height of the rest of the line. (Tradition is to
-  // align the drop cap's top with the x-height of the first line; for
-  // jsPDF we approximate by dropping the title text down ~3mm.)
-  const dropCapY = y + 11;
-  doc.text(firstChar, PAGE.marginX, dropCapY);
-
-  // Rest of the title — wraps in the space to the right of the drop cap
   doc.setFont(fontFamily, "bold");
   doc.setFontSize(FONT.title);
   setColor(doc, COLOR.textBlack);
-  const titleX = PAGE.marginX + dropCapW + 2;
-  const titleMaxW = PAGE.contentWidth - dropCapW - 2;
-  // Render rest of title at the title-baseline y. The drop cap extends
-  // below this line; that's expected and traditional.
-  const titleBaselineY = y + 5;
-  // First chunk: the rest of the first word/line of the title.
-  // We render the whole string and let it wrap; the caller's y advance
-  // matches the wrapped text endpoint.
-  const wrapped = doc.splitTextToSize(restOfTitle, titleMaxW);
-  let titleY = titleBaselineY;
-  for (let i = 0; i < wrapped.length; i++) {
-    doc.text(wrapped[i], titleX, titleY);
-    titleY += FONT.title * 0.4 + 1;
-  }
-  // y is the LATER of: drop cap bottom (y + 13mm), wrapped title end
-  y = Math.max(y + 13, titleY);
+  y = drawWrappedText(doc, title, PAGE.marginX, y + 10, PAGE.contentWidth, FONT.title * 0.42);
   y += SPACING.afterTitle;
 
   // Thick top rule
@@ -639,10 +623,11 @@ function drawWritingLines(doc, startY, count) {
 }
 
 function estimateQuestionHeight(q, imageCache) {
-  // Same approach as classic/modern post-calibration.
+  // PR 29.1.2: lowered base 5→3 and per-line 6→5 to match real footprint
+  // measured from Jota's second editorial test.
   const promptLen = (q.q || q.prompt || q.question || "").length || 30;
   const promptLines = Math.max(1, Math.ceil(promptLen / 95));
-  const base = 5;
+  const base = 3;
   let imageH = 0;
   if (q.image_url && imageCache?.get(q.image_url)) {
     const img = imageCache.get(q.image_url);
@@ -655,10 +640,10 @@ function estimateQuestionHeight(q, imageCache) {
     q.type === "fill" ? 0 :
     q.type === "match" ? (q.pairs?.length || 4) * 6 :
     q.type === "order" ? (q.items?.length || 4) * 6 :
-    q.type === "slider" ? 12 :
+    q.type === "slider" ? 11 :
     (q.type === "free" || q.type === "open") ? 5 * SPACING.writingLineGap :
     3 * SPACING.writingLineGap;
-  return base + promptLines * 6 + imageH + typeH;
+  return base + promptLines * 5 + imageH + typeH;
 }
 
 function drawMatchAnswerBlock(doc, q, num, startY, fontFamily) {
