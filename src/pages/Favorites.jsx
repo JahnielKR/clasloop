@@ -124,27 +124,23 @@ export default function Favorites({
     setLoading(false);
   };
 
-  // Toggle favorite — same shape as MyClasses (optimistic, revert on error).
-  // PR 28.14.2: same diagnostics as MyClasses — log if the UPDATE matched
-  // 0 rows (the symptom Jota was hitting: favorites silently reverting on
-  // refresh because the write never persisted).
+  // Toggle favorite — PR 28.15: post-unification, "saved" === "favorite".
+  // Un-starring removes the row entirely (DELETE) since there's no
+  // "saved but not favorited" state in the unified model. Mirror of
+  // MyClasses.handleToggleFavorite.
   const handleToggleFavorite = async (deckId) => {
     if (!profile?.id) return;
-    let nextValue = false;
-    setSavedDecks(prev => prev.map(d => {
-      if (d.id !== deckId) return d;
-      nextValue = !d._isFavorite;
-      return { ...d, _isFavorite: nextValue };
-    }));
-    const { error, count } = await supabase.from("saved_decks")
-      .update({ is_favorite: nextValue }, { count: "exact" })
+    const removed = savedDecks.find(d => d.id === deckId);
+    setSavedDecks(prev => prev.filter(d => d.id !== deckId));
+    const { error } = await supabase.from("saved_decks")
+      .delete()
       .eq("student_id", profile.id)
       .eq("deck_id", deckId);
-    if (error || count === 0) {
-      console.warn("[clasloop] toggleFavorite did not persist", {
-        deckId, nextValue, error, count, studentId: profile.id,
-      });
-      setSavedDecks(prev => prev.map(d => d.id === deckId ? { ...d, _isFavorite: !nextValue } : d));
+    if (error) {
+      console.warn("[clasloop] unstar (toggle off) failed", { deckId, error });
+      if (removed) {
+        setSavedDecks(prev => [removed, ...prev]);
+      }
     }
   };
 

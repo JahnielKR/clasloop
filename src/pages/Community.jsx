@@ -139,6 +139,11 @@ export default function Community({ lang: pageLang = "en", setLang: pageSetLang,
   };
 
   // Toggle favorite — works for both students and teachers (same saved_decks table).
+  // PR 28.15: saving from Community now marks the row as is_favorite=true so
+  // the deck shows up directly in the student's Favorites strip / page (per
+  // Jota's "unify save and favorite" call). Pre-28.15, saved-from-Community
+  // landed silently in MyClasses's "Saved by subject" section because the
+  // default value of is_favorite is false. Now it's set on INSERT.
   const handleToggleFavorite = async (deck) => {
     if (!userId) return;
     const isAlreadySaved = saved[deck.id];
@@ -146,7 +151,7 @@ export default function Community({ lang: pageLang = "en", setLang: pageSetLang,
       const { error } = await supabase.from("saved_decks").delete().eq("student_id", userId).eq("deck_id", deck.id);
       if (!error) setSaved(prev => { const next = { ...prev }; delete next[deck.id]; return next; });
     } else {
-      const { error } = await supabase.from("saved_decks").insert({ student_id: userId, deck_id: deck.id });
+      const { error } = await supabase.from("saved_decks").insert({ student_id: userId, deck_id: deck.id, is_favorite: true });
       if (!error) {
         await supabase.from("decks").update({ uses_count: (deck.uses_count || 0) + 1 }).eq("id", deck.id);
         setSaved(prev => ({ ...prev, [deck.id]: true }));

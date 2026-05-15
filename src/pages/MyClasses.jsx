@@ -359,31 +359,29 @@ export default function MyClasses({ lang: pageLang = "en", setLang: pageSetLang,
   };
 
   // ── Toggle favorite on a saved deck ──
+  // PR 28.15: post-unification, "saved" === "favorite". Un-starring a deck
+  // means removing it from the saved set entirely (DELETE) — there's no
+  // "saved but not favorited" state anymore. Star toggle = unsave.
+  // Star on (re-add): we don't support that from this UI surface; the user
+  // would re-star from Community / TeacherProfile.
   const handleToggleFavorite = async (deckId) => {
     if (!profile?.id) return;
-    // Optimistic flip
-    let nextValue = false;
-    setSavedDecks(prev => prev.map(d => {
-      if (d.id !== deckId) return d;
-      nextValue = !d._isFavorite;
-      return { ...d, _isFavorite: nextValue };
-    }));
-    // PR 28.14.2 — Jota reported favorites being silently lost on
-    // refresh/tab-switch. Log error + affected count so we can see
-    // whether the UPDATE actually persists. count: "exact" forces
-    // PostgREST to return the row count separately from the data
-    // payload, which is what we actually care about (0 = no row
-    // matched = silent failure).
-    const { error, count } = await supabase.from("saved_decks")
-      .update({ is_favorite: nextValue }, { count: "exact" })
+    // The current state in our local list: this row is _isFavorite=true
+    // (otherwise it wouldn't render in the favorites strip). Toggling
+    // means unsaving.
+    // Optimistic remove from local list.
+    const removed = savedDecks.find(d => d.id === deckId);
+    setSavedDecks(prev => prev.filter(d => d.id !== deckId));
+    const { error } = await supabase.from("saved_decks")
+      .delete()
       .eq("student_id", profile.id)
       .eq("deck_id", deckId);
-    if (error || count === 0) {
-      console.warn("[clasloop] toggleFavorite did not persist", {
-        deckId, nextValue, error, count, studentId: profile.id,
-      });
-      // Revert local UI so it reflects what's actually in DB.
-      setSavedDecks(prev => prev.map(d => d.id === deckId ? { ...d, _isFavorite: !nextValue } : d));
+    if (error) {
+      console.warn("[clasloop] unstar (toggle off) failed", { deckId, error });
+      // Revert: put the deck back if DELETE failed.
+      if (removed) {
+        setSavedDecks(prev => [removed, ...prev].sort((a, b) => 0));
+      }
     }
   };
 
@@ -690,62 +688,21 @@ export default function MyClasses({ lang: pageLang = "en", setLang: pageSetLang,
           </div>
         )}
 
-        {/* Saved decks from community.
-            PR 28.14: favorites are no longer rendered here — they live in
-            their own strip up top (top 3) with a "See all →" link to the
-            dedicated /favorites page. This section now shows ONLY non-
-            favorite saved decks, grouped by subject. */}
-        {savedDecks.length > 0 && (() => {
-          const remaining = savedDecks.filter(d => !d._isFavorite);
-          if (remaining.length === 0) return null;
-          const bySubject = {};
-          for (const d of remaining) {
-            const key = d.subject || "Other";
-            if (!bySubject[key]) bySubject[key] = [];
-            bySubject[key].push(d);
-          }
-          const subjectKeys = Object.keys(bySubject).sort();
-
-          return (
-            <div style={{ marginTop: 32 }}>
-              <h3 style={{ fontSize: 15, fontWeight: 700, fontFamily: "'Outfit'", margin: "0 0 4px" }}>{t.savedDecks}</h3>
-              <p style={{ fontSize: 12, color: C.textMuted, margin: "0 0 16px" }}>{t.savedDecksSub}</p>
-
-              {/* Grouped by subject */}
-              {subjectKeys.map(subj => (
-                <div key={subj} style={{ marginBottom: 22 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
-                    <CIcon name={(SUBJECT_ICON_MAP[subj] || "book")} size={14} inline />
-                    <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase", color: C.textSecondary }}>{subj}</span>
-                    <span style={{ fontSize: 11, color: C.textMuted, fontFamily: MONO }}>· {bySubject[subj].length}</span>
-                  </div>
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 12 }}>
-                    {bySubject[subj].map(deck => (
-                      <SavedDeckCard
-                        key={deck.id}
-                        deck={deck}
-                        t={t}
-                        lang={l}
-                        onPractice={() => onLaunchPractice && onLaunchPractice(deck)}
-                        onToggleFavorite={() => handleToggleFavorite(deck.id)}
-                        onUnsave={() => handleUnsave(deck.id)}
-                      />
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          );
-        })()}
+        {/* PR 28.15: "Saved by subject" section removed.
+            Pre-28.15 it rendered decks where _isFavorite=false. After the
+            backfill migration (phase28_15_saved_as_favorite.sql) every
+            saved row is is_favorite=true, so the filter
+            `savedDecks.filter(d => !d._isFavorite)` always returned []
+            and the section was dead UI. Future saves from Community /
+            TeacherProfile also INSERT with is_favorite=true explicitly,
+            keeping this section permanently empty by design. Saved decks
+            now have ONE home: the Favorites strip up top + /favorites
+            page. */}
       </div>
     </div>
   );
 }
 
-// Subject icon shorthand for the group header bar (ASCII fallback if missing).
-const SUBJECT_ICON_MAP = { Math: "math", Science: "science", History: "history", Language: "language", Geography: "geo", Art: "art", Music: "music", Other: "book" };
-
-// ─── SavedDeckCard ──────────────────────────────────────────────────────────
 // ─── SavedDeckCard ──────────────────────────────────────────────────────────
 // PR 28.14: exported so the dedicated Favorites page can reuse the same
 // card visuals without duplicating ~120 lines of layout + timer-toggle

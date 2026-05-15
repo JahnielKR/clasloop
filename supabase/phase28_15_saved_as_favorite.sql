@@ -1,0 +1,64 @@
+-- ============================================
+-- PHASE 28.15 MIGRATION — saved = favorite (unify model)
+-- Run in Supabase SQL Editor.
+--
+-- BACKGROUND
+--
+-- The saved_decks table has carried two competing data models:
+--
+--   1. Community.jsx + TeacherProfile.jsx: clicking the star
+--      INSERTs / DELETEs a row. Presence = "saved", absence = "not
+--      saved". They never touch is_favorite.
+--
+--   2. MyClasses.jsx + Favorites.jsx (post PR 28.14): is_favorite
+--      column distinguishes "starred favorite" from "saved but not
+--      starred". Two tiers within saved_decks.
+--
+-- Result for the student: a deck saved from Community appears in
+-- MyClasses's "Saved by subject" section at the bottom of the page,
+-- NOT in the Favorites strip up top — even though the student
+-- thought clicking the star WAS favoriting it. Confusing.
+--
+-- Jota's call: collapse the two models. "Saved" = "favorite".
+-- One concept, one visual home (the Favorites strip + /favorites
+-- page).
+--
+-- This migration unifies historical data by marking every existing
+-- saved_decks row as is_favorite = true. After this:
+--   - Every saved deck is a favorite.
+--   - The "Saved by subject" section in MyClasses becomes empty
+--     and is removed in code (PR 28.15).
+--   - New saves from Community.jsx + TeacherProfile.jsx will write
+--     is_favorite = true explicitly (code change in PR 28.15).
+--
+-- ENGINEERING NOTE
+--
+-- We don't change the DEFAULT on the column because:
+--   - The default is currently 'false', matching the legacy
+--     "save without starring" semantics that some yet-undiscovered
+--     code path might rely on.
+--   - Explicit INSERT writes from the two call sites is safer
+--     and traceable.
+--
+-- IDEMPOTENT — safe to run repeatedly.
+-- ============================================
+
+-- ── 1. Backfill every existing row as a favorite ──────────────────────
+-- Affects only rows where is_favorite is currently false (or null in
+-- the unlikely edge case where the column was added without a default).
+-- Skip the WHERE filter when already-true so re-runs are no-ops.
+update public.saved_decks
+   set is_favorite = true
+ where is_favorite is distinct from true;
+
+-- ============================================
+-- DONE
+--
+-- After this migration:
+--   - Every saved_decks row has is_favorite = true.
+--   - MyClasses no longer renders the "Saved by subject" section
+--     (the filter `savedDecks.filter(d => !d._isFavorite)` returns
+--     [] for every student → the conditional render bails).
+--   - Community / TeacherProfile inserts are now is_favorite=true
+--     by explicit field, so future saves continue to be favorites.
+-- ============================================

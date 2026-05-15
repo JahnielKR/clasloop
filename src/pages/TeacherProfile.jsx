@@ -192,7 +192,9 @@ export default function TeacherProfile({ teacherId, profile: viewerProfile, lang
       const { error } = await supabase.from("saved_decks").delete().eq("student_id", viewerId).eq("deck_id", deck.id);
       if (!error) setSaved(prev => { const next = { ...prev }; delete next[deck.id]; return next; });
     } else {
-      const { error } = await supabase.from("saved_decks").insert({ student_id: viewerId, deck_id: deck.id });
+      // PR 28.15: save = favorite. INSERT with is_favorite=true so the
+      // deck lands in the student's Favorites strip / page directly.
+      const { error } = await supabase.from("saved_decks").insert({ student_id: viewerId, deck_id: deck.id, is_favorite: true });
       if (!error) {
         await supabase.from("decks").update({ uses_count: (deck.uses_count || 0) + 1 }).eq("id", deck.id);
         setSaved(prev => ({ ...prev, [deck.id]: true }));
