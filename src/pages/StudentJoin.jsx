@@ -1073,18 +1073,29 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [q, isPractice, practiceTimerOn, session?.session_settings?.time_mode]);
 
-  // Stable shuffles per question. Re-shuffle when `current` changes.
+  // Stable shuffles per question. Re-shuffle when the DISPLAYED question
+  // changes — not when `current` changes. PR 28.11: keying off
+  // displayedQuestionIdx avoids re-shuffling to the NEW question's
+  // items/pairs while the OLD question is still on screen during the
+  // 200ms slide-out animation (which caused a visible flash before).
+  //
+  // We read q.items / q.pairs through displayOrder so the shuffle is
+  // computed on the question that's actually about to be rendered.
   const shuffledItems = useMemo(() => {
-    if (qType !== "order" || !Array.isArray(q?.items)) return [];
-    return shuffle(q.items);
+    const dq = questions[displayOrder[displayedQuestionIdx] ?? displayedQuestionIdx];
+    const dqType = getQType(dq, session);
+    if (dqType !== "order" || !Array.isArray(dq?.items)) return [];
+    return shuffle(dq.items);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [current, qType]);
+  }, [displayedQuestionIdx]);
 
   const shuffledRights = useMemo(() => {
-    if (qType !== "match" || !Array.isArray(q?.pairs)) return [];
-    return shuffle(q.pairs.map(p => p.right));
+    const dq = questions[displayOrder[displayedQuestionIdx] ?? displayedQuestionIdx];
+    const dqType = getQType(dq, session);
+    if (dqType !== "match" || !Array.isArray(dq?.pairs)) return [];
+    return shuffle(dq.pairs.map(p => p.right));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [current, qType]);
+  }, [displayedQuestionIdx]);
 
   // ── PR 10.1: keep deckSection in sync with practiceDeck ──
   // useState only reads its initial value once. If the parent swaps
@@ -2324,6 +2335,48 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
       lobbyThemeId &&
       (themedMcqEligible || themedTfEligible || themedFillEligible || themedMatchEligible || themedOrderEligible || themedFreeEligible);
 
+    // PR 28.11: parallel set of predicates computed from the DISPLAYED
+    // question instead of the current one. Used in the render path
+    // below so during the 200ms slide-out (when `current` already
+    // points at the new question but `displayedQuestionIdx` still
+    // points at the old one), labels/image/option-grid all stay
+    // consistent with the question actually on screen.
+    //
+    // Pre-PR-28.11 bug: the render mixed `qType` (new) with
+    // `displayedQ.image_url` / `displayedQ.options` (old), so for
+    // ~200ms the user saw e.g. a "True or False?" label above an MCQ
+    // body — a flash. Keying everything visual to the displayed
+    // question removes the inconsistency.
+    //
+    // When NOT animating, current === displayedQuestionIdx, so
+    // displayedQType === qType and these duplicates are no-ops.
+    const displayedQ_PR2811 = questions[displayOrder[displayedQuestionIdx] ?? displayedQuestionIdx];
+    const displayedQType = getQType(displayedQ_PR2811, session);
+    const displayedMcqThemed =
+      displayedQType === 'mcq' &&
+      Array.isArray(displayedQ_PR2811?.options) &&
+      !Array.isArray(displayedQ_PR2811?.correct) &&
+      displayedQ_PR2811.options.every(o => typeof o === 'string' || typeof o === 'object');
+    const displayedTfThemed =
+      displayedQType === 'tf' &&
+      (displayedQ_PR2811?.correct === true || displayedQ_PR2811?.correct === false);
+    const displayedFillThemed =
+      displayedQType === 'fill' &&
+      (typeof displayedQ_PR2811?.answer === 'string' && displayedQ_PR2811.answer.trim().length > 0);
+    const displayedMatchThemed =
+      displayedQType === 'match' &&
+      Array.isArray(displayedQ_PR2811?.pairs) &&
+      displayedQ_PR2811.pairs.length > 0 &&
+      displayedQ_PR2811.pairs.length <= 8 &&
+      displayedQ_PR2811.pairs.every(p => typeof p?.left === 'string' && typeof p?.right === 'string');
+    const displayedOrderThemed =
+      displayedQType === 'order' &&
+      Array.isArray(displayedQ_PR2811?.items) &&
+      displayedQ_PR2811.items.length > 0 &&
+      displayedQ_PR2811.items.length <= 8 &&
+      displayedQ_PR2811.items.every(it => typeof it === 'string');
+    const displayedFreeThemed = displayedQType === 'free';
+
     if (themedRenderEligible) {
       const totalScore = answers.reduce((s, a) => s + (a?.points || 0), 0);
       const studentInitial = (participant?.student_name || "?").trim().charAt(0).toUpperCase() || "?";
@@ -2454,15 +2507,18 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
                           being stuck at the bottom of the screen. */}
                       <div className="question-center">
                         <div className="question-prompt-label">
-                          {qType === 'tf'
+                          {/* PR 28.11: displayedQType (not qType) so the
+                              label matches the question body during the
+                              slide-out animation. */}
+                          {displayedQType === 'tf'
                             ? (t.elegiTrueFalse || t.elegiRespuesta || "True or False?")
-                            : qType === 'fill'
+                            : displayedQType === 'fill'
                               ? (t.elegiFill || "Rellená el espacio")
-                              : qType === 'match'
+                              : displayedQType === 'match'
                                 ? (t.elegiMatch || "Pareá las palabras")
-                                : qType === 'order'
+                                : displayedQType === 'order'
                                   ? (t.elegiOrder || "Poné en orden")
-                                  : qType === 'free'
+                                  : displayedQType === 'free'
                                     ? (t.elegiFree || "Escribí tu respuesta")
                                     : (t.elegiRespuesta || "Elegí la respuesta")}
                         </div>
@@ -2482,13 +2538,13 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
                         )}
 
                         <div
-                          className={`question-text-tablet ${qType === 'match' || qType === 'order' || qType === 'free' ? 'is-match' : ''}`}
+                          className={`question-text-tablet ${displayedQType === 'match' || displayedQType === 'order' || displayedQType === 'free' ? 'is-match' : ''}`}
                           style={{ whiteSpace: "pre-wrap" }}
                         >
                           {displayedQ.q}
                         </div>
 
-                        {qType === 'match' && Array.isArray(displayedQ.pairs) && (
+                        {displayedQType === 'match' && Array.isArray(displayedQ.pairs) && (
                           <MatchPanel
                             pairs={displayedQ.pairs}
                             shuffledRights={shuffledRights}
@@ -2502,7 +2558,7 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
                           />
                         )}
 
-                        {qType === 'order' && Array.isArray(displayedQ.items) && (
+                        {displayedQType === 'order' && Array.isArray(displayedQ.items) && (
                           <OrderPanel
                             items={displayedQ.items}
                             shuffledItems={shuffledItems}
@@ -2517,8 +2573,11 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
 
                       {/* PR 24.1: branch render by question type.
                           - MCQ: existing 2×2 tile grid (PR 20.2)
-                          - TF: two large side-by-side buttons */}
-                      {qType === 'mcq' && Array.isArray(displayedQ.options) && (() => {
+                          - TF: two large side-by-side buttons
+                          PR 28.11: branch on displayedQType so during
+                          the slide-out animation the body matches the
+                          question on screen, not the next one. */}
+                      {displayedQType === 'mcq' && Array.isArray(displayedQ.options) && (() => {
                         // PR 24.4.2: detect image-mode MCQ. The grid
                         // gets .is-image-mode and each tile renders
                         // its image on top + text below.
@@ -2572,7 +2631,7 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
                       </div>
                       );})()}
 
-                      {qType === 'tf' && (
+                      {displayedQType === 'tf' && (
                       <div className="tf-grid">
                         {[
                           { val: true,  label: t.true_  || "Verdadero" },
@@ -2616,7 +2675,7 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
                       </div>
                       )}
 
-                      {qType === 'fill' && (
+                      {displayedQType === 'fill' && (
                       <div className="fill-area">
                         {/* The input itself is the answer area. While
                             unanswered, the student types. On submit,
@@ -2663,7 +2722,7 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
                           - After submit, the textarea + button are
                             replaced by a "submitted, waiting for grade"
                             banner since there's no correct/wrong reveal */}
-                      {qType === 'free' && (
+                      {displayedQType === 'free' && (
                       <div className="free-area">
                         {!showResult && (
                           <>
