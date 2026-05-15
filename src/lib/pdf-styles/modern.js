@@ -211,16 +211,20 @@ export async function renderAnswerKey(doc, deck, classObj, opts = {}) {
   doc.rect(PAGE.marginX, y, 40, 1.4, "F");
   y += 8;
 
-  // Answers list — coral number badges, then answer text
-  const questions = deck.questions || [];
+  // Answers list — coral number badges, then answer text.
+  // PR 29.1.3: use same ordering as exam (re-grouped by section + type).
+  const { selection, written } = groupQuestionsBySection(deck.questions || []);
+  const orderedQuestions = [...selection, ...written];
   const lineHeight = 8;
-  for (let i = 0; i < questions.length; i++) {
+  for (let i = 0; i < orderedQuestions.length; i++) {
+    const q = orderedQuestions[i];
+    const displayNum = q._originalNum;
     if (y + lineHeight > PAGE.height - PAGE.marginY - 10) {
       doc.addPage();
       y = PAGE.marginY;
     }
-    if (questions[i].type === "match") {
-      y = drawMatchAnswerBlock(doc, questions[i], i + 1, y, fontFamily);
+    if (q.type === "match") {
+      y = drawMatchAnswerBlock(doc, q, displayNum, y, fontFamily);
       continue;
     }
     // Small coral badge with number
@@ -231,13 +235,13 @@ export async function renderAnswerKey(doc, deck, classObj, opts = {}) {
     doc.setFont(fontFamily, "bold");
     doc.setFontSize(9.5);
     setColor(doc, COLOR.white);
-    doc.text(String(i + 1), badgeX, badgeY + 1.2, { align: "center" });
+    doc.text(String(displayNum), badgeX, badgeY + 1.2, { align: "center" });
 
     // Answer text
     doc.setFont(fontFamily, "normal");
     doc.setFontSize(FONT.questionText);
     setColor(doc, COLOR.textDark);
-    const answerText = formatAnswerForKey(questions[i], labels);
+    const answerText = formatAnswerForKey(q, labels);
     const textX = PAGE.marginX + 10;
     const wrapped = doc.splitTextToSize(answerText, PAGE.contentWidth - 10);
     for (let j = 0; j < wrapped.length; j++) {
@@ -716,13 +720,12 @@ function drawDottedLines(doc, startY, count) {
 }
 
 function estimateQuestionHeight(q, imageCache) {
-  // PR 29.1.2: third recalibration. Jota's third test (after fix to
-  // sticker size) still showed page 1 with only 4 questions when 5
-  // should fit. Lowering base further (5→3) and reducing the prompt
-  // line extra (6→5).
+  // PR 29.1.3: fourth recalibration. Jota: "en la pagina uno habia
+  // espacio para otra". Trimming more — base 3→2, mcq option 8→7.5,
+  // and prompt line extra 5→4.5.
   const promptLen = (q.q || q.prompt || q.question || "").length || 30;
-  const promptLines = Math.max(1, Math.ceil(promptLen / 95));
-  const base = 3;
+  const promptLines = Math.max(1, Math.ceil(promptLen / 100));
+  const base = 2;
   let imageH = 0;
   if (q.image_url && imageCache?.get(q.image_url)) {
     const img = imageCache.get(q.image_url);
@@ -730,15 +733,15 @@ function estimateQuestionHeight(q, imageCache) {
     imageH = h + SPACING.afterImage;
   }
   const typeH =
-    q.type === "mcq" ? (q.options?.length || 4) * 8 :
-    q.type === "tf" ? 11 :
+    q.type === "mcq" ? (q.options?.length || 4) * 7.5 :
+    q.type === "tf" ? 10 :
     q.type === "fill" ? 0 :
-    q.type === "match" ? (q.pairs?.length || 4) * 7 :
-    q.type === "order" ? (q.items?.length || 4) * 8 :
-    q.type === "slider" ? 11 :
+    q.type === "match" ? (q.pairs?.length || 4) * 6.5 :
+    q.type === "order" ? (q.items?.length || 4) * 7.5 :
+    q.type === "slider" ? 10 :
     (q.type === "free" || q.type === "open") ? 5 * SPACING.dottedLineGap :
     3 * SPACING.dottedLineGap;
-  return base + promptLines * 5 + imageH + typeH;
+  return base + promptLines * 4.5 + imageH + typeH;
 }
 
 function drawMatchAnswerBlock(doc, q, num, startY, fontFamily) {

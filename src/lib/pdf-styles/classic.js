@@ -193,19 +193,24 @@ export async function renderAnswerKey(doc, deck, classObj, opts = {}) {
   doc.setFontSize(FONT.questionText);
   setColor(doc, COLOR.textDark);
 
-  const questions = deck.questions || [];
+  // PR 29.1.3: answer key MUST use the same ordering as the exam,
+  // otherwise the numbers won't match. Re-group via the same helper.
+  const { selection, written } = groupQuestionsBySection(deck.questions || []);
+  const orderedQuestions = [...selection, ...written];
   const lineHeight = 7;
-  for (let i = 0; i < questions.length; i++) {
+  for (let i = 0; i < orderedQuestions.length; i++) {
+    const q = orderedQuestions[i];
+    const displayNum = q._originalNum;  // already assigned by grouper
     if (y + lineHeight > PAGE.height - PAGE.marginY - 8) {
       doc.addPage();
       y = PAGE.marginY;
     }
-    if (questions[i].type === "match") {
-      y = drawMatchAnswerBlock(doc, questions[i], i + 1, y, fontFamily);
+    if (q.type === "match") {
+      y = drawMatchAnswerBlock(doc, q, displayNum, y, fontFamily);
       continue;
     }
-    const answerText = formatAnswerForKey(questions[i], labels);
-    const wrapped = doc.splitTextToSize(`${i + 1}. ${answerText}`, PAGE.contentWidth);
+    const answerText = formatAnswerForKey(q, labels);
+    const wrapped = doc.splitTextToSize(`${displayNum}. ${answerText}`, PAGE.contentWidth);
     for (const line of wrapped) {
       if (y + lineHeight > PAGE.height - PAGE.marginY - 8) {
         doc.addPage();

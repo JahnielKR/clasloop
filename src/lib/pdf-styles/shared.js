@@ -330,8 +330,9 @@ function typeOrderIndex(type, list) {
 export function groupQuestionsBySection(questions) {
   const selection = [];
   const written = [];
+  // First pass: split by section, tag with creation order for stable sort
   (questions || []).forEach((q, idx) => {
-    const tagged = { ...q, _originalNum: idx + 1 };
+    const tagged = { ...q, _creationIdx: idx };
     if (SELECTION_TYPES.has(q.type)) {
       selection.push(tagged);
     } else if (WRITTEN_TYPES.has(q.type)) {
@@ -348,13 +349,21 @@ export function groupQuestionsBySection(questions) {
     const ai = typeOrderIndex(a.type, SELECTION_TYPE_ORDER);
     const bi = typeOrderIndex(b.type, SELECTION_TYPE_ORDER);
     if (ai !== bi) return ai - bi;
-    return a._originalNum - b._originalNum;
+    return a._creationIdx - b._creationIdx;
   });
   written.sort((a, b) => {
     const ai = typeOrderIndex(a.type, WRITTEN_TYPE_ORDER);
     const bi = typeOrderIndex(b.type, WRITTEN_TYPE_ORDER);
     if (ai !== bi) return ai - bi;
-    return a._originalNum - b._originalNum;
+    return a._creationIdx - b._creationIdx;
   });
+  // PR 29.1.3: AFTER reordering, assign sequential display numbers.
+  // Jota's feedback: "cuando se reorganizan tienen numeros a lo loco,
+  // hay que ponerle los numeros en orden". So numbering is now driven
+  // by RENDER order, not creation order. Selection numbers come first
+  // (1, 2, 3...), then written continues (N+1, N+2...).
+  let n = 1;
+  for (const q of selection) q._originalNum = n++;
+  for (const q of written) q._originalNum = n++;
   return { selection, written };
 }

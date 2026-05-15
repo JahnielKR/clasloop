@@ -218,29 +218,33 @@ export async function renderAnswerKey(doc, deck, classObj, opts = {}) {
   drawThickRule(doc, y);
   y += SPACING.afterRule + 2;
 
-  // Answers — monospace number "01." then text
-  const questions = deck.questions || [];
+  // Answers — monospace number "01." then text.
+  // PR 29.1.3: same ordering as exam.
+  const { selection, written } = groupQuestionsBySection(deck.questions || []);
+  const orderedQuestions = [...selection, ...written];
   const lineHeight = 7;
-  for (let i = 0; i < questions.length; i++) {
+  for (let i = 0; i < orderedQuestions.length; i++) {
+    const q = orderedQuestions[i];
+    const displayNum = q._originalNum;
     if (y + lineHeight > PAGE.height - PAGE.marginY - 8) {
       doc.addPage();
       y = PAGE.marginY;
     }
-    if (questions[i].type === "match") {
-      y = drawMatchAnswerBlock(doc, questions[i], i + 1, y, fontFamily);
+    if (q.type === "match") {
+      y = drawMatchAnswerBlock(doc, q, displayNum, y, fontFamily);
       continue;
     }
     // Number in gutter (monospace feel via courier)
     doc.setFont("courier", "bold");
     doc.setFontSize(FONT.questionNum);
     setColor(doc, COLOR.textMute);
-    doc.text(padNum(i + 1), PAGE.marginX, y);
+    doc.text(padNum(displayNum), PAGE.marginX, y);
 
     // Answer text
     doc.setFont(fontFamily, "normal");
     doc.setFontSize(FONT.questionText);
     setColor(doc, COLOR.textDark);
-    const answerText = formatAnswerForKey(questions[i], labels);
+    const answerText = formatAnswerForKey(q, labels);
     const wrapped = doc.splitTextToSize(answerText, PAGE.contentWidth - GUTTER_W);
     for (let j = 0; j < wrapped.length; j++) {
       if (y + lineHeight > PAGE.height - PAGE.marginY - 8) {
@@ -623,11 +627,12 @@ function drawWritingLines(doc, startY, count) {
 }
 
 function estimateQuestionHeight(q, imageCache) {
-  // PR 29.1.2: lowered base 5→3 and per-line 6→5 to match real footprint
-  // measured from Jota's second editorial test.
+  // PR 29.1.3: tighter still. Jota: "una pregunta quedo arriba al
+  // principio de la pagina y luego era la seccion 2" — fix by lowering
+  // estimate so the orphan question fits on the prior page.
   const promptLen = (q.q || q.prompt || q.question || "").length || 30;
-  const promptLines = Math.max(1, Math.ceil(promptLen / 95));
-  const base = 3;
+  const promptLines = Math.max(1, Math.ceil(promptLen / 100));
+  const base = 2;
   let imageH = 0;
   if (q.image_url && imageCache?.get(q.image_url)) {
     const img = imageCache.get(q.image_url);
@@ -635,15 +640,15 @@ function estimateQuestionHeight(q, imageCache) {
     imageH = h + SPACING.afterImage;
   }
   const typeH =
-    q.type === "mcq" ? (q.options?.length || 4) * SPACING.betweenOptions :
-    q.type === "tf" ? SPACING.betweenOptions :
+    q.type === "mcq" ? (q.options?.length || 4) * 5.5 :
+    q.type === "tf" ? 5 :
     q.type === "fill" ? 0 :
-    q.type === "match" ? (q.pairs?.length || 4) * 6 :
-    q.type === "order" ? (q.items?.length || 4) * 6 :
-    q.type === "slider" ? 11 :
+    q.type === "match" ? (q.pairs?.length || 4) * 5.5 :
+    q.type === "order" ? (q.items?.length || 4) * 5.5 :
+    q.type === "slider" ? 10 :
     (q.type === "free" || q.type === "open") ? 5 * SPACING.writingLineGap :
     3 * SPACING.writingLineGap;
-  return base + promptLines * 5 + imageH + typeH;
+  return base + promptLines * 4.5 + imageH + typeH;
 }
 
 function drawMatchAnswerBlock(doc, q, num, startY, fontFamily) {
