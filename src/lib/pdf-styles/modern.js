@@ -50,14 +50,14 @@ const FONT = {
 };
 
 const SPACING = {
-  afterHeader: 14,
-  beforeSection: 10,
-  afterSection: 8,
+  afterHeader: 12,           // was 14
+  beforeSection: 9,          // was 10
+  afterSection: 7,           // was 8
   afterQuestionNum: 4,
   betweenOptions: 5,
   dottedLineGap: 7,
-  betweenQuestions: 11,
-  afterImage: 6,
+  betweenQuestions: 9,       // PR 29.0.5: was 11
+  afterImage: 5,             // was 6
 };
 
 // Clasloop established palette — pulled from existing app theme tokens.
@@ -712,8 +712,20 @@ function drawDottedLines(doc, startY, count) {
 }
 
 function estimateQuestionHeight(q, imageCache) {
-  const base = 14;
-  const promptLines = Math.ceil(((q.q || "").length || 30) / 80);
+  // PR 29.0.5: recalibrated. Modern's pill-based layout consumes a bit
+  // more vertical space than classic per option (~8.5mm vs 6mm) so the
+  // typeH coefficients are tuned to the actual pill heights:
+  //
+  //   - mcq option pill:  pillH (7) + 1.5 gap = 8.5mm/option
+  //   - tf pill:          pillH (10) + 2 gap = 12mm (one row, both T/F)
+  //   - match pair pill:  6.5 + 1.5 = 8mm/pair
+  //   - order pill:       pillH (7) + 1.5 = 8.5mm/item
+  //   - slider:           ~13mm
+  //   - open/free:        5 lines × 7mm = 35mm
+  //   - sentence:         3 lines × 7mm = 21mm
+  const promptLen = (q.q || q.prompt || q.question || "").length || 30;
+  const promptLines = Math.max(1, Math.ceil(promptLen / 90));
+  const base = 8;
   let imageH = 0;
   if (q.image_url && imageCache?.get(q.image_url)) {
     const img = imageCache.get(q.image_url);
@@ -721,15 +733,16 @@ function estimateQuestionHeight(q, imageCache) {
     imageH = h + SPACING.afterImage;
   }
   const typeH =
-    q.type === "mcq" ? (q.options?.length || 4) * (SPACING.betweenOptions + 4) :
-    q.type === "tf" ? 11 :
-    q.type === "fill" ? 4 :
-    q.type === "match" ? (q.pairs?.length || 4) * 7 + 4 :
-    q.type === "order" ? (q.items?.length || 4) * 9 :
-    q.type === "slider" ? 14 :
+    q.type === "mcq" ? (q.options?.length || 4) * 8.5 :
+    q.type === "tf" ? 12 :
+    q.type === "fill" ? 0 :
+    q.type === "match" ? (q.pairs?.length || 4) * 8 + 2 :
+    q.type === "order" ? (q.items?.length || 4) * 8.5 :
+    q.type === "slider" ? 13 :
     (q.type === "free" || q.type === "open") ? 5 * SPACING.dottedLineGap :
     3 * SPACING.dottedLineGap;
-  return base + promptLines * 5 + imageH + typeH;
+  const safetyPad = 2;
+  return base + (promptLines - 1) * 6 + imageH + typeH + safetyPad;
 }
 
 function drawMatchAnswerBlock(doc, q, num, startY, fontFamily) {

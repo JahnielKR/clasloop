@@ -50,13 +50,15 @@ const FONT = {
 const SPACING = {
   afterDoubleRule: 5,
   afterFieldsRow: 9,
-  beforeSection: 12,
-  afterSectionHeader: 9,
+  beforeSection: 10,        // was 12
+  afterSectionHeader: 8,    // was 9
   afterQuestionNum: 4,
   betweenOptions: 6,
   dottedLineGap: 7,
-  betweenQuestions: 11,
-  afterImage: 6,
+  betweenQuestions: 9,      // PR 29.0.5: was 11. Tighter inter-question
+                            // gap helps fit more questions per page
+                            // without crowding (still 2× option spacing).
+  afterImage: 5,            // was 6
 };
 
 // Visual palette (RGB) — kept narrow on purpose. Classic is grayscale
@@ -677,8 +679,32 @@ function drawDottedLines(doc, startY, count) {
 }
 
 function estimateQuestionHeight(q, imageCache) {
-  const base = 14;
-  const promptLines = Math.ceil(((q.q || "").length || 30) / 80);
+  // PR 29.0.5: recalibrated based on Jota's Ser vs Estar test.
+  // Previous estimate (base=14, promptLines=ceil(len/80)*5, +typeH)
+  // overshot real consumed height by ~30%, causing the page-break
+  // engine to break too early. Real-world consumption is closer to:
+  //
+  //   - base: number circle + question prompt baseline = ~8mm
+  //     (the prompt itself absorbs the first prompt line worth of height)
+  //   - per additional prompt line: ~6mm (drawWrappedText uses
+  //     lineHeight + 2mm extra)
+  //   - chars per line at FONT.questionText 11pt over content
+  //     ~150mm: roughly 90 chars (Helvetica avg ~1.6mm/char)
+  //   - mcq option: 6mm each (SPACING.betweenOptions)
+  //   - tf: 6mm (one row)
+  //   - fill: 0 — inline in prompt
+  //   - match: 6mm/pair + 2mm padding
+  //   - order: 6mm/item
+  //   - slider: ~13mm (track + label row)
+  //   - open/free: 5 lines × 7mm = 35mm
+  //   - sentence: 3 lines × 7mm = 21mm
+  //
+  // Total estimate = base + (promptLines - 1) * 6 + imageH + typeH + safetyPad
+  // safetyPad of +2mm protects against slight underestimates (better to
+  // break a hair early than to overlap content).
+  const promptLen = (q.q || q.prompt || q.question || "").length || 30;
+  const promptLines = Math.max(1, Math.ceil(promptLen / 90));
+  const base = 8;
   let imageH = 0;
   if (q.image_url && imageCache?.get(q.image_url)) {
     const img = imageCache.get(q.image_url);
@@ -688,13 +714,14 @@ function estimateQuestionHeight(q, imageCache) {
   const typeH =
     q.type === "mcq" ? (q.options?.length || 4) * SPACING.betweenOptions :
     q.type === "tf" ? SPACING.betweenOptions :
-    q.type === "fill" ? 4 :
-    q.type === "match" ? (q.pairs?.length || 4) * 6 + 4 :
+    q.type === "fill" ? 0 :
+    q.type === "match" ? (q.pairs?.length || 4) * 6 + 2 :
     q.type === "order" ? (q.items?.length || 4) * 6 :
-    q.type === "slider" ? 14 :
+    q.type === "slider" ? 13 :
     (q.type === "free" || q.type === "open") ? 5 * SPACING.dottedLineGap :
     3 * SPACING.dottedLineGap;
-  return base + promptLines * 5 + imageH + typeH;
+  const safetyPad = 2;
+  return base + (promptLines - 1) * 6 + imageH + typeH + safetyPad;
 }
 
 function drawMatchAnswerBlock(doc, q, num, startY, fontFamily) {
