@@ -259,7 +259,12 @@ export default function Community({ lang: pageLang = "en", setLang: pageSetLang,
                   display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
                   cursor: "pointer",
                 }}>
-                  {saved[dk.id] ? <><CIcon name="check" size={14} inline /> {t.saved}</> : t.saveToMyDecks}
+                  {/* PR 28.15.1: was t.saveToMyDecks / t.saved (carryover from
+                      the pre-unified model where students "saved" decks
+                      without favoriting). Now that save === favorite, the
+                      copy reflects what's actually happening: t.favoriteAdd
+                      ("Add to favorites") / t.favorited ("Favorited"). */}
+                  {saved[dk.id] ? <><CIcon name="check" size={14} inline /> {t.favorited}</> : t.favoriteAdd}
                 </button>
               ) : (
                 <div style={{ display: "flex", gap: 8 }}>
