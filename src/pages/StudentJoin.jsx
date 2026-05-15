@@ -2772,7 +2772,7 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
                               onChange={e => setFreeText(e.target.value)}
                               placeholder={t.typeAnswer || "Escribí tu respuesta"}
                               autoFocus
-                              rows={5}
+                              rows={3}
                             />
                             <button
                               className="free-submit"

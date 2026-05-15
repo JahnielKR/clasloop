@@ -2565,7 +2565,14 @@
   line-height: 1.45;
   color: currentColor;
   resize: vertical;
-  min-height: 160px;
+  /* PR 28.20.1: reduced from 160px to 110px. The taller box was
+     covering the bottom of the question prompt on tablets in
+     landscape — Jota: "el cuadro de free text de responder un
+     poco mas bajo... lo q tiene escrito se cubre pero no tanto
+     solo su parte final". 110px shows ~2 lines comfortably,
+     which fits most short-answer responses; the student can
+     still drag the resize handle to grow it for longer answers. */
+  min-height: 110px;
   outline: none;
   transition: border-color 0.2s ease, background 0.2s ease;
 }
