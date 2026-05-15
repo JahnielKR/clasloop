@@ -984,13 +984,59 @@ export async function getUnitRetentionSummary(unitId) {
 //   - "launched_today" : a session was created for this deck today
 //   - "pending"        : not yet launched today
 //
-// Decks belong to a day if their position-1 equals the index of a
-// day_date that matches the target date. So a deck with position=2
-// belongs to Day 2; its date is unit.day_dates[1].
+// "Day N" means: the N-th warmup (sorted by position) PLUS the N-th
+// exit_ticket (sorted by position) within a unit. We match this to
+// day_dates by ARRAY INDEX, not by raw position value. See
+// getDecksForDay() below for why.
 //
 // No fallback: units WITHOUT day_dates at all don't appear in this
 // list. Teachers who haven't migrated their units to dates get an
 // empty Today (intentional — per Jota's choice).
+
+// ─── PR 28.2: shared helper — decks that belong to "Day N" of a unit ─────
+//
+// Mirrors buildDayRows() in PlanView.jsx: separate by section, sort by
+// position within each section, and pair them by index. Day N = the
+// N-th warmup and the N-th exit_ticket (1-based).
+//
+// WHY THIS EXISTS (the bug we are fixing)
+//
+// getScheduledPlan and getUpcomingPlan used to do:
+//     dk.unit_id === unit.id && (dk.position || 0) === dayNumber
+// which assumed positions are dense 1, 2, 3… In production they
+// aren't:
+//
+//   1. AddToSlotModal.handlePick assigns position=0 to the first deck
+//      in a slot bucket (copy/move path). So a unit whose first warmup
+//      was added via "pick existing deck" has positions [0, 1, 2…],
+//      not [1, 2, 3…]. The Day-1 deck never matched dayNumber=1.
+//
+//   2. Deleted decks leave gaps. PR 24.9 removes a deck by setting
+//      unit_id=null without compacting peer positions. So a unit can
+//      have warmups with positions [1, 3, 4] — Day 2's warmup is at
+//      position 3, not 2.
+//
+//   3. PR 24.10 fixed CreateDeckEditor to stamp position=dayNumber
+//      (1-based), but only for the "create new deck" path. The
+//      "pick existing deck" path was untouched.
+//
+// PlanView's buildDayRows tolerates all three cases because it pairs
+// by sorted index. This helper uses the same approach so Today
+// matches what the teacher actually sees in PlanView.
+function getDecksForDay(unit, allDecks, dayNumber) {
+  if (!unit || !dayNumber || dayNumber < 1) return [];
+  const inUnit = (allDecks || []).filter(d => d.unit_id === unit.id);
+  const warmups = inUnit
+    .filter(d => d.section === "warmup")
+    .sort((a, b) => (a.position || 0) - (b.position || 0));
+  const exits = inUnit
+    .filter(d => d.section === "exit_ticket")
+    .sort((a, b) => (a.position || 0) - (b.position || 0));
+  const out = [];
+  if (warmups[dayNumber - 1]) out.push(warmups[dayNumber - 1]);
+  if (exits[dayNumber - 1]) out.push(exits[dayNumber - 1]);
+  return out;
+}
 
 export async function getScheduledPlan(teacherId, targetDate = null) {
   if (!teacherId) return [];
@@ -1042,8 +1088,9 @@ export async function getScheduledPlan(teacherId, targetDate = null) {
     if (!launchedTodayMap.has(s.deck_id)) launchedTodayMap.set(s.deck_id, s);
   });
 
-  // 5. Build the output list. For each unit, walk through day_dates
-  //    and find decks whose position matches a date hit.
+  // 5. Build the output list. For each unit, walk through day_dates;
+  //    when a date matches target, pull the Day-N decks via
+  //    getDecksForDay (which mirrors PlanView's pairing).
   const out = [];
   const classById = new Map(classes.map(c => [c.id, c]));
 
@@ -1051,8 +1098,6 @@ export async function getScheduledPlan(teacherId, targetDate = null) {
     const dates = Array.isArray(unit.day_dates) ? unit.day_dates : [];
     if (dates.length === 0) continue;
 
-    // For every day_date that matches target, find the warmup/exit
-    // decks at that position.
     dates.forEach((raw, idx) => {
       if (!raw) return;
       const d = raw instanceof Date ? raw : new Date(raw);
@@ -1061,9 +1106,10 @@ export async function getScheduledPlan(teacherId, targetDate = null) {
       if (d.getTime() !== targetMs) return;
 
       const dayNumber = idx + 1;
-      const decksAtPos = allDecks.filter(dk =>
-        dk.unit_id === unit.id && (dk.position || 0) === dayNumber
-      );
+      // PR 28.2: was filtering by `position === dayNumber`. Now uses
+      // the same index-based pairing as PlanView so position=0 decks
+      // and units with gappy positions both work.
+      const decksAtPos = getDecksForDay(unit, allDecks, dayNumber);
       decksAtPos.forEach(deck => {
         const lastSession = launchedTodayMap.get(deck.id) || null;
         out.push({
@@ -1153,9 +1199,10 @@ export async function getUpcomingPlan(teacherId, days = 7) {
       if (!byDate.has(key)) byDate.set(key, { date: d, items: [] });
 
       const dayNumber = idx + 1;
-      const decksAtPos = allDecks.filter(dk =>
-        dk.unit_id === unit.id && (dk.position || 0) === dayNumber
-      );
+      // PR 28.2: was filtering by `position === dayNumber`. Same fix
+      // as getScheduledPlan above — use index-based pairing so
+      // position=0 decks and gappy positions both work.
+      const decksAtPos = getDecksForDay(unit, allDecks, dayNumber);
       decksAtPos.forEach(deck => {
         byDate.get(key).items.push({
           deck,
