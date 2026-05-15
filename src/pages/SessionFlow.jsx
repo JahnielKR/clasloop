@@ -2218,7 +2218,7 @@ function ComingUpSidebar({ teacherId, todayPlanItems, t, lang = "en", onPickItem
 }
 
 // ─── Main Export ───────────────────────────────────────────────────────────
-export default function SessionFlow({ lang = "en", setLang, onNavigateToDecks, onOpenMobileMenu }) {
+export default function SessionFlow({ lang = "en", setLang, onNavigateToDecks, onOpenMobileMenu, notifyActiveSessionChanged }) {
   const t = i18n[lang] || i18n.en;
   const [user, setUser] = useState(null);
   const [classes, setClasses] = useState([]);
@@ -2585,6 +2585,10 @@ export default function SessionFlow({ lang = "en", setLang, onNavigateToDecks, o
     setSession(null);
     setSelectedDeck(null);
     setStep("pickDeck");
+    // PR 23.13.1: tell App.jsx to re-check the active-session sidebar
+    // badge. Without this, the badge keeps showing the now-cancelled
+    // session until the next page-change navigation.
+    if (notifyActiveSessionChanged) notifyActiveSessionChanged();
     navigate(ROUTES.SESSIONS);
   };
 
@@ -2596,6 +2600,8 @@ export default function SessionFlow({ lang = "en", setLang, onNavigateToDecks, o
     setSession(null);
     setSelectedDeck(null);
     setStep("pickDeck");
+    // PR 23.13.1: same reason as handleCancel — refresh sidebar.
+    if (notifyActiveSessionChanged) notifyActiveSessionChanged();
     if (endedSessionId) {
       navigate(buildRoute.sessionRecap(endedSessionId));
     } else {

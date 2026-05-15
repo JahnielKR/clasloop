@@ -313,6 +313,10 @@ export default function App() {
   // we want the sidebar to surface a "back to session" shortcut. Null
   // when there's none. Teacher-only.
   const [activeSessionId, setActiveSessionId] = useState(null);
+  // PR 23.13.1: bump to force re-poll of activeSessionId. Used by
+  // SessionFlow after cancel/end so the sidebar updates immediately,
+  // not after the next page change.
+  const [activeSessionTick, setActiveSessionTick] = useState(0);
   // sessionsOpts/decksOpts/studentJoinOpts used to be state here. As of
   // Phase 2 they live in the URL as search params:
   //   sessions: ?createClass=1, ?class=<id>
@@ -604,7 +608,7 @@ export default function App() {
       setActiveSessionId(data?.[0]?.id || null);
     })().catch(() => {});
     return () => { cancelled = true; };
-  }, [profile, page]);
+  }, [profile, page, activeSessionTick]);
 
   // PR 26: Check whether a student account has at least one class
   // membership. If false, the ClassCodeModal opens (rendered near
@@ -874,6 +878,11 @@ export default function App() {
               // of the gating modal.
               studentMembershipTick={studentMembershipTick}
               notifyMembershipChanged={() => setStudentMembershipTick(n => n + 1)}
+              // PR 23.13.1: pages that mutate the teacher's active session
+              // (SessionFlow on cancel/end) call this so the sidebar's
+              // "Active session" badge updates immediately without
+              // requiring a page navigation.
+              notifyActiveSessionChanged={() => setActiveSessionTick(n => n + 1)}
               // Refrescar el profile del state global (App). Lo llaman pantallas
               // que muten profile en DB (ej. Settings cambiando avatar/foto/full_name)
               // para que el sidebar y el resto del app vean el cambio sin refresh.
