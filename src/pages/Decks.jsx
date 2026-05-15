@@ -521,7 +521,7 @@ const LangBadge = ({ lang }) => {
 
 // ─── Create Deck Editor ─────────────────────────────
 // ─── Live preview of a deck card while editing ──────────────────────────────
-export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onNavigateToSessions, onOpenMobileMenu }) {
+export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onNavigateToSessions, onOpenMobileMenu, profile = null }) {
   const isMobile = useIsMobile();
   const [lang, setLangLocal] = useState(pageLang);
   const setLang = pageSetLang || setLangLocal;
@@ -907,6 +907,7 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
           prefilledSection={prefilledSection}
           prefilledUnitId={prefilledUnitId}
           prefilledPosition={prefilledPosition}
+          profile={profile}
           onCreated={(d) => {
             if (editing) setMyDecks(prev => prev.map(dk => dk.id === d.id ? d : dk));
             else setMyDecks(prev => [d, ...prev]);

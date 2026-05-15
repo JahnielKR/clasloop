@@ -597,7 +597,7 @@ function AIGeneratePanel({
   );
 }
 
-function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existingDeck, prefilledClassId = null, prefilledSection = null, prefilledUnitId = null, prefilledPosition = null }) {
+function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existingDeck, prefilledClassId = null, prefilledSection = null, prefilledUnitId = null, prefilledPosition = null, profile = null }) {
   const isMobile = useIsMobile();
   const [title, setTitle] = useState(existingDeck?.title || "");
   const [desc, setDesc] = useState(existingDeck?.description || "");
@@ -624,7 +624,16 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
     || (isValidSection(prefilledSection) ? prefilledSection : null)
     || "";
   const [section, setSection] = useState(initialSection);
-  const [makePublic, setMakePublic] = useState(existingDeck?.is_public || false);
+  // PR 28.9: when creating a NEW deck, seed `makePublic` from the
+  // teacher's default_deck_visibility setting (Settings → Profile tab).
+  // Editing an existing deck still keeps the deck's own is_public —
+  // the global default is for creation only, and changing it later
+  // never silently retroactively flips past decks.
+  const [makePublic, setMakePublic] = useState(
+    existingDeck
+      ? !!existingDeck.is_public
+      : profile?.default_deck_visibility === "public"
+  );
   const [activityType, setActivityType] = useState(existingDeck?.questions?.[0]?.type || "mcq");
   const [questions, setQuestions] = useState(existingDeck?.questions || []);
   const [saving, setSaving] = useState(false);

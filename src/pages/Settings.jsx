@@ -40,6 +40,13 @@ const i18n = {
     avatarSaved: "Avatar updated!",
     avatarUseChosen: "Use this avatar",
     avatarLockedHint: "Locked — keep practicing to unlock!",
+    // PR 28.9: default deck privacy (teacher-only)
+    defaultDeckVisibility: "Default deck privacy",
+    defaultDeckVisibilityDesc: "Applies to new decks you create. You can override per deck.",
+    visibilityPrivate: "Private",
+    visibilityPublic: "Public",
+    visibilityPrivateHint: "New decks start private. Share manually to publish.",
+    visibilityPublicHint: "New decks start public in the community. Make individual decks private if needed.",
   },
   es: {
     pageTitle: "Ajustes",
@@ -70,6 +77,13 @@ const i18n = {
     avatarSaved: "¡Avatar actualizado!",
     avatarUseChosen: "Usar este avatar",
     avatarLockedHint: "Bloqueado — ¡sigue practicando para desbloquear!",
+    // PR 28.9: default deck privacy (teacher-only)
+    defaultDeckVisibility: "Privacidad de decks por defecto",
+    defaultDeckVisibilityDesc: "Se aplica a los nuevos decks que crees. Podés cambiarlo deck por deck.",
+    visibilityPrivate: "Privado",
+    visibilityPublic: "Público",
+    visibilityPrivateHint: "Los nuevos decks arrancan privados. Compartilos manualmente para publicar.",
+    visibilityPublicHint: "Los nuevos decks arrancan públicos en la comunidad. Hacé privados los específicos que no quieras compartir.",
   },
   ko: {
     pageTitle: "설정",
@@ -100,6 +114,13 @@ const i18n = {
     avatarSaved: "아바타가 업데이트되었습니다!",
     avatarUseChosen: "이 아바타 사용",
     avatarLockedHint: "잠김 — 계속 연습하여 잠금을 해제하세요!",
+    // PR 28.9: default deck privacy (teacher-only)
+    defaultDeckVisibility: "기본 덱 공개 설정",
+    defaultDeckVisibilityDesc: "새로 만드는 덱에 적용됩니다. 덱별로 개별 변경할 수 있습니다.",
+    visibilityPrivate: "비공개",
+    visibilityPublic: "공개",
+    visibilityPrivateHint: "새 덱은 비공개로 시작합니다. 공유하려면 수동으로 게시하세요.",
+    visibilityPublicHint: "새 덱은 커뮤니티에 공개됩니다. 개별 덱은 비공개로 설정할 수 있습니다.",
   },
 };
 
@@ -188,6 +209,11 @@ export default function Settings({ lang: pageLang = "en", setLang: pageSetLang, 
   const [unlockedIds, setUnlockedIds] = useState([]); // ids the student has unlocked
   const avatarFileRef = useRef(null);
 
+  // PR 28.9: default deck visibility (teacher-only). Local state mirrors
+  // profile.default_deck_visibility so the toggle reacts instantly; the
+  // actual write happens in setVisibilityValue below.
+  const [defaultDeckVisibility, setDefaultDeckVisibility] = useState("private");
+
   const t = i18n[l] || i18n.en;
   const isTeacher = profile?.role === "teacher";
 
@@ -206,6 +232,12 @@ export default function Settings({ lang: pageLang = "en", setLang: pageSetLang, 
       setAvatarId(data.avatar_id || null);
       // Default tab: photo if user already has one, otherwise avatar picker.
       setAvatarTab(data.avatar_url ? "photo" : "avatar");
+      // PR 28.9: hydrate the default-deck-visibility toggle from profile.
+      // Defensive against missing column (e.g. migration not run yet) —
+      // fall back to "private" which matches the previous behavior.
+      setDefaultDeckVisibility(
+        data.default_deck_visibility === "public" ? "public" : "private"
+      );
       // Load student's unlocks (only meaningful for students).
       if (data.role === "student") {
         const { data: unlocks } = await supabase
@@ -300,6 +332,27 @@ export default function Settings({ lang: pageLang = "en", setLang: pageSetLang, 
       supabase.from("profiles").update({ language: newLang }).eq("id", profile.id)
         .then(() => { if (refreshProfile) refreshProfile(); });
     }
+  };
+
+  // PR 28.9: switch default deck visibility ("private" | "public").
+  // Optimistic local state flip first so the toggle is snappy; revert
+  // on DB error.
+  const changeDefaultDeckVisibility = async (value) => {
+    if (!profile) return;
+    if (value !== "private" && value !== "public") return;
+    const prev = defaultDeckVisibility;
+    setDefaultDeckVisibility(value);
+    const { error } = await supabase
+      .from("profiles")
+      .update({ default_deck_visibility: value })
+      .eq("id", profile.id);
+    if (error) {
+      console.warn("[clasloop] default_deck_visibility update failed:", error);
+      // Revert local state so the UI stays truthful.
+      setDefaultDeckVisibility(prev);
+      return;
+    }
+    if (refreshProfile) refreshProfile();
   };
 
   const updatePassword = async () => {
@@ -520,6 +573,65 @@ export default function Settings({ lang: pageLang = "en", setLang: pageSetLang, 
                 </button>
               </div>
             </Section>
+
+            {/* PR 28.9: default deck privacy — teacher only. Lives in the
+                Profile tab to avoid inflating the tab bar with a single
+                toggle. Two-button segmented control because a plain
+                Toggle would obscure which state is "public" vs "private". */}
+            {isTeacher && (
+              <Section title={t.defaultDeckVisibility} icon="shield" style={{ marginTop: 16 }}>
+                <div style={{
+                  fontSize: 13, color: C.textSecondary,
+                  lineHeight: 1.45, marginBottom: 14,
+                  padding: "0 4px",
+                }}>
+                  {t.defaultDeckVisibilityDesc}
+                </div>
+                <div style={{
+                  display: "flex", gap: 8, padding: "0 4px",
+                }}>
+                  {[
+                    { value: "private", label: t.visibilityPrivate, hint: t.visibilityPrivateHint },
+                    { value: "public",  label: t.visibilityPublic,  hint: t.visibilityPublicHint  },
+                  ].map(opt => {
+                    const active = defaultDeckVisibility === opt.value;
+                    return (
+                      <button
+                        key={opt.value}
+                        onClick={() => changeDefaultDeckVisibility(opt.value)}
+                        style={{
+                          flex: 1,
+                          padding: "12px 14px",
+                          borderRadius: 10,
+                          background: active ? C.accentSoft : C.bg,
+                          color: active ? C.accent : C.text,
+                          border: `1.5px solid ${active ? C.accent : C.border}`,
+                          fontSize: 14,
+                          fontWeight: 600,
+                          textAlign: "left",
+                          cursor: "pointer",
+                          fontFamily: "'Outfit',sans-serif",
+                          transition: "all .12s ease",
+                        }}
+                      >
+                        <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+                          {active && <CIcon name="check" size={14} inline />}
+                          {opt.label}
+                        </div>
+                        <div style={{
+                          fontSize: 12,
+                          fontWeight: 400,
+                          color: C.textMuted,
+                          lineHeight: 1.4,
+                        }}>
+                          {opt.hint}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </Section>
+            )}
           </div>
         )}
 
