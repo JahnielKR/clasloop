@@ -2460,11 +2460,16 @@ export default function SessionFlow({ lang = "en", setLang, onNavigateToDecks, o
     // Only act if pending_close_at is set
     if (!session.pending_close_at) return;
     (async () => {
-      await supabase
+      const { error } = await supabase
         .from("sessions")
         .update({ pending_close_at: null })
-        .eq("id", session.id)
-        .eq("status", "active");
+        .eq("id", session.id);
+      if (error) {
+        // Likely: migration phase23_11_zombie_sessions.sql hasn't run
+        // yet (column doesn't exist) — log so it's visible, don't
+        // crash the lobby render.
+        console.warn("[clasloop] clear pending_close_at:", error);
+      }
     })();
     // Reflect locally so the next render doesn't re-fire
     setSession(s => s ? { ...s, pending_close_at: null } : s);
@@ -2596,7 +2601,18 @@ export default function SessionFlow({ lang = "en", setLang, onNavigateToDecks, o
 
   const handleCancel = async () => {
     if (session) {
-      await supabase.from("sessions").update({ status: "cancelled" }).eq("id", session.id);
+      const { error } = await supabase
+        .from("sessions")
+        .update({ status: "cancelled" })
+        .eq("id", session.id);
+      if (error) {
+        // PR 23.13.3: log the error so we don't silently fail like
+        // before. The pre-23.13.3 schema CHECK constraint rejected
+        // 'cancelled' and this UPDATE 400'd; the migration adds it.
+        // If the user still sees this warning, the migration didn't
+        // run.
+        console.warn("[clasloop] cancel session failed:", error);
+      }
     }
     setSession(null);
     setSelectedDeck(null);
