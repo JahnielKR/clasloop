@@ -164,8 +164,8 @@ export async function renderAnswerKey(doc, deck, classObj, opts = {}) {
   doc.setFontSize(FONT.eyebrow);
   setColor(doc, COLOR.coral);
   doc.text(labels.answerKey.toUpperCase(), PAGE.marginX, y, { charSpace: 0.4 });
-  // PR 29.0.3 fix 4: 7mm spacing
-  y += 7;
+  // PR 30.2: gap proportional to title cap height. Title=20pt needs ~7mm.
+  y += FONT.title * 0.25 + 2;
 
   doc.setFont(fontFamily, "bold");
   doc.setFontSize(FONT.title);
@@ -267,7 +267,9 @@ function drawExamHeader(doc, deck, classObj, y, fontFamily, labels, totalQ) {
     doc.setFontSize(FONT.eyebrow);
     setColor(doc, COLOR.teal);
     doc.text(classObj.name.toUpperCase(), PAGE.marginX, y, { charSpace: 0.4 });
-    y += 6;       // PR 29.1.4: was 7
+    // PR 30.2: gap proportional to title cap height. Title=20pt needs ~7mm.
+    // Was hardcoded to 6mm which caused the eyebrow to overlap.
+    y += FONT.title * 0.25 + 2;
   }
 
   doc.setFont(fontFamily, "bold");

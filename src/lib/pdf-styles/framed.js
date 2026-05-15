@@ -173,7 +173,9 @@ export async function renderAnswerKey(doc, deck, classObj, opts = {}) {
   doc.setFontSize(FONT.eyebrow);
   setColor(doc, COLOR.textMute);
   doc.text(labels.answerKey.toUpperCase(), PAGE.width / 2, y, { align: "center", charSpace: 0.8 });
-  y += 6;
+  // PR 30.2: gap proportional to title fontSize so the title's cap height
+  // doesn't overlap the eyebrow.
+  y += FONT.title * 0.25 + SPACING.afterEyebrow;
 
   // Centered title
   doc.setFont(fontFamily, "bold");
@@ -296,7 +298,11 @@ function drawExamHeader(doc, deck, classObj, y, fontFamily, labels, totalQ) {
     doc.setFontSize(FONT.eyebrow);
     setColor(doc, COLOR.textMute);
     doc.text(classObj.name.toUpperCase(), PAGE.width / 2, y, { align: "center", charSpace: 0.8 });
-    y += SPACING.afterEyebrow + 2;
+    // PR 30.2: gap must clear the title's cap height. With title at
+    // FONT.title pt, cap height ≈ 0.7 * fontSize pt ≈ FONT.title * 0.25 mm.
+    // Add 2mm air. Was hardcoded to 5mm which was too small for large
+    // serif titles and caused "Spanish 1A" to overlap with "Ser vs Estar".
+    y += FONT.title * 0.25 + SPACING.afterEyebrow;
   }
 
   // Title (centered, large serif)

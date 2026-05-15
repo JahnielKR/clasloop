@@ -198,10 +198,8 @@ function drawExamHeader(doc, deck, classObj, y, fontFamily, labels, totalQ) {
     doc.setFontSize(FONT.eyebrow);
     setColor(doc, COLOR.textMute);
     doc.text(classObj.name.toUpperCase(), PAGE.marginX, y, { charSpace: 0.4 });
-    // PR 29.0.3 fix 4: was 4.5mm — too tight, class name and deck title
-    // visually merged. 7mm gives the eyebrow room to read as a separate
-    // layer of metadata above the title.
-    y += 7;
+    // PR 30.2: gap proportional to title cap height. Title=18pt needs ~6.5mm.
+    y += FONT.title * 0.25 + 2;
   }
 
   // Title
@@ -239,9 +237,8 @@ function drawAnswerKeyHeader(doc, deck, classObj, y, fontFamily, labels) {
   doc.setFontSize(FONT.eyebrow);
   setColor(doc, COLOR.textMute);
   doc.text(labels.answerKey.toUpperCase(), PAGE.marginX, y, { charSpace: 0.4 });
-  // PR 29.0.3 fix 4: 7mm instead of 4.5mm so the eyebrow doesn't merge
-  // into the title visually.
-  y += 7;
+  // PR 30.2: gap proportional to title cap height. Title=18pt needs ~6.5mm.
+  y += FONT.title * 0.25 + 2;
 
   // Title
   doc.setFont(fontFamily, "bold");

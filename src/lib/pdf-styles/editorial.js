@@ -169,7 +169,8 @@ export async function renderAnswerKey(doc, deck, classObj, opts = {}) {
   doc.setFontSize(FONT.eyebrow);
   setColor(doc, COLOR.textMute);
   doc.text(labels.answerKey.toUpperCase(), PAGE.marginX, y, { charSpace: 0.6 });
-  y += 7;
+  // PR 30.2: gap proportional to title cap height. Title=30pt needs ~10mm.
+  y += FONT.title * 0.25 + 2;
 
   // Title
   doc.setFont(fontFamily, "bold");
