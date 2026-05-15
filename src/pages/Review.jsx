@@ -50,6 +50,13 @@ const i18n = {
     studentItemCount: "{n} answers",
     studentItemCountOne: "1 answer",
     backToList: "← All students",
+    // PR 28.6: per-student session list (Level 2)
+    sessionListSubtitle: "Pick a test to grade their answers",
+    sessionItemCount: "{n} answers",
+    sessionItemCountOne: "1 answer",
+    backToStudent: "← {name}",
+    studentTestsCount: "across {n} tests",
+    studentTestsCountOne: "1 test",
     studentLabel: "Student",
     classLabel: "Class",
     deckLabel: "Deck",
@@ -92,6 +99,13 @@ const i18n = {
     studentItemCount: "{n} respuestas",
     studentItemCountOne: "1 respuesta",
     backToList: "← Todos los estudiantes",
+    // PR 28.6: per-student session list (Level 2)
+    sessionListSubtitle: "Elegí un examen para calificar sus respuestas",
+    sessionItemCount: "{n} respuestas",
+    sessionItemCountOne: "1 respuesta",
+    backToStudent: "← {name}",
+    studentTestsCount: "en {n} exámenes",
+    studentTestsCountOne: "1 examen",
     studentLabel: "Estudiante",
     classLabel: "Clase",
     deckLabel: "Deck",
@@ -134,6 +148,13 @@ const i18n = {
     studentItemCount: "답변 {n}개",
     studentItemCountOne: "답변 1개",
     backToList: "← 모든 학생",
+    // PR 28.6: per-student session list (Level 2)
+    sessionListSubtitle: "채점할 시험을 선택하세요",
+    sessionItemCount: "답변 {n}개",
+    sessionItemCountOne: "답변 1개",
+    backToStudent: "← {name}",
+    studentTestsCount: "{n}개 시험",
+    studentTestsCountOne: "1개 시험",
     studentLabel: "학생",
     classLabel: "수업",
     deckLabel: "덱",
@@ -219,21 +240,35 @@ export default function Review({ profile, lang = "en", onOpenMobileMenu }) {
   // (the topmost / oldest pending). Updated when the user clicks a row.
   const [activeIdx, setActiveIdx] = useState(0);
 
-  // PR 28.4: which student's responses are we drilling into?
+  // PR 28.4 / 28.6: three-level drilldown synced with the URL.
   //
-  // Synced with ?student=<participantId> in the URL so:
-  //   - F5 keeps you in the same student's queue (consistent with
-  //     SessionFlow's other URL-driven steps).
-  //   - Browser back from the drilldown returns to the list.
+  //   Level 1 (list):       no params           → all students
+  //   Level 2 (sessions):   ?student=<key>      → that student's tests
+  //   Level 3 (cards):      ?student=<key>      → that student's cards
+  //                         &session=<id>          for one specific test
   //
-  // null = list view (show all students with pending counts).
-  // string = detail view (show that student's pending cards).
+  // PR 28.6 changed "student" from a participantId (per-session id) to
+  // a studentKey ("s:<profile_id>" or "g:<name>:<class_id>" for guests)
+  // so the same person showing up in two different tests collapses to
+  // a single Level-1 row.
+  //
+  // Synced with the URL so F5 / share / back-button all behave naturally
+  // — same convention as SessionFlow's step URLs.
   const [searchParams, setSearchParams] = useSearchParams();
-  const selectedStudentId = searchParams.get("student") || null;
-  const setSelectedStudentId = useCallback((id) => {
+  const selectedStudentKey = searchParams.get("student") || null;
+  const selectedSessionId = searchParams.get("session") || null;
+  const setSelectedStudentKey = useCallback((key) => {
     const next = new URLSearchParams(searchParams);
-    if (id) next.set("student", id);
+    if (key) next.set("student", key);
     else next.delete("student");
+    // Switching student always exits the session detail.
+    next.delete("session");
+    setSearchParams(next, { replace: false });
+  }, [searchParams, setSearchParams]);
+  const setSelectedSessionId = useCallback((sid) => {
+    const next = new URLSearchParams(searchParams);
+    if (sid) next.set("session", sid);
+    else next.delete("session");
     setSearchParams(next, { replace: false });
   }, [searchParams, setSearchParams]);
 
@@ -265,11 +300,13 @@ export default function Review({ profile, lang = "en", onOpenMobileMenu }) {
             teacher_id,
             class_id,
             deck_id,
+            created_at,
             class:classes ( id, name ),
             deck:decks ( id, title, questions )
           ),
           participant:session_participants!inner (
             id,
+            student_id,
             student_name,
             guest_name,
             is_guest
@@ -286,6 +323,21 @@ export default function Review({ profile, lang = "en", onOpenMobileMenu }) {
       }
       const hydrated = (data || []).map((row) => {
         const q = pickQuestion(row.session?.deck?.questions, row.question_index);
+        const isGuest = !!row.participant?.is_guest;
+        const studentName = (isGuest
+          ? row.participant?.guest_name
+          : row.participant?.student_name) || row.participant?.student_name || "";
+        // PR 28.6: studentKey is the grouping identity at the student
+        // list level (Level 1). For registered students we use their
+        // profile id so the same person grouping merges across multiple
+        // sessions / classes. For guests there's no profile id, so we
+        // fall back to "guest:<name>:<class>" — same guest name in the
+        // same class collapses into one row, which is the most useful
+        // assumption for a teacher.
+        const studentId = row.participant?.student_id || null;
+        const studentKey = studentId
+          ? `s:${studentId}`
+          : `g:${(studentName || "").toLowerCase().trim()}:${row.session?.class_id || ""}`;
         return {
           id: row.id,
           createdAt: row.created_at,
@@ -294,12 +346,12 @@ export default function Review({ profile, lang = "en", onOpenMobileMenu }) {
           // The session may be null in pathological cases (RLS hid it).
           // We skip those rather than crash.
           sessionId: row.session_id,
+          sessionCreatedAt: row.session?.created_at || row.created_at,
           participantId: row.participant_id,
-          studentName:
-            (row.participant?.is_guest
-              ? row.participant?.guest_name
-              : row.participant?.student_name) || row.participant?.student_name || "",
-          isGuest: !!row.participant?.is_guest,
+          studentId,
+          studentKey,
+          studentName,
+          isGuest,
           className: row.session?.class?.name || "",
           classId: row.session?.class?.id || null,
           deckTitle: row.session?.deck?.title || "",
@@ -322,60 +374,103 @@ export default function Review({ profile, lang = "en", onOpenMobileMenu }) {
   }, [fetchPending]);
 
   // ── Class filter computed list ────────────────────────────────────────
-  // PR 28.4: filteredItems is now downstream of TWO filters:
+  // PR 28.6: filteredItems is now downstream of THREE filters:
   //   1. classFilter (class dropdown, top of page)
-  //   2. selectedStudentId (drilldown into one student)
+  //   2. selectedStudentKey (Level 1 → 2 drilldown)
+  //   3. selectedSessionId (Level 2 → 3 drilldown)
   //
-  // The list view ignores selectedStudentId — it groups across all
-  // matching items into per-student buckets. The drilldown view uses
-  // both filters together.
+  // Each level inherits the filter of the previous.
   const classFilteredItems = useMemo(() => {
     if (!classFilter) return items;
     return items.filter((it) => it.classId === classFilter);
   }, [items, classFilter]);
 
-  const filteredItems = useMemo(() => {
-    if (!selectedStudentId) return classFilteredItems;
-    return classFilteredItems.filter((it) => it.participantId === selectedStudentId);
-  }, [classFilteredItems, selectedStudentId]);
+  const studentFilteredItems = useMemo(() => {
+    if (!selectedStudentKey) return classFilteredItems;
+    return classFilteredItems.filter((it) => it.studentKey === selectedStudentKey);
+  }, [classFilteredItems, selectedStudentKey]);
 
-  // PR 28.4: per-student buckets for the list view. Keyed by
-  // participant_id (which is unique per session participant — note
-  // that the same physical student in two different sessions counts
-  // as two separate "students" here; not ideal but matches how RLS
-  // and the rest of the page already treat them).
+  const filteredItems = useMemo(() => {
+    if (!selectedSessionId) return studentFilteredItems;
+    return studentFilteredItems.filter((it) => it.sessionId === selectedSessionId);
+  }, [studentFilteredItems, selectedSessionId]);
+
+  // PR 28.6: Level 1 buckets — one row per real student, summing across
+  // all of their tests / classes. Keyed by studentKey (a profile id for
+  // registered students, or a guest fingerprint).
   //
   // Sort order:
   //   1. By pending count, descending (more pending = higher in list)
   //   2. Tie-break: oldest waiting response first (keeps the spirit
   //      of the original "don't leave students hanging" feed)
+  //
+  // Note about className: when a real student appears in multiple
+  // classes, we pick the first className we encountered (alphabetically
+  // by session via the existing oldest-first ordering of items). The
+  // Level-1 row is a coarse summary; specific class names are shown
+  // again per-session at Level 2 where they matter.
   const studentGroups = useMemo(() => {
     const m = new Map();
     for (const it of classFilteredItems) {
-      const key = it.participantId;
+      const key = it.studentKey;
       if (!key) continue;
       if (!m.has(key)) {
         m.set(key, {
-          participantId: key,
+          studentKey: key,
+          studentId: it.studentId,
           studentName: it.studentName || t.studentLabel,
           isGuest: !!it.isGuest,
           className: it.className,
           items: [],
+          // Track distinct sessions so we can show "{n} tests" below
+          // the name in the Level-1 row.
+          sessionIds: new Set(),
           oldestCreatedAt: it.createdAt,
         });
       }
       const g = m.get(key);
       g.items.push(it);
-      // Track the earliest createdAt across the bucket for tie-break sorting
+      if (it.sessionId) g.sessionIds.add(it.sessionId);
       if (it.createdAt < g.oldestCreatedAt) g.oldestCreatedAt = it.createdAt;
     }
     return Array.from(m.values()).sort((a, b) => {
       const byCount = b.items.length - a.items.length;
       if (byCount !== 0) return byCount;
-      // Older oldestCreatedAt → bubble up
       return a.oldestCreatedAt < b.oldestCreatedAt ? -1 : 1;
     });
   }, [classFilteredItems, t.studentLabel]);
+
+  // PR 28.6: Level 2 buckets — for the currently-selected student, one
+  // row per session. Each row knows its deck title, class, session
+  // created_at and how many pending FRQs it has.
+  //
+  // Sort: pending count desc, tie-break by session createdAt asc
+  // (older session = bubbled up).
+  const sessionGroups = useMemo(() => {
+    if (!selectedStudentKey) return [];
+    const m = new Map();
+    for (const it of studentFilteredItems) {
+      const key = it.sessionId;
+      if (!key) continue;
+      if (!m.has(key)) {
+        m.set(key, {
+          sessionId: key,
+          deckTitle: it.deckTitle || t.deckLabel,
+          deckId: it.deckId,
+          className: it.className,
+          classId: it.classId,
+          sessionCreatedAt: it.sessionCreatedAt,
+          items: [],
+        });
+      }
+      m.get(key).items.push(it);
+    }
+    return Array.from(m.values()).sort((a, b) => {
+      const byCount = b.items.length - a.items.length;
+      if (byCount !== 0) return byCount;
+      return a.sessionCreatedAt < b.sessionCreatedAt ? -1 : 1;
+    });
+  }, [studentFilteredItems, selectedStudentKey, t.deckLabel]);
 
   // Set of classes seen in the data — populates the filter dropdown.
   const classOptions = useMemo(() => {
@@ -388,28 +483,49 @@ export default function Review({ profile, lang = "en", onOpenMobileMenu }) {
     return Array.from(m.entries()).map(([id, name]) => ({ id, name }));
   }, [items]);
 
-  // PR 28.4 (X): when the drilled-into student runs out of pending
-  // responses, auto-return to the list view.
+  // PR 28.4 (X) / PR 28.6: auto-return when the current drilldown
+  // bucket runs out of pending responses.
   //
-  // We DON'T gate this on the undo toast — the toast is a fixed
-  // overlay, it stays reachable whether we're in the list or the
-  // detail view. Staying in an empty student detail view would be
-  // confusing ("why am I looking at nothing?"), so we always go back.
+  // Two cascading bounces:
+  //   - If we're at Level 3 (a specific session) and that session has
+  //     no pending items left → drop selectedSessionId, fall back to
+  //     Level 2 of the same student.
+  //   - If after that we're at Level 2 and the student has no pending
+  //     items left → drop selectedStudentKey, fall back to Level 1.
   //
-  // Also: if the selectedStudentId doesn't match any group at all (the
-  // teacher reloaded after the student's queue was cleared, or the URL
-  // was bookmarked), bounce back so the page doesn't render an empty
-  // detail view permanently.
+  // Both effects run as needed in a single render cycle (React batches
+  // them) so the user sees a single transition. The undo toast is a
+  // fixed overlay, it stays reachable regardless of view.
+  //
+  // Gated on !loading so we don't bounce mid-fetch.
   useEffect(() => {
-    if (!selectedStudentId) return;
-    if (loading) return; // wait for data; don't bounce mid-fetch
-    const stillHasItems = studentGroups.some(
-      (g) => g.participantId === selectedStudentId && g.items.length > 0
-    );
-    if (!stillHasItems) {
-      setSelectedStudentId(null);
+    if (loading) return;
+    if (selectedSessionId) {
+      const stillHasItems = sessionGroups.some(
+        (s) => s.sessionId === selectedSessionId && s.items.length > 0
+      );
+      if (!stillHasItems) {
+        setSelectedSessionId(null);
+        return; // wait for next render to evaluate the student-level bounce
+      }
     }
-  }, [selectedStudentId, studentGroups, loading, setSelectedStudentId]);
+    if (selectedStudentKey) {
+      const stillHasItems = studentGroups.some(
+        (g) => g.studentKey === selectedStudentKey && g.items.length > 0
+      );
+      if (!stillHasItems) {
+        setSelectedStudentKey(null);
+      }
+    }
+  }, [
+    selectedSessionId,
+    selectedStudentKey,
+    sessionGroups,
+    studentGroups,
+    loading,
+    setSelectedSessionId,
+    setSelectedStudentKey,
+  ]);
 
   // ── Grade handler ─────────────────────────────────────────────────────
   // Takes a response id + a 'correct'|'partial'|'incorrect' grade.
@@ -506,11 +622,15 @@ export default function Review({ profile, lang = "en", onOpenMobileMenu }) {
   };
 
   // ── Keyboard shortcuts: 1 / 2 / 3 grade the active card ───────────────
+  // PR 28.6: only fire while in Level 3 (a session is selected).
+  // At Levels 1 / 2 the user is making navigation choices, not grading,
+  // so pressing 1/2/3 should not grade some arbitrary "first" item.
   useEffect(() => {
     const onKey = (e) => {
       // Ignore keypresses while typing in inputs/textareas.
       const tag = (e.target?.tagName || "").toLowerCase();
       if (tag === "input" || tag === "textarea" || e.target?.isContentEditable) return;
+      if (!selectedSessionId) return; // only at Level 3
       if (filteredItems.length === 0) return;
       const idx = Math.min(activeIdx, filteredItems.length - 1);
       const item = filteredItems[idx];
@@ -528,7 +648,7 @@ export default function Review({ profile, lang = "en", onOpenMobileMenu }) {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [filteredItems, activeIdx]); // gradeResponse closes over these
+  }, [filteredItems, activeIdx, selectedSessionId]); // gradeResponse closes over these
 
   // ── Render ────────────────────────────────────────────────────────────
   // PR 28.4: two notions of "pending total":
@@ -556,23 +676,77 @@ export default function Review({ profile, lang = "en", onOpenMobileMenu }) {
       />
 
       <div style={{ maxWidth: 760, margin: "0 auto" }}>
-        {/* PR 28.4: subtitle reads differently in list vs drilldown.
-            In list mode it's a CTA ("pick a student"); in drilldown
-            it stays out of the way (the cards carry the meaning). */}
+        {/* PR 28.4 / 28.6: subtitle reads differently per level.
+            L1 = "pick a student"
+            L2 = "pick a test"
+            L3 = original subtitle (the cards carry the meaning) */}
         <p style={{ fontSize: 14, color: C.textSecondary, margin: "0 0 18px", lineHeight: 1.5 }}>
-          {selectedStudentId ? t.subtitle : t.studentListSubtitle}
+          {selectedSessionId
+            ? t.subtitle
+            : selectedStudentKey
+              ? t.sessionListSubtitle
+              : t.studentListSubtitle}
         </p>
 
-        {/* PR 28.4: back-to-list button + selected student header,
-            only when drilled into a student. */}
-        {selectedStudentId && (() => {
-          const currentGroup = studentGroups.find(g => g.participantId === selectedStudentId);
-          const studentName = currentGroup?.studentName || t.studentLabel;
-          const className = currentGroup?.className || "";
+        {/* PR 28.6: breadcrumb header — back button + current level title.
+            At L2 we show "← All students" + student name.
+            At L3 we show "← {Student name}" + deck title + class chip. */}
+        {selectedStudentKey && (() => {
+          const currentStudent = studentGroups.find(g => g.studentKey === selectedStudentKey);
+          const studentName = currentStudent?.studentName || t.studentLabel;
+          const currentSession = selectedSessionId
+            ? sessionGroups.find(s => s.sessionId === selectedSessionId)
+            : null;
+
+          if (selectedSessionId) {
+            // Level 3 — single test in focus.
+            const deckTitle = currentSession?.deckTitle || t.deckLabel;
+            const className = currentSession?.className || "";
+            return (
+              <div style={{ marginBottom: 14 }}>
+                <button
+                  onClick={() => setSelectedSessionId(null)}
+                  style={{
+                    background: "transparent",
+                    border: "none",
+                    color: C.accent,
+                    fontSize: 13,
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    padding: "4px 0",
+                    fontFamily: "'Outfit',sans-serif",
+                    marginBottom: 8,
+                  }}
+                >
+                  {t.backToStudent.replace("{name}", studentName)}
+                </button>
+                <div style={{
+                  fontSize: 18, fontWeight: 700, color: C.text,
+                  display: "flex", alignItems: "center", gap: 10,
+                  flexWrap: "wrap",
+                }}>
+                  <CIcon name="book" size={20} inline />
+                  {deckTitle}
+                  {className && (
+                    <span style={{
+                      fontSize: 12, fontWeight: 500, color: C.textMuted,
+                      background: C.bgSoft, padding: "2px 8px",
+                      borderRadius: 999,
+                    }}>
+                      {className}
+                    </span>
+                  )}
+                </div>
+              </div>
+            );
+          }
+
+          // Level 2 — student in focus, list of their tests.
+          const className = currentStudent?.className || "";
           return (
             <div style={{ marginBottom: 14 }}>
               <button
-                onClick={() => setSelectedStudentId(null)}
+                onClick={() => setSelectedStudentKey(null)}
                 style={{
                   background: "transparent",
                   border: "none",
@@ -607,6 +781,7 @@ export default function Review({ profile, lang = "en", onOpenMobileMenu }) {
             </div>
           );
         })()}
+
 
         {/* Filter row + count */}
         <div style={{
@@ -690,73 +865,166 @@ export default function Review({ profile, lang = "en", onOpenMobileMenu }) {
         </div>
       )}
 
-      {/* PR 28.4: student list view (no drilldown selected).
-          One row per student with their pending count badge.
-          Click → ?student=<id> → drilldown into their cards. */}
-      {!loading && !error && !selectedStudentId && globalPending > 0 && (
+      {/* PR 28.4 / 28.6: Level 1 — student list (no drilldown).
+          One row per real student (collapsing across sessions thanks
+          to studentKey). Shows session count below the name.
+          Click → ?student=<key> → Level 2. */}
+      {!loading && !error && !selectedStudentKey && globalPending > 0 && (
         <div>
-          {studentGroups.map((g) => (
-            <button
-              key={g.participantId}
-              onClick={() => setSelectedStudentId(g.participantId)}
-              className="rv-card"
-              style={{
-                width: "100%",
-                display: "flex",
-                alignItems: "center",
-                gap: 14,
-                padding: "14px 16px",
-                marginBottom: 10,
-                background: C.bg,
-                border: `1px solid ${C.border}`,
-                borderRadius: 12,
-                cursor: "pointer",
-                textAlign: "left",
-                fontFamily: "'Outfit',sans-serif",
-                transition: "border-color .15s ease, background .15s ease",
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.borderColor = C.accent + "66";
-                e.currentTarget.style.background = C.bgSoft;
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = C.border;
-                e.currentTarget.style.background = C.bg;
-              }}
-            >
-              <CIcon name="student" size={20} inline />
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{
-                  fontSize: 15, fontWeight: 600, color: C.text,
-                  marginBottom: 2,
-                  whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+          {studentGroups.map((g) => {
+            const sessionCount = g.sessionIds.size;
+            const testsLabel = sessionCount === 1
+              ? t.studentTestsCountOne
+              : t.studentTestsCount.replace("{n}", String(sessionCount));
+            return (
+              <button
+                key={g.studentKey}
+                onClick={() => setSelectedStudentKey(g.studentKey)}
+                className="rv-card"
+                style={{
+                  width: "100%",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 14,
+                  padding: "14px 16px",
+                  marginBottom: 10,
+                  background: C.bg,
+                  border: `1px solid ${C.border}`,
+                  borderRadius: 12,
+                  cursor: "pointer",
+                  textAlign: "left",
+                  fontFamily: "'Outfit',sans-serif",
+                  transition: "border-color .15s ease, background .15s ease",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = C.accent + "66";
+                  e.currentTarget.style.background = C.bgSoft;
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = C.border;
+                  e.currentTarget.style.background = C.bg;
+                }}
+              >
+                <CIcon name="student" size={20} inline />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{
+                    fontSize: 15, fontWeight: 600, color: C.text,
+                    marginBottom: 2,
+                    whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+                  }}>
+                    {g.studentName}
+                  </div>
+                  <div style={{ fontSize: 12, color: C.textMuted }}>
+                    {/* PR 28.6: replaced className with test count. The
+                        Level-1 row is cross-class for registered students,
+                        so showing one className would be misleading. */}
+                    {testsLabel}
+                  </div>
+                </div>
+                <span style={{
+                  display: "inline-flex", alignItems: "center", justifyContent: "center",
+                  minWidth: 28, height: 24, padding: "0 9px",
+                  background: C.accent, color: "#fff",
+                  borderRadius: 999,
+                  fontSize: 12, fontWeight: 700,
                 }}>
-                  {g.studentName}
-                </div>
-                <div style={{ fontSize: 12, color: C.textMuted }}>
-                  {g.className}
-                </div>
-              </div>
-              <span style={{
-                display: "inline-flex", alignItems: "center", justifyContent: "center",
-                minWidth: 28, height: 24, padding: "0 9px",
-                background: C.accent, color: "#fff",
-                borderRadius: 999,
-                fontSize: 12, fontWeight: 700,
-              }}>
-                {g.items.length === 1
-                  ? t.studentItemCountOne
-                  : t.studentItemCount.replace("{n}", String(g.items.length))}
-              </span>
-              <span style={{ fontSize: 18, color: C.textMuted, marginLeft: 2 }}>›</span>
-            </button>
-          ))}
+                  {g.items.length === 1
+                    ? t.studentItemCountOne
+                    : t.studentItemCount.replace("{n}", String(g.items.length))}
+                </span>
+                <span style={{ fontSize: 18, color: C.textMuted, marginLeft: 2 }}>›</span>
+              </button>
+            );
+          })}
         </div>
       )}
 
-      {/* Cards — only shown in drilldown view. PR 28.4: gated on
-          selectedStudentId; before it ran any time there were items. */}
-      {!loading && !error && selectedStudentId && filteredItems.map((item, idx) => {
+      {/* PR 28.6: Level 2 — session list for the selected student.
+          One row per test they have pending FRQs in. Click →
+          ?session=<id> → Level 3. */}
+      {!loading && !error && selectedStudentKey && !selectedSessionId && sessionGroups.length > 0 && (
+        <div>
+          {sessionGroups.map((s) => {
+            // Format the session timestamp lightly — "May 14" or "Jun 3".
+            // Locale follows the page lang.
+            const locale = lang === "es" ? "es" : lang === "ko" ? "ko" : "en-US";
+            let dateLabel = "";
+            if (s.sessionCreatedAt) {
+              try {
+                dateLabel = new Intl.DateTimeFormat(locale, {
+                  month: "short", day: "numeric",
+                }).format(new Date(s.sessionCreatedAt));
+              } catch { /* leave empty on locale issues */ }
+            }
+            return (
+              <button
+                key={s.sessionId}
+                onClick={() => setSelectedSessionId(s.sessionId)}
+                className="rv-card"
+                style={{
+                  width: "100%",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 14,
+                  padding: "14px 16px",
+                  marginBottom: 10,
+                  background: C.bg,
+                  border: `1px solid ${C.border}`,
+                  borderRadius: 12,
+                  cursor: "pointer",
+                  textAlign: "left",
+                  fontFamily: "'Outfit',sans-serif",
+                  transition: "border-color .15s ease, background .15s ease",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = C.accent + "66";
+                  e.currentTarget.style.background = C.bgSoft;
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = C.border;
+                  e.currentTarget.style.background = C.bg;
+                }}
+              >
+                <CIcon name="book" size={20} inline />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{
+                    fontSize: 15, fontWeight: 600, color: C.text,
+                    marginBottom: 2,
+                    whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+                  }}>
+                    {s.deckTitle}
+                  </div>
+                  <div style={{
+                    fontSize: 12, color: C.textMuted,
+                    display: "flex", gap: 8, flexWrap: "wrap",
+                  }}>
+                    {s.className && <span>{s.className}</span>}
+                    {dateLabel && s.className && <span>·</span>}
+                    {dateLabel && <span>{dateLabel}</span>}
+                  </div>
+                </div>
+                <span style={{
+                  display: "inline-flex", alignItems: "center", justifyContent: "center",
+                  minWidth: 28, height: 24, padding: "0 9px",
+                  background: C.accent, color: "#fff",
+                  borderRadius: 999,
+                  fontSize: 12, fontWeight: 700,
+                }}>
+                  {s.items.length === 1
+                    ? t.sessionItemCountOne
+                    : t.sessionItemCount.replace("{n}", String(s.items.length))}
+                </span>
+                <span style={{ fontSize: 18, color: C.textMuted, marginLeft: 2 }}>›</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Cards — only shown at Level 3 (a session is selected).
+          PR 28.6: gated on selectedSessionId. Previously gated on
+          selectedStudentId. */}
+      {!loading && !error && selectedSessionId && filteredItems.map((item, idx) => {
         const expected = describeCorrectAnswer(item.question, item.questionType);
         const isLeaving = !!leavingIds[item.id];
         const isActive = idx === activeIdx;
