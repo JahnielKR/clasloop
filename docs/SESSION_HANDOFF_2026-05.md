@@ -1,4 +1,4 @@
-# Clasloop — Session Handoff (PRs 23–28, May 2026)
+# Clasloop — Session Handoff (PRs 23–29, May 2026)
 
 **Purpose:** Onboard a new Claude chat to continue this project without losing context. Everything Jota (the user) cares about, the working style we've developed, and the technical state.
 
@@ -345,6 +345,45 @@ Theme: students using phones/tablets in portrait mode were having a bad time. La
 | **27** | Removed "Leave class" from student MyClasses; added "View students" modal for teachers with Remove capability |
 | **28** | Delete account — RPC + typed-confirmation modal ("type DELETE to confirm"). Teacher delete cascades to all owned classes/decks/sessions. |
 
+### PR 28.x — Cleanup, calendar, Today/Review redesigns, deletion audit, realtime
+
+Multi-feature consolidation PR series. Roughly: deck cleanup, calendar bug, Today redesign, Review drilldown, audit/deletions, realtime student-removal toast, bulk remove, default deck privacy, shuffle questions, animation flash fix, Netflix-fill Next button, timeout shake, MyClasses redesign, Favorites page, save=favorite unification, lib cleanup, mobile blocking (28.17.x), order question UX (28.18), tablet layout fixes (28.20).
+
+### PR 29.x — PDF export multi-style redesign (HUGE — 12 PRs)
+
+This is the project's deepest dive into a single feature. Started as "make PDFs prettier" and ended up rebuilding the whole exporter into a dispatcher pattern with 3 distinct styles + a modal selector with live preview.
+
+**Architecture:**
+- `src/lib/pdf-export.js` — dispatcher (`exportPDF(deck, classObj, {style, variant, lang})`)
+- `src/lib/pdf-styles/shared.js` — LABELS, drawWrappedText, deterministicShuffle, formatAnswerForKey, image cache, `groupQuestionsBySection`
+- `src/lib/pdf-styles/classic.js` — "El cuaderno". Sober, professional. Double-rule signature, circled question numbers, dotted writing lines.
+- `src/lib/pdf-styles/modern.js` — "El sticker pack". Colorful (teal+coral). Sticker badge, full-color section bands, MCQ pills with soft tint.
+- `src/lib/pdf-styles/editorial.js` — "La revista". Premium, magazine-like. Eyebrow + thick rule + monospace question numbers ("01" "02") + em-dash MCQ bullets + TF squares (not circles). NO drop cap (tried twice, abandoned).
+- `src/components/PDFExportModal.jsx` — modal opened from Decks.jsx's download button. Variant toggle (exam/answer_key) + 3 inline-SVG thumbnails + live preview iframe via `doc.output('blob')` + URL.createObjectURL. Sticky style choice in `localStorage.clasloop_pdf_style`.
+
+| PR | What |
+|---|---|
+| **29.0** | Dispatcher refactor — 5 files (shared + 3 styles). Legacy `exportExamPDF`/`exportAnswerKeyPDF` kept as shims. |
+| **29.0.1** | Classic redesigned + sections logic (`groupQuestionsBySection`). Selection = mcq/tf/match/order/slider/fill; Written = sentence/free/open. |
+| **29.0.2** | Modern implemented + temp localStorage hack for switching style. |
+| **29.0.3** | 5 fixes on classic + modern (TF/MCQ bullet sizes, fill spacing, widow protection, eyebrow→title gap, dotted underline). |
+| **29.0.4** | **Critical bug: `doc.circle()` without explicit "S"/"F" arg renders nothing in jsPDF 2.5.** Audited every shape call. Added "S" to 6 missing ones. |
+| **29.0.5** | First pagination calibration — `base` 14→8, divisor 80→90, betweenQuestions 11→9. |
+| **29.0.6** | Second pagination calibration — `base` 8→5, more spacings reduced, footer reserve 12→8mm. Classic confirmed perfect. |
+| **29.0.7** | Editorial implemented from stub. Drop cap "S" attempted but rendered broken (S floating below rest of title). |
+| **29.1** | Modal selector with thumbnails + live preview + sticky localStorage. PDFExportModal component. |
+| **29.1.1** | Sticker R 14→10mm, drop cap shared-baseline attempt. |
+| **29.1.2** | Drop cap REMOVED (third attempt, abandoned — title bumped 26→30pt to compensate). Grouping by type within section (MCQ→TF→match→order→slider→fill). Tighter estimates. |
+| **29.1.3** | Sequential renumbering after sort (was using creation-order numbers, jumping 1, 4, 7, 3...). Answer key reuses same ordering. |
+| **29.1.4** | **Root cause finally found via console.log instrumentation: widow check was breaking pages early, leaving 60mm dead space.** Removed in all 3 styles. Modern banner 22→14mm. Modern pill 6→5mm. Editorial all SPACING reduced. **Result: 2 pages for 13-question deck.** |
+
+**Key technical decisions captured:**
+- `doc.circle(x, y, r)` without 4th arg ("S"/"F"/"FD") may render nothing in jsPDF 2.5.x — always pass style explicitly. Verified by reproducing in isolated node tests.
+- Pagination math: real consumption per question type measured with console.log instrumentation, not eyeballed. MCQ in modern = pillH + 1mm gap = 6mm/option (after PR 29.1.4).
+- Widow check (page-break-early to avoid orphan at top of next page) was net negative — orphans are visually less offensive than 60mm dead space mid-exam.
+- Drop cap in editorial: tried twice, both renders broken due to jsPDF baseline math. Abandoned. Identity carried by other elements (eyebrow tracked, thick rule, mono numbers, em-dash bullets, TF squares).
+- Questions reordered within sections by type for both visual cohesion and easier pagination math (uniform-height runs are easier to pack).
+
 ### Reverted / abandoned
 
 - **PR 23.8** — REVERTED. Misinterpreted "ABCD" as letter badges instead of image tiles.
@@ -558,16 +597,27 @@ Save future Claudes from re-investigating:
 
 What's NOT done. Pick from here next:
 
-### Frequently mentioned, mockups approved
-- **History page** — student-side view of their past quiz performance. Mockups approved by Jota, just needs implementation.
+### Pending features (frequently mentioned)
+- **Sistema de escuelas** — autocomplete + count. Option C consolidated, optional with skip, no verification. Plan exists, not started.
+- **Landing completar** — nav inert links (Features / Pricing / For schools), footer links.
+- **Pricing real** — ~$10/mes, ~$5/mes anual ($60/año = 50% off). Postponed until ready to push billing.
+- **Wow moment del primer flow** — postponed during PDF series.
+- **Año escolar** — concept agreed, not implemented.
+- **History page** — student-side view of past quiz performance. Mockups approved, not started.
 
 ### Quality of life
-- **Toast realtime when teacher removes student** — student sees a toast instead of being silently kicked
-- **Bulk remove in StudentsModal** — multi-select students to remove at once
-- **Themed slideshow for discussion mode** — optional, low priority. Show questions one by one without a quiz framing, for class discussion.
+- **Themed slideshow for discussion mode** — optional, low priority. Show questions one by one without quiz framing, for class discussion.
+- **Audio cue on timeout** — Web Audio API, ~1-2hrs PR.
+- **Branding switch free/premium** — premium can hide Clasloop footer in PDFs. Waits for billing implementation.
 
 ### Lower priority / nice-to-have
 - **MCQ with images portrait** could be MORE refined (Jota said "better but not perfect" after PR 23.10)
+- **PDF "study guide" 3rd variant** — deck + answers + explanations as one document. Out of scope for PR 29 series.
+
+### Done in PR 28-29 series (so NOT pending):
+- ✅ Toast realtime when teacher removes student (PR 28.x)
+- ✅ Bulk remove in StudentsModal (PR 28.x)
+- ✅ PDF redesign + multi-style + modal (PR 29.x)
 
 ### Logs to clean up
 **PR 23.13.4 added console.log statements for debugging.** They're still in the code in:
