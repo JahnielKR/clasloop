@@ -12,6 +12,7 @@ import { C, css } from "./Decks/styles";
 import CreateDeckEditor from "./Decks/CreateDeckEditor";
 import { ROUTES, QUERY, buildRoute } from "../routes";
 import { exportExamPDF, exportAnswerKeyPDF, exportPDF } from "../lib/pdf-export";
+import PDFExportModal from "../components/PDFExportModal";
 // PR 7: drag-to-reorder decks within a unit. Same dnd-kit setup as the
 // old All-decks view in ClassPage (which is still in the file as dead
 // code from PR 5). We re-implement here rather than extracting into a
@@ -802,23 +803,18 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
   // Errors surface via alert; jsPDF doesn't have an in-band failure
   // mode that's easy to recover from, and these failures are rare.
   //
-  // PR 29.0.2 (temporary): style is read from localStorage until PR 29.1
-  // ships the picker modal. Open devtools and run:
-  //   localStorage.setItem('clasloop_pdf_style', 'modern')
-  // (or 'classic' / 'editorial'). Then re-download. Defaults to 'classic'.
-  const handleDownloadPdf = async (deck, kind) => {
-    try {
-      const classObj = userClasses.find(c => c.id === deck.class_id) || null;
-      const deckLang = deck.language || l;
-      const style = (typeof window !== "undefined" &&
-        window.localStorage?.getItem("clasloop_pdf_style")) || "classic";
-      const variant = kind === "exam" ? "exam" : "answer_key";
-      await exportPDF(deck, classObj, { style, variant, lang: deckLang });
-    } catch (err) {
-      console.error("PDF export failed:", err);
-      alert(t.pdfErrorMsg || "PDF export failed. Try again.");
-    }
+  // PR 29.1: PDF download flow uses a modal selector now (instead of the
+  // popover with two buttons). The teacher picks style + variant + sees
+  // a preview before committing to the download. Sticky style choice
+  // is kept in localStorage by the modal itself.
+  //
+  // handleDownloadPdf now just opens the modal — the actual export
+  // happens inside the modal's "Download" button via exportPDF.
+  const [pdfModalState, setPdfModalState] = useState(null);
+  const handleDownloadPdf = (deck, kind) => {
+    setPdfModalState({ deck, kind });
   };
+  const closePdfModal = () => setPdfModalState(null);
 
   if (view === "create" || view === "edit") {
     // ?class= on /decks/new pre-fills the class in the editor (e.g. clicking
@@ -1394,6 +1390,20 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
             >{t.cancel}</button>
           </div>
         </div>
+      )}
+
+      {/* PR 29.1: PDF export modal — appears when handleDownloadPdf is
+          called. Single instance, mounted at the root so it can overlay
+          any view (library, class decks, favorites). */}
+      {pdfModalState && (
+        <PDFExportModal
+          deck={pdfModalState.deck}
+          classObj={userClasses.find(c => c.id === pdfModalState.deck.class_id) || null}
+          lang={pdfModalState.deck.language || l}
+          initialVariant={pdfModalState.kind === "answers" ? "answers" : "exam"}
+          onClose={closePdfModal}
+          C={C}
+        />
       )}
     </div>
   );
