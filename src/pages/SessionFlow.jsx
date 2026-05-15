@@ -2399,28 +2399,44 @@ export default function SessionFlow({ lang = "en", setLang, onNavigateToDecks, o
   // "fire and forget" channel for telemetry-on-unload. Supabase REST
   // accepts plain JSON PATCH via fetch with keepalive=true; that's the
   // closest equivalent we can do here.
+  //
+  // PR 23.13.2 (bugfix): the previous version called `supabase.auth.
+  // session()` which is a v1 API that doesn't exist in supabase-js v2.
+  // It returned undefined, the code fell back to anon key, RLS
+  // rejected the PATCH with 400. Now we proactively cache the access
+  // token from supabase.auth.getSession() (async, called once on
+  // mount) into a ref. beforeunload reads ref.current — always the
+  // current authed token, available synchronously.
+  const accessTokenRef = useRef(null);
+
   useEffect(() => {
     if (!session?.id) return;
     if (session?._isPractice) return;
     if (step !== "lobby" && step !== "live") return;
 
+    // Refresh the cached token on every relevant mount. supabase-js
+    // refreshes the token in the background so this stays valid.
+    (async () => {
+      const { data } = await supabase.auth.getSession();
+      accessTokenRef.current = data?.session?.access_token || null;
+    })().catch(() => {});
+
     const onBeforeUnload = () => {
       try {
-        // Use keepalive: true so the request survives the unload.
-        // Direct REST call — supabase-js fetch sometimes doesn't
-        // honor keepalive depending on transport.
-        const supabaseUrl = supabase.supabaseUrl || import.meta.env.VITE_SUPABASE_URL;
-        const authToken = supabase.auth.session?.()?.access_token
-          || supabase.supabaseKey
-          || import.meta.env.VITE_SUPABASE_ANON_KEY;
-        if (!supabaseUrl || !authToken) return;
+        const token = accessTokenRef.current;
+        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+        const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+        // Without a logged-in user token, the request can't satisfy
+        // RLS for sessions UPDATE. Bail silently — the 2-min zombie
+        // timer is a backup.
+        if (!token || !supabaseUrl || !anonKey) return;
         fetch(`${supabaseUrl}/rest/v1/sessions?id=eq.${session.id}`, {
           method: "PATCH",
           keepalive: true,
           headers: {
             "Content-Type": "application/json",
-            "apikey": import.meta.env.VITE_SUPABASE_ANON_KEY,
-            "Authorization": `Bearer ${authToken}`,
+            "apikey": anonKey,
+            "Authorization": `Bearer ${token}`,
             "Prefer": "return=minimal",
           },
           body: JSON.stringify({ pending_close_at: new Date().toISOString() }),
