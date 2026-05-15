@@ -2183,17 +2183,47 @@
  * Ocean's default --surface-soft is too transparent (0.03 alpha)
  * over its dark gradient — we want the neutral state to read as
  * a clear empty-bar baseline. */
+/* PR 28.12.2: explicit text + fill colors per theme during auto-advance.
+ *
+ * Picked by Jota based on what reads cleanly while the fill bar
+ * crosses the text from left to right:
+ *
+ *   - calm:  text near-black. Cream baseline + teal accent fill;
+ *            black-ish stays readable on both halves.
+ *   - ocean: text white. Dark translucent baseline + mint-green
+ *            accent fill; white reads on both.
+ *   - pop:   fill MORADO (explicit purple, NOT the dark-ink --accent
+ *            which would have been overridden by the page gradient
+ *            in production — Jota actually sees purple). Text yellow
+ *            so it stays vivid against the purple as it crosses.
+ *   - mono:  fill white. Text black (near-black ink) so once the
+ *            white sweeps under the text, the contrast peaks. The
+ *            half-and-half phase during the sweep reads fine at
+ *            4s speed (verified by Jota).
+ *
+ * Why per-theme fill overrides for pop / mono: the default
+ * `background: var(--accent)` for the ::before doesn't always match
+ * what Jota sees in production (compositing with the page bg,
+ * blendmodes, etc.). Pinning explicit hex values per theme is
+ * predictable.
+ */
+.stage[data-theme="calm"] .stage-next-btn.is-auto-advancing {
+  color: #1F1733;
+}
 .stage[data-theme="ocean"] .stage-next-btn.is-auto-advancing {
   background: rgba(255, 255, 255, 0.10);
-  color: rgba(232, 240, 255, 0.7);
+  color: #FFFFFF;
 }
 .stage[data-theme="pop"] .stage-next-btn.is-auto-advancing {
   background: #FFFFFF;
-  color: #1F1733;
+  color: #FFD93D;
+}
+.stage[data-theme="pop"] .stage-next-btn.is-auto-advancing::before {
+  background: #C147FF;
 }
 .stage[data-theme="mono"] .stage-next-btn.is-auto-advancing {
   background: #1F1733;
-  color: #FFFFFF;
+  color: #1F1733;
 }
 .stage[data-theme="mono"] .stage-next-btn.is-auto-advancing::before {
   background: #FFFFFF;
