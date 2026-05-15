@@ -50,6 +50,16 @@ const i18n = {
     practiceTimerOnTip: "Practice with timer (tap to study without time pressure)",
     practiceTimerOffTip: "Practice untimed (tap to use the recommended timing)",
     bySubject: "By subject", allDecks: "All",
+    // PR 28.14: redesign — greeting, review banner, see-all favorites
+    greeting: "Hi, {name}",
+    greetingSub: "Here's what you've got today.",
+    reviewBannerTitle: "{n} reviews pending",
+    reviewBannerSub: "Practice what you forget most — about {min} min.",
+    reviewBannerCta: "Review",
+    reviewBannerCaughtUp: "Caught up — nothing pending right now \uD83C\uDF89",
+    favoritesSeeAll: "See all",
+    myClassesHeader: "My classes",
+    savedHeader: "Saved",
   },
   es: {
     pageTitle: "Mis Clases", subtitle: "Tus salones y decks en un solo lugar.",
@@ -89,6 +99,16 @@ const i18n = {
     practiceTimerOnTip: "Practicar con timer (toca para estudiar sin presión)",
     practiceTimerOffTip: "Practicar sin timer (toca para usar el tiempo recomendado)",
     bySubject: "Por materia", allDecks: "Todos",
+    // PR 28.14: redesign — greeting, review banner, see-all favorites
+    greeting: "Hola, {name}",
+    greetingSub: "Esto es lo que tienes hoy.",
+    reviewBannerTitle: "{n} repasos pendientes",
+    reviewBannerSub: "Practica lo que más se te olvida — unos {min} min.",
+    reviewBannerCta: "Repasar",
+    reviewBannerCaughtUp: "Al día — nada pendiente ahora \uD83C\uDF89",
+    favoritesSeeAll: "Ver todos",
+    myClassesHeader: "Mis clases",
+    savedHeader: "Guardados",
   },
   ko: {
     pageTitle: "내 수업", subtitle: "교실과 덱을 한 곳에서.",
@@ -128,6 +148,16 @@ const i18n = {
     practiceTimerOnTip: "타이머와 함께 학습 (탭하여 시간 압박 없이 학습)",
     practiceTimerOffTip: "타이머 없이 학습 (탭하여 권장 시간 사용)",
     bySubject: "과목별", allDecks: "전체",
+    // PR 28.14: redesign — greeting, review banner, see-all favorites
+    greeting: "안녕하세요, {name}",
+    greetingSub: "오늘 할 일입니다.",
+    reviewBannerTitle: "복습 대기 {n}개",
+    reviewBannerSub: "가장 자주 잊는 내용을 복습하세요 — 약 {min}분.",
+    reviewBannerCta: "복습",
+    reviewBannerCaughtUp: "오늘은 다 했어요 \uD83C\uDF89",
+    favoritesSeeAll: "모두 보기",
+    myClassesHeader: "내 수업",
+    savedHeader: "저장됨",
   },
 };
 
@@ -348,6 +378,23 @@ export default function MyClasses({ lang: pageLang = "en", setLang: pageSetLang,
     }
   };
 
+  // PR 28.14: "Review" button on the orange banner — navigate to the class
+  // with the most pending reviews. Simpler than building a per-deck "most
+  // urgent" algorithm (student_topic_progress doesn't have deck_id; mapping
+  // topic→deck would require a new query path). The class detail page
+  // already has a Reviews tab that surfaces the right decks.
+  const handleReviewClick = () => {
+    const candidate = classes
+      .filter(c => (c.reviewsDue || 0) > 0)
+      .sort((a, b) => (b.reviewsDue || 0) - (a.reviewsDue || 0))[0];
+    if (candidate) navigate(buildRoute.classDetail(candidate.id));
+  };
+
+  // PR 28.14: derive favorites + total reviews due. Memoized-ish inline.
+  const allFavorites = savedDecks.filter(d => d._isFavorite);
+  const topFavorites = allFavorites.slice(0, 3); // 3 most recent (savedDecks is ordered by saved_at desc)
+  const totalReviewsDue = classes.reduce((s, c) => s + (c.reviewsDue || 0), 0);
+
   if (!profile) return null;
   if (loading) return (
     <div style={{ padding: "28px 20px" }}>
@@ -384,15 +431,32 @@ export default function MyClasses({ lang: pageLang = "en", setLang: pageSetLang,
   }
 
   // ── List view ──
+  // PR 28.14 layout (per Jota's "rearreglar my classes"):
+  //   1. Greeting "Hi, {name}" + Join button (replaces vague subtitle)
+  //   2. Orange "reviews due" banner — actionable; goes to the class with
+  //      the most reviews. Only renders when something is pending.
+  //   3. Favorites strip — top 3 most recently starred decks + "See all"
+  //      link to /favorites (a new page with search). Only renders if any
+  //      favorites exist.
+  //   4. My classes list (unchanged)
+  //   5. Saved decks grouped by subject — only non-favorites (favorites
+  //      already up top). The previous "favorites at top of saved" section
+  //      was removed to avoid double-rendering.
   return (
     <div style={{ padding: "28px 20px" }}>
       <style>{css}</style>
       <PageHeader title={t.pageTitle} lang={l} setLang={setLang} maxWidth={720} onOpenMobileMenu={onOpenMobileMenu} />
       <div style={{ maxWidth: 720, margin: "0 auto" }}>
-        {/* Title + action row */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, gap: 12 }}>
+
+        {/* PR 28.14: Greeting + Join button row. The greeting personalizes
+            the page so it feels like the student's home, not a generic
+            list. Subtitle gives a soft "what to do" cue. */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18, gap: 12 }}>
           <div style={{ minWidth: 0 }}>
-            <p style={{ fontSize: 13, color: C.textSecondary, margin: 0 }}>{t.subtitle}</p>
+            <h2 style={{ fontSize: 22, fontWeight: 700, margin: "0 0 2px", fontFamily: "'Outfit',sans-serif" }}>
+              {t.greeting.replace("{name}", (profile?.full_name || "").split(" ")[0] || "")}
+            </h2>
+            <p style={{ fontSize: 13, color: C.textSecondary, margin: 0 }}>{t.greetingSub}</p>
           </div>
           <button
             className="mc-join-btn"
@@ -412,6 +476,80 @@ export default function MyClasses({ lang: pageLang = "en", setLang: pageSetLang,
             }}
           >{t.joinClass}</button>
         </div>
+
+        {/* PR 28.14: reviews-due banner. Estimated minutes = roughly
+            1.5 min per pending review (rough guess based on average
+            FRQ length — could refine later if Jota wants). */}
+        {totalReviewsDue > 0 && (
+          <div style={{
+            background: "#FFF3E0",
+            border: "1px solid #F5C892",
+            borderRadius: 12,
+            padding: "14px 16px",
+            marginBottom: 22,
+            display: "flex", alignItems: "center", gap: 12,
+          }}>
+            <div style={{ flexShrink: 0, fontSize: 24, lineHeight: 1 }}>⏱️</div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p style={{ fontSize: 14, fontWeight: 600, color: "#854F0B", margin: "0 0 2px", fontFamily: "'Outfit',sans-serif" }}>
+                {t.reviewBannerTitle.replace("{n}", String(totalReviewsDue))}
+              </p>
+              <p style={{ fontSize: 12, color: "#BA7517", margin: 0 }}>
+                {t.reviewBannerSub.replace("{min}", String(Math.max(1, Math.round(totalReviewsDue * 1.5))))}
+              </p>
+            </div>
+            <button
+              onClick={handleReviewClick}
+              style={{
+                padding: "8px 16px", borderRadius: 7,
+                background: "#854F0B", color: "#fff", border: "none",
+                fontSize: 13, fontWeight: 600, cursor: "pointer",
+                fontFamily: "'Outfit',sans-serif",
+                flexShrink: 0,
+              }}
+            >{t.reviewBannerCta}</button>
+          </div>
+        )}
+
+        {/* PR 28.14: Favorites strip — top 3 most recent. Header is
+            clickable (whole thing routes to /favorites) so the chevron
+            isn't required for affordance — but kept for visual cue.
+            Only renders if the student has at least 1 favorite. */}
+        {topFavorites.length > 0 && (
+          <div style={{ marginBottom: 22 }}>
+            <button
+              onClick={() => navigate(ROUTES.FAVORITES)}
+              style={{
+                display: "flex", alignItems: "center", gap: 6,
+                background: "transparent", border: "none",
+                padding: "2px 0 10px", margin: 0,
+                cursor: "pointer", width: "100%", textAlign: "left",
+                fontFamily: "'Outfit',sans-serif",
+              }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="#EF9F27" aria-hidden="true"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+              <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase", color: "#BA7517" }}>{t.favorites}</span>
+              <span style={{ fontSize: 11, color: C.textMuted, fontFamily: MONO }}>· {allFavorites.length}</span>
+              <span style={{ flex: 1 }} />
+              <span style={{ fontSize: 12, color: C.accent, fontWeight: 500 }}>
+                {t.favoritesSeeAll} →
+              </span>
+            </button>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 12 }}>
+              {topFavorites.map(deck => (
+                <SavedDeckCard
+                  key={deck.id}
+                  deck={deck}
+                  t={t}
+                  lang={l}
+                  onPractice={() => onLaunchPractice && onLaunchPractice(deck)}
+                  onToggleFavorite={() => handleToggleFavorite(deck.id)}
+                  onUnsave={() => handleUnsave(deck.id)}
+                />
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Inline join form */}
         {showJoinForm && (
@@ -530,12 +668,14 @@ export default function MyClasses({ lang: pageLang = "en", setLang: pageSetLang,
           </div>
         )}
 
-        {/* Saved decks from community */}
+        {/* Saved decks from community.
+            PR 28.14: favorites are no longer rendered here — they live in
+            their own strip up top (top 3) with a "See all →" link to the
+            dedicated /favorites page. This section now shows ONLY non-
+            favorite saved decks, grouped by subject. */}
         {savedDecks.length > 0 && (() => {
-          const favorites = savedDecks.filter(d => d._isFavorite);
-          // Group remaining by subject (favorites still appear in their subject group too,
-          // BUT we exclude them when rendering subject groups so they only show once at top).
           const remaining = savedDecks.filter(d => !d._isFavorite);
+          if (remaining.length === 0) return null;
           const bySubject = {};
           for (const d of remaining) {
             const key = d.subject || "Other";
@@ -548,30 +688,6 @@ export default function MyClasses({ lang: pageLang = "en", setLang: pageSetLang,
             <div style={{ marginTop: 32 }}>
               <h3 style={{ fontSize: 15, fontWeight: 700, fontFamily: "'Outfit'", margin: "0 0 4px" }}>{t.savedDecks}</h3>
               <p style={{ fontSize: 12, color: C.textMuted, margin: "0 0 16px" }}>{t.savedDecksSub}</p>
-
-              {/* Favorites section */}
-              {favorites.length > 0 && (
-                <div style={{ marginBottom: 22 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="#EF9F27"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-                    <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase", color: "#BA7517" }}>{t.favorites}</span>
-                    <span style={{ fontSize: 11, color: C.textMuted, fontFamily: MONO }}>· {favorites.length}</span>
-                  </div>
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 12 }}>
-                    {favorites.map(deck => (
-                      <SavedDeckCard
-                        key={deck.id}
-                        deck={deck}
-                        t={t}
-                        lang={l}
-                        onPractice={() => onLaunchPractice && onLaunchPractice(deck)}
-                        onToggleFavorite={() => handleToggleFavorite(deck.id)}
-                        onUnsave={() => handleUnsave(deck.id)}
-                      />
-                    ))}
-                  </div>
-                </div>
-              )}
 
               {/* Grouped by subject */}
               {subjectKeys.map(subj => (
@@ -608,7 +724,11 @@ export default function MyClasses({ lang: pageLang = "en", setLang: pageSetLang,
 const SUBJECT_ICON_MAP = { Math: "math", Science: "science", History: "history", Language: "language", Geography: "geo", Art: "art", Music: "music", Other: "book" };
 
 // ─── SavedDeckCard ──────────────────────────────────────────────────────────
-function SavedDeckCard({ deck, t, lang, onPractice, onToggleFavorite, onUnsave }) {
+// ─── SavedDeckCard ──────────────────────────────────────────────────────────
+// PR 28.14: exported so the dedicated Favorites page can reuse the same
+// card visuals without duplicating ~120 lines of layout + timer-toggle
+// logic. MyClasses still imports it implicitly (same-file).
+export function SavedDeckCard({ deck, t, lang, onPractice, onToggleFavorite, onUnsave }) {
   const isFav = deck._isFavorite;
   const qs = deck.questions || [];
   const tint = colorTint(deck, "0F");

@@ -60,6 +60,10 @@ export const ROUTES = {
   STUDENT_JOIN: "/join-session",        // StudentJoin autenticado. Acepta ?pin=<6 digitos>
   // PRACTICE: "/practice/:deckId"       → buildRoute.practice(deckId)
   ACHIEVEMENTS: "/achievements",
+  // PR 28.14: full list of community decks the student saved (favorites
+  // and non-favorites). MyClasses shows the top 3 favorites inline; this
+  // is the "see all" destination with search.
+  FAVORITES: "/favorites",
 
   // ─ Teacher: To Review (free-text grading) ─
   REVIEW: "/review",                    // /review queue — pending free-text answers
@@ -144,6 +148,7 @@ export const ROUTE_PATTERNS = {
   STUDENT_JOIN: "/join-session",
   PRACTICE: "/practice/:deckId",
   ACHIEVEMENTS: "/achievements",
+  FAVORITES: "/favorites",
 
   REVIEW: "/review",
 
@@ -190,6 +195,7 @@ export const PAGE_TO_ROUTE = {
   decks: ROUTES.DECKS,
   myClasses: ROUTES.CLASSES,
   review: ROUTES.REVIEW,
+  favorites: ROUTES.FAVORITES,
   // teacherProfile no entra acá: es ruta con param. Se navega con
   // buildRoute.teacher(id), no con setPage("teacherProfile").
   adminAIStats: ROUTES.ADMIN_AI_STATS,
@@ -231,6 +237,8 @@ export function pathToPage(pathname) {
   if (pathname === "/join-session")        return "studentJoin";
   if (pathname.startsWith("/practice/"))   return "studentJoin"; // practice usa StudentJoin
   if (pathname === "/achievements")        return "achievements";
+  // PR 28.14: full favorites list, reached from MyClasses "Ver todos →"
+  if (pathname === "/favorites")           return "favorites";
 
   if (pathname === "/notifications")       return "notifications";
   if (pathname === "/settings")            return "settings";
@@ -290,6 +298,7 @@ const TEACHER_ONLY_PAGES = new Set([
 const STUDENT_ONLY_PAGES = new Set([
   "achievements",
   "studentJoin",    // teachers don't join sessions; they create them
+  "favorites",      // PR 28.14: favorites list is student-only (teachers don't save community decks)
 ]);
 
 // Returns true if the role is allowed to see the given page id.

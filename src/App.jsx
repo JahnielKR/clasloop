@@ -42,6 +42,7 @@ const importDeckResults    = () => import('./pages/DeckResults');
 const importClassInsights  = () => import('./pages/ClassInsights');
 const importMyResults      = () => import('./pages/MyResults');
 const importSessionRecap   = () => import('./pages/SessionRecap');
+const importFavorites      = () => import('./pages/Favorites');
 
 const SessionFlow      = lazy(importSessionFlow);
 const StudentJoin      = lazy(importStudentJoin);
@@ -61,6 +62,7 @@ const DeckResults      = lazy(importDeckResults);
 const ClassInsights    = lazy(importClassInsights);
 const MyResults        = lazy(importMyResults);
 const SessionRecap     = lazy(importSessionRecap);
+const Favorites        = lazy(importFavorites);
 import { useIsMobile } from './components/MobileMenuButton';
 import { countVisibleNotifications, countPendingReviewsForTeacher } from './lib/notifications';
 import { C } from './components/tokens';
@@ -92,7 +94,7 @@ function MyClassesByRole(props) {
   return <MyClasses {...props} />;
 }
 
-const COMPONENTS = { sessions: SessionFlow, studentJoin: StudentJoin, community: Community, achievements: Achievements, settings: Settings, director: Director, notifications: Notifications, decks: Decks, myClasses: MyClassesByRole, teacherProfile: TeacherProfile, adminAIStats: AdminAIStats, review: Review, deckResults: DeckResults, classInsights: ClassInsights, myResults: MyResults, sessionRecap: SessionRecap };
+const COMPONENTS = { sessions: SessionFlow, studentJoin: StudentJoin, community: Community, achievements: Achievements, settings: Settings, director: Director, notifications: Notifications, decks: Decks, myClasses: MyClassesByRole, teacherProfile: TeacherProfile, adminAIStats: AdminAIStats, review: Review, deckResults: DeckResults, classInsights: ClassInsights, myResults: MyResults, sessionRecap: SessionRecap, favorites: Favorites };
 
 function AuthScreen({ initialMode = "select", initialRole = "teacher", onBack }) {
   const [mode, setMode] = useState(initialMode);
