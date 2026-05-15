@@ -551,6 +551,30 @@ function OrderPanel({
         {showResult ? "" : (t.tapToOrder || "Tocá los items en orden")}
       </div>
 
+      {/* PR 28.18: pool moved ABOVE the picked zone.
+          Previously: picks grew downward, pushing the pool off-screen
+          on tablets (Jota's bug report). Now the pool sits at the top
+          (stable position) and picks accumulate below — the student
+          keeps remaining items visible no matter how many they've
+          already placed. Mirrors Duolingo/Babbel "tap to order" UX. */}
+
+      {/* POOL zone: remaining shuffled items (only before reveal) */}
+      {!showResult && (
+        <div className="order-pool">
+          {shuffledItems
+            .filter(it => !orderPicked.includes(it))
+            .map((item) => (
+              <button
+                key={item}
+                className="order-pool-chip"
+                onClick={() => handleOrderPick(item)}
+              >
+                {item}
+              </button>
+            ))}
+        </div>
+      )}
+
       {/* PICKED zone: cards in pick order, numbered 1..N */}
       <div className="order-picked">
         {orderPicked.map((item, idx) => {
@@ -575,23 +599,6 @@ function OrderPanel({
           );
         })}
       </div>
-
-      {/* POOL zone: remaining shuffled items (only before reveal) */}
-      {!showResult && (
-        <div className="order-pool">
-          {shuffledItems
-            .filter(it => !orderPicked.includes(it))
-            .map((item) => (
-              <button
-                key={item}
-                className="order-pool-chip"
-                onClick={() => handleOrderPick(item)}
-              >
-                {item}
-              </button>
-            ))}
-        </div>
-      )}
     </div>
   );
 }
@@ -3340,7 +3347,27 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
               <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
                 <p style={{ fontSize: 12, color: C.textMuted, textAlign: "center", margin: 0 }}>{t.tapToOrder}</p>
 
-                {/* Picked area (in pick order) */}
+                {/* PR 28.18: pool moved ABOVE the picked list.
+                    Previously: picked grew downward, pushing pool off-screen
+                    on tablets. Now the pool sits at the top (stable position)
+                    and picks accumulate below — the student keeps the
+                    remaining items in view at all times, even after many
+                    picks. Mirrors the Duolingo/Babbel "tap to order" UX. */}
+
+                {/* Pool of remaining items (fixed position at top) */}
+                {!showResult && (
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 8, justifyContent: "center" }}>
+                    {shuffledItems.filter(it => !orderPicked.includes(it)).map((item) => (
+                      <button key={item} className="sj-chip" onClick={() => handleOrderPick(item)} style={{
+                        padding: "10px 14px", borderRadius: 8, fontSize: 14, fontWeight: 500,
+                        background: C.bg, color: C.text, border: `1px solid ${C.border}`,
+                      }}>{item}</button>
+                    ))}
+                  </div>
+                )}
+
+                {/* Picked area (in pick order) — grows downward, doesn't
+                    push anything important off-screen */}
                 <div style={{ display: "flex", flexDirection: "column", gap: 6, minHeight: 40 }}>
                   {orderPicked.map((item, j) => {
                     const correctItem = q.items[j];
@@ -3359,18 +3386,6 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
                     );
                   })}
                 </div>
-
-                {/* Pool of remaining items */}
-                {!showResult && (
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                    {shuffledItems.filter(it => !orderPicked.includes(it)).map((item) => (
-                      <button key={item} className="sj-chip" onClick={() => handleOrderPick(item)} style={{
-                        padding: "10px 14px", borderRadius: 8, fontSize: 14, fontWeight: 500,
-                        background: C.bg, color: C.text, border: `1px solid ${C.border}`,
-                      }}>{item}</button>
-                    ))}
-                  </div>
-                )}
 
                 {!showResult && orderPicked.length > 0 && (
                   <button className="sj-btn sj-btn-secondary" onClick={handleOrderUndo} style={{
