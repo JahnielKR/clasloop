@@ -192,13 +192,23 @@
 .stage .question-main {
   /* PR 20.2.8: more breathing room with the full-screen stage. The
      question text is now centered between the top meta and the answers
-     at the bottom, instead of crammed near the top. */
+     at the bottom, instead of crammed near the top.
+     PR 28.19: overflow: hidden → overflow-y: auto. Original `hidden`
+     was defensive (assumed content always fit), but on tablets in
+     landscape with 5+ match pairs, an order question with all picks
+     made, or a free-text question with a tall prompt image, the
+     content gets clipped instead of scrolling. The portrait media
+     query already had this override for image-mode MCQs (line 3326);
+     promoting it to the base rule so landscape tablets also benefit.
+     `-webkit-overflow-scrolling: touch` keeps momentum scrolling
+     smooth on iOS Safari. */
   padding: 28px 60px 60px;
   display: flex;
   flex-direction: column;
   min-height: 0;
   min-width: 0;
-  overflow: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 /* The "middle block" (label + prompt) takes whatever vertical space is
  * left after meta and answers, and centers its content. */
