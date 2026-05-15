@@ -23,7 +23,7 @@
 // return zero rows for them. The page query relies on that.
 
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { CIcon } from "../components/Icons";
 import PageHeader from "../components/PageHeader";
@@ -44,6 +44,12 @@ const i18n = {
     filterByClass: "Class",
     pendingCount: "{n} pending",
     pendingCountOne: "1 pending",
+    // PR 28.4: student-grouped review
+    studentListSubtitle: "Pick a student to see their pending answers",
+    studentListEmpty: "Nobody waiting for feedback right now.",
+    studentItemCount: "{n} answers",
+    studentItemCountOne: "1 answer",
+    backToList: "← All students",
     studentLabel: "Student",
     classLabel: "Class",
     deckLabel: "Deck",
@@ -80,6 +86,12 @@ const i18n = {
     filterByClass: "Clase",
     pendingCount: "{n} pendientes",
     pendingCountOne: "1 pendiente",
+    // PR 28.4: student-grouped review
+    studentListSubtitle: "Elegí un estudiante para ver sus respuestas pendientes",
+    studentListEmpty: "Nadie esperando feedback ahora.",
+    studentItemCount: "{n} respuestas",
+    studentItemCountOne: "1 respuesta",
+    backToList: "← Todos los estudiantes",
     studentLabel: "Estudiante",
     classLabel: "Clase",
     deckLabel: "Deck",
@@ -116,6 +128,12 @@ const i18n = {
     filterByClass: "수업",
     pendingCount: "{n}개 대기",
     pendingCountOne: "1개 대기",
+    // PR 28.4: student-grouped review
+    studentListSubtitle: "학생을 선택하면 대기 중인 답변이 표시됩니다",
+    studentListEmpty: "지금 피드백을 기다리는 학생이 없습니다.",
+    studentItemCount: "답변 {n}개",
+    studentItemCountOne: "답변 1개",
+    backToList: "← 모든 학생",
     studentLabel: "학생",
     classLabel: "수업",
     deckLabel: "덱",
@@ -200,6 +218,24 @@ export default function Review({ profile, lang = "en", onOpenMobileMenu }) {
   // Index of the "active" card for keyboard shortcuts. Defaults to 0
   // (the topmost / oldest pending). Updated when the user clicks a row.
   const [activeIdx, setActiveIdx] = useState(0);
+
+  // PR 28.4: which student's responses are we drilling into?
+  //
+  // Synced with ?student=<participantId> in the URL so:
+  //   - F5 keeps you in the same student's queue (consistent with
+  //     SessionFlow's other URL-driven steps).
+  //   - Browser back from the drilldown returns to the list.
+  //
+  // null = list view (show all students with pending counts).
+  // string = detail view (show that student's pending cards).
+  const [searchParams, setSearchParams] = useSearchParams();
+  const selectedStudentId = searchParams.get("student") || null;
+  const setSelectedStudentId = useCallback((id) => {
+    const next = new URLSearchParams(searchParams);
+    if (id) next.set("student", id);
+    else next.delete("student");
+    setSearchParams(next, { replace: false });
+  }, [searchParams, setSearchParams]);
 
   // ── Fetch pending reviews ─────────────────────────────────────────────
   // The query: every responses row WHERE needs_review=true AND
@@ -286,10 +322,60 @@ export default function Review({ profile, lang = "en", onOpenMobileMenu }) {
   }, [fetchPending]);
 
   // ── Class filter computed list ────────────────────────────────────────
-  const filteredItems = useMemo(() => {
+  // PR 28.4: filteredItems is now downstream of TWO filters:
+  //   1. classFilter (class dropdown, top of page)
+  //   2. selectedStudentId (drilldown into one student)
+  //
+  // The list view ignores selectedStudentId — it groups across all
+  // matching items into per-student buckets. The drilldown view uses
+  // both filters together.
+  const classFilteredItems = useMemo(() => {
     if (!classFilter) return items;
     return items.filter((it) => it.classId === classFilter);
   }, [items, classFilter]);
+
+  const filteredItems = useMemo(() => {
+    if (!selectedStudentId) return classFilteredItems;
+    return classFilteredItems.filter((it) => it.participantId === selectedStudentId);
+  }, [classFilteredItems, selectedStudentId]);
+
+  // PR 28.4: per-student buckets for the list view. Keyed by
+  // participant_id (which is unique per session participant — note
+  // that the same physical student in two different sessions counts
+  // as two separate "students" here; not ideal but matches how RLS
+  // and the rest of the page already treat them).
+  //
+  // Sort order:
+  //   1. By pending count, descending (more pending = higher in list)
+  //   2. Tie-break: oldest waiting response first (keeps the spirit
+  //      of the original "don't leave students hanging" feed)
+  const studentGroups = useMemo(() => {
+    const m = new Map();
+    for (const it of classFilteredItems) {
+      const key = it.participantId;
+      if (!key) continue;
+      if (!m.has(key)) {
+        m.set(key, {
+          participantId: key,
+          studentName: it.studentName || t.studentLabel,
+          isGuest: !!it.isGuest,
+          className: it.className,
+          items: [],
+          oldestCreatedAt: it.createdAt,
+        });
+      }
+      const g = m.get(key);
+      g.items.push(it);
+      // Track the earliest createdAt across the bucket for tie-break sorting
+      if (it.createdAt < g.oldestCreatedAt) g.oldestCreatedAt = it.createdAt;
+    }
+    return Array.from(m.values()).sort((a, b) => {
+      const byCount = b.items.length - a.items.length;
+      if (byCount !== 0) return byCount;
+      // Older oldestCreatedAt → bubble up
+      return a.oldestCreatedAt < b.oldestCreatedAt ? -1 : 1;
+    });
+  }, [classFilteredItems, t.studentLabel]);
 
   // Set of classes seen in the data — populates the filter dropdown.
   const classOptions = useMemo(() => {
@@ -301,6 +387,29 @@ export default function Review({ profile, lang = "en", onOpenMobileMenu }) {
     }
     return Array.from(m.entries()).map(([id, name]) => ({ id, name }));
   }, [items]);
+
+  // PR 28.4 (X): when the drilled-into student runs out of pending
+  // responses, auto-return to the list view.
+  //
+  // We DON'T gate this on the undo toast — the toast is a fixed
+  // overlay, it stays reachable whether we're in the list or the
+  // detail view. Staying in an empty student detail view would be
+  // confusing ("why am I looking at nothing?"), so we always go back.
+  //
+  // Also: if the selectedStudentId doesn't match any group at all (the
+  // teacher reloaded after the student's queue was cleared, or the URL
+  // was bookmarked), bounce back so the page doesn't render an empty
+  // detail view permanently.
+  useEffect(() => {
+    if (!selectedStudentId) return;
+    if (loading) return; // wait for data; don't bounce mid-fetch
+    const stillHasItems = studentGroups.some(
+      (g) => g.participantId === selectedStudentId && g.items.length > 0
+    );
+    if (!stillHasItems) {
+      setSelectedStudentId(null);
+    }
+  }, [selectedStudentId, studentGroups, loading, setSelectedStudentId]);
 
   // ── Grade handler ─────────────────────────────────────────────────────
   // Takes a response id + a 'correct'|'partial'|'incorrect' grade.
@@ -415,6 +524,12 @@ export default function Review({ profile, lang = "en", onOpenMobileMenu }) {
   }, [filteredItems, activeIdx]); // gradeResponse closes over these
 
   // ── Render ────────────────────────────────────────────────────────────
+  // PR 28.4: two notions of "pending total":
+  //   - globalPending: across the class filter, ignoring drilldown.
+  //     Used by the ☕ empty state ("nothing to do at all").
+  //   - pendingTotal: post-drilldown count. Used by the count badge
+  //     in the filter row.
+  const globalPending = classFilteredItems.length;
   const pendingTotal = filteredItems.length;
 
   return (
@@ -434,9 +549,57 @@ export default function Review({ profile, lang = "en", onOpenMobileMenu }) {
       />
 
       <div style={{ maxWidth: 760, margin: "0 auto" }}>
+        {/* PR 28.4: subtitle reads differently in list vs drilldown.
+            In list mode it's a CTA ("pick a student"); in drilldown
+            it stays out of the way (the cards carry the meaning). */}
         <p style={{ fontSize: 14, color: C.textSecondary, margin: "0 0 18px", lineHeight: 1.5 }}>
-          {t.subtitle}
+          {selectedStudentId ? t.subtitle : t.studentListSubtitle}
         </p>
+
+        {/* PR 28.4: back-to-list button + selected student header,
+            only when drilled into a student. */}
+        {selectedStudentId && (() => {
+          const currentGroup = studentGroups.find(g => g.participantId === selectedStudentId);
+          const studentName = currentGroup?.studentName || t.studentLabel;
+          const className = currentGroup?.className || "";
+          return (
+            <div style={{ marginBottom: 14 }}>
+              <button
+                onClick={() => setSelectedStudentId(null)}
+                style={{
+                  background: "transparent",
+                  border: "none",
+                  color: C.accent,
+                  fontSize: 13,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  padding: "4px 0",
+                  fontFamily: "'Outfit',sans-serif",
+                  marginBottom: 8,
+                }}
+              >
+                {t.backToList}
+              </button>
+              <div style={{
+                fontSize: 18, fontWeight: 700, color: C.text,
+                display: "flex", alignItems: "center", gap: 10,
+                flexWrap: "wrap",
+              }}>
+                <CIcon name="student" size={20} inline />
+                {studentName}
+                {className && (
+                  <span style={{
+                    fontSize: 12, fontWeight: 500, color: C.textMuted,
+                    background: C.bgSoft, padding: "2px 8px",
+                    borderRadius: 999,
+                  }}>
+                    {className}
+                  </span>
+                )}
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Filter row + count */}
         <div style={{
@@ -498,8 +661,13 @@ export default function Review({ profile, lang = "en", onOpenMobileMenu }) {
         </div>
       )}
 
-      {/* Empty state */}
-      {!loading && !error && pendingTotal === 0 && (
+      {/* Empty state — only when there's truly nothing to grade across
+          the whole filtered scope. PR 28.4: uses globalPending (not
+          pendingTotal) so we don't flash "all caught up" the instant
+          a student's last response is graded — the useEffect will
+          bounce us back to the list and the user sees the list with
+          one fewer student instead. */}
+      {!loading && !error && globalPending === 0 && (
         <div className="rv-card" style={{
           textAlign: "center", padding: "60px 20px",
           background: C.bg, border: `1px dashed ${C.border}`,
@@ -515,8 +683,73 @@ export default function Review({ profile, lang = "en", onOpenMobileMenu }) {
         </div>
       )}
 
-      {/* Cards */}
-      {!loading && !error && filteredItems.map((item, idx) => {
+      {/* PR 28.4: student list view (no drilldown selected).
+          One row per student with their pending count badge.
+          Click → ?student=<id> → drilldown into their cards. */}
+      {!loading && !error && !selectedStudentId && globalPending > 0 && (
+        <div>
+          {studentGroups.map((g) => (
+            <button
+              key={g.participantId}
+              onClick={() => setSelectedStudentId(g.participantId)}
+              className="rv-card"
+              style={{
+                width: "100%",
+                display: "flex",
+                alignItems: "center",
+                gap: 14,
+                padding: "14px 16px",
+                marginBottom: 10,
+                background: C.bg,
+                border: `1px solid ${C.border}`,
+                borderRadius: 12,
+                cursor: "pointer",
+                textAlign: "left",
+                fontFamily: "'Outfit',sans-serif",
+                transition: "border-color .15s ease, background .15s ease",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = C.accent + "66";
+                e.currentTarget.style.background = C.bgSoft;
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = C.border;
+                e.currentTarget.style.background = C.bg;
+              }}
+            >
+              <CIcon name="student" size={20} inline />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{
+                  fontSize: 15, fontWeight: 600, color: C.text,
+                  marginBottom: 2,
+                  whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+                }}>
+                  {g.studentName}
+                </div>
+                <div style={{ fontSize: 12, color: C.textMuted }}>
+                  {g.className}
+                </div>
+              </div>
+              <span style={{
+                display: "inline-flex", alignItems: "center", justifyContent: "center",
+                minWidth: 28, height: 24, padding: "0 9px",
+                background: C.accent, color: "#fff",
+                borderRadius: 999,
+                fontSize: 12, fontWeight: 700,
+              }}>
+                {g.items.length === 1
+                  ? t.studentItemCountOne
+                  : t.studentItemCount.replace("{n}", String(g.items.length))}
+              </span>
+              <span style={{ fontSize: 18, color: C.textMuted, marginLeft: 2 }}>›</span>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Cards — only shown in drilldown view. PR 28.4: gated on
+          selectedStudentId; before it ran any time there were items. */}
+      {!loading && !error && selectedStudentId && filteredItems.map((item, idx) => {
         const expected = describeCorrectAnswer(item.question, item.questionType);
         const isLeaving = !!leavingIds[item.id];
         const isActive = idx === activeIdx;
