@@ -66,6 +66,9 @@ const i18n = {
     showAnswers: "Show correct answer after each question",
     allowGuests: "Allow students to join without account",
     allowGuestsHelp: "Guests join with just their name. Their progress won't be tracked.",
+    // PR 28.10: shuffle question order per student
+    shuffleQuestions: "Shuffle question order per student",
+    shuffleQuestionsHelp: "Each student sees the questions in a different order. Helps against copying.",
     backToDecks: "Back to deck selection",
     launchSession: "Launch session", starting: "Starting...",
     lobbyTitle: "Waiting for students",
@@ -148,6 +151,9 @@ const i18n = {
     showAnswers: "Mostrar respuesta correcta después de cada pregunta",
     allowGuests: "Permitir entrar sin cuenta",
     allowGuestsHelp: "Los invitados entran solo con su nombre. Su progreso no se guardará.",
+    // PR 28.10: shuffle question order per student
+    shuffleQuestions: "Mezclar el orden de preguntas por estudiante",
+    shuffleQuestionsHelp: "Cada estudiante ve las preguntas en distinto orden. Ayuda contra la copia.",
     backToDecks: "Volver a selección",
     launchSession: "Lanzar sesión", starting: "Iniciando...",
     lobbyTitle: "Esperando estudiantes",
@@ -230,6 +236,9 @@ const i18n = {
     showAnswers: "각 문제 후 정답 표시",
     allowGuests: "계정 없이 참여 허용",
     allowGuestsHelp: "게스트는 이름만으로 참여합니다. 진행도는 저장되지 않습니다.",
+    // PR 28.10: shuffle question order per student
+    shuffleQuestions: "학생마다 문제 순서 섞기",
+    shuffleQuestionsHelp: "학생마다 문제가 다른 순서로 나타납니다. 베끼기 방지에 도움이 됩니다.",
     backToDecks: "덱 선택으로",
     launchSession: "세션 시작", starting: "시작 중...",
     lobbyTitle: "학생 기다리는 중",
@@ -362,6 +371,11 @@ function SessionOptions({ deck, classes, t, lang = "en", onLaunch, onBack }) {
   const [showLeaderboard, setShowLeaderboard] = useState(true);
   const [showAnswers, setShowAnswers] = useState(true);
   const [allowGuests, setAllowGuests] = useState(true);
+  // PR 28.10: per-session toggle to shuffle question order per student.
+  // Default off (matches the current behavior — everyone sees the
+  // same order). When on, each student's quiz state derives its own
+  // permutation from a seed based on participant_id; see StudentJoin.
+  const [shuffleQuestions, setShuffleQuestions] = useState(false);
   const [launching, setLaunching] = useState(false);
 
   const accent = resolveColor(deck);
@@ -384,7 +398,7 @@ function SessionOptions({ deck, classes, t, lang = "en", onLaunch, onBack }) {
       const result = await onLaunch({
         deck, classId: classId || null,
         timeLimit, timeMode,
-        showLeaderboard, showAnswers, allowGuests,
+        showLeaderboard, showAnswers, allowGuests, shuffleQuestions,
       });
       if (result === false) {
         setLaunching(false);
@@ -527,6 +541,7 @@ function SessionOptions({ deck, classes, t, lang = "en", onLaunch, onBack }) {
         <Toggle label={t.competitiveMode} value={showLeaderboard} onChange={setShowLeaderboard} />
         <Toggle label={t.showAnswers} value={showAnswers} onChange={setShowAnswers} />
         <Toggle label={t.allowGuests} hint={t.allowGuestsHelp} value={allowGuests} onChange={setAllowGuests} />
+        <Toggle label={t.shuffleQuestions} hint={t.shuffleQuestionsHelp} value={shuffleQuestions} onChange={setShuffleQuestions} />
       </div>
 
       <button
@@ -2371,7 +2386,7 @@ export default function SessionFlow({ lang = "en", setLang, onNavigateToDecks, o
   }, [session?.id, session?.pending_close_at, step, session?._isPractice]);
 
   const handleLaunch = async (config) => {
-    const { deck, classId, timeLimit, timeMode, showLeaderboard, showAnswers, allowGuests } = config;
+    const { deck, classId, timeLimit, timeMode, showLeaderboard, showAnswers, allowGuests, shuffleQuestions } = config;
 
     // Pre-flight: sessions.class_id is NOT NULL. If the deck isn't in a
     // class, surface an actionable message instead of letting the INSERT
@@ -2441,6 +2456,12 @@ export default function SessionFlow({ lang = "en", setLang, onNavigateToDecks, o
         time_limit: timeLimit,
         show_leaderboard: showLeaderboard,
         show_answers: showAnswers,
+        // PR 28.10: per-student question shuffling. When true, StudentJoin
+        // derives a permutation from a seed based on participant_id so
+        // each student sees a different order. Refresh-stable because
+        // the seed is the participant_id (which survives refresh — it's
+        // the same row in session_participants).
+        shuffle_questions: !!shuffleQuestions,
       },
     }).select().single();
 

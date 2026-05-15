@@ -287,6 +287,61 @@ const shuffle = (arr) => {
   return a;
 };
 
+// PR 28.10: deterministic shuffle for per-student question order.
+//
+// Why deterministic: when shuffleQuestions is on for a session, each
+// student must see the same order across page refreshes (otherwise
+// rehydrating mid-quiz would land them on a different "question 3"
+// than they were on before). Using Math.random() would re-shuffle on
+// every mount.
+//
+// We derive the seed from a stable per-student identifier
+// (participant_id) plus the session_id, so:
+//   - Same student in the same session → same order, always
+//   - Same student in a DIFFERENT session → different order (good)
+//   - Different students in the same session → different order (good)
+//
+// The seeded PRNG is a tiny xmur3 + sfc32 combo — cheap, no deps,
+// good enough for "scramble 10-30 questions for one quiz." Not crypto.
+function seededShuffle(arr, seed) {
+  // xmur3: string → 32-bit hash function
+  function xmur3(str) {
+    let h = 1779033703 ^ str.length;
+    for (let i = 0; i < str.length; i++) {
+      h = Math.imul(h ^ str.charCodeAt(i), 3432918353);
+      h = (h << 13) | (h >>> 19);
+    }
+    return function () {
+      h = Math.imul(h ^ (h >>> 16), 2246822507);
+      h = Math.imul(h ^ (h >>> 13), 3266489909);
+      h ^= h >>> 16;
+      return h >>> 0;
+    };
+  }
+  // sfc32: seeded 32-bit PRNG
+  function sfc32(a, b, c, d) {
+    return function () {
+      a >>>= 0; b >>>= 0; c >>>= 0; d >>>= 0;
+      let t = (a + b) | 0;
+      a = b ^ (b >>> 9);
+      b = (c + (c << 3)) | 0;
+      c = (c << 21) | (c >>> 11);
+      d = (d + 1) | 0;
+      t = (t + d) | 0;
+      c = (c + t) | 0;
+      return (t >>> 0) / 4294967296;
+    };
+  }
+  const hasher = xmur3(String(seed));
+  const rand = sfc32(hasher(), hasher(), hasher(), hasher());
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(rand() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
 // Evaluate correctness + return value to persist in responses.answer (jsonb).
 // evaluateAnswer (and describeCorrectAnswer) live in src/lib/scoring.js
 // — single source of truth shared with the teacher's To Review page.
@@ -878,10 +933,33 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
         };
       });
 
-      // Find the first slot that's still undefined — that's the next
-      // unanswered question.
-      let firstUnanswered = reconstructed.findIndex(a => a === undefined);
-      const allAnswered = firstUnanswered === -1;
+      // PR 28.10: if this session has per-student question shuffling
+      // on, the "next unanswered question" must be computed in DISPLAY
+      // order, not in the original deck order. Otherwise a student who
+      // answered displays 0..2 (originals [4, 1, 7]) and refreshes
+      // would land at original index 0 — the wrong question.
+      //
+      // We build the display order locally (same algorithm as the
+      // useMemo above) because the useMemo hasn't run yet — we're
+      // still inside the effect that's about to setSession/setParticipant.
+      const localShuffle = !!sess?.session_settings?.shuffle_questions;
+      const localDisplayOrder = (() => {
+        const n = sess.questions.length;
+        const identity = Array.from({ length: n }, (_, i) => i);
+        if (!localShuffle) return identity;
+        return seededShuffle(identity, `${sess.id}:${p.id}`);
+      })();
+
+      // Walk the display order and find the first display position
+      // whose underlying ORIGINAL question is still unanswered.
+      let firstUnansweredDisplay = -1;
+      for (let i = 0; i < localDisplayOrder.length; i++) {
+        if (reconstructed[localDisplayOrder[i]] === undefined) {
+          firstUnansweredDisplay = i;
+          break;
+        }
+      }
+      const allAnswered = firstUnansweredDisplay === -1;
 
       // PR 23.11: if every question is already answered, don't
       // rehydrate. The student finished the quiz; restoring them
@@ -891,10 +969,6 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
         try { sessionStorage.removeItem(QUIZ_FLAG_KEY); } catch (_) {}
         return;
       }
-
-      const filledAnswers = reconstructed.map(a =>
-        a === undefined ? null : a
-      );
 
       // Apply state. We spread sess wholesale rather than pick named
       // columns — robust against columns that may or may not exist
@@ -907,16 +981,18 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
       });
       if (sess.section) setDeckSection(sess.section);
       if (sess.lobby_theme) setLobbyThemeId(sess.lobby_theme);
-      // Filter to only the actually-answered slots for the answers
-      // array (the UI consumes it as a sequential list, not indexed).
-      // We rebuild from filtered values up to the first gap to
-      // preserve the "answered prefix" pattern.
-      const firstGap = filledAnswers.indexOf(null);
-      const answeredPrefix = firstGap === -1
-        ? filledAnswers
-        : filledAnswers.slice(0, firstGap);
+
+      // PR 28.10: the answers array follows DISPLAY order (it's
+      // consumed sequentially by the UI). So we walk displayOrder
+      // up to the firstUnansweredDisplay gap and emit the answered
+      // entries in that order.
+      const answeredPrefix = [];
+      for (let i = 0; i < firstUnansweredDisplay; i++) {
+        const origIdx = localDisplayOrder[i];
+        answeredPrefix.push(reconstructed[origIdx] ?? null);
+      }
       setAnswers(answeredPrefix);
-      setCurrent(firstUnanswered);
+      setCurrent(firstUnansweredDisplay);
       setStep("quiz");
     })().finally(() => {
       // PR 23.10.3: clear rehydrating regardless of outcome. If we
@@ -934,7 +1010,46 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
   }, [profile?.id]);
 
   const questions = session?.questions || [];
-  const q = questions[current];
+
+  // PR 28.10: per-student question order.
+  //
+  // displayOrder[i] = the ORIGINAL question_index to render at display
+  // position i. Default is the identity ([0, 1, 2, …]) — same order
+  // for everyone, matching pre-28.10 behavior.
+  //
+  // When session_settings.shuffle_questions === true, we derive a
+  // deterministic permutation from a seed = `${session.id}:${participant.id}`.
+  // This gives every student a different order, stable across refresh
+  // (participant.id survives refresh because it's a row id; we
+  // rehydrate participant from the DB on mount).
+  //
+  // We DO NOT shuffle if there's no participant yet (lobby / before
+  // joining). In practice this is fine — by the time `questions` is
+  // rendered the participant exists.
+  //
+  // The deck-side / teacher-side stay UNTOUCHED:
+  //   - `questions` array is the original deck order
+  //   - `responses.question_index` always references the ORIGINAL index
+  //     (we map current → displayOrder[current] before persisting)
+  //   - Review/Recap/AI all read responses by original question_index
+  //   - Each student's per-session shuffle is purely cosmetic
+  const shuffleQuestionsOn = !!session?.session_settings?.shuffle_questions;
+  const displayOrder = useMemo(() => {
+    const n = questions.length;
+    if (n === 0) return [];
+    const identity = Array.from({ length: n }, (_, i) => i);
+    if (!shuffleQuestionsOn) return identity;
+    if (!participant?.id || !session?.id) return identity;
+    return seededShuffle(identity, `${session.id}:${participant.id}`);
+  }, [questions.length, shuffleQuestionsOn, participant?.id, session?.id]);
+
+  // PR 28.10: the original question_index of the question currently
+  // on screen. Used everywhere we persist/look-up by question_index
+  // (responses upserts, answer reconstruction, etc.). When shuffle is
+  // off this equals `current`. When on, it follows the permutation.
+  const currentQuestionIdx = displayOrder[current] ?? current;
+
+  const q = questions[currentQuestionIdx];
   const qType = getQType(q, session);
 
   // Time limit per question. Tres escenarios:
@@ -1457,7 +1572,13 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
         const insertData = {
           session_id: session.id,
           participant_id: participant.id,
-          question_index: current,
+          // PR 28.10: persist the ORIGINAL question_index, not the
+          // display position. When shuffle is off these are equal;
+          // when on, currentQuestionIdx = displayOrder[current] maps
+          // back to the deck-original order so teacher-side reads
+          // (Review, Recap, retention, AI insights) all keep working
+          // without any code changes downstream.
+          question_index: currentQuestionIdx,
           answer: stored,
           // is_correct stays NOT NULL for back-compat. Ungraded free-text
           // counts as participation (true) for now; the teacher's review
@@ -1602,7 +1723,10 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
     // with the themed path. Use the same eligibility predicate. If not
     // themed, skip the animation and update displayed immediately.
     // PR 24.1: includes TF alongside MCQ.
-    const prevQ = questions[displayedQuestionIdx];
+    // PR 28.10: map displayedQuestionIdx (display position) through
+    // displayOrder to get the ORIGINAL question. Pre-28.10 the two
+    // were the same so this is a no-op when shuffle is off.
+    const prevQ = questions[displayOrder[displayedQuestionIdx] ?? displayedQuestionIdx];
     const prevQType = prevQ ? (prevQ.type || session?.activity_type || 'mcq') : null;
     const prevMcqThemed =
       prevQType === 'mcq' &&
@@ -2235,7 +2359,10 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
       // by 200ms during the slide-out animation). After the swap,
       // displayedQuestionIdx catches up and rendering reflects the
       // new question, which then slides in.
-      const displayedQ = questions[displayedQuestionIdx] || q;
+      // PR 28.10: map displayedQuestionIdx (display position) through
+      // displayOrder to get the original question. Pre-28.10 no-op
+      // when shuffle is off.
+      const displayedQ = questions[displayOrder[displayedQuestionIdx] ?? displayedQuestionIdx] || q;
       const displayedProgress = ((displayedQuestionIdx + 1) / questions.length) * 100;
       const stageLabel = sectionLabel || (deckSection ? deckSection : "Quiz");
 
@@ -3473,7 +3600,13 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
             </div>
 
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              {questions.map((qq, i) => {
+              {/* PR 28.10: walk the display order so each row's answer
+                  (answers[i] follows display order — that's how it was
+                  built) pairs with the right question. When shuffle is
+                  off, displayOrder is the identity → this matches the
+                  pre-28.10 behavior exactly. */}
+              {displayOrder.map((origIdx, i) => {
+                const qq = questions[origIdx];
                 const a = answers[i];
                 const qqType = qq?.type || "mcq";
                 // Status: needs-review takes precedence; otherwise correct/incorrect.
