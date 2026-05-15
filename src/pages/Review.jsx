@@ -490,11 +490,18 @@ export default function Review({ profile, lang = "en", onOpenMobileMenu }) {
       fetchPending();
       setToast(null);
     };
-    setToast({ id: item.id, grade: gradeLabel, undoFn, shownAt: Date.now() });
+    // PR 28.5: capture shownAt in a local before passing it to both
+    // setToast and the dismiss timer. Previously this read
+    // `undoSnapshot.shownAt` which doesn't exist on undoSnapshot
+    // ({item, prevFeedback} only), so the comparison was always
+    // false and the toast never auto-dismissed — it only went away
+    // when a new grade replaced it.
+    const shownAt = Date.now();
+    setToast({ id: item.id, grade: gradeLabel, undoFn, shownAt });
     // Auto-dismiss toast after 5s. We compare shownAt to avoid clobbering
     // a newer toast that arrived in the meantime.
     setTimeout(() => {
-      setToast((curr) => (curr && curr.shownAt === undoSnapshot.shownAt ? null : curr));
+      setToast((curr) => (curr && curr.shownAt === shownAt ? null : curr));
     }, 5000);
   };
 
