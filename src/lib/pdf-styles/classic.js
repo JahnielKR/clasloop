@@ -96,11 +96,32 @@ export async function renderExam(doc, deck, classObj, opts = {}) {
       labels.sectionSelection,
       labels.sectionSelectionSub,
     );
-    for (const q of selection) {
+    for (let i = 0; i < selection.length; i++) {
+      const q = selection[i];
       const estH = estimateQuestionHeight(q, imageCache);
-      y = ensureSpace(doc, y, estH);
+      // PR 29.0.3 fix 3: widow protection. If this question fits on the
+      // current page BUT the next one wouldn't (so it'd be alone at the
+      // top of the next page), page-break early so we don't leave an
+      // orphan up there. Threshold: don't trigger if we're already near
+      // the top (no point breaking a page that's just started).
+      const next = selection[i + 1];
+      const remaining = PAGE.height - PAGE.marginY - 12 - y;
+      const widowRisk = next
+        && (y > PAGE.marginY + 40)
+        && (estH + SPACING.betweenQuestions + estimateQuestionHeight(next, imageCache) > remaining)
+        && (estH < remaining);
+      if (widowRisk) {
+        doc.addPage();
+        y = PAGE.marginY;
+      } else {
+        y = ensureSpace(doc, y, estH);
+      }
       y = drawQuestion(doc, q, y, fontFamily, lang, imageCache, /* dotted */ false);
-      y += SPACING.betweenQuestions;
+      // PR 29.0.3 fix 2: fill ("complete the sentence") doesn't use answer
+      // area below the prompt — the blanks are inline. So the default
+      // between-question gap leaves it floating with too much air.
+      // Reduce when current was fill.
+      y += (q.type === "fill") ? Math.round(SPACING.betweenQuestions * 0.55) : SPACING.betweenQuestions;
     }
   }
 
@@ -114,9 +135,21 @@ export async function renderExam(doc, deck, classObj, opts = {}) {
       labels.sectionWritten,
       labels.sectionWrittenSub,
     );
-    for (const q of written) {
+    for (let i = 0; i < written.length; i++) {
+      const q = written[i];
       const estH = estimateQuestionHeight(q, imageCache);
-      y = ensureSpace(doc, y, estH);
+      const next = written[i + 1];
+      const remaining = PAGE.height - PAGE.marginY - 12 - y;
+      const widowRisk = next
+        && (y > PAGE.marginY + 40)
+        && (estH + SPACING.betweenQuestions + estimateQuestionHeight(next, imageCache) > remaining)
+        && (estH < remaining);
+      if (widowRisk) {
+        doc.addPage();
+        y = PAGE.marginY;
+      } else {
+        y = ensureSpace(doc, y, estH);
+      }
       y = drawQuestion(doc, q, y, fontFamily, lang, imageCache, /* dotted */ true);
       y += SPACING.betweenQuestions;
     }
@@ -187,7 +220,10 @@ function drawExamHeader(doc, deck, classObj, y, fontFamily, labels, totalQ) {
     doc.setFontSize(FONT.eyebrow);
     setColor(doc, COLOR.textMute);
     doc.text(classObj.name.toUpperCase(), PAGE.marginX, y, { charSpace: 0.4 });
-    y += 4.5;
+    // PR 29.0.3 fix 4: was 4.5mm — too tight, class name and deck title
+    // visually merged. 7mm gives the eyebrow room to read as a separate
+    // layer of metadata above the title.
+    y += 7;
   }
 
   // Title
@@ -195,6 +231,8 @@ function drawExamHeader(doc, deck, classObj, y, fontFamily, labels, totalQ) {
   doc.setFontSize(FONT.title);
   setColor(doc, COLOR.textBlack);
   y = drawWrappedText(doc, deck.title || "Deck", PAGE.marginX, y, PAGE.contentWidth, FONT.title * 0.42);
+  // Small extra breath after the title before the meta line
+  y += 1.5;
 
   // Meta line: N preguntas · M minutes (estimated)
   doc.setFont(fontFamily, "normal");
@@ -223,7 +261,9 @@ function drawAnswerKeyHeader(doc, deck, classObj, y, fontFamily, labels) {
   doc.setFontSize(FONT.eyebrow);
   setColor(doc, COLOR.textMute);
   doc.text(labels.answerKey.toUpperCase(), PAGE.marginX, y, { charSpace: 0.4 });
-  y += 4.5;
+  // PR 29.0.3 fix 4: 7mm instead of 4.5mm so the eyebrow doesn't merge
+  // into the title visually.
+  y += 7;
 
   // Title
   doc.setFont(fontFamily, "bold");
@@ -263,17 +303,25 @@ function drawDoubleRule(doc, y) {
   return y;
 }
 
-// Fields row: Name ............ Date ........ Score ........
-// Dot-leader between label and underline (a printing detail that gives
-// the form a touch of formality without being noisy).
+// Fields row: Name ⋯⋯⋯⋯⋯⋯ Date ⋯⋯⋯⋯ Score ⋯⋯⋯⋯
+//
+// PR 29.0.3 fix 5: was 3 separate dotted-leader-then-line segments.
+// Replaced by ONE continuous dotted underline running from the start
+// of the first field label to the right margin, with labels sitting
+// above the line. The dots touch from edge to edge — feels like one
+// long ledger line, more cohesive than three orphaned underlines.
+//
+// Layout:
+//
+//   Nombre              Fecha            Nota
+//   · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · ·
+//
 function drawFieldsRow(doc, y, fontFamily, labels) {
   doc.setFont(fontFamily, "bold");
   doc.setFontSize(FONT.fieldLabel);
   setColor(doc, COLOR.textDark);
 
-  // Layout: 3 columns of (label · field-line)
-  // Name takes 45%, Date 30%, Score 25% (a hair more for Score because
-  // the underscored space is shorter due to the percent sign).
+  // Place each label at its column start
   const totalW = PAGE.contentWidth;
   const fields = [
     { label: labels.name, frac: 0.46 },
@@ -282,27 +330,19 @@ function drawFieldsRow(doc, y, fontFamily, labels) {
   ];
 
   let x = PAGE.marginX;
-  for (let i = 0; i < fields.length; i++) {
-    const colW = totalW * fields[i].frac;
-    const labelText = fields[i].label;
-    doc.setFont(fontFamily, "bold");
-    doc.text(labelText, x, y);
-    const labelW = doc.getTextWidth(labelText);
-
-    // Dot leader: subtle dots between label and line start
-    const dotStart = x + labelW + 1.5;
-    const lineEnd = x + colW - (i < fields.length - 1 ? 5 : 0);
-    drawDotLeader(doc, dotStart, y - 1.2, lineEnd, COLOR.textFaint);
-
-    // Field underline
-    setDrawColor(doc, COLOR.textMid);
-    doc.setLineWidth(0.35);
-    doc.line(dotStart, y + 0.8, lineEnd, y + 0.8);
-
-    x += colW;
+  for (const f of fields) {
+    doc.text(f.label, x, y);
+    x += totalW * f.frac;
   }
 
-  return y;
+  // ONE continuous dotted underline spanning the full content width
+  // below the labels. The dots are small filled circles spaced ~1.8mm
+  // apart — same density as the dot leader in fields used before, but
+  // unbroken now.
+  const lineY = y + 3.5;
+  drawDotLeader(doc, PAGE.marginX, lineY, PAGE.marginX + PAGE.contentWidth, COLOR.textMute);
+
+  return lineY;
 }
 
 // Tiny dot leader — small dots at low opacity feel-equivalent. We use
@@ -473,18 +513,20 @@ function drawMCQOptions(doc, q, startY, fontFamily, textX) {
   const options = q.options || [];
   const letters = ["a", "b", "c", "d", "e", "f"];
   for (let i = 0; i < options.length; i++) {
-    // Circle bullet (unfilled) instead of square. Smaller and cleaner.
+    // PR 29.0.3 fix 1: bullets bigger (2.6mm radius) so the student
+    // can mark them clearly with a pen. The old 1.7mm circles were
+    // hard to see against the option text.
     setDrawColor(doc, COLOR.textMute);
-    doc.setLineWidth(0.4);
-    doc.circle(textX + 1.5, y - 1.2, 1.7);
+    doc.setLineWidth(0.5);
+    doc.circle(textX + 2.6, y - 1.2, 2.6);
     // Letter inside paren
     doc.setFont(fontFamily, "bold");
-    doc.text(`${letters[i]})`, textX + 6, y);
+    doc.text(`${letters[i]})`, textX + 8, y);
     doc.setFont(fontFamily, "normal");
     const optionText = String(options[i] ?? "");
-    const wrapped = doc.splitTextToSize(optionText, PAGE.contentWidth - (textX - PAGE.marginX) - 13);
+    const wrapped = doc.splitTextToSize(optionText, PAGE.contentWidth - (textX - PAGE.marginX) - 15);
     for (let j = 0; j < wrapped.length; j++) {
-      doc.text(wrapped[j], textX + 12, y);
+      doc.text(wrapped[j], textX + 14, y);
       if (j < wrapped.length - 1) y += 4.5;
     }
     y += SPACING.betweenOptions;
@@ -498,15 +540,16 @@ function drawTFOptions(doc, startY, fontFamily, labels, textX) {
   doc.setFontSize(FONT.option);
   setColor(doc, COLOR.textDark);
   setDrawColor(doc, COLOR.textMute);
-  doc.setLineWidth(0.4);
-  // True bullet
-  doc.circle(textX + 1.5, y - 1.2, 1.7);
-  doc.text(labels.true, textX + 6, y);
-  // False bullet — same row, offset
+  doc.setLineWidth(0.5);
+  // PR 29.0.3 fix 1: True/False bullets bumped from 1.7mm to 3mm.
+  // Originally too small to comfortably mark with a pen.
+  const r = 3;
+  doc.circle(textX + r, y - 1.2, r);
+  doc.text(labels.true, textX + r * 2 + 4, y);
   const trueWidth = doc.getTextWidth(labels.true);
-  const falseX = textX + 6 + trueWidth + 12;
-  doc.circle(falseX - 4.5, y - 1.2, 1.7);
-  doc.text(labels.false, falseX, y);
+  const falseX = textX + r * 2 + 4 + trueWidth + 14;
+  doc.circle(falseX - 4, y - 1.2, r);
+  doc.text(labels.false, falseX + r, y);
   y += SPACING.betweenOptions;
   return y;
 }

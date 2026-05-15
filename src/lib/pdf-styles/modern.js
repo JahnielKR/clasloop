@@ -108,11 +108,28 @@ export async function renderExam(doc, deck, classObj, opts = {}) {
       labels.sectionSelectionSub,
       SECTION.selection,
     );
-    for (const q of selection) {
+    for (let i = 0; i < selection.length; i++) {
+      const q = selection[i];
       const estH = estimateQuestionHeight(q, imageCache);
-      y = ensureSpace(doc, y, estH);
+      // PR 29.0.3 fix 3: widow protection. Same idea as classic — if
+      // current question fits but the next one would land alone at the
+      // top of a new page, break early.
+      const next = selection[i + 1];
+      const remaining = PAGE.height - PAGE.marginY - 14 - y;
+      const widowRisk = next
+        && (y > PAGE.marginY + 40)
+        && (estH + SPACING.betweenQuestions + estimateQuestionHeight(next, imageCache) > remaining)
+        && (estH < remaining);
+      if (widowRisk) {
+        doc.addPage();
+        y = PAGE.marginY;
+      } else {
+        y = ensureSpace(doc, y, estH);
+      }
       y = drawQuestion(doc, q, y, fontFamily, lang, imageCache, SECTION.selection);
-      y += SPACING.betweenQuestions;
+      // PR 29.0.3 fix 2: fill questions get a tighter gap below since
+      // they don't render an answer area (blanks are inline).
+      y += (q.type === "fill") ? Math.round(SPACING.betweenQuestions * 0.55) : SPACING.betweenQuestions;
     }
   }
 
@@ -127,9 +144,21 @@ export async function renderExam(doc, deck, classObj, opts = {}) {
       labels.sectionWrittenSub,
       SECTION.written,
     );
-    for (const q of written) {
+    for (let i = 0; i < written.length; i++) {
+      const q = written[i];
       const estH = estimateQuestionHeight(q, imageCache);
-      y = ensureSpace(doc, y, estH);
+      const next = written[i + 1];
+      const remaining = PAGE.height - PAGE.marginY - 14 - y;
+      const widowRisk = next
+        && (y > PAGE.marginY + 40)
+        && (estH + SPACING.betweenQuestions + estimateQuestionHeight(next, imageCache) > remaining)
+        && (estH < remaining);
+      if (widowRisk) {
+        doc.addPage();
+        y = PAGE.marginY;
+      } else {
+        y = ensureSpace(doc, y, estH);
+      }
       y = drawQuestion(doc, q, y, fontFamily, lang, imageCache, SECTION.written);
       y += SPACING.betweenQuestions;
     }
@@ -152,7 +181,8 @@ export async function renderAnswerKey(doc, deck, classObj, opts = {}) {
   doc.setFontSize(FONT.eyebrow);
   setColor(doc, COLOR.coral);
   doc.text(labels.answerKey.toUpperCase(), PAGE.marginX, y, { charSpace: 0.4 });
-  y += 5;
+  // PR 29.0.3 fix 4: 7mm spacing
+  y += 7;
 
   doc.setFont(fontFamily, "bold");
   doc.setFontSize(FONT.title);
@@ -247,7 +277,9 @@ function drawExamHeader(doc, deck, classObj, y, fontFamily, labels, totalQ) {
     doc.setFontSize(FONT.eyebrow);
     setColor(doc, COLOR.teal);
     doc.text(classObj.name.toUpperCase(), PAGE.marginX, y, { charSpace: 0.4 });
-    y += 4.8;
+    // PR 29.0.3 fix 4: 7mm instead of 4.8mm so the eyebrow doesn't
+    // visually merge into the deck title below.
+    y += 7;
   }
 
   doc.setFont(fontFamily, "bold");
@@ -255,6 +287,8 @@ function drawExamHeader(doc, deck, classObj, y, fontFamily, labels, totalQ) {
   setColor(doc, COLOR.textBlack);
   const titleMaxW = PAGE.contentWidth - (stickerR * 2 + 8);
   y = drawWrappedText(doc, deck.title || "Deck", PAGE.marginX, y, titleMaxW, FONT.title * 0.42);
+  // Small extra breath after title before meta line
+  y += 1.5;
 
   doc.setFont(fontFamily, "normal");
   doc.setFontSize(FONT.meta);
@@ -312,6 +346,9 @@ function drawFieldsRow(doc, y, fontFamily, labels) {
   doc.setFontSize(FONT.fieldLabel);
   setColor(doc, COLOR.textDark);
 
+  // PR 29.0.3 fix 5: was 3 separate teal underlines under each field.
+  // Replaced by ONE continuous dotted teal line spanning all fields,
+  // with labels sitting above. Reads as a single ledger line.
   const totalW = PAGE.contentWidth;
   const fields = [
     { label: labels.name, frac: 0.46 },
@@ -320,25 +357,20 @@ function drawFieldsRow(doc, y, fontFamily, labels) {
   ];
 
   let x = PAGE.marginX;
-  for (let i = 0; i < fields.length; i++) {
-    const colW = totalW * fields[i].frac;
-    const labelText = fields[i].label;
-    doc.setFont(fontFamily, "bold");
-    doc.text(labelText, x, y);
-    const labelW = doc.getTextWidth(labelText);
-
-    const lineStart = x + labelW + 2;
-    const lineEnd = x + colW - (i < fields.length - 1 ? 5 : 0);
-
-    // Soft teal underline instead of plain gray
-    setDrawColor(doc, COLOR.tealLight);
-    doc.setLineWidth(0.6);
-    doc.line(lineStart, y + 0.8, lineEnd, y + 0.8);
-
-    x += colW;
+  for (const f of fields) {
+    doc.text(f.label, x, y);
+    x += totalW * f.frac;
   }
 
-  return y;
+  // Continuous dotted line in teal (subtle, on-brand)
+  const lineY = y + 3.5;
+  setFillColor(doc, COLOR.teal);
+  const step = 1.8;
+  for (let cx = PAGE.marginX; cx <= PAGE.marginX + PAGE.contentWidth; cx += step) {
+    doc.circle(cx, lineY, 0.32, "F");
+  }
+
+  return lineY;
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -502,26 +534,30 @@ function drawMCQOptions(doc, q, startY, fontFamily, textX, sectionCfg) {
 
 function drawTFOptions(doc, startY, fontFamily, labels, textX, sectionCfg) {
   let y = startY;
-  const pillH = 8;
+  // PR 29.0.3 fix 1: TF badges bumped from 2.4mm to 3.2mm radius so
+  // students can comfortably mark them. Pill height grows accordingly
+  // (8 → 10mm) so the badge isn't crammed against the edges.
+  const r = 3.2;
+  const pillH = 10;
   const colW = (PAGE.contentWidth - (textX - PAGE.marginX) - 6) / 2;
 
   // True pill
   setFillColor(doc, sectionCfg.soft);
-  doc.roundedRect(textX, y - 5, colW, pillH, 2, 2, "F");
+  doc.roundedRect(textX, y - 5.5, colW, pillH, 2.5, 2.5, "F");
   setFillColor(doc, sectionCfg.color);
-  doc.circle(textX + 4, y - 1, 2.4, "F");
+  doc.circle(textX + r + 2, y - 0.5, r, "F");
   doc.setFont(fontFamily, "bold");
   setColor(doc, COLOR.textDark);
   doc.setFontSize(FONT.option);
-  doc.text(labels.true, textX + 9, y);
+  doc.text(labels.true, textX + r * 2 + 5, y);
 
   // False pill
   const falseX = textX + colW + 4;
   setFillColor(doc, sectionCfg.soft);
-  doc.roundedRect(falseX, y - 5, colW, pillH, 2, 2, "F");
+  doc.roundedRect(falseX, y - 5.5, colW, pillH, 2.5, 2.5, "F");
   setFillColor(doc, sectionCfg.color);
-  doc.circle(falseX + 4, y - 1, 2.4, "F");
-  doc.text(labels.false, falseX + 9, y);
+  doc.circle(falseX + r + 2, y - 0.5, r, "F");
+  doc.text(labels.false, falseX + r * 2 + 5, y);
 
   y += pillH + 2;
   return y;
