@@ -9,10 +9,10 @@
 //   exportAnswerKeyPDF(deck, classObj, lang)              ← legacy shim
 //
 // Styles:
-//   "classic"   → sober, professional textbook look (default; this is
-//                 the style every existing PDF used before the refactor)
+//   "classic"   → sober, professional textbook look (default)
 //   "modern"    → colorful, youth-friendly card-based layout
 //   "editorial" → premium, serif-driven magazine layout
+//   "framed"    → formal exam paper with decorative border + serif
 //
 // Variants:
 //   "exam"        → student-facing exam (questions + space to answer)
@@ -27,8 +27,16 @@ import { sanitizeFilename } from "./pdf-styles/shared";
 import * as classic from "./pdf-styles/classic";
 import * as modern from "./pdf-styles/modern";
 import * as editorial from "./pdf-styles/editorial";
+import * as framed from "./pdf-styles/framed";
 
-const STYLES = { classic, modern, editorial };
+const STYLES = { classic, modern, editorial, framed };
+
+// Style preferences for default fonts. Framed uses serif (times) for the
+// academic-paper feel; the others use the dispatcher's chosen font
+// (helvetica for non-Korean, NotoSansKR for Korean).
+const STYLE_DEFAULTS = {
+  framed: { fontFamily: "times" },
+};
 
 // ─── Main dispatcher ─────────────────────────────────────────────────────
 // `style` and `variant` default to backwards-compatible values so callers
@@ -48,7 +56,9 @@ export async function exportPDF(deck, classObj, opts = {}) {
   if (useKorean) {
     await ensureKoreanFont(doc);
   }
-  const fontFamily = useKorean ? "NotoSansKR" : "helvetica";
+  const fontFamily = useKorean
+    ? "NotoSansKR"
+    : (STYLE_DEFAULTS[style]?.fontFamily || "helvetica");
 
   const renderOpts = { lang, fontFamily };
 

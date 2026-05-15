@@ -43,8 +43,14 @@ import { sanitizeFilename } from "../lib/pdf-styles/shared";
 import * as classic from "../lib/pdf-styles/classic";
 import * as modern from "../lib/pdf-styles/modern";
 import * as editorial from "../lib/pdf-styles/editorial";
+import * as framed from "../lib/pdf-styles/framed";
 
-const STYLES = { classic, modern, editorial };
+const STYLES = { classic, modern, editorial, framed };
+
+// Per-style default font, mirroring pdf-export.js. Framed uses Times.
+const STYLE_FONT_DEFAULTS = {
+  framed: "times",
+};
 
 const STORAGE_KEY = "clasloop_pdf_style";
 const DEFAULT_STYLE = "classic";
@@ -65,6 +71,8 @@ const I18N = {
     modernDesc: "Colorful, friendly",
     editorialName: "Editorial",
     editorialDesc: "Premium, magazine",
+    framedName: "Framed",
+    framedDesc: "Formal, bordered",
     previewLabel: "Preview",
     previewLoading: "Generating preview…",
     previewFailed: "Preview failed. You can still download.",
@@ -85,6 +93,8 @@ const I18N = {
     modernDesc: "Colorido, juvenil",
     editorialName: "Editorial",
     editorialDesc: "Premium, revista",
+    framedName: "Marco",
+    framedDesc: "Formal, con borde",
     previewLabel: "Vista previa",
     previewLoading: "Generando vista previa…",
     previewFailed: "No se pudo generar vista previa. Igual podés descargar.",
@@ -105,6 +115,8 @@ const I18N = {
     modernDesc: "다채롭고 친근함",
     editorialName: "에디토리얼",
     editorialDesc: "프리미엄 매거진",
+    framedName: "프레임",
+    framedDesc: "정식, 테두리",
     previewLabel: "미리보기",
     previewLoading: "미리보기 생성 중…",
     previewFailed: "미리보기를 생성할 수 없습니다. 다운로드는 가능합니다.",
@@ -291,10 +303,80 @@ function EditorialThumb() {
   );
 }
 
+function FramedThumb() {
+  return (
+    <svg viewBox="0 0 140 190" width="100%" style={{ display: "block" }}>
+      <rect x="0" y="0" width="140" height="190" fill="#fff" stroke="#e5e5e5" strokeWidth="0.5" />
+      {/* outer frame */}
+      <rect x="4" y="4" width="132" height="182" fill="none" stroke="#3a3a3a" strokeWidth="0.4" />
+      {/* inner frame */}
+      <rect x="7" y="7" width="126" height="176" fill="none" stroke="#3a3a3a" strokeWidth="0.7" />
+      {/* corner ornaments — diagonals */}
+      <line x1="4" y1="4" x2="7" y2="7" stroke="#3a3a3a" strokeWidth="0.4" />
+      <line x1="136" y1="4" x2="133" y2="7" stroke="#3a3a3a" strokeWidth="0.4" />
+      <line x1="4" y1="186" x2="7" y2="183" stroke="#3a3a3a" strokeWidth="0.4" />
+      <line x1="136" y1="186" x2="133" y2="183" stroke="#3a3a3a" strokeWidth="0.4" />
+      {/* centered eyebrow */}
+      <rect x="50" y="14" width="40" height="2.5" fill="#999" />
+      {/* centered title — serif look */}
+      <rect x="38" y="22" width="64" height="5" fill="#1a1a1a" />
+      {/* centered meta italic */}
+      <rect x="48" y="32" width="44" height="2.5" fill="#999" />
+      {/* header rule with diamond accent */}
+      <line x1="20" y1="42" x2="65" y2="42" stroke="#3a3a3a" strokeWidth="0.5" />
+      <polygon points="70,42 67,40 70,38 73,40 73,40 70,42 73,40 70,38" fill="#3a3a3a" />
+      <line x1="75" y1="42" x2="120" y2="42" stroke="#3a3a3a" strokeWidth="0.5" />
+      {/* fields */}
+      <rect x="20" y="50" width="20" height="2.5" fill="#444" />
+      <rect x="52" y="50" width="18" height="2.5" fill="#444" />
+      <rect x="80" y="50" width="14" height="2.5" fill="#444" />
+      <line x1="20" y1="56" x2="120" y2="56" stroke="#888" strokeWidth="0.3" />
+      {/* section header centered */}
+      <line x1="20" y1="66" x2="60" y2="66" stroke="#3a3a3a" strokeWidth="0.4" />
+      <text x="70" y="68" fill="#1a1a1a" fontSize="5" fontWeight="700" textAnchor="middle" fontFamily="serif">I</text>
+      <line x1="80" y1="66" x2="120" y2="66" stroke="#3a3a3a" strokeWidth="0.4" />
+      <rect x="55" y="72" width="30" height="3" fill="#1a1a1a" />
+      <rect x="40" y="78" width="60" height="2" fill="#999" />
+      {/* Q1 — square number badge */}
+      <rect x="20" y="92" width="5" height="5" fill="none" stroke="#3a3a3a" strokeWidth="0.4" />
+      <text x="22.5" y="96.2" fill="#1a1a1a" fontSize="3.5" fontWeight="700" textAnchor="middle">1</text>
+      <rect x="28" y="93.5" width="70" height="2.5" fill="#1a1a1a" />
+      <rect x="28" y="98" width="40" height="2" fill="#666" />
+      {/* MCQ with brackets */}
+      <text x="32" y="108" fill="#3a3a3a" fontSize="3" fontWeight="700">[A]</text>
+      <rect x="40" y="106.5" width="35" height="2" fill="#444" />
+      <text x="32" y="115" fill="#3a3a3a" fontSize="3" fontWeight="700">[B]</text>
+      <rect x="40" y="113.5" width="32" height="2" fill="#444" />
+      <text x="32" y="122" fill="#3a3a3a" fontSize="3" fontWeight="700">[C]</text>
+      <rect x="40" y="120.5" width="40" height="2" fill="#444" />
+      <text x="32" y="129" fill="#3a3a3a" fontSize="3" fontWeight="700">[D]</text>
+      <rect x="40" y="127.5" width="30" height="2" fill="#444" />
+      {/* Q2 — TF with squares */}
+      <rect x="20" y="138" width="5" height="5" fill="none" stroke="#3a3a3a" strokeWidth="0.4" />
+      <text x="22.5" y="142.2" fill="#1a1a1a" fontSize="3.5" fontWeight="700" textAnchor="middle">2</text>
+      <rect x="28" y="139.5" width="65" height="2.5" fill="#1a1a1a" />
+      <rect x="28" y="144" width="42" height="2" fill="#666" />
+      <rect x="32" y="150" width="3.5" height="3.5" fill="none" stroke="#3a3a3a" strokeWidth="0.4" />
+      <rect x="37" y="151" width="14" height="2" fill="#444" />
+      <rect x="56" y="150" width="3.5" height="3.5" fill="none" stroke="#3a3a3a" strokeWidth="0.4" />
+      <rect x="61" y="151" width="14" height="2" fill="#444" />
+      {/* Q3 — writing lines */}
+      <rect x="20" y="164" width="5" height="5" fill="none" stroke="#3a3a3a" strokeWidth="0.4" />
+      <text x="22.5" y="168.2" fill="#1a1a1a" fontSize="3.5" fontWeight="700" textAnchor="middle">3</text>
+      <rect x="28" y="165.5" width="60" height="2.5" fill="#1a1a1a" />
+      {[0, 1].map(i => (
+        <line key={i} x1="28" y1={173 + i * 4} x2="120" y2={173 + i * 4}
+          stroke="#ccc" strokeWidth="0.3" />
+      ))}
+    </svg>
+  );
+}
+
 const STYLE_THUMBS = {
   classic: ClassicThumb,
   modern: ModernThumb,
   editorial: EditorialThumb,
+  framed: FramedThumb,
 };
 
 // ─── Generate a preview blob (no download trigger) ────────────────────────
@@ -307,7 +389,9 @@ async function generatePreviewBlobURL(deck, classObj, { style, variant, lang }) 
   if (useKorean) {
     await ensureKoreanFont(doc);
   }
-  const fontFamily = useKorean ? "NotoSansKR" : "helvetica";
+  const fontFamily = useKorean
+    ? "NotoSansKR"
+    : (STYLE_FONT_DEFAULTS[style] || "helvetica");
   const renderOpts = { lang, fontFamily };
   if (variant === "answer_key") {
     await renderer.renderAnswerKey(doc, deck, classObj, renderOpts);
@@ -425,6 +509,7 @@ export default function PDFExportModal({
     { id: "classic", name: t.classicName, desc: t.classicDesc, Thumb: STYLE_THUMBS.classic },
     { id: "modern", name: t.modernName, desc: t.modernDesc, Thumb: STYLE_THUMBS.modern },
     { id: "editorial", name: t.editorialName, desc: t.editorialDesc, Thumb: STYLE_THUMBS.editorial },
+    { id: "framed", name: t.framedName, desc: t.framedDesc, Thumb: STYLE_THUMBS.framed },
   ];
 
   return (
@@ -506,7 +591,7 @@ export default function PDFExportModal({
             <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: C.textSecondary, marginBottom: 6, textTransform: "uppercase", letterSpacing: 0.4 }}>
               {t.styleLabel}
             </label>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 8 }}>
               {styleOptions.map(s => (
                 <button
                   key={s.id}
