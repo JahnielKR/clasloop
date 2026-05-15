@@ -47,10 +47,10 @@ import {
 
 const PAGE = {
   ...PAGE_A4,
-  marginX: 28,             // wider margins than other styles — frame needs breathing room
-  marginY: 26,
-  contentWidth: PAGE_A4.width - 28 * 2,
-  contentHeight: PAGE_A4.height - 26 * 2,
+  marginX: 24,             // PR 30.1: was 28
+  marginY: 22,             // PR 30.1: was 26
+  contentWidth: PAGE_A4.width - 24 * 2,
+  contentHeight: PAGE_A4.height - 22 * 2,
 };
 
 // Frame coordinates: outer at 6mm from page edges, inner at 9mm.
@@ -75,17 +75,17 @@ const FONT = {
 };
 
 const SPACING = {
-  afterEyebrow: 4,
-  afterTitle: 5,
-  afterMeta: 3,
-  afterHeaderRule: 8,
-  afterFieldsRow: 9,
-  beforeSection: 8,
-  afterSectionHeader: 7,
-  afterQuestionNum: 3,
-  betweenOptions: 5,
-  writingLineGap: 7,
-  betweenQuestions: 6,
+  afterEyebrow: 3,           // PR 30.1: was 4
+  afterTitle: 3,             // PR 30.1: was 5
+  afterMeta: 2,              // PR 30.1: was 3
+  afterHeaderRule: 6,        // PR 30.1: was 8
+  afterFieldsRow: 7,         // PR 30.1: was 9
+  beforeSection: 6,          // PR 30.1: was 8
+  afterSectionHeader: 5,     // PR 30.1: was 7
+  afterQuestionNum: 2,       // PR 30.1: was 3
+  betweenOptions: 4,         // PR 30.1: was 5
+  writingLineGap: 6,         // PR 30.1: was 7
+  betweenQuestions: 4,       // PR 30.1: was 6
   afterImage: 4,
 };
 
@@ -197,7 +197,7 @@ export async function renderAnswerKey(doc, deck, classObj, opts = {}) {
   for (let i = 0; i < orderedQuestions.length; i++) {
     const q = orderedQuestions[i];
     const displayNum = q._originalNum;
-    if (y + lineHeight > PAGE.height - PAGE.marginY - 10) {
+    if (y + lineHeight > PAGE.height - PAGE.marginY - 14) {
       doc.addPage();
       y = PAGE.marginY;
     }
@@ -214,7 +214,7 @@ export async function renderAnswerKey(doc, deck, classObj, opts = {}) {
     const answerText = formatAnswerForKey(q, labels);
     const wrapped = doc.splitTextToSize(answerText, PAGE.contentWidth - QUESTION_INDENT);
     for (let j = 0; j < wrapped.length; j++) {
-      if (y + lineHeight > PAGE.height - PAGE.marginY - 10) {
+      if (y + lineHeight > PAGE.height - PAGE.marginY - 14) {
         doc.addPage();
         y = PAGE.marginY;
       }
@@ -579,7 +579,7 @@ function drawMatchPairs(doc, q, startY, fontFamily) {
   const xRight = xLeft + colWidth + 8;
   const lineHeight = 6;
   for (let i = 0; i < pairs.length; i++) {
-    if (y + lineHeight > PAGE.height - PAGE.marginY - 12) break;
+    if (y + lineHeight > PAGE.height - PAGE.marginY - 14) break;
     doc.setFont(fontFamily, "bold");
     setColor(doc, COLOR.accent);
     doc.text(`${i + 1}.`, xLeft, y);
@@ -607,7 +607,7 @@ function drawOrderItems(doc, q, startY, fontFamily, textX) {
   setColor(doc, COLOR.textDark);
   const items = q.items || q.options || [];
   for (let i = 0; i < items.length; i++) {
-    if (y + 6 > PAGE.height - PAGE.marginY - 12) break;
+    if (y + 6 > PAGE.height - PAGE.marginY - 14) break;
     // Small numbered slot — bracket-style
     setColor(doc, COLOR.accent);
     doc.setFont(fontFamily, "bold");
@@ -652,7 +652,7 @@ function drawWritingLines(doc, startY, count) {
   const x1 = PAGE.marginX + QUESTION_INDENT;
   const x2 = PAGE.marginX + PAGE.contentWidth - 4;
   for (let i = 0; i < count; i++) {
-    if (y + SPACING.writingLineGap > PAGE.height - PAGE.marginY - 12) break;
+    if (y + SPACING.writingLineGap > PAGE.height - PAGE.marginY - 14) break;
     doc.line(x1, y, x2, y);
     y += SPACING.writingLineGap;
   }
@@ -660,9 +660,10 @@ function drawWritingLines(doc, startY, count) {
 }
 
 function estimateQuestionHeight(q, imageCache) {
+  // PR 30.1: matched to PR 29.1.4 calibration used in modern/editorial.
   const promptLen = (q.q || q.prompt || q.question || "").length || 30;
   const promptLines = Math.max(1, Math.ceil(promptLen / 100));
-  const base = 3;
+  const base = 2;
   let imageH = 0;
   if (q.image_url && imageCache?.get(q.image_url)) {
     const img = imageCache.get(q.image_url);
@@ -671,11 +672,11 @@ function estimateQuestionHeight(q, imageCache) {
   }
   const typeH =
     q.type === "mcq" ? (q.options?.length || 4) * SPACING.betweenOptions :
-    q.type === "tf" ? SPACING.betweenOptions + 2 :
+    q.type === "tf" ? SPACING.betweenOptions + 1 :
     q.type === "fill" ? 0 :
-    q.type === "match" ? (q.pairs?.length || 4) * 6 :
-    q.type === "order" ? (q.items?.length || 4) * 6 :
-    q.type === "slider" ? 11 :
+    q.type === "match" ? (q.pairs?.length || 4) * 5 :
+    q.type === "order" ? (q.items?.length || 4) * 5 :
+    q.type === "slider" ? 10 :
     (q.type === "free" || q.type === "open") ? 5 * SPACING.writingLineGap :
     3 * SPACING.writingLineGap;
   return base + promptLines * 4.5 + imageH + typeH;
@@ -689,7 +690,7 @@ function drawMatchAnswerBlock(doc, q, num, startY, fontFamily) {
   }
   const lineH = 5.5;
   const blockH = 7 + pairs.length * lineH + 2;
-  if (startY + blockH > PAGE.height - PAGE.marginY - 12) {
+  if (startY + blockH > PAGE.height - PAGE.marginY - 14) {
     doc.addPage();
     startY = PAGE.marginY;
   }
@@ -719,16 +720,19 @@ function drawFooterAllPages(doc, fontFamily, labels) {
   for (let p = 1; p <= total; p++) {
     doc.setPage(p);
 
+    // PR 30.1: footer must sit INSIDE the inner frame (which has bottom
+    // edge at PAGE.height - FRAME.inner = PAGE.height - 9). Move text up
+    // so it doesn't collide with the frame line.
     doc.setFont(fontFamily, "italic");
     doc.setFontSize(FONT.footer);
     setColor(doc, COLOR.textMute);
     const pageText = labels.pageOf
       ? labels.pageOf.replace("{page}", p).replace("{total}", total)
       : `Page ${p} of ${total}`;
-    const yFooter = PAGE.height - 13;
+    const yFooter = PAGE.height - 16;
     doc.text(pageText, PAGE.width / 2, yFooter, { align: "center" });
 
-    // Branding (smaller, gray, below page indicator)
+    // Branding (smaller, gray, below page indicator but still inside frame)
     doc.setFont(fontFamily, "normal");
     doc.setFontSize(FONT.footer - 1);
     setColor(doc, COLOR.textFaint);
@@ -741,7 +745,7 @@ function drawFooterAllPages(doc, fontFamily, labels) {
 // ═══════════════════════════════════════════════════════════════════════
 
 function ensureSpace(doc, y, neededH) {
-  if (y + neededH > PAGE.height - PAGE.marginY - 12) {
+  if (y + neededH > PAGE.height - PAGE.marginY - 14) {
     doc.addPage();
     return PAGE.marginY;
   }
