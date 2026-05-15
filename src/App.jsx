@@ -597,14 +597,22 @@ export default function App() {
       // Include sessions even if pending_close_at IS set — the teacher
       // might have closed the tab and is now coming back, which is
       // exactly the case we want to surface. Just exclude completed.
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("sessions")
-        .select("id")
+        .select("id, status, topic, created_at")
         .eq("teacher_id", profile.id)
         .in("status", ["lobby", "active"])
         .order("created_at", { ascending: false })
         .limit(1);
       if (cancelled) return;
+      // PR 23.13.4: log so we can diagnose the "badge doesn't clear"
+      // bug. Will be removed once verified working.
+      console.log("[clasloop] activeSession poll:", {
+        tick: activeSessionTick,
+        page,
+        found: data?.[0] || null,
+        error,
+      });
       setActiveSessionId(data?.[0]?.id || null);
     })().catch(() => {});
     return () => { cancelled = true; };

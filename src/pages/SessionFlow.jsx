@@ -2612,6 +2612,8 @@ export default function SessionFlow({ lang = "en", setLang, onNavigateToDecks, o
         // If the user still sees this warning, the migration didn't
         // run.
         console.warn("[clasloop] cancel session failed:", error);
+      } else {
+        console.log("[clasloop] cancel session OK, id:", session.id);
       }
     }
     setSession(null);
@@ -2620,7 +2622,12 @@ export default function SessionFlow({ lang = "en", setLang, onNavigateToDecks, o
     // PR 23.13.1: tell App.jsx to re-check the active-session sidebar
     // badge. Without this, the badge keeps showing the now-cancelled
     // session until the next page-change navigation.
-    if (notifyActiveSessionChanged) notifyActiveSessionChanged();
+    if (notifyActiveSessionChanged) {
+      console.log("[clasloop] calling notifyActiveSessionChanged");
+      notifyActiveSessionChanged();
+    } else {
+      console.warn("[clasloop] notifyActiveSessionChanged is missing!");
+    }
     navigate(ROUTES.SESSIONS);
   };
 
