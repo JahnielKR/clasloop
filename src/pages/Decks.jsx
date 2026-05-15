@@ -11,7 +11,7 @@ import { MONO } from "../components/tokens";
 import { C, css } from "./Decks/styles";
 import CreateDeckEditor from "./Decks/CreateDeckEditor";
 import { ROUTES, QUERY, buildRoute } from "../routes";
-import { exportExamPDF, exportAnswerKeyPDF } from "../lib/pdf-export";
+import { exportExamPDF, exportAnswerKeyPDF, exportPDF } from "../lib/pdf-export";
 // PR 7: drag-to-reorder decks within a unit. Same dnd-kit setup as the
 // old All-decks view in ClassPage (which is still in the file as dead
 // code from PR 5). We re-implement here rather than extracting into a
@@ -801,15 +801,19 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
   // header ("Spanish 9th"), so we look it up from userClasses.
   // Errors surface via alert; jsPDF doesn't have an in-band failure
   // mode that's easy to recover from, and these failures are rare.
+  //
+  // PR 29.0.2 (temporary): style is read from localStorage until PR 29.1
+  // ships the picker modal. Open devtools and run:
+  //   localStorage.setItem('clasloop_pdf_style', 'modern')
+  // (or 'classic' / 'editorial'). Then re-download. Defaults to 'classic'.
   const handleDownloadPdf = async (deck, kind) => {
     try {
       const classObj = userClasses.find(c => c.id === deck.class_id) || null;
       const deckLang = deck.language || l;
-      if (kind === "exam") {
-        await exportExamPDF(deck, classObj, deckLang);
-      } else {
-        await exportAnswerKeyPDF(deck, classObj, deckLang);
-      }
+      const style = (typeof window !== "undefined" &&
+        window.localStorage?.getItem("clasloop_pdf_style")) || "classic";
+      const variant = kind === "exam" ? "exam" : "answer_key";
+      await exportPDF(deck, classObj, { style, variant, lang: deckLang });
     } catch (err) {
       console.error("PDF export failed:", err);
       alert(t.pdfErrorMsg || "PDF export failed. Try again.");
