@@ -511,30 +511,43 @@ export default function MyClasses({ lang: pageLang = "en", setLang: pageSetLang,
           </div>
         )}
 
-        {/* PR 28.14: Favorites strip — top 3 most recent. Header is
-            clickable (whole thing routes to /favorites) so the chevron
-            isn't required for affordance — but kept for visual cue.
-            Only renders if the student has at least 1 favorite. */}
+        {/* PR 28.14: Favorites strip — top 3 most recent.
+            PR 28.14.1: rewired header. Previously the WHOLE header
+            row was a button. Jota reported that clicking "See all"
+            sometimes unfavorited a deck — the most likely cause is
+            misclicks on the giant button area landing on the first
+            card's star (cards sit immediately below with very little
+            vertical gap). Now only the "See all" link itself is
+            clickable, with explicit spacing between header and grid.
+            Star icon + label + count are pure visual elements. */}
         {topFavorites.length > 0 && (
           <div style={{ marginBottom: 22 }}>
-            <button
-              onClick={() => navigate(ROUTES.FAVORITES)}
-              style={{
-                display: "flex", alignItems: "center", gap: 6,
-                background: "transparent", border: "none",
-                padding: "2px 0 10px", margin: 0,
-                cursor: "pointer", width: "100%", textAlign: "left",
-                fontFamily: "'Outfit',sans-serif",
-              }}
-            >
+            <div style={{
+              display: "flex", alignItems: "center", gap: 6,
+              padding: "2px 0 12px",
+              fontFamily: "'Outfit',sans-serif",
+            }}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="#EF9F27" aria-hidden="true"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
               <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase", color: "#BA7517" }}>{t.favorites}</span>
               <span style={{ fontSize: 11, color: C.textMuted, fontFamily: MONO }}>· {allFavorites.length}</span>
               <span style={{ flex: 1 }} />
-              <span style={{ fontSize: 12, color: C.accent, fontWeight: 500 }}>
+              <button
+                type="button"
+                onClick={() => navigate(ROUTES.FAVORITES)}
+                style={{
+                  background: "transparent", border: "none",
+                  padding: "6px 10px", margin: "-6px -10px",
+                  fontSize: 12, color: C.accent, fontWeight: 500,
+                  cursor: "pointer",
+                  fontFamily: "'Outfit',sans-serif",
+                  borderRadius: 6,
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.background = C.accentSoft}
+                onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
+              >
                 {t.favoritesSeeAll} →
-              </span>
-            </button>
+              </button>
+            </div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 12 }}>
               {topFavorites.map(deck => (
                 <SavedDeckCard
