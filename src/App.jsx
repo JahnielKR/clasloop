@@ -277,6 +277,11 @@ export default function App() {
   const isMobile = useIsMobile();
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const [practiceDeck, setPracticeDeck] = useState(null); // when set, render StudentJoin in practice mode
+  // PR 28.7: realtime "you were removed from a class" toast.
+  // null = no toast; { className, ts } = visible toast.
+  // Set by the realtime subscription effect below; auto-cleared
+  // by a second effect that also redirects to /classes after 3s.
+  const [removedToast, setRemovedToast] = useState(null);
   // When unauthenticated, this controls which screen we show:
   //   null  → PublicHome (Blooket-style entry with code input)
   //   { mode: "select" }                       → AuthScreen role picker
@@ -479,6 +484,86 @@ export default function App() {
     // the network request is in flight, letting it complete is fine and
     // populates the cache for any future visit.
   }, [profile]);
+
+  // ── PR 28.7: realtime "removed from class" detection ──
+  //
+  // When a teacher removes a student via StudentsModal, the student's
+  // `class_members` row is deleted. Without realtime, the student
+  // keeps navigating the dimmed/cached version of that class until
+  // they F5. With this subscription:
+  //
+  //   1. We listen for DELETE events on class_members filtered to
+  //      this student's id (only their rows; minimal noise).
+  //   2. On a delete, fetch the class name (the old row only has the
+  //      class_id), then set the toast.
+  //   3. A second effect below auto-dismisses the toast and redirects
+  //      to /classes after 3s. Re-evaluation of studentHasClass at
+  //      /classes naturally opens the ClassCodeModal if it was their
+  //      only class — no special handling needed here.
+  //
+  // Why we DON'T also bump studentMembershipTick: navigating to
+  // /classes triggers a route change, and MyClasses re-mounts +
+  // re-fetches on every mount anyway. The redirect IS the refresh.
+  //
+  // Teachers don't need this — they can't be removed from their own
+  // classes. Guarded on profile.role === "student".
+  useEffect(() => {
+    if (!profile || profile.role !== "student") return;
+    const channel = supabase
+      .channel(`class_member_removals:${profile.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "DELETE",
+          schema: "public",
+          table: "class_members",
+          filter: `student_id=eq.${profile.id}`,
+        },
+        async (payload) => {
+          const classId = payload.old?.class_id;
+          if (!classId) return;
+          // Fetch the class name for a friendlier toast. If RLS now
+          // blocks reading the class (the student was JUST removed),
+          // we still show a generic toast — better than silence.
+          let className = "";
+          try {
+            const { data } = await supabase
+              .from("classes")
+              .select("name")
+              .eq("id", classId)
+              .maybeSingle();
+            className = data?.name || "";
+          } catch { /* generic toast below */ }
+          setRemovedToast({ className, ts: Date.now() });
+          // Bump the membership tick so the gating useEffect re-checks
+          // immediately — important when the student was in zero
+          // other classes (the ClassCodeModal needs to open).
+          setStudentMembershipTick(n => n + 1);
+        }
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [profile]);
+
+  // ── PR 28.7: removed-toast auto-dismiss + redirect ──
+  // Visible for 3s, then we send the student to /classes and clear
+  // the toast. The redirect is intentional: it gets them out of any
+  // page that was showing data from the now-inaccessible class.
+  useEffect(() => {
+    if (!removedToast) return;
+    const timer = setTimeout(() => {
+      setRemovedToast(null);
+      // Only navigate if they're not already on /classes — avoids a
+      // useless history entry.
+      if (location.pathname !== ROUTES.CLASSES) {
+        navigate(ROUTES.CLASSES, { replace: false });
+      }
+    }, 3000);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [removedToast]);
 
   // ── Practice deck hydration ──
   // The practice deck object is held in `practiceDeck` state for rendering.
@@ -954,6 +1039,58 @@ export default function App() {
           }}
         />
       )}
+
+      {/* PR 28.7: realtime "removed from class" toast. Fixed bottom-right
+          (mobile: bottom-center via media query in inline style). Auto
+          disappears after 3s and the navigate-to-classes effect fires
+          at the same time. Color is orange (informational, not alarming
+          — could be a teacher mistake). */}
+      {removedToast && (() => {
+        const i18n = {
+          en: {
+            withClass: "You were removed from {class}",
+            withoutClass: "You were removed from this class",
+          },
+          es: {
+            withClass: "Te removieron de {class}",
+            withoutClass: "Te removieron de esta clase",
+          },
+          ko: {
+            withClass: "{class}에서 제거되었습니다",
+            withoutClass: "이 수업에서 제거되었습니다",
+          },
+        };
+        const tt = i18n[lang] || i18n.en;
+        const msg = removedToast.className
+          ? tt.withClass.replace("{class}", removedToast.className)
+          : tt.withoutClass;
+        return (
+          <div
+            role="status"
+            aria-live="polite"
+            style={{
+              position: "fixed",
+              bottom: 24,
+              right: 24,
+              zIndex: 2000,
+              maxWidth: "calc(100vw - 48px)",
+              background: C.orange,
+              color: "#fff",
+              padding: "12px 18px",
+              borderRadius: 10,
+              fontSize: 14,
+              fontWeight: 600,
+              fontFamily: "'Outfit',sans-serif",
+              boxShadow: "0 8px 24px rgba(0,0,0,0.18)",
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+            }}
+          >
+            {msg}
+          </div>
+        );
+      })()}
     </div>
   );
 }
