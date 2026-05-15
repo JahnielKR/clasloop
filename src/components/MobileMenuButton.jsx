@@ -24,47 +24,6 @@ export function useIsMobile() {
   return isMobile;
 }
 
-// PR 28.17 — Portrait mobile detection for StudentJoin.
-//
-// The themed quiz UI is designed for landscape (wide question panel +
-// 240px timer rail on the right). In portrait phones (<= 768px wide
-// + taller than wide) the layout breaks: rail eats the screen, the
-// answer grid stacks weirdly, the timer ring shrinks.
-//
-// Rather than building a portrait-specific layout (3-4hrs of theme
-// re-work), we show a "rotate your phone" overlay. The threshold is
-// the same 768px breakpoint we already use for mobile detection —
-// tablets in portrait (e.g. iPad held vertically at 768x1024) are
-// borderline but generally OK with the existing layout.
-//
-// Logic: portrait = mobile-width AND height > width. The height
-// check matters because some small landscape phones (e.g. iPhone SE
-// horizontal at 667x375) match the mobile media query but aren't
-// portrait — they should pass through.
-export function useIsPortraitMobile() {
-  const compute = () => {
-    if (typeof window === "undefined") return false;
-    const narrow = window.matchMedia("(max-width: 768px)").matches;
-    const portrait = window.innerHeight > window.innerWidth;
-    return narrow && portrait;
-  };
-  const [isPortraitMobile, setIsPortraitMobile] = useState(compute);
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const onChange = () => setIsPortraitMobile(compute());
-    // Both resize and orientationchange — orientation events don't
-    // always fire on every browser (esp. desktop devtools simulating
-    // a rotate), but resize does.
-    window.addEventListener("resize", onChange);
-    window.addEventListener("orientationchange", onChange);
-    return () => {
-      window.removeEventListener("resize", onChange);
-      window.removeEventListener("orientationchange", onChange);
-    };
-  }, []);
-  return isPortraitMobile;
-}
-
 export default function MobileMenuButton({ onOpen }) {
   const isMobile = useIsMobile();
   if (!isMobile || !onOpen) return null;

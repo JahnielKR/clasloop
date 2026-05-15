@@ -11,7 +11,6 @@ import { getPracticeTimerPref, setPracticeTimerPref } from "../lib/practice-time
 import { evaluateAnswer, describeCorrectAnswer, formatStudentAnswer } from "../lib/scoring";
 import { QUERY } from "../routes";
 import { getSectionTheme, getSectionLabel, SectionIconSVG } from "../lib/section-theme";
-import { useIsPortraitMobile } from "../components/MobileMenuButton";
 
 // Quiz option colors — kahoot-style fixed palette. NOT theme-aware on purpose:
 // students need to see the same colors the teacher launches the session with.
@@ -87,9 +86,6 @@ const i18n = {
     awesome: "Awesome!",
     moreUnlocks: "more to see",
     backToClass: "Back to class",
-    // PR 28.17: portrait-mobile rotate prompt for the quiz/waiting steps.
-    rotateDevice: "Rotate your phone",
-    rotateDeviceSub: "This quiz works best in landscape mode. Turn your phone sideways to play.",
   },
   es: {
     joinSession: "Unirse a Sesión", sessionPin: "PIN de Sesión", yourName: "Tu nombre",
@@ -155,9 +151,6 @@ const i18n = {
     awesome: "¡Genial!",
     moreUnlocks: "más por ver",
     backToClass: "Volver a la clase",
-    // PR 28.17: portrait-mobile rotate prompt.
-    rotateDevice: "Gira tu teléfono",
-    rotateDeviceSub: "Este quiz funciona mejor en horizontal. Gira el teléfono de costado para jugar.",
   },
   ko: {
     joinSession: "세션 참여", sessionPin: "세션 PIN", yourName: "이름",
@@ -223,9 +216,6 @@ const i18n = {
     awesome: "최고!",
     moreUnlocks: "개 더 보기",
     backToClass: "수업으로 돌아가기",
-    // PR 28.17: portrait-mobile rotate prompt.
-    rotateDevice: "휴대폰을 가로로 돌리세요",
-    rotateDeviceSub: "이 퀴즈는 가로 모드에서 가장 잘 작동합니다. 휴대폰을 옆으로 돌려서 진행하세요.",
   },
 };
 
@@ -624,10 +614,6 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
   // The X button in the top-strip now navigates to /classes via this.
   const navigate = useNavigate();
   const urlPin = (!isPractice && !isGuest) ? (searchParams.get(QUERY.PIN) || "") : "";
-
-  // PR 28.17: detect portrait mobile so we can show a "rotate" overlay
-  // during the quiz/waiting steps (the themed UI is landscape-only).
-  const isPortraitMobile = useIsPortraitMobile();
 
   const [step, setStep] = useState(isPractice ? "quiz" : (isGuest ? "joining" : "join"));
   // PR 23.10.3: gate the visible UI while we try to restore from DB
@@ -2181,109 +2167,6 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
       </div>
     );
   };
-
-  // ── PR 28.17: portrait-mobile bouncer ──────────────────────────────────
-  // The themed quiz/waiting/results UIs are designed for landscape (wide
-  // panel + 240px right rail). In portrait phones the layout breaks.
-  // Rather than building a portrait-specific layout, we tell the user
-  // to rotate. Catches:
-  //   - quiz / waiting / results: themed screens that genuinely need landscape
-  // Does NOT catch:
-  //   - join: small form that fits portrait fine (this branch is past the
-  //     join return so we don't gate it)
-  //
-  // The overlay listens to orientation changes via the hook, so when the
-  // student rotates the phone the gate auto-clears and the quiz renders.
-  //
-  // PR 28.17.1: layout rewritten to actually fit on small portrait phones.
-  // Earlier version (PR 28.17) had elements overlapping each other on
-  // narrow devices — fixed font sizes that didn't account for ~360px
-  // viewport, SVG rotation potentially expanding past its container,
-  // ambiguous margin behavior. The rewrite uses:
-  //   - 100dvh instead of 100vh: works correctly when the mobile address
-  //     bar collapses/expands. With vh, the overlay can get cropped.
-  //   - flex gap (not margins): no margin-collapse weirdness.
-  //   - SVG sized via viewBox + width 100% inside a fixed-size wrapper:
-  //     the rotation can't make the visual exceed the wrapper bounds.
-  //   - max-width on the text block, but width: 100% on each line so
-  //     the title and subtitle align consistently.
-  //   - Minimal padding (24px sides, less for very small screens).
-  if (isPortraitMobile && (step === "quiz" || step === "waiting" || step === "results")) {
-    return (
-      <>
-        <style>{`
-          @keyframes sj-portrait-rotate {
-            0%, 40%   { transform: rotate(0deg); }
-            55%, 95%  { transform: rotate(-90deg); }
-            100%      { transform: rotate(0deg); }
-          }
-          .sj-portrait-overlay {
-            position: fixed;
-            inset: 0;
-            width: 100vw;
-            height: 100vh;
-            height: 100dvh;
-            background: #0F0E1A;
-            color: #FFFFFF;
-            z-index: 99999;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            gap: 22px;
-            padding: 24px 20px;
-            box-sizing: border-box;
-            font-family: 'Outfit', sans-serif;
-            text-align: center;
-            overflow: hidden;
-          }
-          .sj-portrait-icon-wrap {
-            flex-shrink: 0;
-            width: 88px;
-            height: 88px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-          }
-          .sj-portrait-icon-wrap svg {
-            display: block;
-            width: 64px;
-            height: 64px;
-            animation: sj-portrait-rotate 2.8s ease-in-out infinite;
-            transform-origin: center;
-          }
-          .sj-portrait-title {
-            font-size: 20px;
-            font-weight: 700;
-            line-height: 1.2;
-            margin: 0;
-            max-width: 100%;
-          }
-          .sj-portrait-sub {
-            font-size: 13px;
-            line-height: 1.5;
-            color: rgba(255, 255, 255, 0.65);
-            margin: 0;
-            max-width: 280px;
-          }
-        `}</style>
-        <div className="sj-portrait-overlay">
-          <div className="sj-portrait-icon-wrap">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <rect x="7" y="2" width="10" height="20" rx="2" />
-              <line x1="11" y1="18" x2="13" y2="18" />
-            </svg>
-          </div>
-          <h2 className="sj-portrait-title">
-            {t.rotateDevice || "Rotate your phone"}
-          </h2>
-          <p className="sj-portrait-sub">
-            {t.rotateDeviceSub || "This quiz works best in landscape mode. Turn your phone sideways to play."}
-          </p>
-        </div>
-      </>
-    );
-  }
 
   // ── Waiting ──
   // PR 20.3: themed render when lobby_theme is set (any of the 4).
