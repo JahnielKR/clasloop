@@ -2830,9 +2830,18 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
                           className={`stage-next-btn ${autoAdvanceStart !== null ? 'is-auto-advancing' : ''}`}
                           onClick={handleNext}
                         >
-                          {current + 1 >= questions.length
-                            ? (t.seeResults || "See results")
-                            : (t.next || "Next")}
+                          {/* PR 28.12.1: text must be wrapped in an
+                              element so the `.stage-next-btn > *`
+                              z-index:1 rule lifts it above the fill
+                              bar. Bare text nodes don't match `> *`,
+                              so without this span the Netflix fill
+                              covers the word "Next" while the arrow
+                              stays visible. */}
+                          <span>
+                            {current + 1 >= questions.length
+                              ? (t.seeResults || "See results")
+                              : (t.next || "Next")}
+                          </span>
                           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                             <path d="M5 12h14M13 6l6 6-6 6"/>
                           </svg>
