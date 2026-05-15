@@ -597,11 +597,21 @@ export default function App() {
       // Include sessions even if pending_close_at IS set — the teacher
       // might have closed the tab and is now coming back, which is
       // exactly the case we want to surface. Just exclude completed.
+      //
+      // PR 23.13.5: also exclude sessions older than 24 hours. Pre-
+      // PR 23.13.3 cancel was silently failing (schema rejected
+      // 'cancelled' status), so many teachers have rows stuck in
+      // lobby/active from days/weeks ago. Those are zombies, not
+      // real active sessions. A real session lasts minutes — even
+      // a long quiz finishes in <2h. 24h is a generous ceiling
+      // that won't accidentally hide a legitimate ongoing session.
+      const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
       const { data, error } = await supabase
         .from("sessions")
         .select("id, status, topic, created_at")
         .eq("teacher_id", profile.id)
         .in("status", ["lobby", "active"])
+        .gte("created_at", since)
         .order("created_at", { ascending: false })
         .limit(1);
       if (cancelled) return;
