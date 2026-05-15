@@ -201,8 +201,13 @@
      query already had this override for image-mode MCQs (line 3326);
      promoting it to the base rule so landscape tablets also benefit.
      `-webkit-overflow-scrolling: touch` keeps momentum scrolling
-     smooth on iOS Safari. */
-  padding: 28px 60px 60px;
+     smooth on iOS Safari.
+     PR 28.20: padding fluid via clamp(). The fixed 60px sides ate
+     ~120px of horizontal real estate on tablets at 1280px landscape,
+     leaving the match/order panels cramped. Now sides scale from
+     20px (narrow tablet) to 60px (wide desktop). Top/bottom also
+     tighten on shorter viewports. */
+  padding: clamp(16px, 3vh, 28px) clamp(20px, 4vw, 60px) clamp(24px, 4vh, 60px);
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -210,14 +215,33 @@
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
 }
-/* The "middle block" (label + prompt) takes whatever vertical space is
- * left after meta and answers, and centers its content. */
+/* The "middle block" (label + prompt + panel for match/order).
+ *
+ * PR 28.20: removed `flex: 1` and `justify-content: center`. Those
+ * worked when the question was JUST a prompt (centering it nicely
+ * between meta and answers), but when match/order/free/image content
+ * is also inside .question-center, the flex:1 + center combination
+ * made the block fight neighboring elements:
+ *   - On tablets with 5+ match pairs the panel grew taller than the
+ *     centered slot could hold, causing chips to be clipped despite
+ *     overflow:auto on the parent.
+ *   - Free-text with an image: the image bloated the centered slot,
+ *     pushing the prompt text behind the textarea below.
+ *   - Order with several picks: the picked stack grew downward,
+ *     pushing the pool off-screen.
+ *
+ * New behavior: .question-center is a normal flex column starting
+ * from the top. The pretty "centered prompt" effect for simple MCQs
+ * is sacrificed (the prompt sits a bit higher now) — but EVERY
+ * question type renders predictably without elements colliding.
+ * The overall `.question-main` already scrolls if content exceeds.
+ */
 .stage .question-center {
-  flex: 1;
   display: flex;
   flex-direction: column;
-  justify-content: center;
   min-height: 0;
+  /* Modest top padding so the label has breathing room from .question-meta */
+  padding-top: 8px;
 }
 .stage .question-meta {
   display: flex;
@@ -259,9 +283,12 @@
      left-aligned cramped near the top; now 42px center-aligned in the
      middle band of the screen. The margin-bottom is no longer needed
      because .question-center handles vertical positioning, and the
-     answers below sit at their own fixed grid. */
+     answers below sit at their own fixed grid.
+     PR 28.20: font-size fluid via clamp() — 28px floor on narrow tablets,
+     42px on wide screens. The original fixed 42px ate vertical space
+     on smaller tablets where the answer area is the priority. */
   font-family: 'Outfit', sans-serif;
-  font-size: 42px;
+  font-size: clamp(26px, 3.2vw, 42px);
   font-weight: 600;
   line-height: 1.2;
   letter-spacing: -0.015em;
@@ -272,16 +299,22 @@
   margin-right: auto;
 }
 
-/* PR 24.4.2: question prompt image. Centered above the question text,
- * capped at 280px tall so it doesn't blow out the layout on tall
- * images. object-fit: contain keeps the aspect ratio. */
+/* PR 24.4.2: question prompt image. Centered above the question text.
+ * PR 28.20: max-height was 280px fixed — fine on desktop, but on tablets
+ * with limited vertical real estate the image ate too much of the slot
+ * and pushed the prompt / answer panel off-screen. Now capped at
+ * min(30vh, 220px): never more than 30% of the visible viewport height,
+ * never more than 220px. This auto-adapts: tall screens get a generous
+ * image, short screens get a compact one. The image always shares the
+ * area with the prompt + answer panel comfortably. */
 .stage .question-image-wrap {
   display: flex;
   justify-content: center;
   margin-bottom: 18px;
+  flex-shrink: 0;
 }
 .stage .question-image {
-  max-height: 280px;
+  max-height: min(30vh, 220px);
   max-width: min(560px, 80%);
   width: auto;
   height: auto;
@@ -297,10 +330,13 @@
 /* PR 24.3.1: when the question is a Match, the prompt text is smaller
  * so the MatchPanel (rendered right below it, inside .question-center)
  * has more room to breathe. Match prompts also tend to be short
- * ("Pareá los verbos con sus traducciones"), so 28px is plenty. */
+ * ("Pareá los verbos con sus traducciones"), so 28px is plenty.
+ * PR 28.20: extended to order + free (same vertical-real-estate
+ * pressure from their respective panels). Fluid via clamp(). Margin
+ * reduced — 32px was overkill on smaller tablets. */
 .stage .question-text-tablet.is-match {
-  font-size: 28px;
-  margin-bottom: 32px;
+  font-size: clamp(20px, 2.4vw, 28px);
+  margin-bottom: clamp(12px, 2vh, 24px);
 }
 .stage .question-prompt-label {
   /* PR 20.2.8: centered with the prompt now */
