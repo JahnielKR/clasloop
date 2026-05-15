@@ -132,7 +132,20 @@ export async function renderExam(doc, deck, classObj, opts = {}) {
       const estH = estimateQuestionHeight(q, imageCache);
       y = ensureSpace(doc, y, estH);
       y = drawQuestion(doc, q, y, fontFamily, lang, imageCache);
-      y += (q.type === "fill") ? Math.round(SPACING.betweenQuestions * 0.55) : SPACING.betweenQuestions;
+      // PR 30.3: variable gap by type. TF questions are visually short
+      // (1 prompt line + Y/N row) and butt against each other with the
+      // base 4mm gap. Bumped to 7mm (1.7x) so successive TF questions
+      // feel like separate items. Fill stays tight (no answer area
+      // below). Everything else uses the base gap.
+      let gap;
+      if (q.type === "fill") {
+        gap = Math.round(SPACING.betweenQuestions * 0.55);
+      } else if (q.type === "tf") {
+        gap = Math.round(SPACING.betweenQuestions * 1.7);
+      } else {
+        gap = SPACING.betweenQuestions;
+      }
+      y += gap;
     }
   }
 
