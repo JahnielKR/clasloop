@@ -11,6 +11,7 @@ import { getPracticeTimerPref, setPracticeTimerPref } from "../lib/practice-time
 import { evaluateAnswer, describeCorrectAnswer, formatStudentAnswer } from "../lib/scoring";
 import { QUERY } from "../routes";
 import { getSectionTheme, getSectionLabel, SectionIconSVG } from "../lib/section-theme";
+import { useIsPortraitMobile } from "../components/MobileMenuButton";
 
 // Quiz option colors — kahoot-style fixed palette. NOT theme-aware on purpose:
 // students need to see the same colors the teacher launches the session with.
@@ -86,6 +87,9 @@ const i18n = {
     awesome: "Awesome!",
     moreUnlocks: "more to see",
     backToClass: "Back to class",
+    // PR 28.17: portrait-mobile rotate prompt for the quiz/waiting steps.
+    rotateDevice: "Rotate your phone",
+    rotateDeviceSub: "This quiz works best in landscape mode. Turn your phone sideways to play.",
   },
   es: {
     joinSession: "Unirse a Sesión", sessionPin: "PIN de Sesión", yourName: "Tu nombre",
@@ -151,6 +155,9 @@ const i18n = {
     awesome: "¡Genial!",
     moreUnlocks: "más por ver",
     backToClass: "Volver a la clase",
+    // PR 28.17: portrait-mobile rotate prompt.
+    rotateDevice: "Gira tu teléfono",
+    rotateDeviceSub: "Este quiz funciona mejor en horizontal. Gira el teléfono de costado para jugar.",
   },
   ko: {
     joinSession: "세션 참여", sessionPin: "세션 PIN", yourName: "이름",
@@ -216,6 +223,9 @@ const i18n = {
     awesome: "최고!",
     moreUnlocks: "개 더 보기",
     backToClass: "수업으로 돌아가기",
+    // PR 28.17: portrait-mobile rotate prompt.
+    rotateDevice: "휴대폰을 가로로 돌리세요",
+    rotateDeviceSub: "이 퀴즈는 가로 모드에서 가장 잘 작동합니다. 휴대폰을 옆으로 돌려서 진행하세요.",
   },
 };
 
@@ -614,6 +624,10 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
   // The X button in the top-strip now navigates to /classes via this.
   const navigate = useNavigate();
   const urlPin = (!isPractice && !isGuest) ? (searchParams.get(QUERY.PIN) || "") : "";
+
+  // PR 28.17: detect portrait mobile so we can show a "rotate" overlay
+  // during the quiz/waiting steps (the themed UI is landscape-only).
+  const isPortraitMobile = useIsPortraitMobile();
 
   const [step, setStep] = useState(isPractice ? "quiz" : (isGuest ? "joining" : "join"));
   // PR 23.10.3: gate the visible UI while we try to restore from DB
@@ -2167,6 +2181,63 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
       </div>
     );
   };
+
+  // ── PR 28.17: portrait-mobile bouncer ──────────────────────────────────
+  // The themed quiz/waiting/results UIs are designed for landscape (wide
+  // panel + 240px right rail). In portrait phones the layout breaks.
+  // Rather than building a portrait-specific layout, we tell the user
+  // to rotate. Catches:
+  //   - quiz / waiting / results: themed screens that genuinely need landscape
+  // Does NOT catch:
+  //   - join: small form that fits portrait fine (this branch is past the
+  //     join return so we don't gate it)
+  //
+  // The overlay listens to orientation changes via the hook, so when the
+  // student rotates the phone the gate auto-clears and the quiz renders.
+  if (isPortraitMobile && (step === "quiz" || step === "waiting" || step === "results")) {
+    return (
+      <>
+        <style>{css}</style>
+        <div style={{
+          position: "fixed", inset: 0,
+          background: "#0F0E1A",
+          color: "#FFFFFF",
+          display: "flex", flexDirection: "column",
+          alignItems: "center", justifyContent: "center",
+          padding: "32px 28px",
+          textAlign: "center",
+          zIndex: 99999,
+          fontFamily: "'Outfit', sans-serif",
+        }}>
+          {/* Rotating phone icon — uses a slow rotate keyframe so the
+              user sees the motion they're meant to mimic. */}
+          <div style={{
+            width: 96, height: 96,
+            marginBottom: 28,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            animation: "sj-rotate-phone 2.6s ease-in-out infinite",
+          }}>
+            <svg width="84" height="84" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="7" y="2" width="10" height="20" rx="2" />
+              <line x1="11" y1="18" x2="13" y2="18" />
+            </svg>
+          </div>
+          <h2 style={{ fontSize: 22, fontWeight: 700, margin: "0 0 10px", lineHeight: 1.2 }}>
+            {t.rotateDevice || "Rotate your phone"}
+          </h2>
+          <p style={{ fontSize: 14, lineHeight: 1.5, color: "rgba(255,255,255,0.7)", maxWidth: 280, margin: 0 }}>
+            {t.rotateDeviceSub || "This quiz works best in landscape mode. Turn your phone sideways to play."}
+          </p>
+          <style>{`
+            @keyframes sj-rotate-phone {
+              0%, 40%   { transform: rotate(0deg); }
+              60%, 100% { transform: rotate(-90deg); }
+            }
+          `}</style>
+        </div>
+      </>
+    );
+  }
 
   // ── Waiting ──
   // PR 20.3: themed render when lobby_theme is set (any of the 4).
