@@ -115,7 +115,7 @@ export async function renderExam(doc, deck, classObj, opts = {}) {
       // pages when 50mm+ remained). New rule: only break if current ends
       // with VERY LITTLE space left (< 25mm) and next is too tall to fit.
       const next = selection[i + 1];
-      const remaining = PAGE.height - PAGE.marginY - 14 - y;
+      const remaining = PAGE.height - PAGE.marginY - 10 - y;
       const remainingAfter = remaining - estH - SPACING.betweenQuestions;
       const widowRisk = next
         && (y > PAGE.marginY + 80)
@@ -151,7 +151,7 @@ export async function renderExam(doc, deck, classObj, opts = {}) {
       const q = written[i];
       const estH = estimateQuestionHeight(q, imageCache);
       const next = written[i + 1];
-      const remaining = PAGE.height - PAGE.marginY - 14 - y;
+      const remaining = PAGE.height - PAGE.marginY - 10 - y;
       const remainingAfter = remaining - estH - SPACING.betweenQuestions;
       const widowRisk = next
         && (y > PAGE.marginY + 80)
@@ -215,7 +215,7 @@ export async function renderAnswerKey(doc, deck, classObj, opts = {}) {
   const questions = deck.questions || [];
   const lineHeight = 8;
   for (let i = 0; i < questions.length; i++) {
-    if (y + lineHeight > PAGE.height - PAGE.marginY - 14) {
+    if (y + lineHeight > PAGE.height - PAGE.marginY - 10) {
       doc.addPage();
       y = PAGE.marginY;
     }
@@ -241,7 +241,7 @@ export async function renderAnswerKey(doc, deck, classObj, opts = {}) {
     const textX = PAGE.marginX + 10;
     const wrapped = doc.splitTextToSize(answerText, PAGE.contentWidth - 10);
     for (let j = 0; j < wrapped.length; j++) {
-      if (y + lineHeight > PAGE.height - PAGE.marginY - 14) {
+      if (y + lineHeight > PAGE.height - PAGE.marginY - 10) {
         doc.addPage();
         y = PAGE.marginY;
       }
@@ -594,7 +594,7 @@ function drawMatchPairs(doc, q, startY, fontFamily, sectionCfg) {
   const lineHeight = 6.5;
 
   for (let i = 0; i < pairs.length; i++) {
-    if (y + lineHeight > PAGE.height - PAGE.marginY - 14) break;
+    if (y + lineHeight > PAGE.height - PAGE.marginY - 10) break;
     // Left item: number badge + text
     setFillColor(doc, sectionCfg.soft);
     doc.roundedRect(xLeft, y - 4.5, colWidth, 6.5, 1.5, 1.5, "F");
@@ -642,7 +642,7 @@ function drawOrderItems(doc, q, startY, fontFamily, textX, sectionCfg) {
   const pillH = 7;
   const pillW = PAGE.contentWidth - (textX - PAGE.marginX) - 2;
   for (let i = 0; i < items.length; i++) {
-    if (y + pillH + 2 > PAGE.height - PAGE.marginY - 14) break;
+    if (y + pillH + 2 > PAGE.height - PAGE.marginY - 10) break;
     // Pill background
     setFillColor(doc, sectionCfg.soft);
     doc.roundedRect(textX, y - 4.5, pillW, pillH, 2, 2, "F");
@@ -699,7 +699,7 @@ function drawDottedLines(doc, startY, count) {
   let y = startY;
   setFillColor(doc, COLOR.textFaint);
   for (let i = 0; i < count; i++) {
-    if (y + SPACING.dottedLineGap > PAGE.height - PAGE.marginY - 14) break;
+    if (y + SPACING.dottedLineGap > PAGE.height - PAGE.marginY - 10) break;
     const x1 = PAGE.marginX + 4;
     const x2 = PAGE.marginX + PAGE.contentWidth - 4;
     const step = 1.6;
@@ -712,20 +712,12 @@ function drawDottedLines(doc, startY, count) {
 }
 
 function estimateQuestionHeight(q, imageCache) {
-  // PR 29.0.5: recalibrated. Modern's pill-based layout consumes a bit
-  // more vertical space than classic per option (~8.5mm vs 6mm) so the
-  // typeH coefficients are tuned to the actual pill heights:
-  //
-  //   - mcq option pill:  pillH (7) + 1.5 gap = 8.5mm/option
-  //   - tf pill:          pillH (10) + 2 gap = 12mm (one row, both T/F)
-  //   - match pair pill:  6.5 + 1.5 = 8mm/pair
-  //   - order pill:       pillH (7) + 1.5 = 8.5mm/item
-  //   - slider:           ~13mm
-  //   - open/free:        5 lines × 7mm = 35mm
-  //   - sentence:         3 lines × 7mm = 21mm
+  // PR 29.0.6: tightened to match modern's real per-question footprint.
+  // Modern's pill-based MCQ options are ~8.5mm each (pillH 7 + 1.5gap).
+  // TF pill is 10+2 = 12mm. Match pair pill 6.5+1.5 = 8mm.
   const promptLen = (q.q || q.prompt || q.question || "").length || 30;
-  const promptLines = Math.max(1, Math.ceil(promptLen / 90));
-  const base = 8;
+  const promptLines = Math.max(1, Math.ceil(promptLen / 95));
+  const base = 5;
   let imageH = 0;
   if (q.image_url && imageCache?.get(q.image_url)) {
     const img = imageCache.get(q.image_url);
@@ -736,13 +728,12 @@ function estimateQuestionHeight(q, imageCache) {
     q.type === "mcq" ? (q.options?.length || 4) * 8.5 :
     q.type === "tf" ? 12 :
     q.type === "fill" ? 0 :
-    q.type === "match" ? (q.pairs?.length || 4) * 8 + 2 :
+    q.type === "match" ? (q.pairs?.length || 4) * 8 :
     q.type === "order" ? (q.items?.length || 4) * 8.5 :
-    q.type === "slider" ? 13 :
+    q.type === "slider" ? 12 :
     (q.type === "free" || q.type === "open") ? 5 * SPACING.dottedLineGap :
     3 * SPACING.dottedLineGap;
-  const safetyPad = 2;
-  return base + (promptLines - 1) * 6 + imageH + typeH + safetyPad;
+  return base + promptLines * 6 + imageH + typeH;
 }
 
 function drawMatchAnswerBlock(doc, q, num, startY, fontFamily) {
@@ -761,7 +752,7 @@ function drawMatchAnswerBlock(doc, q, num, startY, fontFamily) {
 
   const blockHeight = padTop + headerHeight + (pairs.length * rowHeight) + padBottom;
 
-  if (startY + blockHeight > PAGE.height - PAGE.marginY - 14) {
+  if (startY + blockHeight > PAGE.height - PAGE.marginY - 10) {
     doc.addPage();
     startY = PAGE.marginY;
   }
@@ -843,7 +834,7 @@ function drawFooterAllPages(doc, fontFamily, labels) {
 // ═══════════════════════════════════════════════════════════════════════
 
 function ensureSpace(doc, y, neededH) {
-  if (y + neededH > PAGE.height - PAGE.marginY - 14) {
+  if (y + neededH > PAGE.height - PAGE.marginY - 10) {
     doc.addPage();
     return PAGE.marginY;
   }

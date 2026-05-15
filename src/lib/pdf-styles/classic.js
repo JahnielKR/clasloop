@@ -113,7 +113,7 @@ export async function renderExam(doc, deck, classObj, opts = {}) {
       // otherwise we'd page-break a fresh page just because the first
       // question is tall.
       const next = selection[i + 1];
-      const remaining = PAGE.height - PAGE.marginY - 12 - y;
+      const remaining = PAGE.height - PAGE.marginY - 8 - y;
       const remainingAfter = remaining - estH - SPACING.betweenQuestions;
       const widowRisk = next
         && (y > PAGE.marginY + 80)         // well past top of page
@@ -150,7 +150,7 @@ export async function renderExam(doc, deck, classObj, opts = {}) {
       const q = written[i];
       const estH = estimateQuestionHeight(q, imageCache);
       const next = written[i + 1];
-      const remaining = PAGE.height - PAGE.marginY - 12 - y;
+      const remaining = PAGE.height - PAGE.marginY - 8 - y;
       const remainingAfter = remaining - estH - SPACING.betweenQuestions;
       const widowRisk = next
         && (y > PAGE.marginY + 80)
@@ -196,7 +196,7 @@ export async function renderAnswerKey(doc, deck, classObj, opts = {}) {
   const questions = deck.questions || [];
   const lineHeight = 7;
   for (let i = 0; i < questions.length; i++) {
-    if (y + lineHeight > PAGE.height - PAGE.marginY - 12) {
+    if (y + lineHeight > PAGE.height - PAGE.marginY - 8) {
       doc.addPage();
       y = PAGE.marginY;
     }
@@ -207,7 +207,7 @@ export async function renderAnswerKey(doc, deck, classObj, opts = {}) {
     const answerText = formatAnswerForKey(questions[i], labels);
     const wrapped = doc.splitTextToSize(`${i + 1}. ${answerText}`, PAGE.contentWidth);
     for (const line of wrapped) {
-      if (y + lineHeight > PAGE.height - PAGE.marginY - 12) {
+      if (y + lineHeight > PAGE.height - PAGE.marginY - 8) {
         doc.addPage();
         y = PAGE.marginY;
       }
@@ -597,7 +597,7 @@ function drawMatchPairs(doc, q, startY, fontFamily) {
   const xRight = PAGE.marginX + 4 + colWidth + 8;
   const lineHeight = 6;
   for (let i = 0; i < pairs.length; i++) {
-    if (y + lineHeight > PAGE.height - PAGE.marginY - 12) break;
+    if (y + lineHeight > PAGE.height - PAGE.marginY - 8) break;
     doc.setFont(fontFamily, "bold");
     doc.text(`${i + 1}.`, xLeft, y);
     doc.setFont(fontFamily, "normal");
@@ -621,7 +621,7 @@ function drawOrderItems(doc, q, startY, fontFamily, textX) {
   setColor(doc, COLOR.textDark);
   const items = q.items || q.options || [];
   for (let i = 0; i < items.length; i++) {
-    if (y + 6 > PAGE.height - PAGE.marginY - 12) break;
+    if (y + 6 > PAGE.height - PAGE.marginY - 8) break;
     // Position number underline (gray)
     setDrawColor(doc, COLOR.textMute);
     doc.setLineWidth(0.35);
@@ -665,7 +665,7 @@ function drawDottedLines(doc, startY, count) {
   let y = startY;
   setFillColor(doc, COLOR.textFaint);
   for (let i = 0; i < count; i++) {
-    if (y + SPACING.dottedLineGap > PAGE.height - PAGE.marginY - 12) break;
+    if (y + SPACING.dottedLineGap > PAGE.height - PAGE.marginY - 8) break;
     // Draw a row of dots from marginX+4 to right edge
     const x1 = PAGE.marginX + 4;
     const x2 = PAGE.marginX + PAGE.contentWidth - 4;
@@ -679,49 +679,40 @@ function drawDottedLines(doc, startY, count) {
 }
 
 function estimateQuestionHeight(q, imageCache) {
-  // PR 29.0.5: recalibrated based on Jota's Ser vs Estar test.
-  // Previous estimate (base=14, promptLines=ceil(len/80)*5, +typeH)
-  // overshot real consumed height by ~30%, causing the page-break
-  // engine to break too early. Real-world consumption is closer to:
+  // PR 29.0.6: still over-estimating. Tightening further based on
+  // Jota's second test (Ser vs Estar). Real per-question footprint
+  // measured manually:
+  //   - 1-line prompt + TF:  ~13mm
+  //   - 1-line prompt + MCQ 4opts: ~35mm
+  //   - 1-line prompt + fill: ~7mm
+  //   - 2-line prompt + MCQ: ~42mm
   //
-  //   - base: number circle + question prompt baseline = ~8mm
-  //     (the prompt itself absorbs the first prompt line worth of height)
-  //   - per additional prompt line: ~6mm (drawWrappedText uses
-  //     lineHeight + 2mm extra)
-  //   - chars per line at FONT.questionText 11pt over content
-  //     ~150mm: roughly 90 chars (Helvetica avg ~1.6mm/char)
-  //   - mcq option: 6mm each (SPACING.betweenOptions)
-  //   - tf: 6mm (one row)
-  //   - fill: 0 — inline in prompt
-  //   - match: 6mm/pair + 2mm padding
-  //   - order: 6mm/item
-  //   - slider: ~13mm (track + label row)
-  //   - open/free: 5 lines × 7mm = 35mm
-  //   - sentence: 3 lines × 7mm = 21mm
-  //
-  // Total estimate = base + (promptLines - 1) * 6 + imageH + typeH + safetyPad
-  // safetyPad of +2mm protects against slight underestimates (better to
-  // break a hair early than to overlap content).
+  // Coefficients reduced. SafetyPad removed (was over-paying for safety
+  // and shoving questions to next page even with plenty of room).
   const promptLen = (q.q || q.prompt || q.question || "").length || 30;
-  const promptLines = Math.max(1, Math.ceil(promptLen / 90));
-  const base = 8;
+  // chars/line is generous — content width 174mm at 11pt Helvetica
+  // fits ~95 chars typical
+  const promptLines = Math.max(1, Math.ceil(promptLen / 95));
+  // base = circle (7mm tall) + prompt baseline alignment ~5mm = 5mm net
+  const base = 5;
   let imageH = 0;
   if (q.image_url && imageCache?.get(q.image_url)) {
     const img = imageCache.get(q.image_url);
     const { h } = scaleImageToFit(img.naturalW, img.naturalH, PAGE.contentWidth * 0.6, 55);
     imageH = h + SPACING.afterImage;
   }
+  // Per option/row coefficients reduced slightly to match real render.
   const typeH =
     q.type === "mcq" ? (q.options?.length || 4) * SPACING.betweenOptions :
     q.type === "tf" ? SPACING.betweenOptions :
     q.type === "fill" ? 0 :
-    q.type === "match" ? (q.pairs?.length || 4) * 6 + 2 :
+    q.type === "match" ? (q.pairs?.length || 4) * 6 :
     q.type === "order" ? (q.items?.length || 4) * 6 :
-    q.type === "slider" ? 13 :
+    q.type === "slider" ? 12 :
     (q.type === "free" || q.type === "open") ? 5 * SPACING.dottedLineGap :
     3 * SPACING.dottedLineGap;
-  const safetyPad = 2;
-  return base + (promptLines - 1) * 6 + imageH + typeH + safetyPad;
+  // First prompt line ~ 7mm absorbed into base; extra lines ~ 6mm each
+  return base + promptLines * 6 + imageH + typeH;
 }
 
 function drawMatchAnswerBlock(doc, q, num, startY, fontFamily) {
@@ -740,7 +731,7 @@ function drawMatchAnswerBlock(doc, q, num, startY, fontFamily) {
 
   const blockHeight = padTop + headerHeight + (pairs.length * rowHeight) + padBottom;
 
-  if (startY + blockHeight > PAGE.height - PAGE.marginY - 12) {
+  if (startY + blockHeight > PAGE.height - PAGE.marginY - 8) {
     doc.addPage();
     startY = PAGE.marginY;
   }
@@ -825,7 +816,7 @@ function drawFooterAllPages(doc, fontFamily, labels) {
 // new page and reset y. Returns the y to use.
 // The -12 reserves room for the footer.
 function ensureSpace(doc, y, neededH) {
-  if (y + neededH > PAGE.height - PAGE.marginY - 12) {
+  if (y + neededH > PAGE.height - PAGE.marginY - 8) {
     doc.addPage();
     return PAGE.marginY;
   }
