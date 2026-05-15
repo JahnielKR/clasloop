@@ -1794,6 +1794,13 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
   }, [current]);
 
   const handleNext = () => {
+    // PR 28.12: clear the auto-advance state proactively so the fill
+    // bar disappears immediately on click. Without this, the
+    // .is-auto-advancing class stays on for ~200ms (until the slide
+    // animation triggers the cleanup effect on displayedQuestionIdx)
+    // and the user sees a fraction of a second of "full bar" before
+    // the question changes.
+    setAutoAdvanceStart(null);
     if (current + 1 >= questions.length) setStep("results");
     else setCurrent(c => c + 1);
   };

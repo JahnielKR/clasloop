@@ -2112,84 +2112,92 @@
 }
 .stage[data-theme="mono"] .stage-next-btn { border-radius: 0; }
 
-/* PR 24.0 + PR 24.4.4: auto-advance fill animation.
+/* PR 24.0 + PR 24.4.4 + PR 28.12: auto-advance fill animation.
  *
  * When the timer expires without an answer, we add the
- * `is-auto-advancing` modifier to the button. A ::before pseudo-element
- * fills horizontally from 0% to 100% in 3 seconds, then JS calls
+ * `is-auto-advancing` modifier to the button. The button background
+ * goes flat gray and a ::before pseudo-element fills horizontally
+ * from left (0% width) to right (100% width) over 4 seconds, painted
+ * in the theme accent color. When the fill hits 100%, JS calls
  * handleNext.
  *
- * PR 24.4.4: bumped from 2s → 3s (more time to read the reveal) and
- * raised the fill's contrast so it's actually visible — the previous
- * rgba(0,0,0,0.22) was a faint tint students didn't notice. Now each
- * theme gets a fill color picked to clearly stand out against its
- * button background.
+ * PR 28.12 (Jota): "como Netflix cuando se acaba un capítulo — sale
+ * Next y se va llenando." Replaces the earlier brightness+saturate
+ * filter approach (PR 24.4.9-10) which read as a fade-in rather than
+ * a true progress fill, and the layered scale-pulse which competed
+ * for attention with the fill itself.
  *
- * The button content (text + arrow) stays on top thanks to z-index.
- * Cancel = student clicks → JS removes the class and clears the
- * timer; the ::before snaps back to 0 instantly.
+ * Why keyframes with `width`, not transition: earlier attempts using
+ * `transition: width` (PR 24.4.6-8) didn't fire reliably because the
+ * element doesn't have a "from" frame to interpolate from — it's
+ * inserted with the .is-auto-advancing class already applied.
+ * Keyframes don't need a from-frame: the browser interpolates
+ * between the declared `from` and `to` no matter how the class got
+ * applied. This is the same fix pattern that worked for the slide
+ * animations in PR 20.2.5.
  */
 .stage .stage-next-btn > * {
   position: relative;
   z-index: 1;
 }
 .stage .stage-next-btn::before {
-  /* PR 24.4.9: kept for backward compatibility but no longer used for
-   * the fill effect. Earlier approaches (width-transition, keyframes)
-   * didn't reliably animate in production. Switched to a filter-based
-   * fill on the button itself (see .is-auto-advancing rule below). */
-  content: none;
+  /* Default: invisible. Becomes the fill bar when .is-auto-advancing
+   * is on (see rule below). Pre-positioned at 0 width so the keyframe
+   * has something concrete to animate from. */
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 0;
+  background: var(--accent);
+  z-index: 0;
+  pointer-events: none;
+  border-radius: inherit;
 }
 
-/* PR 24.4.9: progressive brightness "fill" on the button itself.
- *
- * The button starts dim (brightness < 1, less saturated) and animates
- * to full brightness (brightness 1) over 3 seconds. Visually this
- * looks like the button "fills with color" as the deadline approaches.
- *
- * Why this approach: `filter: brightness(N)` animates reliably across
- * browsers regardless of when the class is applied — unlike width
- * transitions which need a pre-state frame to interpolate FROM. The
- * keyframes animation here is identical to the width approach in
- * spirit, but operates on a property the browser always animates
- * predictably.
- *
- * PR 24.4.10: tuning round.
- *   - Wider brightness range (0.4 → 1) so the change is more dramatic
- *   - ease-in curve so the brightening accelerates toward the end
- *     ("sensación de subida" — feels like a power-up, not a fade)
- *   - Layered pulse animation on the same element to grab attention
- *     (scale 1 ↔ 1.03, infinite, 1.4s cycle). Two simultaneous
- *     animations are fine — modern browsers compose them.
- */
 @keyframes cl-next-fill {
-  from {
-    filter: brightness(0.4) saturate(0.5);
-  }
-  to {
-    filter: brightness(1) saturate(1);
-  }
-}
-@keyframes cl-next-pulse {
-  0%, 100% {
-    transform: scale(1);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  }
-  50% {
-    transform: scale(1.035);
-    box-shadow: 0 6px 22px rgba(0, 0, 0, 0.25);
-  }
-}
-.stage .stage-next-btn.is-auto-advancing {
-  animation:
-    cl-next-fill 4000ms cubic-bezier(0.55, 0, 0.7, 0.4) forwards,
-    cl-next-pulse 1400ms ease-in-out infinite;
+  from { width: 0%; }
+  to   { width: 100%; }
 }
 
-/* PR 24.4.9: the per-theme background overrides for ::before are gone
- * because we no longer use a pseudo-element fill. The brightness
- * animation applies to the whole button, so per-theme tuning isn't
- * needed — the button's own theme color is what darkens/brightens. */
+.stage .stage-next-btn.is-auto-advancing {
+  /* PR 28.12: button itself goes neutral so the colored fill bar
+   * inside reads as the progress indicator. Without this the
+   * background would still be the accent color and the fill would
+   * be invisible. --surface-soft exists in every theme and reads
+   * as a calm neutral against each theme's accent. */
+  background: var(--surface-soft);
+  color: var(--text-soft, currentColor);
+  /* The hover lift would compete with the calm fill — disable it
+   * while auto-advancing. The button is still clickable to cancel. */
+  transform: none !important;
+}
+.stage .stage-next-btn.is-auto-advancing::before {
+  animation: cl-next-fill 4000ms linear forwards;
+}
+/* PR 28.12: theme-specific tweaks for the "neutral" base.
+ * Pop's chunky shadow shouldn't disappear during the fill, but the
+ * background needs to be light enough that the accent fill reads.
+ * Mono is monochromatic — the fill should be the theme's dark ink.
+ * Ocean's default --surface-soft is too transparent (0.03 alpha)
+ * over its dark gradient — we want the neutral state to read as
+ * a clear empty-bar baseline. */
+.stage[data-theme="ocean"] .stage-next-btn.is-auto-advancing {
+  background: rgba(255, 255, 255, 0.10);
+  color: rgba(232, 240, 255, 0.7);
+}
+.stage[data-theme="pop"] .stage-next-btn.is-auto-advancing {
+  background: #FFFFFF;
+  color: #1F1733;
+}
+.stage[data-theme="mono"] .stage-next-btn.is-auto-advancing {
+  background: #1F1733;
+  color: #FFFFFF;
+}
+.stage[data-theme="mono"] .stage-next-btn.is-auto-advancing::before {
+  background: #FFFFFF;
+}
 
 /* ─── PR 20.2.4: answer-tile reveal states (showResult flow) ─────────
  * When the student has submitted, the tiles dim. The correct one
