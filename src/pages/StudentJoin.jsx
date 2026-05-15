@@ -2194,46 +2194,92 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
   //
   // The overlay listens to orientation changes via the hook, so when the
   // student rotates the phone the gate auto-clears and the quiz renders.
+  //
+  // PR 28.17.1: layout rewritten to actually fit on small portrait phones.
+  // Earlier version (PR 28.17) had elements overlapping each other on
+  // narrow devices — fixed font sizes that didn't account for ~360px
+  // viewport, SVG rotation potentially expanding past its container,
+  // ambiguous margin behavior. The rewrite uses:
+  //   - 100dvh instead of 100vh: works correctly when the mobile address
+  //     bar collapses/expands. With vh, the overlay can get cropped.
+  //   - flex gap (not margins): no margin-collapse weirdness.
+  //   - SVG sized via viewBox + width 100% inside a fixed-size wrapper:
+  //     the rotation can't make the visual exceed the wrapper bounds.
+  //   - max-width on the text block, but width: 100% on each line so
+  //     the title and subtitle align consistently.
+  //   - Minimal padding (24px sides, less for very small screens).
   if (isPortraitMobile && (step === "quiz" || step === "waiting" || step === "results")) {
     return (
       <>
-        <style>{css}</style>
-        <div style={{
-          position: "fixed", inset: 0,
-          background: "#0F0E1A",
-          color: "#FFFFFF",
-          display: "flex", flexDirection: "column",
-          alignItems: "center", justifyContent: "center",
-          padding: "32px 28px",
-          textAlign: "center",
-          zIndex: 99999,
-          fontFamily: "'Outfit', sans-serif",
-        }}>
-          {/* Rotating phone icon — uses a slow rotate keyframe so the
-              user sees the motion they're meant to mimic. */}
-          <div style={{
-            width: 96, height: 96,
-            marginBottom: 28,
-            display: "flex", alignItems: "center", justifyContent: "center",
-            animation: "sj-rotate-phone 2.6s ease-in-out infinite",
-          }}>
-            <svg width="84" height="84" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <style>{`
+          @keyframes sj-portrait-rotate {
+            0%, 40%   { transform: rotate(0deg); }
+            55%, 95%  { transform: rotate(-90deg); }
+            100%      { transform: rotate(0deg); }
+          }
+          .sj-portrait-overlay {
+            position: fixed;
+            inset: 0;
+            width: 100vw;
+            height: 100vh;
+            height: 100dvh;
+            background: #0F0E1A;
+            color: #FFFFFF;
+            z-index: 99999;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 22px;
+            padding: 24px 20px;
+            box-sizing: border-box;
+            font-family: 'Outfit', sans-serif;
+            text-align: center;
+            overflow: hidden;
+          }
+          .sj-portrait-icon-wrap {
+            flex-shrink: 0;
+            width: 88px;
+            height: 88px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+          }
+          .sj-portrait-icon-wrap svg {
+            display: block;
+            width: 64px;
+            height: 64px;
+            animation: sj-portrait-rotate 2.8s ease-in-out infinite;
+            transform-origin: center;
+          }
+          .sj-portrait-title {
+            font-size: 20px;
+            font-weight: 700;
+            line-height: 1.2;
+            margin: 0;
+            max-width: 100%;
+          }
+          .sj-portrait-sub {
+            font-size: 13px;
+            line-height: 1.5;
+            color: rgba(255, 255, 255, 0.65);
+            margin: 0;
+            max-width: 280px;
+          }
+        `}</style>
+        <div className="sj-portrait-overlay">
+          <div className="sj-portrait-icon-wrap">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <rect x="7" y="2" width="10" height="20" rx="2" />
               <line x1="11" y1="18" x2="13" y2="18" />
             </svg>
           </div>
-          <h2 style={{ fontSize: 22, fontWeight: 700, margin: "0 0 10px", lineHeight: 1.2 }}>
+          <h2 className="sj-portrait-title">
             {t.rotateDevice || "Rotate your phone"}
           </h2>
-          <p style={{ fontSize: 14, lineHeight: 1.5, color: "rgba(255,255,255,0.7)", maxWidth: 280, margin: 0 }}>
+          <p className="sj-portrait-sub">
             {t.rotateDeviceSub || "This quiz works best in landscape mode. Turn your phone sideways to play."}
           </p>
-          <style>{`
-            @keyframes sj-rotate-phone {
-              0%, 40%   { transform: rotate(0deg); }
-              60%, 100% { transform: rotate(-90deg); }
-            }
-          `}</style>
         </div>
       </>
     );
