@@ -111,15 +111,18 @@ export async function renderExam(doc, deck, classObj, opts = {}) {
     for (let i = 0; i < selection.length; i++) {
       const q = selection[i];
       const estH = estimateQuestionHeight(q, imageCache);
-      // PR 29.0.3 fix 3: widow protection. Same idea as classic — if
-      // current question fits but the next one would land alone at the
-      // top of a new page, break early.
+      // PR 29.0.4: widow protection rewritten — was too aggressive (broke
+      // pages when 50mm+ remained). New rule: only break if current ends
+      // with VERY LITTLE space left (< 25mm) and next is too tall to fit.
       const next = selection[i + 1];
       const remaining = PAGE.height - PAGE.marginY - 14 - y;
+      const remainingAfter = remaining - estH - SPACING.betweenQuestions;
       const widowRisk = next
-        && (y > PAGE.marginY + 40)
-        && (estH + SPACING.betweenQuestions + estimateQuestionHeight(next, imageCache) > remaining)
-        && (estH < remaining);
+        && (y > PAGE.marginY + 80)
+        && (estH < remaining)
+        && (remainingAfter > 0)
+        && (remainingAfter < 25)
+        && (estimateQuestionHeight(next, imageCache) > remainingAfter);
       if (widowRisk) {
         doc.addPage();
         y = PAGE.marginY;
@@ -149,10 +152,13 @@ export async function renderExam(doc, deck, classObj, opts = {}) {
       const estH = estimateQuestionHeight(q, imageCache);
       const next = written[i + 1];
       const remaining = PAGE.height - PAGE.marginY - 14 - y;
+      const remainingAfter = remaining - estH - SPACING.betweenQuestions;
       const widowRisk = next
-        && (y > PAGE.marginY + 40)
-        && (estH + SPACING.betweenQuestions + estimateQuestionHeight(next, imageCache) > remaining)
-        && (estH < remaining);
+        && (y > PAGE.marginY + 80)
+        && (estH < remaining)
+        && (remainingAfter > 0)
+        && (remainingAfter < 25)
+        && (estimateQuestionHeight(next, imageCache) > remainingAfter);
       if (widowRisk) {
         doc.addPage();
         y = PAGE.marginY;
@@ -328,7 +334,7 @@ function drawStickerBadge(doc, cx, cy, r, count, fontFamily) {
   // Inner thin ring (white, for definition)
   setDrawColor(doc, COLOR.white);
   doc.setLineWidth(0.7);
-  doc.circle(cx, cy, r - 1.6);
+  doc.circle(cx, cy, r - 1.6, "S");
 
   // "DECK" label
   doc.setFont(fontFamily, "bold");
@@ -646,7 +652,7 @@ function drawOrderItems(doc, q, startY, fontFamily, textX, sectionCfg) {
     doc.circle(textX + 4, y - 1.2, 2.4, "F");
     setDrawColor(doc, sectionCfg.color);
     doc.setLineWidth(0.5);
-    doc.circle(textX + 4, y - 1.2, 2.4);
+    doc.circle(textX + 4, y - 1.2, 2.4, "S");
 
     // Item text
     setColor(doc, COLOR.textDark);

@@ -99,17 +99,26 @@ export async function renderExam(doc, deck, classObj, opts = {}) {
     for (let i = 0; i < selection.length; i++) {
       const q = selection[i];
       const estH = estimateQuestionHeight(q, imageCache);
-      // PR 29.0.3 fix 3: widow protection. If this question fits on the
-      // current page BUT the next one wouldn't (so it'd be alone at the
-      // top of the next page), page-break early so we don't leave an
-      // orphan up there. Threshold: don't trigger if we're already near
-      // the top (no point breaking a page that's just started).
+      // PR 29.0.4: widow protection rewritten. Previous version was too
+      // aggressive — it would break pages whenever the NEXT question
+      // didn't fit alongside the current one, even with 50mm+ of space
+      // left. That made pages have only 3 questions each.
+      //
+      // True widow case: the current question fits with VERY LITTLE space
+      // remaining (< 25mm), AND the next one needs more than that. In
+      // that case the current is alone at the bottom with awkward space.
+      // Threshold also requires being well past the top of the page,
+      // otherwise we'd page-break a fresh page just because the first
+      // question is tall.
       const next = selection[i + 1];
       const remaining = PAGE.height - PAGE.marginY - 12 - y;
+      const remainingAfter = remaining - estH - SPACING.betweenQuestions;
       const widowRisk = next
-        && (y > PAGE.marginY + 40)
-        && (estH + SPACING.betweenQuestions + estimateQuestionHeight(next, imageCache) > remaining)
-        && (estH < remaining);
+        && (y > PAGE.marginY + 80)         // well past top of page
+        && (estH < remaining)              // current fits
+        && (remainingAfter > 0)            // current ends with some space left
+        && (remainingAfter < 25)           // but not enough for next
+        && (estimateQuestionHeight(next, imageCache) > remainingAfter);
       if (widowRisk) {
         doc.addPage();
         y = PAGE.marginY;
@@ -140,10 +149,13 @@ export async function renderExam(doc, deck, classObj, opts = {}) {
       const estH = estimateQuestionHeight(q, imageCache);
       const next = written[i + 1];
       const remaining = PAGE.height - PAGE.marginY - 12 - y;
+      const remainingAfter = remaining - estH - SPACING.betweenQuestions;
       const widowRisk = next
-        && (y > PAGE.marginY + 40)
-        && (estH + SPACING.betweenQuestions + estimateQuestionHeight(next, imageCache) > remaining)
-        && (estH < remaining);
+        && (y > PAGE.marginY + 80)
+        && (estH < remaining)
+        && (remainingAfter > 0)
+        && (remainingAfter < 25)
+        && (estimateQuestionHeight(next, imageCache) > remainingAfter);
       if (widowRisk) {
         doc.addPage();
         y = PAGE.marginY;
@@ -445,7 +457,9 @@ function drawQuestion(doc, q, startY, fontFamily, lang, imageCache, dotted) {
   } else {
     setDrawColor(doc, COLOR.textMid);
     doc.setLineWidth(0.5);
-    doc.circle(circleX, circleY, circleR);
+    // PR 29.0.4: jsPDF's doc.circle() WITHOUT a style arg ("S"|"F"|"FD"|"D")
+    // does NOT draw anything visible. Adding "S" explicitly to stroke.
+    doc.circle(circleX, circleY, circleR, "S");
   }
 
   doc.setFont(fontFamily, "bold");
@@ -516,9 +530,10 @@ function drawMCQOptions(doc, q, startY, fontFamily, textX) {
     // PR 29.0.3 fix 1: bullets bigger (2.6mm radius) so the student
     // can mark them clearly with a pen. The old 1.7mm circles were
     // hard to see against the option text.
+    // PR 29.0.4: add "S" so jsPDF actually strokes the circle.
     setDrawColor(doc, COLOR.textMute);
     doc.setLineWidth(0.5);
-    doc.circle(textX + 2.6, y - 1.2, 2.6);
+    doc.circle(textX + 2.6, y - 1.2, 2.6, "S");
     // Letter inside paren
     doc.setFont(fontFamily, "bold");
     doc.text(`${letters[i]})`, textX + 8, y);
@@ -543,12 +558,13 @@ function drawTFOptions(doc, startY, fontFamily, labels, textX) {
   doc.setLineWidth(0.5);
   // PR 29.0.3 fix 1: True/False bullets bumped from 1.7mm to 3mm.
   // Originally too small to comfortably mark with a pen.
+  // PR 29.0.4: add "S" so jsPDF actually strokes the circles.
   const r = 3;
-  doc.circle(textX + r, y - 1.2, r);
+  doc.circle(textX + r, y - 1.2, r, "S");
   doc.text(labels.true, textX + r * 2 + 4, y);
   const trueWidth = doc.getTextWidth(labels.true);
   const falseX = textX + r * 2 + 4 + trueWidth + 14;
-  doc.circle(falseX - 4, y - 1.2, r);
+  doc.circle(falseX - 4, y - 1.2, r, "S");
   doc.text(labels.false, falseX + r, y);
   y += SPACING.betweenOptions;
   return y;
