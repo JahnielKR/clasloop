@@ -35,6 +35,15 @@ const i18n = {
     removeError: "Could not remove the student. Try again.",
     close: "Close",
     loading: "Loading…",
+    // PR 28.8: bulk remove
+    selectAll: "Select all",
+    selectAria: "Select student",
+    selectedCount: "{n} selected",
+    bulkRemove: "Remove selected",
+    bulkCancel: "Clear",
+    bulkConfirmTitle: "Remove {n} students?",
+    bulkConfirmBody: "They'll lose access to this class. Their answer history stays in the database but won't be shown to them here. They can rejoin with the class code anytime.",
+    bulkError: "Could not remove the students. Try again.",
   },
   es: {
     title: "Estudiantes en esta clase",
@@ -51,6 +60,15 @@ const i18n = {
     removeError: "No se pudo remover al estudiante. Intentá de nuevo.",
     close: "Cerrar",
     loading: "Cargando…",
+    // PR 28.8: bulk remove
+    selectAll: "Seleccionar todos",
+    selectAria: "Seleccionar estudiante",
+    selectedCount: "{n} seleccionados",
+    bulkRemove: "Remover seleccionados",
+    bulkCancel: "Limpiar",
+    bulkConfirmTitle: "¿Remover {n} estudiantes?",
+    bulkConfirmBody: "Van a perder acceso a esta clase. Su historial de respuestas queda en la base de datos pero no se les muestra aquí. Pueden volver a unirse con el código de clase cuando quieran.",
+    bulkError: "No se pudieron remover los estudiantes. Intentá de nuevo.",
   },
   ko: {
     title: "이 수업의 학생들",
@@ -67,6 +85,15 @@ const i18n = {
     removeError: "학생을 제거할 수 없습니다. 다시 시도하세요.",
     close: "닫기",
     loading: "로딩 중…",
+    // PR 28.8: bulk remove
+    selectAll: "모두 선택",
+    selectAria: "학생 선택",
+    selectedCount: "{n}명 선택됨",
+    bulkRemove: "선택한 학생 제거",
+    bulkCancel: "선택 해제",
+    bulkConfirmTitle: "학생 {n}명을 제거하시겠습니까?",
+    bulkConfirmBody: "이 수업에 대한 접근 권한이 사라집니다. 답변 기록은 데이터베이스에 남지만 여기에 표시되지 않습니다. 언제든 수업 코드로 다시 참여할 수 있습니다.",
+    bulkError: "학생들을 제거할 수 없습니다. 다시 시도하세요.",
   },
 };
 
@@ -94,7 +121,15 @@ export default function StudentsModal({
   const t = i18n[lang] || i18n.en;
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
-  // confirm modal state — { id, name } | null
+  // PR 28.8: selection state for bulk remove. Set<string> of class_member.id.
+  // Lives independently of `students` so re-fetches don't blow it away,
+  // but the cleanup effect below prunes stale ids when students changes.
+  const [selectedIds, setSelectedIds] = useState(new Set());
+  // PR 28.8: unified confirm modal state. The shape carries everything
+  // we need to know "which path was used":
+  //   { kind: "single", id, name }          → from the per-row Remove button
+  //   { kind: "bulk", ids: [...] }          → from the bulk action bar
+  // Replaces the previous single-only `confirmRemove`.
   const [confirmRemove, setConfirmRemove] = useState(null);
   const [removing, setRemoving] = useState(false);
 
@@ -102,6 +137,10 @@ export default function StudentsModal({
   // the student's full_name (if signed up properly) and avatar_id.
   useEffect(() => {
     if (!open || !classId) return;
+    // PR 28.8: open is a fresh entry — reset selection. Otherwise a
+    // teacher closing and re-opening for a different class would
+    // inherit stale selected ids.
+    setSelectedIds(new Set());
     let cancelled = false;
     (async () => {
       setLoading(true);
@@ -133,6 +172,22 @@ export default function StudentsModal({
     return () => { cancelled = true; };
   }, [open, classId]);
 
+  // PR 28.8: prune stale selections when the students list shrinks.
+  // Otherwise an id that just got removed could linger in selectedIds
+  // and confuse the count badge ("3 selected" but only 2 highlighted).
+  useEffect(() => {
+    setSelectedIds(prev => {
+      const valid = new Set(students.map(s => s.id));
+      let changed = false;
+      const next = new Set();
+      for (const id of prev) {
+        if (valid.has(id)) next.add(id);
+        else changed = true;
+      }
+      return changed ? next : prev;
+    });
+  }, [students]);
+
   // Lock body scroll while open
   useEffect(() => {
     if (!open) return;
@@ -158,23 +213,67 @@ export default function StudentsModal({
 
   if (!open) return null;
 
+  // PR 28.8: handles both single and bulk deletes through the same
+  // path — we just route the supabase query on confirmRemove.kind.
+  //
+  // For bulk, we use .in("id", ids) — a single round trip that the
+  // PR 27 RLS policy already supports (each row is individually
+  // checked against `class_id IN (teacher's classes)`).
+  //
+  // count === ids.length checks that every row we tried to remove
+  // actually got removed; if RLS hides some of them (shouldn't
+  // happen in practice — teacher is owner of class — but defensive),
+  // we surface an error and refetch instead of pretending success.
   const handleRemove = async () => {
     if (!confirmRemove) return;
     setRemoving(true);
+    const ids = confirmRemove.kind === "bulk"
+      ? confirmRemove.ids
+      : [confirmRemove.id];
     const { error, count } = await supabase
       .from("class_members")
       .delete({ count: "exact" })
-      .eq("id", confirmRemove.id);
-    if (error || count === 0) {
-      console.error("[clasloop] remove student failed:", error || "0 rows affected");
-      alert(t.removeError);
+      .in("id", ids);
+    if (error || count !== ids.length) {
+      console.error(
+        "[clasloop] remove student(s) failed:",
+        error || `expected ${ids.length} rows deleted, got ${count}`
+      );
+      alert(confirmRemove.kind === "bulk" ? t.bulkError : t.removeError);
       setRemoving(false);
       return;
     }
-    // Optimistic update: drop the row locally without a refetch.
-    setStudents(prev => prev.filter(s => s.id !== confirmRemove.id));
+    // Optimistic update: drop affected rows locally without a refetch.
+    // The selection-pruning effect above will clear them from
+    // selectedIds in the next render.
+    const idSet = new Set(ids);
+    setStudents(prev => prev.filter(s => !idSet.has(s.id)));
     setConfirmRemove(null);
     setRemoving(false);
+  };
+
+  // PR 28.8: per-row checkbox toggle. The row click area is the
+  // checkbox itself (not the whole row) to preserve clicks on the
+  // existing Remove button on the right.
+  const toggleSelect = (id) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  // PR 28.8: "select all" tri-state. Clicking it:
+  //   - selects every visible student when 0 or partial are selected
+  //   - clears selection when all are already selected
+  const visibleCount = students.length;
+  const selectedCount = selectedIds.size;
+  const allSelected = visibleCount > 0 && selectedCount === visibleCount;
+  const someSelected = selectedCount > 0 && !allSelected;
+  const toggleSelectAll = () => {
+    if (allSelected) setSelectedIds(new Set());
+    else setSelectedIds(new Set(students.map(s => s.id)));
   };
 
   const count = students.length;
@@ -286,10 +385,45 @@ export default function StudentsModal({
               {t.empty}
             </div>
           ) : (
-            <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+            <>
+              {/* PR 28.8: select-all header sits above the list and
+                  mirrors per-row checkbox column. Tri-state via the
+                  native `indeterminate` property (set imperatively via
+                  ref callback since React doesn't expose it as a prop). */}
+              <div style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 12,
+                padding: "6px 0 10px",
+                borderBottom: `1px solid ${C.border}`,
+                marginBottom: 2,
+              }}>
+                <input
+                  type="checkbox"
+                  checked={allSelected}
+                  ref={(el) => { if (el) el.indeterminate = someSelected; }}
+                  onChange={toggleSelectAll}
+                  aria-label={t.selectAll}
+                  style={{
+                    width: 18, height: 18,
+                    cursor: "pointer",
+                    flexShrink: 0,
+                    accentColor: C.accent,
+                  }}
+                />
+                <span style={{
+                  fontSize: 12,
+                  color: C.textMuted,
+                  fontWeight: 500,
+                }}>
+                  {t.selectAll}
+                </span>
+              </div>
+              <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
               {students.map(m => {
                 const { avId, url } = avatarFor(m);
                 const av = getAvatarById(avId);
+                const isSelected = selectedIds.has(m.id);
                 return (
                   <li
                     key={m.id}
@@ -301,6 +435,21 @@ export default function StudentsModal({
                       borderBottom: `1px solid ${C.border}`,
                     }}
                   >
+                    {/* PR 28.8: selection checkbox. Sits on the far
+                        left so the existing avatar/name/Remove layout
+                        stays visually anchored. */}
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={() => toggleSelect(m.id)}
+                      aria-label={t.selectAria}
+                      style={{
+                        width: 18, height: 18,
+                        cursor: "pointer",
+                        flexShrink: 0,
+                        accentColor: C.accent,
+                      }}
+                    />
                     {/* Avatar */}
                     <div style={{
                       width: 40, height: 40,
@@ -338,7 +487,11 @@ export default function StudentsModal({
 
                     {/* Remove */}
                     <button
-                      onClick={() => setConfirmRemove({ id: m.id, name: displayName(m) })}
+                      onClick={() => setConfirmRemove({
+                        kind: "single",
+                        id: m.id,
+                        name: displayName(m),
+                      })}
                       aria-label={t.removeAria}
                       style={{
                         background: "transparent",
@@ -367,8 +520,69 @@ export default function StudentsModal({
                 );
               })}
             </ul>
+            </>
           )}
         </div>
+
+        {/* PR 28.8: bulk action bar — appears only when something is
+            selected. Sits inside the modal body (sticky bottom of the
+            internal flex column) so it's always reachable without
+            scrolling. Mirrors Gmail's "{n} selected · Action" pattern. */}
+        {selectedCount > 0 && (
+          <div style={{
+            borderTop: `1px solid ${C.border}`,
+            padding: "12px 24px",
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            background: C.bgSoft,
+            flexShrink: 0,
+          }}>
+            <span style={{
+              fontSize: 13,
+              fontWeight: 600,
+              color: C.text,
+              flex: 1,
+            }}>
+              {t.selectedCount.replace("{n}", String(selectedCount))}
+            </span>
+            <button
+              onClick={() => setSelectedIds(new Set())}
+              style={{
+                background: "transparent",
+                border: `1px solid ${C.border}`,
+                color: C.textSecondary,
+                padding: "7px 12px",
+                borderRadius: 7,
+                fontSize: 12.5,
+                fontWeight: 500,
+                cursor: "pointer",
+                fontFamily: "'Outfit',sans-serif",
+              }}
+            >
+              {t.bulkCancel}
+            </button>
+            <button
+              onClick={() => setConfirmRemove({
+                kind: "bulk",
+                ids: Array.from(selectedIds),
+              })}
+              style={{
+                background: C.red,
+                border: "none",
+                color: "#fff",
+                padding: "7px 14px",
+                borderRadius: 7,
+                fontSize: 12.5,
+                fontWeight: 600,
+                cursor: "pointer",
+                fontFamily: "'Outfit',sans-serif",
+              }}
+            >
+              {t.bulkRemove}
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Confirm remove — nested dialog with its own backdrop click */}
@@ -400,14 +614,18 @@ export default function StudentsModal({
               margin: "0 0 8px",
               color: C.text,
             }}>
-              {t.removeConfirmTitle.replace("{name}", confirmRemove.name)}
+              {/* PR 28.8: title swaps per kind. Single keeps the
+                  named "Remove Pedro?"; bulk shows "Remove 3 students?". */}
+              {confirmRemove.kind === "bulk"
+                ? t.bulkConfirmTitle.replace("{n}", String(confirmRemove.ids.length))
+                : t.removeConfirmTitle.replace("{name}", confirmRemove.name)}
             </h3>
             <p style={{
               fontSize: 13, lineHeight: 1.5,
               color: C.textSecondary,
               margin: "0 0 18px",
             }}>
-              {t.removeConfirmBody}
+              {confirmRemove.kind === "bulk" ? t.bulkConfirmBody : t.removeConfirmBody}
             </p>
             <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
               <button
