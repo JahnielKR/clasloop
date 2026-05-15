@@ -4,6 +4,8 @@ import { LogoMark, CIcon } from "../components/Icons";
 import { validateGuestName, loadGuestSession, clearGuestSession } from "../lib/guest-session";
 import StudentJoin from "./StudentJoin";
 import { C, MONO } from "../components/tokens";
+import { useIsMobile } from "../components/MobileMenuButton";
+import MobileBlockedScreen from "../components/MobileBlockedScreen";
 
 const i18n = {
   en: {
@@ -97,6 +99,12 @@ export default function GuestJoin({ initialCode = "" }) {
   const [phase, setPhase] = useState("form");
   const [guestToken, setGuestToken] = useState("");
 
+  // PR 28.17.3: phone users can't take a session here either.
+  // GuestJoin is the no-auth entry by PIN/QR — same UX rules as the
+  // logged-in StudentJoin: tablets and computers only. Called as a
+  // hook ABOVE any early return so React's hook order stays stable.
+  const isMobile = useIsMobile();
+
   const codeValid = /^[0-9]{6}$/.test(code);
 
   // ── On mount: try to reconnect from localStorage ──
@@ -162,6 +170,19 @@ export default function GuestJoin({ initialCode = "" }) {
     setError("");
     setPhase("form");
   };
+
+  // PR 28.17.3: phone block. Wraps all phases — the user can't even
+  // see the join form, since trying to join from a phone would just
+  // hit StudentJoin's themed UI which doesn't fit. Onback goes to
+  // landing (no /classes auth here — guest may not have an account).
+  if (isMobile) {
+    return (
+      <MobileBlockedScreen
+        lang={lang}
+        onBack={() => { window.location.href = "/"; }}
+      />
+    );
+  }
 
   // ── Phase: kicked screen ──
   if (phase === "kicked") {
