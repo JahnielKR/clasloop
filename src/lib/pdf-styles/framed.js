@@ -44,6 +44,7 @@ import {
   fetchImageAsDataURL, scaleImageToFit,
   groupQuestionsBySection,
 } from "./shared";
+import { resolvePaletteToFramed } from "./palettes";
 
 const PAGE = {
   ...PAGE_A4,
@@ -89,7 +90,8 @@ const SPACING = {
   afterImage: 4,
 };
 
-const COLOR = {
+// PR 32: COLOR is now MUTABLE module state, rebuilt per render from palette.
+const COLOR_DEFAULTS = {
   textBlack: [25, 25, 25],
   textDark: [50, 50, 50],
   textMid: [100, 100, 100],
@@ -97,9 +99,15 @@ const COLOR = {
   textFaint: [200, 200, 200],
   frame: [60, 60, 60],          // dark gray for the frame lines
   ornament: [60, 60, 60],
-  // PR 32 will replace these defaults with user palette
   accent: [60, 60, 60],
+  answerAccent: [100, 100, 100],
 };
+
+function buildColors(palette) {
+  return resolvePaletteToFramed(palette, COLOR_DEFAULTS);
+}
+
+let COLOR = COLOR_DEFAULTS;
 
 // Gutter for the square question-number badge
 const NUMBER_BADGE_SIZE = 7;
@@ -109,7 +117,9 @@ const QUESTION_INDENT = NUMBER_BADGE_SIZE + 4;
 // EXAM
 // ═══════════════════════════════════════════════════════════════════════
 export async function renderExam(doc, deck, classObj, opts = {}) {
-  const { lang = "en", fontFamily = "times" } = opts;
+  const { lang = "en", fontFamily = "times" , palette = null } = opts;
+  // PR 32: rebuild COLOR for this render pass from palette
+  COLOR = buildColors(palette);
   const labels = LABELS[lang] || LABELS.en;
   let y = PAGE.marginY;
 
@@ -177,7 +187,9 @@ export async function renderExam(doc, deck, classObj, opts = {}) {
 // ANSWER KEY
 // ═══════════════════════════════════════════════════════════════════════
 export async function renderAnswerKey(doc, deck, classObj, opts = {}) {
-  const { lang = "en", fontFamily = "times" } = opts;
+  const { lang = "en", fontFamily = "times" , palette = null } = opts;
+  // PR 32: rebuild COLOR for this render pass from palette
+  COLOR = buildColors(palette);
   const labels = LABELS[lang] || LABELS.en;
   let y = PAGE.marginY;
 

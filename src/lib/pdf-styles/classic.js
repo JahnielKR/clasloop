@@ -63,7 +63,11 @@ const SPACING = {
 
 // Visual palette (RGB) — kept narrow on purpose. Classic is grayscale
 // with a single optional accent for the section divider.
-const COLOR = {
+import { resolvePaletteToClassic } from "./palettes";
+
+// PR 32: COLOR is now MUTABLE module state, rebuilt per render call from
+// the palette. Default palette = original grayscale behavior.
+const COLOR_DEFAULTS = {
   textBlack: [20, 20, 20],
   textDark: [40, 40, 40],
   textMid: [90, 90, 90],
@@ -72,13 +76,25 @@ const COLOR = {
   ruleHeavy: [25, 25, 25],
   ruleLight: [200, 200, 200],
   ruleFaint: [225, 225, 225],
+  // Palette accents (used selectively in classic to keep its sober feel)
+  accent: [25, 25, 25],            // same as ruleHeavy by default
+  accentSoft: [225, 225, 225],
+  answerAccent: [140, 140, 140],   // ans key eyebrow color; defaults to textMute
 };
+
+function buildColors(palette) {
+  return resolvePaletteToClassic(palette, COLOR_DEFAULTS);
+}
+
+let COLOR = COLOR_DEFAULTS;
 
 // ═══════════════════════════════════════════════════════════════════════
 // EXAM
 // ═══════════════════════════════════════════════════════════════════════
 export async function renderExam(doc, deck, classObj, opts = {}) {
-  const { lang = "en", fontFamily = "helvetica" } = opts;
+  const { lang = "en", fontFamily = "helvetica", palette = null } = opts;
+  // PR 32: rebuild COLOR for this render pass from palette
+  COLOR = buildColors(palette);
   const labels = LABELS[lang] || LABELS.en;
   let y = PAGE.marginY;
 
@@ -136,7 +152,9 @@ export async function renderExam(doc, deck, classObj, opts = {}) {
 // ANSWER KEY
 // ═══════════════════════════════════════════════════════════════════════
 export async function renderAnswerKey(doc, deck, classObj, opts = {}) {
-  const { lang = "en", fontFamily = "helvetica" } = opts;
+  const { lang = "en", fontFamily = "helvetica", palette = null } = opts;
+  // PR 32: rebuild COLOR for this render pass from palette
+  COLOR = buildColors(palette);
   const labels = LABELS[lang] || LABELS.en;
   let y = PAGE.marginY;
 
@@ -235,7 +253,7 @@ function drawAnswerKeyHeader(doc, deck, classObj, y, fontFamily, labels) {
   // tell at a glance which PDF they grabbed).
   doc.setFont(fontFamily, "bold");
   doc.setFontSize(FONT.eyebrow);
-  setColor(doc, COLOR.textMute);
+  setColor(doc, COLOR.answerAccent);
   doc.text(labels.answerKey.toUpperCase(), PAGE.marginX, y, { charSpace: 0.4 });
   // PR 30.2: gap proportional to title cap height. Title=18pt needs ~6.5mm.
   y += FONT.title * 0.25 + 2;
@@ -264,10 +282,12 @@ function drawAnswerKeyHeader(doc, deck, classObj, y, fontFamily, labels) {
   return y;
 }
 
-// Double-rule signature element: thick black bar + hairline below.
+// Double-rule signature element: thick bar + hairline below.
+// PR 32: bar uses palette accent (defaults to black for "default" palette,
+// so original look preserved). Hairline below stays subtle gray.
 function drawDoubleRule(doc, y) {
-  // Thick top bar (1.2mm tall)
-  setFillColor(doc, COLOR.ruleHeavy);
+  // Thick top bar (1.2mm tall) — colored by palette
+  setFillColor(doc, COLOR.accent);
   doc.rect(PAGE.marginX, y, PAGE.contentWidth, 1.2, "F");
   y += 1.2 + 1.4; // 1.4mm air
 
@@ -418,7 +438,10 @@ function drawQuestion(doc, q, startY, fontFamily, lang, imageCache, dotted) {
       doc.circle(dx, dy, 0.35, "F");
     }
   } else {
-    setDrawColor(doc, COLOR.textMid);
+    // PR 32: circle border uses palette accent (defaults to ruleHeavy
+    // black so original look preserved). Adds subtle color to the page
+    // when palette is set, without overwhelming classic's sober feel.
+    setDrawColor(doc, COLOR.accent);
     doc.setLineWidth(0.5);
     // PR 29.0.4: jsPDF's doc.circle() WITHOUT a style arg ("S"|"F"|"FD"|"D")
     // does NOT draw anything visible. Adding "S" explicitly to stroke.

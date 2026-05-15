@@ -45,6 +45,7 @@ import {
   fetchImageAsDataURL, scaleImageToFit,
   groupQuestionsBySection,
 } from "./shared";
+import { resolvePaletteToEditorial } from "./palettes";
 
 const PAGE = {
   ...PAGE_A4,
@@ -85,7 +86,8 @@ const SPACING = {
   afterImage: 4,           // PR 29.1.4: was 5
 };
 
-const COLOR = {
+// PR 32: COLOR is now MUTABLE module state, rebuilt per render from palette.
+const COLOR_DEFAULTS = {
   textBlack: [15, 15, 15],
   textDark: [40, 40, 40],
   textMid: [85, 85, 85],
@@ -94,7 +96,16 @@ const COLOR = {
   rule: [15, 15, 15],          // thick black rule
   hairline: [200, 200, 200],
   highlight: [240, 235, 220],  // cream highlight for section header bg
+  // Palette accents (only used in palette-set mode)
+  accent: [15, 15, 15],        // defaults to rule (black) so identical look
+  answerAccent: [140, 140, 140],
 };
+
+function buildColors(palette) {
+  return resolvePaletteToEditorial(palette, COLOR_DEFAULTS);
+}
+
+let COLOR = COLOR_DEFAULTS;
 
 // Layout constants for question rendering — the question number lives in
 // a fixed-width gutter to the left of the prompt.
@@ -105,7 +116,9 @@ const QUESTION_INDENT = GUTTER_W + 4;  // where the prompt starts
 // EXAM
 // ═══════════════════════════════════════════════════════════════════════
 export async function renderExam(doc, deck, classObj, opts = {}) {
-  const { lang = "en", fontFamily = "helvetica" } = opts;
+  const { lang = "en", fontFamily = "helvetica" , palette = null } = opts;
+  // PR 32: rebuild COLOR for this render pass from palette
+  COLOR = buildColors(palette);
   const labels = LABELS[lang] || LABELS.en;
   let y = PAGE.marginY;
 
@@ -160,14 +173,16 @@ export async function renderExam(doc, deck, classObj, opts = {}) {
 // ANSWER KEY
 // ═══════════════════════════════════════════════════════════════════════
 export async function renderAnswerKey(doc, deck, classObj, opts = {}) {
-  const { lang = "en", fontFamily = "helvetica" } = opts;
+  const { lang = "en", fontFamily = "helvetica" , palette = null } = opts;
+  // PR 32: rebuild COLOR for this render pass from palette
+  COLOR = buildColors(palette);
   const labels = LABELS[lang] || LABELS.en;
   let y = PAGE.marginY;
 
   // Eyebrow
   doc.setFont(fontFamily, "bold");
   doc.setFontSize(FONT.eyebrow);
-  setColor(doc, COLOR.textMute);
+  setColor(doc, COLOR.answerAccent);
   doc.text(labels.answerKey.toUpperCase(), PAGE.marginX, y, { charSpace: 0.6 });
   // PR 30.2: gap proportional to title cap height. Title=30pt needs ~10mm.
   y += FONT.title * 0.25 + 2;
@@ -290,7 +305,9 @@ function drawExamHeader(doc, deck, classObj, y, fontFamily, labels, totalQ) {
 // Thick top rule — a single solid 1.5mm bar (no double, no fade). The
 // editorial "decisive line" that says the masthead has ended.
 function drawThickRule(doc, y) {
-  setFillColor(doc, COLOR.rule);
+  // PR 32: thick rule uses palette accent. Defaults to rule (black)
+  // so original look preserved when no palette is selected.
+  setFillColor(doc, COLOR.accent);
   doc.rect(PAGE.marginX, y, PAGE.contentWidth, 1.5, "F");
   return y + 1.5;
 }
@@ -337,7 +354,7 @@ function drawFieldsRow(doc, y, fontFamily, labels) {
 // section title in larger weight, then italic subtitle. Left-aligned.
 function drawSectionHeader(doc, y, fontFamily, partLabel, title, subtitle) {
   // Tiny solid black square bullet
-  setFillColor(doc, COLOR.textBlack);
+  setFillColor(doc, COLOR.accent);
   doc.rect(PAGE.marginX, y - 2.4, 2, 2, "F");
 
   // Part label small caps with tracking

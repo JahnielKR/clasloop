@@ -40,6 +40,7 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import jsPDF from "jspdf";
 import { ensureKoreanFont } from "../lib/pdf-fonts";
 import { sanitizeFilename } from "../lib/pdf-styles/shared";
+import { PALETTES, getPalette, DEFAULT_PALETTE_ID } from "../lib/pdf-styles/palettes";
 import * as classic from "../lib/pdf-styles/classic";
 import * as modern from "../lib/pdf-styles/modern";
 import * as editorial from "../lib/pdf-styles/editorial";
@@ -53,6 +54,7 @@ const STYLE_FONT_DEFAULTS = {
 };
 
 const STORAGE_KEY = "clasloop_pdf_style";
+const PALETTE_STORAGE_KEY = "clasloop_pdf_palette";
 const DEFAULT_STYLE = "classic";
 
 // i18n strings for the modal — kept local since this is the only place
@@ -73,6 +75,7 @@ const I18N = {
     editorialDesc: "Premium, magazine",
     framedName: "Framed",
     framedDesc: "Formal, bordered",
+    paletteLabel: "Color",
     previewLabel: "Preview",
     previewLoading: "Generating preview…",
     previewFailed: "Preview failed. You can still download.",
@@ -95,6 +98,7 @@ const I18N = {
     editorialDesc: "Premium, revista",
     framedName: "Marco",
     framedDesc: "Formal, con borde",
+    paletteLabel: "Color",
     previewLabel: "Vista previa",
     previewLoading: "Generando vista previa…",
     previewFailed: "No se pudo generar vista previa. Igual podés descargar.",
@@ -117,6 +121,7 @@ const I18N = {
     editorialDesc: "프리미엄 매거진",
     framedName: "프레임",
     framedDesc: "정식, 테두리",
+    paletteLabel: "색상",
     previewLabel: "미리보기",
     previewLoading: "미리보기 생성 중…",
     previewFailed: "미리보기를 생성할 수 없습니다. 다운로드는 가능합니다.",
@@ -382,7 +387,7 @@ const STYLE_THUMBS = {
 // ─── Generate a preview blob (no download trigger) ────────────────────────
 // Same logic as exportPDF but instead of calling doc.save(), we return
 // the blob URL so the modal can show it in an iframe.
-async function generatePreviewBlobURL(deck, classObj, { style, variant, lang }) {
+async function generatePreviewBlobURL(deck, classObj, { style, variant, lang, paletteId }) {
   const renderer = STYLES[style] || STYLES.classic;
   const doc = new jsPDF({ unit: "mm", format: "a4" });
   const useKorean = (deck.language || "").toLowerCase() === "ko";
@@ -392,7 +397,9 @@ async function generatePreviewBlobURL(deck, classObj, { style, variant, lang }) 
   const fontFamily = useKorean
     ? "NotoSansKR"
     : (STYLE_FONT_DEFAULTS[style] || "helvetica");
-  const renderOpts = { lang, fontFamily };
+  // PR 32: resolve palette by id
+  const palette = getPalette(paletteId || DEFAULT_PALETTE_ID);
+  const renderOpts = { lang, fontFamily, palette };
   if (variant === "answer_key") {
     await renderer.renderAnswerKey(doc, deck, classObj, renderOpts);
   } else {
@@ -421,6 +428,13 @@ export default function PDFExportModal({
     if (saved && STYLES[saved]) return saved;
     return DEFAULT_STYLE;
   });
+  // PR 32: sticky palette choice
+  const [paletteId, setPaletteId] = useState(() => {
+    if (typeof window === "undefined") return DEFAULT_PALETTE_ID;
+    const saved = window.localStorage?.getItem(PALETTE_STORAGE_KEY);
+    if (saved && PALETTES.find((p) => p.id === saved)) return saved;
+    return DEFAULT_PALETTE_ID;
+  });
   const [variant, setVariant] = useState(
     initialVariant === "answers" ? "answer_key" : "exam"
   );
@@ -439,7 +453,14 @@ export default function PDFExportModal({
     }
   }, [style]);
 
-  // Regenerate preview whenever style or variant changes
+  // PR 32: persist palette choice on change
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      window.localStorage?.setItem(PALETTE_STORAGE_KEY, paletteId);
+    }
+  }, [paletteId]);
+
+  // Regenerate preview whenever style, variant, or palette changes
   useEffect(() => {
     let cancelled = false;
     setPreviewLoading(true);
@@ -448,7 +469,7 @@ export default function PDFExportModal({
     (async () => {
       try {
         const url = await generatePreviewBlobURL(deck, classObj, {
-          style, variant, lang,
+          style, variant, lang, paletteId,
         });
         if (cancelled) {
           URL.revokeObjectURL(url);
@@ -469,7 +490,7 @@ export default function PDFExportModal({
     })();
 
     return () => { cancelled = true; };
-  }, [style, variant, deck, classObj, lang]);
+  }, [style, variant, deck, classObj, lang, paletteId]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -495,7 +516,7 @@ export default function PDFExportModal({
       // Use the existing dispatcher — it triggers doc.save() which fires
       // the browser download.
       const { exportPDF } = await import("../lib/pdf-export");
-      await exportPDF(deck, classObj, { style, variant, lang });
+      await exportPDF(deck, classObj, { style, variant, lang, paletteId });
       onClose?.();
     } catch (err) {
       console.error("[pdf download] failed:", err);
@@ -616,6 +637,56 @@ export default function PDFExportModal({
                   </div>
                 </button>
               ))}
+            </div>
+          </div>
+
+          {/* PR 32: Palette picker — color swatches as chips */}
+          <div style={{ marginBottom: 18 }}>
+            <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: C.textSecondary, marginBottom: 6, textTransform: "uppercase", letterSpacing: 0.4 }}>
+              {t.paletteLabel}
+            </label>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+              {PALETTES.map(p => {
+                const isSelected = paletteId === p.id;
+                const qC = p.previewQuestion;
+                const aC = p.previewAnswer;
+                const paletteName = lang === "es" ? p.nameEs : (lang === "ko" ? p.nameKo : p.nameEn);
+                return (
+                  <button
+                    key={p.id}
+                    onClick={() => setPaletteId(p.id)}
+                    title={paletteName}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 6,
+                      padding: "6px 10px 6px 6px",
+                      borderRadius: 999,
+                      border: `2px solid ${isSelected ? C.accent : C.border}`,
+                      background: isSelected ? C.accentSoft : C.bg,
+                      cursor: "pointer",
+                      fontFamily: "inherit",
+                      fontSize: 12,
+                      fontWeight: 600,
+                      color: isSelected ? C.accent : C.textSecondary,
+                      transition: "border-color 0.15s",
+                    }}
+                  >
+                    {/* Two-color swatch — question color + answer color side by side */}
+                    <div style={{ display: "flex", borderRadius: 999, overflow: "hidden", boxShadow: "inset 0 0 0 1px rgba(0,0,0,0.06)" }}>
+                      <div style={{
+                        width: 12, height: 12,
+                        background: `rgb(${qC[0]},${qC[1]},${qC[2]})`,
+                      }} />
+                      <div style={{
+                        width: 12, height: 12,
+                        background: `rgb(${aC[0]},${aC[1]},${aC[2]})`,
+                      }} />
+                    </div>
+                    <span>{paletteName}</span>
+                  </button>
+                );
+              })}
             </div>
           </div>
 

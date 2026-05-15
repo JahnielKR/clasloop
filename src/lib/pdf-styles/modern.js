@@ -25,6 +25,7 @@ import {
   fetchImageAsDataURL, scaleImageToFit,
   groupQuestionsBySection,
 } from "./shared";
+import { resolvePaletteToModern, lighten } from "./palettes";
 
 const PAGE = {
   ...PAGE_A4,
@@ -62,7 +63,12 @@ const SPACING = {
 };
 
 // Clasloop established palette — pulled from existing app theme tokens.
-const COLOR = {
+// PR 32: These are the DEFAULTS. When a palette is provided, the colors
+// the user picks override teal/coral/their soft variants via
+// resolvePaletteToModern. The actual colors used during rendering are
+// built per-render-call in `buildColors(palette)` and passed through
+// the render context.
+const COLOR_DEFAULTS = {
   teal: [15, 123, 108],          // C.green / accent — Selection section
   tealSoft: [229, 243, 240],     // section pill background, badge fade
   tealLight: [200, 230, 220],    // dot leader, faint accents
@@ -78,17 +84,31 @@ const COLOR = {
   ruleFaint: [225, 225, 225],
 };
 
-// Per-section visual config
-const SECTION = {
-  selection: { color: COLOR.teal, soft: COLOR.tealSoft, light: COLOR.tealLight },
-  written: { color: COLOR.coral, soft: COLOR.coralSoft, light: COLOR.coralLight },
-};
+function buildColors(palette) {
+  return resolvePaletteToModern(palette, COLOR_DEFAULTS);
+}
+
+function buildSection(colors) {
+  return {
+    selection: { color: colors.teal, soft: colors.tealSoft, light: colors.tealLight },
+    written: { color: colors.coral, soft: colors.coralSoft, light: colors.coralLight },
+  };
+}
+
+// `COLOR` shorthand used inside helpers — set per-render from buildColors.
+// In tests this falls back to defaults so unit tests don't crash.
+let COLOR = COLOR_DEFAULTS;
+let SECTION = buildSection(COLOR_DEFAULTS);
 
 // ═══════════════════════════════════════════════════════════════════════
 // EXAM
 // ═══════════════════════════════════════════════════════════════════════
 export async function renderExam(doc, deck, classObj, opts = {}) {
-  const { lang = "en", fontFamily = "helvetica" } = opts;
+  const { lang = "en", fontFamily = "helvetica", palette = null } = opts;
+  // PR 32: set module-level COLOR + SECTION for this render pass
+  COLOR = buildColors(palette);
+  SECTION = buildSection(COLOR);
+
   const labels = LABELS[lang] || LABELS.en;
   let y = PAGE.marginY;
 
@@ -154,7 +174,11 @@ export async function renderExam(doc, deck, classObj, opts = {}) {
 // ANSWER KEY
 // ═══════════════════════════════════════════════════════════════════════
 export async function renderAnswerKey(doc, deck, classObj, opts = {}) {
-  const { lang = "en", fontFamily = "helvetica" } = opts;
+  const { lang = "en", fontFamily = "helvetica", palette = null } = opts;
+  // PR 32: set module-level COLOR + SECTION for this render pass
+  COLOR = buildColors(palette);
+  SECTION = buildSection(COLOR);
+
   const labels = LABELS[lang] || LABELS.en;
   let y = PAGE.marginY;
 

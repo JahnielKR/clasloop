@@ -24,6 +24,7 @@
 import jsPDF from "jspdf";
 import { ensureKoreanFont } from "./pdf-fonts";
 import { sanitizeFilename } from "./pdf-styles/shared";
+import { getPalette } from "./pdf-styles/palettes";
 import * as classic from "./pdf-styles/classic";
 import * as modern from "./pdf-styles/modern";
 import * as editorial from "./pdf-styles/editorial";
@@ -46,6 +47,7 @@ export async function exportPDF(deck, classObj, opts = {}) {
     style = "classic",
     variant = "exam",     // "exam" | "answer_key"
     lang = "en",
+    paletteId = "default", // PR 32
   } = opts;
 
   const renderer = STYLES[style] || STYLES.classic;
@@ -60,7 +62,10 @@ export async function exportPDF(deck, classObj, opts = {}) {
     ? "NotoSansKR"
     : (STYLE_DEFAULTS[style]?.fontFamily || "helvetica");
 
-  const renderOpts = { lang, fontFamily };
+  // PR 32: resolve palette by id
+  const palette = getPalette(paletteId);
+
+  const renderOpts = { lang, fontFamily, palette };
 
   if (variant === "answer_key") {
     await renderer.renderAnswerKey(doc, deck, classObj, renderOpts);
