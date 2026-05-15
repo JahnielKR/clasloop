@@ -50,6 +50,12 @@ export const LABELS = {
     exitTicket: "Exit ticket",
     review: "Review",
     practice: "Practice",
+    // PR 29.0.1: section headers for organized exam layout
+    sectionSelection: "Selection",
+    sectionSelectionSub: "Choose the correct answer",
+    sectionWritten: "Written response",
+    sectionWrittenSub: "Write your answer in the space provided",
+    partLabel: "Part",
   },
   es: {
     name: "Nombre",
@@ -68,6 +74,11 @@ export const LABELS = {
     exitTicket: "Exit ticket",
     review: "Repaso",
     practice: "Práctica",
+    sectionSelection: "Selección",
+    sectionSelectionSub: "Elegí la respuesta correcta",
+    sectionWritten: "Respuesta escrita",
+    sectionWrittenSub: "Escribí tu respuesta en el espacio dado",
+    partLabel: "Parte",
   },
   ko: {
     name: "이름",
@@ -86,6 +97,11 @@ export const LABELS = {
     exitTicket: "마무리 퀴즈",
     review: "복습",
     practice: "연습",
+    sectionSelection: "선택",
+    sectionSelectionSub: "정답을 고르세요",
+    sectionWritten: "서술형",
+    sectionWrittenSub: "주어진 공간에 답을 작성하세요",
+    partLabel: "파트",
   },
 };
 
@@ -254,4 +270,66 @@ export function scaleImageToFit(naturalW, naturalH, maxWmm, maxHmm) {
     w = h * aspect;
   }
   return { w, h };
+}
+
+// ─── PR 29.0.1: Section grouping ─────────────────────────────────────────
+//
+// Organize questions into logical exam sections instead of dumping them in
+// the order the teacher created them. Per Jota's call (PR 29 planning):
+//
+//   Section 1: Selection — student MARKS the answer (multiple choice
+//              mechanic). MCQ, TF, match, order, slider, AND fill (because
+//              fill writing is shorter than free-form and reads like
+//              "mark the missing word" in context).
+//
+//   Section 2: Written response — student WRITES a full answer.
+//              sentence, free, open.
+//
+// Why fill goes with selection (and not with sentence/free/open):
+//   - Fill has a stored q.answer / q.alternatives — it's auto-gradable.
+//   - The mechanic is "fill in the blank in this sentence" — closer to
+//     MCQ in spirit than to "write 3 sentences about X".
+//
+// Returns { selection: [...], written: [...] } where each list preserves
+// the original ordering of its category. Empty sections are still present
+// (as empty arrays) — callers decide whether to render section headers
+// for empty groups (no, they shouldn't).
+//
+// Each question in the returned arrays gets an extra _originalNum field
+// (1-based) so the renderer can preserve the global numbering across the
+// exam, even though display order is regrouped.
+//
+// Example:
+//   Input questions: [mcq, free, mcq, fill, sentence, tf]   (creation order)
+//   _originalNum:     [1,   2,    3,   4,    5,        6]
+//   Output:
+//     selection: [mcq #1, mcq #3, fill #4, tf #6]
+//     written:   [free #2, sentence #5]
+//   Rendered PDF reads "1. mcq · 3. mcq · 4. fill · 6. tf | 2. free · 5. sentence"
+//   That keeps the numbering stable (so the answer key matches) while
+//   the visual grouping is clean.
+export const SELECTION_TYPES = new Set([
+  "mcq", "tf", "match", "order", "slider", "fill",
+]);
+
+export const WRITTEN_TYPES = new Set([
+  "sentence", "free", "open",
+]);
+
+export function groupQuestionsBySection(questions) {
+  const selection = [];
+  const written = [];
+  (questions || []).forEach((q, idx) => {
+    const tagged = { ...q, _originalNum: idx + 1 };
+    if (SELECTION_TYPES.has(q.type)) {
+      selection.push(tagged);
+    } else if (WRITTEN_TYPES.has(q.type)) {
+      written.push(tagged);
+    } else {
+      // Unknown type → put it in written (safer; gives the student a
+      // blank-line response area instead of dropping the question).
+      written.push(tagged);
+    }
+  });
+  return { selection, written };
 }

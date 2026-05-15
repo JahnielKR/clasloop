@@ -1,17 +1,28 @@
 // ─── pdf-styles/classic ─────────────────────────────────────────────────
 //
-// PR 29.0: "Classic" PDF style — sober, professional, textbook-like.
-// This is the default style and the closest match to what existed before
-// the multi-style refactor. Black titles, generous whitespace, no color,
-// monospace touches absent. Designed for printability (B&W, 300dpi).
+// PR 29.0.1: "Classic" style redesigned with personality — "El cuaderno"
+// (the notebook). Sober and printable, but distinctive:
 //
-// Both exam + answer key live here so the styling stays consistent across
-// the two artifacts of the same deck.
+//   - Double-rule header (1.2mm black bar + hairline gray below it)
+//   - Section banners with paired thin lines flanking a centered title:
+//     ────────── PARTE I · SELECCIÓN ──────────
+//   - Circled question numbers (solid stroke for selection, dotted for
+//     written-response — subtle but distinctive)
+//   - Dotted writing lines for the written-response section
+//     (bullet-journal flavor, doesn't bleed photocopier ink)
+//   - Dot-leader between field labels and their underline fields
+//   - Subtle monospace touches on numbers (meta row, question numbers)
+//
+// All while staying 100% legible at first glance — no decorative
+// elements that compete with the text.
+//
+// Both exam + answer key live here so the visual identity stays consistent.
 
 import {
   PAGE_A4, DEFAULT_MARGINS, LABELS,
   drawWrappedText, deterministicShuffle, formatAnswerForKey,
   fetchImageAsDataURL, scaleImageToFit,
+  groupQuestionsBySection,
 } from "./shared";
 
 const PAGE = {
@@ -22,132 +33,123 @@ const PAGE = {
 };
 
 const FONT = {
-  title: 16,
-  subtitle: 11,
-  questionNum: 11,
+  eyebrow: 9,      // small-caps class label above title
+  title: 18,       // deck title (bumped from 16 — more presence)
+  meta: 9.5,       // "N preguntas · M minutos"
+  fieldLabel: 10,  // "Nombre", "Fecha", "Nota"
+  sectionLabel: 8.5,  // "PARTE I"
+  sectionTitle: 14,   // "Selección"
+  sectionSub: 9.5,    // "Elegí la respuesta correcta"
+  questionNum: 10.5,  // number inside the circle
   questionText: 11,
   option: 10.5,
-  meta: 9,
   hint: 8.5,
   footer: 8,
 };
 
 const SPACING = {
-  afterHeader: 8,
+  afterDoubleRule: 5,
+  afterFieldsRow: 9,
+  beforeSection: 12,
+  afterSectionHeader: 9,
   afterQuestionNum: 4,
   betweenOptions: 6,
-  blankLine: 7,
-  betweenQuestions: 12,
+  dottedLineGap: 7,
+  betweenQuestions: 11,
   afterImage: 6,
 };
 
+// Visual palette (RGB) — kept narrow on purpose. Classic is grayscale
+// with a single optional accent for the section divider.
+const COLOR = {
+  textBlack: [20, 20, 20],
+  textDark: [40, 40, 40],
+  textMid: [90, 90, 90],
+  textMute: [140, 140, 140],
+  textFaint: [180, 180, 180],
+  ruleHeavy: [25, 25, 25],
+  ruleLight: [200, 200, 200],
+  ruleFaint: [225, 225, 225],
+};
+
 // ═══════════════════════════════════════════════════════════════════════
-// EXAM (student-facing)
+// EXAM
 // ═══════════════════════════════════════════════════════════════════════
 export async function renderExam(doc, deck, classObj, opts = {}) {
   const { lang = "en", fontFamily = "helvetica" } = opts;
   const labels = LABELS[lang] || LABELS.en;
   let y = PAGE.marginY;
 
-  // Pre-fetch images so the page-break math accounts for them properly.
-  // (If we fetched inside the question loop, image height would be unknown
-  // until after we'd already committed to a page.) Cache by URL — same
-  // image referenced by multiple questions only fetches once.
   const imageCache = await preloadImages(deck.questions || []);
+  const { selection, written } = groupQuestionsBySection(deck.questions || []);
+  const totalQ = (deck.questions || []).length;
 
-  // ─── Header: title + class + name/date ─────────────────────────────
-  doc.setFont(fontFamily, "bold");
-  doc.setFontSize(FONT.title);
-  doc.setTextColor(20, 20, 20);
-  y = drawWrappedText(doc, deck.title || "Deck", PAGE.marginX, y, PAGE.contentWidth, FONT.title * 0.45);
-  y += 1;
+  // ── Header (page 1) ────────────────────────────────────────────────
+  y = drawExamHeader(doc, deck, classObj, y, fontFamily, labels, totalQ);
 
-  if (classObj?.name) {
-    doc.setFont(fontFamily, "normal");
-    doc.setFontSize(FONT.subtitle);
-    doc.setTextColor(100, 100, 100);
-    doc.text(classObj.name, PAGE.marginX, y);
-    y += 5;
-  }
-
-  doc.setDrawColor(200, 200, 200);
-  doc.setLineWidth(0.3);
-  doc.line(PAGE.marginX, y, PAGE.marginX + PAGE.contentWidth, y);
-  y += 6;
-
-  doc.setFont(fontFamily, "normal");
-  doc.setFontSize(FONT.subtitle);
-  doc.setTextColor(60, 60, 60);
-  const nameLabelW = doc.getTextWidth(labels.name + ":");
-  const dateLabelW = doc.getTextWidth(labels.date + ":");
-  doc.text(labels.name + ":", PAGE.marginX, y);
-  doc.text(labels.date + ":", PAGE.marginX + PAGE.contentWidth * 0.6, y);
-  doc.setDrawColor(120, 120, 120);
-  doc.line(
-    PAGE.marginX + nameLabelW + 2, y + 0.5,
-    PAGE.marginX + PAGE.contentWidth * 0.55, y + 0.5
-  );
-  doc.line(
-    PAGE.marginX + PAGE.contentWidth * 0.6 + dateLabelW + 2, y + 0.5,
-    PAGE.marginX + PAGE.contentWidth, y + 0.5
-  );
-  y += 4;
-  doc.setDrawColor(220, 220, 220);
-  doc.line(PAGE.marginX, y, PAGE.marginX + PAGE.contentWidth, y);
-  y += SPACING.afterHeader;
-
-  // ─── Questions ─────────────────────────────────────────────────────
-  const questions = deck.questions || [];
-  for (let i = 0; i < questions.length; i++) {
-    const q = questions[i];
-    const estimatedHeight = estimateQuestionHeight(q, imageCache);
-    if (y + estimatedHeight > PAGE.height - PAGE.marginY) {
-      doc.addPage();
-      y = PAGE.marginY;
+  // ── Section 1: Selection ──────────────────────────────────────────
+  if (selection.length > 0) {
+    y = ensureSpace(doc, y, 30);
+    y = drawSectionHeader(
+      doc, y, fontFamily,
+      labels.partLabel.toUpperCase() + " I",
+      labels.sectionSelection,
+      labels.sectionSelectionSub,
+    );
+    for (const q of selection) {
+      const estH = estimateQuestionHeight(q, imageCache);
+      y = ensureSpace(doc, y, estH);
+      y = drawQuestion(doc, q, y, fontFamily, lang, imageCache, /* dotted */ false);
+      y += SPACING.betweenQuestions;
     }
-    y = drawQuestionForExam(doc, q, i + 1, y, fontFamily, lang, imageCache);
-    y += SPACING.betweenQuestions;
   }
 
-  // ─── Footer on every page (Clasloop branding + page numbers) ───────
+  // ── Section 2: Written response ───────────────────────────────────
+  if (written.length > 0) {
+    y += SPACING.beforeSection;
+    y = ensureSpace(doc, y, 30);
+    y = drawSectionHeader(
+      doc, y, fontFamily,
+      labels.partLabel.toUpperCase() + " II",
+      labels.sectionWritten,
+      labels.sectionWrittenSub,
+    );
+    for (const q of written) {
+      const estH = estimateQuestionHeight(q, imageCache);
+      y = ensureSpace(doc, y, estH);
+      y = drawQuestion(doc, q, y, fontFamily, lang, imageCache, /* dotted */ true);
+      y += SPACING.betweenQuestions;
+    }
+  }
+
+  // ── Footer on every page ───────────────────────────────────────────
   drawFooterAllPages(doc, fontFamily, labels);
 }
 
 // ═══════════════════════════════════════════════════════════════════════
-// ANSWER KEY (teacher-facing)
+// ANSWER KEY
 // ═══════════════════════════════════════════════════════════════════════
 export async function renderAnswerKey(doc, deck, classObj, opts = {}) {
   const { lang = "en", fontFamily = "helvetica" } = opts;
   const labels = LABELS[lang] || LABELS.en;
   let y = PAGE.marginY;
 
-  // Header — title + "Answer key" label
-  doc.setFont(fontFamily, "bold");
-  doc.setFontSize(FONT.title);
-  doc.setTextColor(20, 20, 20);
-  y = drawWrappedText(doc, deck.title || "Deck", PAGE.marginX, y, PAGE.contentWidth, FONT.title * 0.45);
-  y += 1;
+  // ── Header — same identity as exam (eyebrow + title + double rule) ─
+  y = drawAnswerKeyHeader(doc, deck, classObj, y, fontFamily, labels);
 
-  doc.setFont(fontFamily, "normal");
-  doc.setFontSize(FONT.subtitle);
-  doc.setTextColor(120, 120, 120);
-  doc.text(labels.answerKey, PAGE.marginX, y);
-  y += 8;
-
-  doc.setDrawColor(220, 220, 220);
-  doc.setLineWidth(0.3);
-  doc.line(PAGE.marginX, y, PAGE.marginX + PAGE.contentWidth, y);
-  y += 6;
-
-  // Answer list
+  // ── Answers, in ORIGINAL question order ──
+  //   Reason: the teacher's mental model is question N, not section.
+  //   Mixing section ordering with original numbering would mean the
+  //   key reads "1, 3, 4, 6, 2, 5" which is confusing during grading.
+  //   We keep the answer key sequential.
   doc.setFont(fontFamily, "normal");
   doc.setFontSize(FONT.questionText);
-  doc.setTextColor(40, 40, 40);
+  setColor(doc, COLOR.textDark);
 
   const questions = deck.questions || [];
   const lineHeight = 7;
   for (let i = 0; i < questions.length; i++) {
-    if (y + lineHeight > PAGE.height - PAGE.marginY) {
+    if (y + lineHeight > PAGE.height - PAGE.marginY - 12) {
       doc.addPage();
       y = PAGE.marginY;
     }
@@ -158,7 +160,7 @@ export async function renderAnswerKey(doc, deck, classObj, opts = {}) {
     const answerText = formatAnswerForKey(questions[i], labels);
     const wrapped = doc.splitTextToSize(`${i + 1}. ${answerText}`, PAGE.contentWidth);
     for (const line of wrapped) {
-      if (y + lineHeight > PAGE.height - PAGE.marginY) {
+      if (y + lineHeight > PAGE.height - PAGE.marginY - 12) {
         doc.addPage();
         y = PAGE.marginY;
       }
@@ -171,7 +173,200 @@ export async function renderAnswerKey(doc, deck, classObj, opts = {}) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════
-// INTERNALS — exam question rendering
+// HEADERS — exam and answer key
+// ═══════════════════════════════════════════════════════════════════════
+
+// Exam header: eyebrow + title + meta + double-rule + name/date/score row.
+// The double rule is the signature element — 1.2mm thick black bar
+// followed by a hairline gray below, with 1mm air between. Looks like a
+// printer's stripe.
+function drawExamHeader(doc, deck, classObj, y, fontFamily, labels, totalQ) {
+  // Eyebrow — class name + grade in small-caps style
+  if (classObj?.name) {
+    doc.setFont(fontFamily, "bold");
+    doc.setFontSize(FONT.eyebrow);
+    setColor(doc, COLOR.textMute);
+    doc.text(classObj.name.toUpperCase(), PAGE.marginX, y, { charSpace: 0.4 });
+    y += 4.5;
+  }
+
+  // Title
+  doc.setFont(fontFamily, "bold");
+  doc.setFontSize(FONT.title);
+  setColor(doc, COLOR.textBlack);
+  y = drawWrappedText(doc, deck.title || "Deck", PAGE.marginX, y, PAGE.contentWidth, FONT.title * 0.42);
+
+  // Meta line: N preguntas · M minutes (estimated)
+  doc.setFont(fontFamily, "normal");
+  doc.setFontSize(FONT.meta);
+  setColor(doc, COLOR.textMid);
+  const estMinutes = Math.max(5, Math.round(totalQ * 1.5));
+  const metaText = `${totalQ} ${labels.questions}  ·  ~${estMinutes} ${labels.minutes}`;
+  doc.text(metaText, PAGE.marginX, y);
+  y += 6;
+
+  // Double rule — the signature element
+  y = drawDoubleRule(doc, y);
+  y += SPACING.afterDoubleRule;
+
+  // Fields row: Nombre · Fecha · Nota
+  y = drawFieldsRow(doc, y, fontFamily, labels);
+  y += SPACING.afterFieldsRow;
+
+  return y;
+}
+
+function drawAnswerKeyHeader(doc, deck, classObj, y, fontFamily, labels) {
+  // Eyebrow says "ANSWER KEY" instead of class name (so the teacher can
+  // tell at a glance which PDF they grabbed).
+  doc.setFont(fontFamily, "bold");
+  doc.setFontSize(FONT.eyebrow);
+  setColor(doc, COLOR.textMute);
+  doc.text(labels.answerKey.toUpperCase(), PAGE.marginX, y, { charSpace: 0.4 });
+  y += 4.5;
+
+  // Title
+  doc.setFont(fontFamily, "bold");
+  doc.setFontSize(FONT.title);
+  setColor(doc, COLOR.textBlack);
+  y = drawWrappedText(doc, deck.title || "Deck", PAGE.marginX, y, PAGE.contentWidth, FONT.title * 0.42);
+  y += 2;
+
+  // Class name in meta position (smaller)
+  if (classObj?.name) {
+    doc.setFont(fontFamily, "normal");
+    doc.setFontSize(FONT.meta);
+    setColor(doc, COLOR.textMid);
+    doc.text(classObj.name, PAGE.marginX, y);
+    y += 6;
+  } else {
+    y += 4;
+  }
+
+  y = drawDoubleRule(doc, y);
+  y += SPACING.afterDoubleRule + 3;
+
+  return y;
+}
+
+// Double-rule signature element: thick black bar + hairline below.
+function drawDoubleRule(doc, y) {
+  // Thick top bar (1.2mm tall)
+  setFillColor(doc, COLOR.ruleHeavy);
+  doc.rect(PAGE.marginX, y, PAGE.contentWidth, 1.2, "F");
+  y += 1.2 + 1.4; // 1.4mm air
+
+  // Hairline below
+  setDrawColor(doc, COLOR.ruleLight);
+  doc.setLineWidth(0.2);
+  doc.line(PAGE.marginX, y, PAGE.marginX + PAGE.contentWidth, y);
+  return y;
+}
+
+// Fields row: Name ............ Date ........ Score ........
+// Dot-leader between label and underline (a printing detail that gives
+// the form a touch of formality without being noisy).
+function drawFieldsRow(doc, y, fontFamily, labels) {
+  doc.setFont(fontFamily, "bold");
+  doc.setFontSize(FONT.fieldLabel);
+  setColor(doc, COLOR.textDark);
+
+  // Layout: 3 columns of (label · field-line)
+  // Name takes 45%, Date 30%, Score 25% (a hair more for Score because
+  // the underscored space is shorter due to the percent sign).
+  const totalW = PAGE.contentWidth;
+  const fields = [
+    { label: labels.name, frac: 0.46 },
+    { label: labels.date, frac: 0.30 },
+    { label: labels.score, frac: 0.24 },
+  ];
+
+  let x = PAGE.marginX;
+  for (let i = 0; i < fields.length; i++) {
+    const colW = totalW * fields[i].frac;
+    const labelText = fields[i].label;
+    doc.setFont(fontFamily, "bold");
+    doc.text(labelText, x, y);
+    const labelW = doc.getTextWidth(labelText);
+
+    // Dot leader: subtle dots between label and line start
+    const dotStart = x + labelW + 1.5;
+    const lineEnd = x + colW - (i < fields.length - 1 ? 5 : 0);
+    drawDotLeader(doc, dotStart, y - 1.2, lineEnd, COLOR.textFaint);
+
+    // Field underline
+    setDrawColor(doc, COLOR.textMid);
+    doc.setLineWidth(0.35);
+    doc.line(dotStart, y + 0.8, lineEnd, y + 0.8);
+
+    x += colW;
+  }
+
+  return y;
+}
+
+// Tiny dot leader — small dots at low opacity feel-equivalent. We use
+// gray small text repeats spaced evenly. Looks like "· · · · ·".
+function drawDotLeader(doc, x1, y, x2, color) {
+  const len = x2 - x1;
+  if (len <= 2) return;
+  setFillColor(doc, color);
+  const step = 1.8;
+  for (let cx = x1 + 0.6; cx < x2 - 0.6; cx += step) {
+    doc.circle(cx, y, 0.2, "F");
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// SECTION HEADER
+// ═══════════════════════════════════════════════════════════════════════
+//
+// Layout:
+//
+//     ──────────────  PARTE I  ──────────────
+//                   Selección
+//        Elegí la respuesta correcta
+//
+// Two thin lines flank the part label, centered. Below them, a bold
+// section title (medium-weight serif feel via charSpace), and below
+// that an italicized subtitle in muted gray. Distinctive but quiet.
+function drawSectionHeader(doc, y, fontFamily, partLabel, title, subtitle) {
+  const cx = PAGE.marginX + PAGE.contentWidth / 2;
+
+  // Top — part label flanked by horizontal rules
+  doc.setFont(fontFamily, "bold");
+  doc.setFontSize(FONT.sectionLabel);
+  setColor(doc, COLOR.textMid);
+  const partW = doc.getTextWidth(partLabel);
+  const ruleHalf = (PAGE.contentWidth - partW - 12) / 2;
+
+  setDrawColor(doc, COLOR.textMid);
+  doc.setLineWidth(0.4);
+  doc.line(PAGE.marginX, y - 1.4, PAGE.marginX + ruleHalf, y - 1.4);
+  doc.line(PAGE.marginX + PAGE.contentWidth - ruleHalf, y - 1.4, PAGE.marginX + PAGE.contentWidth, y - 1.4);
+
+  doc.text(partLabel, cx, y, { align: "center", charSpace: 0.6 });
+
+  y += 6;
+
+  // Title
+  doc.setFont(fontFamily, "bold");
+  doc.setFontSize(FONT.sectionTitle);
+  setColor(doc, COLOR.textBlack);
+  doc.text(title, cx, y, { align: "center" });
+  y += 5;
+
+  // Subtitle
+  doc.setFont(fontFamily, "italic");
+  doc.setFontSize(FONT.sectionSub);
+  setColor(doc, COLOR.textMute);
+  doc.text(subtitle, cx, y, { align: "center" });
+
+  return y + SPACING.afterSectionHeader;
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// QUESTION RENDERING
 // ═══════════════════════════════════════════════════════════════════════
 
 async function preloadImages(questions) {
@@ -184,38 +379,60 @@ async function preloadImages(questions) {
   return cache;
 }
 
-function drawQuestionForExam(doc, q, num, startY, fontFamily, lang, imageCache) {
+// Single-question renderer. The `dotted` flag tells us whether this
+// question is in the written-response section (uses dotted writing
+// lines + dashed circle around the number) or selection (solid).
+function drawQuestion(doc, q, startY, fontFamily, lang, imageCache, dotted) {
   let y = startY;
   const labels = LABELS[lang] || LABELS.en;
+  const num = q._originalNum;
 
-  // Number + prompt
+  // Number circle (left margin, bullet-like)
+  const circleX = PAGE.marginX + 3;
+  const circleY = y - 1.4;
+  const circleR = 3.5;
+  if (dotted) {
+    // Dashed circle — render as 16 short arcs via 16 dots around the
+    // perimeter (cheaper than computing real arc paths; reads as dashed)
+    setFillColor(doc, COLOR.textMid);
+    const steps = 16;
+    for (let i = 0; i < steps; i += 2) {
+      const ang = (i / steps) * Math.PI * 2;
+      const dx = circleX + Math.cos(ang) * circleR;
+      const dy = circleY + Math.sin(ang) * circleR;
+      doc.circle(dx, dy, 0.35, "F");
+    }
+  } else {
+    setDrawColor(doc, COLOR.textMid);
+    doc.setLineWidth(0.5);
+    doc.circle(circleX, circleY, circleR);
+  }
+
   doc.setFont(fontFamily, "bold");
   doc.setFontSize(FONT.questionNum);
-  doc.setTextColor(20, 20, 20);
-  const numText = `${num}.`;
-  const numWidth = doc.getTextWidth(numText) + 2;
-  doc.text(numText, PAGE.marginX, y);
+  setColor(doc, COLOR.textBlack);
+  doc.text(String(num), circleX, circleY + 1.4, { align: "center" });
 
+  // Question prompt (offset right of the circle)
+  const textX = PAGE.marginX + circleR * 2 + 5;
   doc.setFont(fontFamily, "normal");
   doc.setFontSize(FONT.questionText);
+  setColor(doc, COLOR.textDark);
   const questionText = q.q || q.prompt || q.question || "";
-  y = drawWrappedText(
-    doc, questionText,
-    PAGE.marginX + numWidth, y,
-    PAGE.contentWidth - numWidth, FONT.questionText * 0.45,
-  );
+  const promptMaxW = PAGE.contentWidth - (textX - PAGE.marginX);
+  y = drawWrappedText(doc, questionText, textX, y, promptMaxW, FONT.questionText * 0.45);
   y += SPACING.afterQuestionNum;
 
-  // Image (if present and successfully fetched)
+  // Image (if present)
   if (q.image_url && imageCache.has(q.image_url)) {
     const img = imageCache.get(q.image_url);
     if (img) {
-      const maxW = PAGE.contentWidth * 0.7;
-      const maxH = 60; // mm — keeps the image compact
+      const maxW = PAGE.contentWidth * 0.6;
+      const maxH = 55;
       const { w, h } = scaleImageToFit(img.naturalW, img.naturalH, maxW, maxH);
-      const x = PAGE.marginX + (PAGE.contentWidth - w) / 2;
+      const ix = PAGE.marginX + (PAGE.contentWidth - w) / 2;
       try {
-        doc.addImage(img.dataUrl, img.format, x, y, w, h);
+        doc.addImage(img.dataUrl, img.format, ix, y, w, h);
         y += h + SPACING.afterImage;
       } catch (err) {
         console.warn("[pdf classic] addImage failed:", err);
@@ -225,12 +442,12 @@ function drawQuestionForExam(doc, q, num, startY, fontFamily, lang, imageCache) 
 
   // Type-specific response area
   switch (q.type) {
-    case "mcq": y = drawMCQOptions(doc, q, y, fontFamily); break;
-    case "tf": y = drawTFOptions(doc, y, fontFamily, labels); break;
-    case "fill": y = drawFillBlanks(y); break;
+    case "mcq": y = drawMCQOptions(doc, q, y, fontFamily, textX); break;
+    case "tf": y = drawTFOptions(doc, y, fontFamily, labels, textX); break;
+    case "fill": y = drawFillBlankHint(y); break;
     case "match": y = drawMatchPairs(doc, q, y, fontFamily); break;
-    case "order": y = drawOrderItems(doc, q, y, fontFamily); break;
-    case "slider": y = drawSliderTrack(doc, q, y, fontFamily); break;
+    case "order": y = drawOrderItems(doc, q, y, fontFamily, textX); break;
+    case "slider": y = drawSliderTrack(doc, q, y, fontFamily, labels); break;
     case "sentence":
     case "free":
     case "open":
@@ -238,31 +455,36 @@ function drawQuestionForExam(doc, q, num, startY, fontFamily, lang, imageCache) 
       if (q.type === "sentence" && q.required_word) {
         doc.setFont(fontFamily, "italic");
         doc.setFontSize(FONT.hint);
-        doc.setTextColor(120, 120, 120);
-        doc.text(`(${labels.useWord}: "${q.required_word}")`, PAGE.marginX + 4, y);
-        y += 5;
+        setColor(doc, COLOR.textMute);
+        doc.text(`(${labels.useWord}: "${q.required_word}")`, textX, y);
+        y += 4.5;
       }
-      y = drawBlankLines(doc, y, 3);
+      y = drawDottedLines(doc, y, q.type === "open" || q.type === "free" ? 5 : 3);
       break;
   }
   return y;
 }
 
-function drawMCQOptions(doc, q, startY, fontFamily) {
+function drawMCQOptions(doc, q, startY, fontFamily, textX) {
   let y = startY;
   doc.setFont(fontFamily, "normal");
   doc.setFontSize(FONT.option);
-  doc.setTextColor(40, 40, 40);
+  setColor(doc, COLOR.textDark);
   const options = q.options || [];
   const letters = ["a", "b", "c", "d", "e", "f"];
   for (let i = 0; i < options.length; i++) {
-    doc.setDrawColor(120, 120, 120);
-    doc.setLineWidth(0.3);
-    doc.rect(PAGE.marginX + 4, y - 3.2, 3.2, 3.2);
-    const optionText = `${letters[i]}) ${options[i]}`;
-    const wrapped = doc.splitTextToSize(optionText, PAGE.contentWidth - 14);
+    // Circle bullet (unfilled) instead of square. Smaller and cleaner.
+    setDrawColor(doc, COLOR.textMute);
+    doc.setLineWidth(0.4);
+    doc.circle(textX + 1.5, y - 1.2, 1.7);
+    // Letter inside paren
+    doc.setFont(fontFamily, "bold");
+    doc.text(`${letters[i]})`, textX + 6, y);
+    doc.setFont(fontFamily, "normal");
+    const optionText = String(options[i] ?? "");
+    const wrapped = doc.splitTextToSize(optionText, PAGE.contentWidth - (textX - PAGE.marginX) - 13);
     for (let j = 0; j < wrapped.length; j++) {
-      doc.text(wrapped[j], PAGE.marginX + 10, y);
+      doc.text(wrapped[j], textX + 12, y);
       if (j < wrapped.length - 1) y += 4.5;
     }
     y += SPACING.betweenOptions;
@@ -270,32 +492,35 @@ function drawMCQOptions(doc, q, startY, fontFamily) {
   return y;
 }
 
-function drawTFOptions(doc, startY, fontFamily, labels) {
+function drawTFOptions(doc, startY, fontFamily, labels, textX) {
   let y = startY;
   doc.setFont(fontFamily, "normal");
   doc.setFontSize(FONT.option);
-  doc.setTextColor(40, 40, 40);
-  doc.setDrawColor(120, 120, 120);
-  doc.setLineWidth(0.3);
-  doc.rect(PAGE.marginX + 4, y - 3.2, 3.2, 3.2);
-  doc.text(labels.true, PAGE.marginX + 10, y);
+  setColor(doc, COLOR.textDark);
+  setDrawColor(doc, COLOR.textMute);
+  doc.setLineWidth(0.4);
+  // True bullet
+  doc.circle(textX + 1.5, y - 1.2, 1.7);
+  doc.text(labels.true, textX + 6, y);
+  // False bullet — same row, offset
   const trueWidth = doc.getTextWidth(labels.true);
-  doc.rect(PAGE.marginX + 14 + trueWidth, y - 3.2, 3.2, 3.2);
-  doc.text(labels.false, PAGE.marginX + 20 + trueWidth, y);
+  const falseX = textX + 6 + trueWidth + 12;
+  doc.circle(falseX - 4.5, y - 1.2, 1.7);
+  doc.text(labels.false, falseX, y);
   y += SPACING.betweenOptions;
   return y;
 }
 
-function drawFillBlanks(startY) {
-  // Fill-the-blank already contains ___ in the prompt. Just breathing space.
-  return startY + 4;
+// Fill blanks: the prompt already has ___ markers. Just breathing space.
+function drawFillBlankHint(startY) {
+  return startY + 3;
 }
 
 function drawMatchPairs(doc, q, startY, fontFamily) {
   let y = startY;
   doc.setFont(fontFamily, "normal");
   doc.setFontSize(FONT.option);
-  doc.setTextColor(40, 40, 40);
+  setColor(doc, COLOR.textDark);
   const pairs = q.pairs || q.items || [];
   const lefts = pairs.map((p, i) => p.left || p.l || `Item ${i + 1}`);
   const rightsWithOriginalIdx = pairs.map((p, i) => ({
@@ -311,7 +536,7 @@ function drawMatchPairs(doc, q, startY, fontFamily) {
   const xRight = PAGE.marginX + 4 + colWidth + 8;
   const lineHeight = 6;
   for (let i = 0; i < pairs.length; i++) {
-    if (y + lineHeight > PAGE.height - PAGE.marginY) break;
+    if (y + lineHeight > PAGE.height - PAGE.marginY - 12) break;
     doc.setFont(fontFamily, "bold");
     doc.text(`${i + 1}.`, xLeft, y);
     doc.setFont(fontFamily, "normal");
@@ -328,35 +553,37 @@ function drawMatchPairs(doc, q, startY, fontFamily) {
   return y + 2;
 }
 
-function drawOrderItems(doc, q, startY, fontFamily) {
+function drawOrderItems(doc, q, startY, fontFamily, textX) {
   let y = startY;
   doc.setFont(fontFamily, "normal");
   doc.setFontSize(FONT.option);
-  doc.setTextColor(40, 40, 40);
+  setColor(doc, COLOR.textDark);
   const items = q.items || q.options || [];
   for (let i = 0; i < items.length; i++) {
-    if (y + 6 > PAGE.height - PAGE.marginY) break;
-    doc.setDrawColor(120, 120, 120);
-    doc.line(PAGE.marginX + 4, y + 0.5, PAGE.marginX + 12, y + 0.5);
+    if (y + 6 > PAGE.height - PAGE.marginY - 12) break;
+    // Position number underline (gray)
+    setDrawColor(doc, COLOR.textMute);
+    doc.setLineWidth(0.35);
+    doc.line(textX, y + 0.5, textX + 8, y + 0.5);
     const itemText = String(items[i]);
-    const wrapped = doc.splitTextToSize(itemText, PAGE.contentWidth - 18);
-    doc.text(wrapped, PAGE.marginX + 14, y);
+    const wrapped = doc.splitTextToSize(itemText, PAGE.contentWidth - (textX - PAGE.marginX) - 12);
+    doc.text(wrapped, textX + 10, y);
     y += 6 + (wrapped.length - 1) * 4;
   }
   return y;
 }
 
-function drawSliderTrack(doc, q, startY, fontFamily) {
+function drawSliderTrack(doc, q, startY, fontFamily, labels) {
   let y = startY + 2;
   doc.setFont(fontFamily, "normal");
   doc.setFontSize(FONT.hint);
-  doc.setTextColor(100, 100, 100);
+  setColor(doc, COLOR.textMid);
   const min = q.min ?? 0;
   const max = q.max ?? 100;
   const trackY = y + 4;
   const trackX1 = PAGE.marginX + 8;
   const trackX2 = PAGE.marginX + PAGE.contentWidth - 8;
-  doc.setDrawColor(120, 120, 120);
+  setDrawColor(doc, COLOR.textMute);
   doc.setLineWidth(0.5);
   doc.line(trackX1, trackY, trackX2, trackY);
   doc.line(trackX1, trackY - 1.5, trackX1, trackY + 1.5);
@@ -365,31 +592,38 @@ function drawSliderTrack(doc, q, startY, fontFamily) {
   doc.text(String(max), trackX2, trackY + 5, { align: "center" });
   y = trackY + 9;
   doc.setFontSize(FONT.option);
-  doc.setTextColor(40, 40, 40);
-  doc.text("Answer: ____________", PAGE.marginX + 4, y);
+  setColor(doc, COLOR.textDark);
+  doc.text("____________", PAGE.marginX + 8, y);
   y += 4;
   return y;
 }
 
-function drawBlankLines(doc, startY, count) {
+// Dotted writing lines — bullet-journal style. Distinguished from a
+// plain underline by: short dots, slightly looser spacing.
+function drawDottedLines(doc, startY, count) {
   let y = startY;
-  doc.setDrawColor(180, 180, 180);
-  doc.setLineWidth(0.2);
+  setFillColor(doc, COLOR.textFaint);
   for (let i = 0; i < count; i++) {
-    if (y + SPACING.blankLine > PAGE.height - PAGE.marginY) break;
-    doc.line(PAGE.marginX + 4, y, PAGE.marginX + PAGE.contentWidth - 4, y);
-    y += SPACING.blankLine;
+    if (y + SPACING.dottedLineGap > PAGE.height - PAGE.marginY - 12) break;
+    // Draw a row of dots from marginX+4 to right edge
+    const x1 = PAGE.marginX + 4;
+    const x2 = PAGE.marginX + PAGE.contentWidth - 4;
+    const step = 1.6;
+    for (let cx = x1; cx <= x2; cx += step) {
+      doc.circle(cx, y, 0.18, "F");
+    }
+    y += SPACING.dottedLineGap;
   }
   return y;
 }
 
 function estimateQuestionHeight(q, imageCache) {
-  const base = 12;
+  const base = 14;
   const promptLines = Math.ceil(((q.q || "").length || 30) / 80);
   let imageH = 0;
   if (q.image_url && imageCache?.get(q.image_url)) {
     const img = imageCache.get(q.image_url);
-    const { h } = scaleImageToFit(img.naturalW, img.naturalH, PAGE.contentWidth * 0.7, 60);
+    const { h } = scaleImageToFit(img.naturalW, img.naturalH, PAGE.contentWidth * 0.6, 55);
     imageH = h + SPACING.afterImage;
   }
   const typeH =
@@ -399,7 +633,8 @@ function estimateQuestionHeight(q, imageCache) {
     q.type === "match" ? (q.pairs?.length || 4) * 6 + 4 :
     q.type === "order" ? (q.items?.length || 4) * 6 :
     q.type === "slider" ? 14 :
-    3 * SPACING.blankLine;
+    (q.type === "free" || q.type === "open") ? 5 * SPACING.dottedLineGap :
+    3 * SPACING.dottedLineGap;
   return base + promptLines * 5 + imageH + typeH;
 }
 
@@ -419,7 +654,7 @@ function drawMatchAnswerBlock(doc, q, num, startY, fontFamily) {
 
   const blockHeight = padTop + headerHeight + (pairs.length * rowHeight) + padBottom;
 
-  if (startY + blockHeight > PAGE.height - PAGE.marginY) {
+  if (startY + blockHeight > PAGE.height - PAGE.marginY - 12) {
     doc.addPage();
     startY = PAGE.marginY;
   }
@@ -436,37 +671,32 @@ function drawMatchAnswerBlock(doc, q, num, startY, fontFamily) {
   const maxLeftAllowed = PAGE.contentWidth * 0.45;
   if (maxLeftWidth > maxLeftAllowed) maxLeftWidth = maxLeftAllowed;
 
-  doc.setDrawColor(220, 220, 220);
-  doc.setFillColor(250, 250, 248);
+  setDrawColor(doc, COLOR.ruleLight);
+  setFillColor(doc, [250, 250, 248]);
   doc.setLineWidth(0.3);
-  doc.roundedRect(
-    PAGE.marginX, y,
-    PAGE.contentWidth, blockHeight,
-    1.5, 1.5,
-    "FD"
-  );
+  doc.roundedRect(PAGE.marginX, y, PAGE.contentWidth, blockHeight, 1.5, 1.5, "FD");
 
   y += padTop + 4;
   doc.setFont(fontFamily, "bold");
-  doc.setTextColor(40, 40, 40);
+  setColor(doc, COLOR.textDark);
   doc.text(`${num}.`, PAGE.marginX + padX, y);
   doc.setFont(fontFamily, "normal");
-  doc.setTextColor(110, 110, 110);
-  doc.setFontSize(FONT.meta);
+  setColor(doc, COLOR.textMid);
+  doc.setFontSize(FONT.hint);
   doc.text("(match)", PAGE.marginX + padX + 8, y);
   y += (headerHeight - 4);
 
   doc.setFontSize(FONT.questionText);
-  doc.setTextColor(40, 40, 40);
+  setColor(doc, COLOR.textDark);
   for (const p of pairs) {
-    doc.setFillColor(140, 140, 140);
+    setFillColor(doc, COLOR.textMute);
     doc.circle(PAGE.marginX + padX + 2, y - 1.4, 0.7, "F");
     const leftText = doc.splitTextToSize(String(p.left || ""), maxLeftAllowed)[0];
     doc.text(leftText, PAGE.marginX + padX + 6, y);
     const arrowX = PAGE.marginX + padX + 6 + maxLeftWidth + arrowGap;
-    doc.setTextColor(140, 140, 140);
+    setColor(doc, COLOR.textMute);
     doc.text("→", arrowX, y);
-    doc.setTextColor(40, 40, 40);
+    setColor(doc, COLOR.textDark);
     const rightStartX = arrowX + 5;
     const rightMaxWidth = PAGE.marginX + PAGE.contentWidth - rightStartX - padX;
     const rightText = doc.splitTextToSize(String(p.right || ""), rightMaxWidth)[0];
@@ -476,23 +706,52 @@ function drawMatchAnswerBlock(doc, q, num, startY, fontFamily) {
   return startY + blockHeight + 2;
 }
 
-// ─── Footer with Clasloop branding + page numbers ────────────────────────
-// Drawn at the end on every page. Discreet — bottom 8mm strip with light
-// gray text. The branding appears in both free and (eventually) premium;
-// premium will swap the footer for a custom one when billing is wired up.
+// ─── Footer ──────────────────────────────────────────────────────────────
+// Drawn on every page after content. Hairline above for separation, then
+// "Page X of Y" left + Clasloop branding right. Both in faint gray.
 function drawFooterAllPages(doc, fontFamily, labels) {
   const total = doc.getNumberOfPages();
   for (let p = 1; p <= total; p++) {
     doc.setPage(p);
+
+    // Faint hairline above the footer
+    setDrawColor(doc, COLOR.ruleFaint);
+    doc.setLineWidth(0.2);
+    const ruleY = PAGE.height - 12;
+    doc.line(PAGE.marginX, ruleY, PAGE.marginX + PAGE.contentWidth, ruleY);
+
     doc.setFont(fontFamily, "normal");
     doc.setFontSize(FONT.footer);
-    doc.setTextColor(160, 160, 160);
-    const yFooter = PAGE.height - 8;
-    // Page X of Y — left
+    setColor(doc, COLOR.textMute);
+    const yFooter = PAGE.height - 7;
     doc.text(labels.pageOfTotal(p, total), PAGE.marginX, yFooter);
-    // Branding — right
     const branding = labels.poweredBy;
     const w = doc.getTextWidth(branding);
     doc.text(branding, PAGE.marginX + PAGE.contentWidth - w, yFooter);
   }
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════════════════════════════════
+
+// Page-break helper: if `neededH` doesn't fit on current page, add a
+// new page and reset y. Returns the y to use.
+// The -12 reserves room for the footer.
+function ensureSpace(doc, y, neededH) {
+  if (y + neededH > PAGE.height - PAGE.marginY - 12) {
+    doc.addPage();
+    return PAGE.marginY;
+  }
+  return y;
+}
+
+function setColor(doc, rgb) {
+  doc.setTextColor(rgb[0], rgb[1], rgb[2]);
+}
+function setDrawColor(doc, rgb) {
+  doc.setDrawColor(rgb[0], rgb[1], rgb[2]);
+}
+function setFillColor(doc, rgb) {
+  doc.setFillColor(rgb[0], rgb[1], rgb[2]);
 }
