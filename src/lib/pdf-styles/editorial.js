@@ -73,16 +73,16 @@ const FONT = {
 };
 
 const SPACING = {
-  afterTitle: 4,
-  afterRule: 6,
-  afterFieldsRow: 9,
-  beforeSection: 10,
-  afterSectionHeader: 9,
-  afterQuestionNum: 4,
-  betweenOptions: 6.5,
-  writingLineGap: 7,
-  betweenQuestions: 10,
-  afterImage: 5,
+  afterTitle: 3,           // PR 29.1.4: was 4
+  afterRule: 5,            // PR 29.1.4: was 6
+  afterFieldsRow: 7,       // PR 29.1.4: was 9
+  beforeSection: 7,        // PR 29.1.4: was 10
+  afterSectionHeader: 6,   // PR 29.1.4: was 9
+  afterQuestionNum: 3,     // PR 29.1.4: was 4
+  betweenOptions: 5,       // PR 29.1.4: was 6.5
+  writingLineGap: 6.5,     // PR 29.1.4: was 7
+  betweenQuestions: 6,     // PR 29.1.4: was 10
+  afterImage: 4,           // PR 29.1.4: was 5
 };
 
 const COLOR = {
@@ -127,21 +127,8 @@ export async function renderExam(doc, deck, classObj, opts = {}) {
     for (let i = 0; i < selection.length; i++) {
       const q = selection[i];
       const estH = estimateQuestionHeight(q, imageCache);
-      const next = selection[i + 1];
-      const remaining = PAGE.height - PAGE.marginY - 8 - y;
-      const remainingAfter = remaining - estH - SPACING.betweenQuestions;
-      const widowRisk = next
-        && (y > PAGE.marginY + 80)
-        && (estH < remaining)
-        && (remainingAfter > 0)
-        && (remainingAfter < 25)
-        && (estimateQuestionHeight(next, imageCache) > remainingAfter);
-      if (widowRisk) {
-        doc.addPage();
-        y = PAGE.marginY;
-      } else {
-        y = ensureSpace(doc, y, estH);
-      }
+      // PR 29.1.4: widow check removed — was wasting space on page 1.
+      y = ensureSpace(doc, y, estH);
       y = drawQuestion(doc, q, y, fontFamily, lang, imageCache);
       y += (q.type === "fill") ? Math.round(SPACING.betweenQuestions * 0.55) : SPACING.betweenQuestions;
     }
@@ -160,21 +147,7 @@ export async function renderExam(doc, deck, classObj, opts = {}) {
     for (let i = 0; i < written.length; i++) {
       const q = written[i];
       const estH = estimateQuestionHeight(q, imageCache);
-      const next = written[i + 1];
-      const remaining = PAGE.height - PAGE.marginY - 8 - y;
-      const remainingAfter = remaining - estH - SPACING.betweenQuestions;
-      const widowRisk = next
-        && (y > PAGE.marginY + 80)
-        && (estH < remaining)
-        && (remainingAfter > 0)
-        && (remainingAfter < 25)
-        && (estimateQuestionHeight(next, imageCache) > remainingAfter);
-      if (widowRisk) {
-        doc.addPage();
-        y = PAGE.marginY;
-      } else {
-        y = ensureSpace(doc, y, estH);
-      }
+      y = ensureSpace(doc, y, estH);
       y = drawQuestion(doc, q, y, fontFamily, lang, imageCache);
       y += SPACING.betweenQuestions;
     }
@@ -640,11 +613,11 @@ function estimateQuestionHeight(q, imageCache) {
     imageH = h + SPACING.afterImage;
   }
   const typeH =
-    q.type === "mcq" ? (q.options?.length || 4) * 5.5 :
+    q.type === "mcq" ? (q.options?.length || 4) * 5 :
     q.type === "tf" ? 5 :
     q.type === "fill" ? 0 :
-    q.type === "match" ? (q.pairs?.length || 4) * 5.5 :
-    q.type === "order" ? (q.items?.length || 4) * 5.5 :
+    q.type === "match" ? (q.pairs?.length || 4) * 5 :
+    q.type === "order" ? (q.items?.length || 4) * 5 :
     q.type === "slider" ? 10 :
     (q.type === "free" || q.type === "open") ? 5 * SPACING.writingLineGap :
     3 * SPACING.writingLineGap;

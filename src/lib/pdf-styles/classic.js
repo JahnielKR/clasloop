@@ -101,37 +101,10 @@ export async function renderExam(doc, deck, classObj, opts = {}) {
     for (let i = 0; i < selection.length; i++) {
       const q = selection[i];
       const estH = estimateQuestionHeight(q, imageCache);
-      // PR 29.0.4: widow protection rewritten. Previous version was too
-      // aggressive — it would break pages whenever the NEXT question
-      // didn't fit alongside the current one, even with 50mm+ of space
-      // left. That made pages have only 3 questions each.
-      //
-      // True widow case: the current question fits with VERY LITTLE space
-      // remaining (< 25mm), AND the next one needs more than that. In
-      // that case the current is alone at the bottom with awkward space.
-      // Threshold also requires being well past the top of the page,
-      // otherwise we'd page-break a fresh page just because the first
-      // question is tall.
-      const next = selection[i + 1];
-      const remaining = PAGE.height - PAGE.marginY - 8 - y;
-      const remainingAfter = remaining - estH - SPACING.betweenQuestions;
-      const widowRisk = next
-        && (y > PAGE.marginY + 80)         // well past top of page
-        && (estH < remaining)              // current fits
-        && (remainingAfter > 0)            // current ends with some space left
-        && (remainingAfter < 25)           // but not enough for next
-        && (estimateQuestionHeight(next, imageCache) > remainingAfter);
-      if (widowRisk) {
-        doc.addPage();
-        y = PAGE.marginY;
-      } else {
-        y = ensureSpace(doc, y, estH);
-      }
+      // PR 29.1.4: widow check removed — was breaking pages early and
+      // leaving big empty space on page 1. Natural flow wins.
+      y = ensureSpace(doc, y, estH);
       y = drawQuestion(doc, q, y, fontFamily, lang, imageCache, /* dotted */ false);
-      // PR 29.0.3 fix 2: fill ("complete the sentence") doesn't use answer
-      // area below the prompt — the blanks are inline. So the default
-      // between-question gap leaves it floating with too much air.
-      // Reduce when current was fill.
       y += (q.type === "fill") ? Math.round(SPACING.betweenQuestions * 0.55) : SPACING.betweenQuestions;
     }
   }
@@ -149,21 +122,7 @@ export async function renderExam(doc, deck, classObj, opts = {}) {
     for (let i = 0; i < written.length; i++) {
       const q = written[i];
       const estH = estimateQuestionHeight(q, imageCache);
-      const next = written[i + 1];
-      const remaining = PAGE.height - PAGE.marginY - 8 - y;
-      const remainingAfter = remaining - estH - SPACING.betweenQuestions;
-      const widowRisk = next
-        && (y > PAGE.marginY + 80)
-        && (estH < remaining)
-        && (remainingAfter > 0)
-        && (remainingAfter < 25)
-        && (estimateQuestionHeight(next, imageCache) > remainingAfter);
-      if (widowRisk) {
-        doc.addPage();
-        y = PAGE.marginY;
-      } else {
-        y = ensureSpace(doc, y, estH);
-      }
+      y = ensureSpace(doc, y, estH);
       y = drawQuestion(doc, q, y, fontFamily, lang, imageCache, /* dotted */ true);
       y += SPACING.betweenQuestions;
     }

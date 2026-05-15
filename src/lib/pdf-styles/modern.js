@@ -50,14 +50,15 @@ const FONT = {
 };
 
 const SPACING = {
-  afterHeader: 12,           // was 14
-  beforeSection: 9,          // was 10
-  afterSection: 7,           // was 8
-  afterQuestionNum: 4,
-  betweenOptions: 5,
-  dottedLineGap: 7,
-  betweenQuestions: 9,       // PR 29.0.5: was 11
-  afterImage: 5,             // was 6
+  afterHeader: 9,
+  beforeSection: 7,
+  afterSection: 6,
+  afterQuestionNum: 3,
+  betweenOptions: 4.5,
+  dottedLineGap: 6,
+  betweenQuestions: 5,       // PR 29.1.4: was 7 — runs of same-type
+                              // questions feel cohesive with less gap
+  afterImage: 4,
 };
 
 // Clasloop established palette — pulled from existing app theme tokens.
@@ -111,27 +112,17 @@ export async function renderExam(doc, deck, classObj, opts = {}) {
     for (let i = 0; i < selection.length; i++) {
       const q = selection[i];
       const estH = estimateQuestionHeight(q, imageCache);
-      // PR 29.0.4: widow protection rewritten — was too aggressive (broke
-      // pages when 50mm+ remained). New rule: only break if current ends
-      // with VERY LITTLE space left (< 25mm) and next is too tall to fit.
-      const next = selection[i + 1];
-      const remaining = PAGE.height - PAGE.marginY - 10 - y;
-      const remainingAfter = remaining - estH - SPACING.betweenQuestions;
-      const widowRisk = next
-        && (y > PAGE.marginY + 80)
-        && (estH < remaining)
-        && (remainingAfter > 0)
-        && (remainingAfter < 25)
-        && (estimateQuestionHeight(next, imageCache) > remainingAfter);
-      if (widowRisk) {
-        doc.addPage();
-        y = PAGE.marginY;
-      } else {
-        y = ensureSpace(doc, y, estH);
-      }
+      // PR 29.1.4: widow check REMOVED. The previous logic broke pages
+      // EARLY when only ~20mm would remain after the current question,
+      // shoving the current onto a new page along with the next. Result:
+      // 3 questions on page 1 with 60mm empty space, 4 questions on
+      // page 2 — visually unbalanced.
+      //
+      // New rule: just let questions flow naturally. If a question
+      // happens to be the only one at the top of a new page, so be it —
+      // that's less bad than leaving 60mm of dead space mid-exam.
+      y = ensureSpace(doc, y, estH);
       y = drawQuestion(doc, q, y, fontFamily, lang, imageCache, SECTION.selection);
-      // PR 29.0.3 fix 2: fill questions get a tighter gap below since
-      // they don't render an answer area (blanks are inline).
       y += (q.type === "fill") ? Math.round(SPACING.betweenQuestions * 0.55) : SPACING.betweenQuestions;
     }
   }
@@ -150,21 +141,7 @@ export async function renderExam(doc, deck, classObj, opts = {}) {
     for (let i = 0; i < written.length; i++) {
       const q = written[i];
       const estH = estimateQuestionHeight(q, imageCache);
-      const next = written[i + 1];
-      const remaining = PAGE.height - PAGE.marginY - 10 - y;
-      const remainingAfter = remaining - estH - SPACING.betweenQuestions;
-      const widowRisk = next
-        && (y > PAGE.marginY + 80)
-        && (estH < remaining)
-        && (remainingAfter > 0)
-        && (remainingAfter < 25)
-        && (estimateQuestionHeight(next, imageCache) > remainingAfter);
-      if (widowRisk) {
-        doc.addPage();
-        y = PAGE.marginY;
-      } else {
-        y = ensureSpace(doc, y, estH);
-      }
+      y = ensureSpace(doc, y, estH);
       y = drawQuestion(doc, q, y, fontFamily, lang, imageCache, SECTION.written);
       y += SPACING.betweenQuestions;
     }
@@ -276,11 +253,11 @@ export async function renderAnswerKey(doc, deck, classObj, opts = {}) {
 // childish.
 function drawExamHeader(doc, deck, classObj, y, fontFamily, labels, totalQ) {
   const startY = y;
-  // PR 29.1.1: was stickerR=14mm (28mm diameter) — too tall, ate ~30mm
-  // of vertical that pushed questions onto the next page. Reduced to
-  // stickerR=10mm (20mm diameter): still readable as a badge, but doesn't
-  // dominate the header.
-  const stickerR = 10;
+  // PR 29.1.4: sticker further reduced 10mm → 8mm radius (16mm diameter).
+  // Still readable but uses less vertical. Combined with dropping the
+  // separate teal accent rule (replaced by ending the field row with a
+  // teal hairline), header is now ~12mm shorter than PR 29.1.3.
+  const stickerR = 8;
   const stickerCX = PAGE.marginX + PAGE.contentWidth - stickerR - 2;
   const stickerCY = y + stickerR + 2;
 
@@ -290,9 +267,7 @@ function drawExamHeader(doc, deck, classObj, y, fontFamily, labels, totalQ) {
     doc.setFontSize(FONT.eyebrow);
     setColor(doc, COLOR.teal);
     doc.text(classObj.name.toUpperCase(), PAGE.marginX, y, { charSpace: 0.4 });
-    // PR 29.0.3 fix 4: 7mm instead of 4.8mm so the eyebrow doesn't
-    // visually merge into the deck title below.
-    y += 7;
+    y += 6;       // PR 29.1.4: was 7
   }
 
   doc.setFont(fontFamily, "bold");
@@ -300,8 +275,7 @@ function drawExamHeader(doc, deck, classObj, y, fontFamily, labels, totalQ) {
   setColor(doc, COLOR.textBlack);
   const titleMaxW = PAGE.contentWidth - (stickerR * 2 + 8);
   y = drawWrappedText(doc, deck.title || "Deck", PAGE.marginX, y, titleMaxW, FONT.title * 0.42);
-  // Small extra breath after title before meta line
-  y += 1.5;
+  y += 1;       // PR 29.1.4: was 1.5
 
   doc.setFont(fontFamily, "normal");
   doc.setFontSize(FONT.meta);
@@ -309,7 +283,7 @@ function drawExamHeader(doc, deck, classObj, y, fontFamily, labels, totalQ) {
   const estMinutes = Math.max(5, Math.round(totalQ * 1.5));
   const metaText = `${totalQ} ${labels.questions}  ·  ~${estMinutes} ${labels.minutes}`;
   doc.text(metaText, PAGE.marginX, y);
-  y += 6;
+  y += 5;       // PR 29.1.4: was 6
 
   // Sticker badge (right side)
   drawStickerBadge(doc, stickerCX, stickerCY, stickerR, totalQ, fontFamily);
@@ -317,16 +291,14 @@ function drawExamHeader(doc, deck, classObj, y, fontFamily, labels, totalQ) {
   // Ensure y is below the sticker
   const stickerBottom = stickerCY + stickerR + 2;
   if (y < stickerBottom) y = stickerBottom;
-  y += 3;
+  y += 2;       // PR 29.1.4: was 3, no longer adding accent rule before fields
 
-  // Teal accent rule (40mm wide, like a colored highlight stripe)
-  setFillColor(doc, COLOR.teal);
-  doc.rect(PAGE.marginX, y, 40, 1.4, "F");
-  y += SPACING.afterHeader;
+  // PR 29.1.4: removed the standalone teal accent rule. The teal-tinted
+  // dotted underline of the field row carries the color accent.
 
   // Field row (Nombre / Fecha / Nota) — softer than classic
   y = drawFieldsRow(doc, y, fontFamily, labels);
-  y += 6;
+  y += 5;       // PR 29.1.4: was 6
 
   return y;
 }
@@ -339,20 +311,20 @@ function drawStickerBadge(doc, cx, cy, r, count, fontFamily) {
   doc.circle(cx, cy, r, "F");
 
   // Inner thin ring (white, for definition).
-  // PR 29.1.1: was r-1.6, now r-1.2 since outer r=10 (smaller).
+  // PR 29.1.4: r=8 now, ring at r-1.
   setDrawColor(doc, COLOR.white);
-  doc.setLineWidth(0.5);
-  doc.circle(cx, cy, r - 1.2, "S");
+  doc.setLineWidth(0.4);
+  doc.circle(cx, cy, r - 1, "S");
 
-  // "DECK" label — closer to vertical center since the sticker is smaller
+  // "DECK" label — smaller for r=8 sticker
   doc.setFont(fontFamily, "bold");
-  doc.setFontSize(FONT.stickerLabel);
+  doc.setFontSize(5);
   setColor(doc, COLOR.white);
-  doc.text("DECK", cx, cy - 1, { align: "center", charSpace: 0.6 });
+  doc.text("DECK", cx, cy - 1, { align: "center", charSpace: 0.5 });
 
-  // Big number — closer to vertical center
-  doc.setFontSize(FONT.stickerNum);
-  doc.text(String(count), cx, cy + 3.5, { align: "center" });
+  // Big number — fits in smaller sticker
+  doc.setFontSize(9);
+  doc.text(String(count), cx, cy + 3, { align: "center" });
 }
 
 function drawFieldsRow(doc, y, fontFamily, labels) {
@@ -399,7 +371,9 @@ function drawFieldsRow(doc, y, fontFamily, labels) {
 // 22mm tall, color-filled. Part label small/uppercase, then title large,
 // then subtitle on a second visual line.
 function drawSectionBand(doc, y, fontFamily, partLabel, title, subtitle, sectionCfg) {
-  const bandH = 22;
+  // PR 29.1.4: bandH 22→14mm. Subtitle moved up next to title. Saves
+  // ~8mm per section banner.
+  const bandH = 14;
   setFillColor(doc, sectionCfg.color);
   doc.roundedRect(PAGE.marginX, y, PAGE.contentWidth, bandH, 3, 3, "F");
 
@@ -407,19 +381,19 @@ function drawSectionBand(doc, y, fontFamily, partLabel, title, subtitle, section
   doc.setFont(fontFamily, "bold");
   doc.setFontSize(FONT.eyebrow);
   setColor(doc, COLOR.white);
-  doc.text(partLabel, PAGE.marginX + 6, y + 8, { charSpace: 0.6 });
+  doc.text(partLabel, PAGE.marginX + 6, y + 5.5, { charSpace: 0.6 });
 
-  // Title (big) on right of part label
+  // Title — same baseline as part label, bigger font
   doc.setFont(fontFamily, "bold");
   doc.setFontSize(FONT.sectionBand);
   setColor(doc, COLOR.white);
-  doc.text(title, PAGE.marginX + 32, y + 9);
+  doc.text(title, PAGE.marginX + 32, y + 6);
 
-  // Subtitle
+  // Subtitle — bottom of band, smaller
   doc.setFont(fontFamily, "normal");
   doc.setFontSize(FONT.sectionSub);
   setColor(doc, COLOR.white);
-  doc.text(subtitle, PAGE.marginX + 32, y + 16);
+  doc.text(subtitle, PAGE.marginX + 6, y + 11);
 
   return y + bandH + SPACING.afterSection;
 }
@@ -513,19 +487,21 @@ function drawMCQOptions(doc, q, startY, fontFamily, textX, sectionCfg) {
   doc.setFontSize(FONT.option);
   const options = q.options || [];
   const letters = ["a", "b", "c", "d", "e", "f"];
-  const pillH = 7;
+  // PR 29.1.4: pillH 7→6, gap 1.5→1. Total per option: 8.5 → 7mm.
+  // Still readable, leaves more questions per page.
+  const pillH = 5;
   const pillW = PAGE.contentWidth - (textX - PAGE.marginX) - 2;
 
   for (let i = 0; i < options.length; i++) {
     // Pill background (soft tint)
     setFillColor(doc, sectionCfg.soft);
-    doc.roundedRect(textX, y - 4.5, pillW, pillH, 2, 2, "F");
+    doc.roundedRect(textX, y - 3.5, pillW, pillH, 2, 2, "F");
 
     // Letter badge (filled circle, section color)
     setFillColor(doc, sectionCfg.color);
-    doc.circle(textX + 4, y - 1.2, 2.4, "F");
+    doc.circle(textX + 4, y - 1, 1.9, "F");
     doc.setFont(fontFamily, "bold");
-    doc.setFontSize(9.5);
+    doc.setFontSize(8);
     setColor(doc, COLOR.white);
     doc.text(letters[i], textX + 4, y + 0.3, { align: "center" });
 
@@ -541,7 +517,7 @@ function drawMCQOptions(doc, q, startY, fontFamily, textX, sectionCfg) {
       y += 4.5;
       doc.text(wrapped[j], textX + 9, y);
     }
-    y += pillH + 1.5;
+    y += pillH + 1;
   }
   return y;
 }
@@ -720,9 +696,8 @@ function drawDottedLines(doc, startY, count) {
 }
 
 function estimateQuestionHeight(q, imageCache) {
-  // PR 29.1.3: fourth recalibration. Jota: "en la pagina uno habia
-  // espacio para otra". Trimming more — base 3→2, mcq option 8→7.5,
-  // and prompt line extra 5→4.5.
+  // PR 29.1.4: matched to pillH=6, gap=1 (was pillH=7, gap=1.5).
+  // Real per-option footprint now 7mm. TF also shrunk to fit single pill row.
   const promptLen = (q.q || q.prompt || q.question || "").length || 30;
   const promptLines = Math.max(1, Math.ceil(promptLen / 100));
   const base = 2;
@@ -733,11 +708,11 @@ function estimateQuestionHeight(q, imageCache) {
     imageH = h + SPACING.afterImage;
   }
   const typeH =
-    q.type === "mcq" ? (q.options?.length || 4) * 7.5 :
-    q.type === "tf" ? 10 :
+    q.type === "mcq" ? (q.options?.length || 4) * 6 :
+    q.type === "tf" ? 8 :
     q.type === "fill" ? 0 :
-    q.type === "match" ? (q.pairs?.length || 4) * 6.5 :
-    q.type === "order" ? (q.items?.length || 4) * 7.5 :
+    q.type === "match" ? (q.pairs?.length || 4) * 6 :
+    q.type === "order" ? (q.items?.length || 4) * 7 :
     q.type === "slider" ? 10 :
     (q.type === "free" || q.type === "open") ? 5 * SPACING.dottedLineGap :
     3 * SPACING.dottedLineGap;
