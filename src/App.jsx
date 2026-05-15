@@ -615,14 +615,11 @@ export default function App() {
         .order("created_at", { ascending: false })
         .limit(1);
       if (cancelled) return;
-      // PR 23.13.4: log so we can diagnose the "badge doesn't clear"
-      // bug. Will be removed once verified working.
-      console.log("[clasloop] activeSession poll:", {
-        tick: activeSessionTick,
-        page,
-        found: data?.[0] || null,
-        error,
-      });
+      // PR 28.1: removed PR 23.13.4 debug log — the active-session
+      // badge has been verified working across cancel/end/refresh
+      // flows. If it regresses, re-add the log temporarily here:
+      //   console.log("[clasloop] activeSession poll:",
+      //     { tick: activeSessionTick, page, found: data?.[0] || null, error });
       setActiveSessionId(data?.[0]?.id || null);
     })().catch(() => {});
     return () => { cancelled = true; };

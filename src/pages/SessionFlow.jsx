@@ -2612,9 +2612,9 @@ export default function SessionFlow({ lang = "en", setLang, onNavigateToDecks, o
         // If the user still sees this warning, the migration didn't
         // run.
         console.warn("[clasloop] cancel session failed:", error);
-      } else {
-        console.log("[clasloop] cancel session OK, id:", session.id);
       }
+      // PR 28.1: removed the success-path console.log added in 23.13.4
+      // for debug; the cancel flow is verified working.
     }
     setSession(null);
     setSelectedDeck(null);
@@ -2623,7 +2623,9 @@ export default function SessionFlow({ lang = "en", setLang, onNavigateToDecks, o
     // badge. Without this, the badge keeps showing the now-cancelled
     // session until the next page-change navigation.
     if (notifyActiveSessionChanged) {
-      console.log("[clasloop] calling notifyActiveSessionChanged");
+      // PR 28.1: removed the "calling notifyActiveSessionChanged"
+      // debug log; keep the warn below since a missing prop is a
+      // real bug worth surfacing in the console.
       notifyActiveSessionChanged();
     } else {
       console.warn("[clasloop] notifyActiveSessionChanged is missing!");
