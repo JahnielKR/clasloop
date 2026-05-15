@@ -368,12 +368,21 @@ export default function MyClasses({ lang: pageLang = "en", setLang: pageSetLang,
       nextValue = !d._isFavorite;
       return { ...d, _isFavorite: nextValue };
     }));
-    const { error } = await supabase.from("saved_decks")
-      .update({ is_favorite: nextValue })
+    // PR 28.14.2 — Jota reported favorites being silently lost on
+    // refresh/tab-switch. Log error + affected count so we can see
+    // whether the UPDATE actually persists. count: "exact" forces
+    // PostgREST to return the row count separately from the data
+    // payload, which is what we actually care about (0 = no row
+    // matched = silent failure).
+    const { error, count } = await supabase.from("saved_decks")
+      .update({ is_favorite: nextValue }, { count: "exact" })
       .eq("student_id", profile.id)
       .eq("deck_id", deckId);
-    if (error) {
-      // Revert on failure
+    if (error || count === 0) {
+      console.warn("[clasloop] toggleFavorite did not persist", {
+        deckId, nextValue, error, count, studentId: profile.id,
+      });
+      // Revert local UI so it reflects what's actually in DB.
       setSavedDecks(prev => prev.map(d => d.id === deckId ? { ...d, _isFavorite: !nextValue } : d));
     }
   };

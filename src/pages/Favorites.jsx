@@ -125,6 +125,9 @@ export default function Favorites({
   };
 
   // Toggle favorite — same shape as MyClasses (optimistic, revert on error).
+  // PR 28.14.2: same diagnostics as MyClasses — log if the UPDATE matched
+  // 0 rows (the symptom Jota was hitting: favorites silently reverting on
+  // refresh because the write never persisted).
   const handleToggleFavorite = async (deckId) => {
     if (!profile?.id) return;
     let nextValue = false;
@@ -133,11 +136,14 @@ export default function Favorites({
       nextValue = !d._isFavorite;
       return { ...d, _isFavorite: nextValue };
     }));
-    const { error } = await supabase.from("saved_decks")
-      .update({ is_favorite: nextValue })
+    const { error, count } = await supabase.from("saved_decks")
+      .update({ is_favorite: nextValue }, { count: "exact" })
       .eq("student_id", profile.id)
       .eq("deck_id", deckId);
-    if (error) {
+    if (error || count === 0) {
+      console.warn("[clasloop] toggleFavorite did not persist", {
+        deckId, nextValue, error, count, studentId: profile.id,
+      });
       setSavedDecks(prev => prev.map(d => d.id === deckId ? { ...d, _isFavorite: !nextValue } : d));
     }
   };
