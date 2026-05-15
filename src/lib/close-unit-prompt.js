@@ -76,94 +76,14 @@ export function buildNarrativeContext({ unit, classObj, summary, lang = "en" }) 
   };
 }
 
-// ─── WRITER prompt ───────────────────────────────────────────────────────
-// System message kept in English (LLM consistency); the OUTPUT is in the
-// target_lang specified in the context. This matches how the rest of
-// Clasloop talks to Claude (system in en, output in user's language).
-//
-// Output schema is strict JSON because we render fields directly into
-// the UI. Free-form text is the value of each field — we want sentences,
-// not bullet points. The teacher wants to read this as a colleague's
-// note, not as a checklist.
-export const WRITER_SYSTEM = `You are an experienced K-12 teaching coach reading a teacher's classroom data at the end of a unit. Your job: write a brief, honest reflection on how the unit went.
-
-Output two short paragraphs — "whatWorked" and "whatDidnt" — directly from the data. Each should be 2-3 sentences. Reference SPECIFIC decks, retention numbers, and topic names from the input. Do not invent details that aren't in the data.
-
-Tone:
-- Like a respected mentor leaving a Post-it note. Concrete, observational, not preachy.
-- Avoid generic teaching advice ("students learn at different paces" — don't say things like that).
-- Don't congratulate or scold. Report.
-- It's fine to mention if data is sparse ("only 2 launches" or "no exit tickets recorded").
-
-For "whatWorked":
-- Highlight the strongest deck or topic with its retention number.
-- If retention rose over time on a topic, say so.
-- If exit tickets caught misconceptions, mention which one and what was caught.
-
-For "whatDidnt":
-- Name the weakest topic with its retention number.
-- If a planned launch never happened, say so.
-- If retention stayed flat or dropped, name the deck.
-- If there's no real "didn't work" (everything went well), say "Nothing significant — retention held above X% across the unit." Don't invent problems.
-
-If the data is too sparse to make any honest observation (e.g. 0 launches, 0 responses), output:
-{"whatWorked": "Not enough data to summarize this unit yet.", "whatDidnt": "Launch a few warmups and exit tickets to build a picture worth reflecting on."}
-
-Output ONLY this JSON, no preamble, no markdown:
-{
-  "whatWorked": "<2-3 sentences in the target language>",
-  "whatDidnt": "<2-3 sentences in the target language>"
-}
-
-The target language is in the user message field "target_lang" (en/es/ko). Write the paragraphs in that language. Keep retention numbers as Arabic numerals with the % sign (e.g. "67%").`;
-
-// User message is just the JSON context, stringified. The system handles
-// all the formatting/instruction logic.
-export function buildWriterMessages(context) {
-  return [
-    {
-      role: "user",
-      content: `Here is the unit data:\n\n\`\`\`json\n${JSON.stringify(context, null, 2)}\n\`\`\`\n\nWrite the reflection now.`,
-    },
-  ];
-}
-
-// ─── VERIFIER prompt ─────────────────────────────────────────────────────
-// Sonnet reads its own previous output and the source data. Accepts or
-// rejects with specific reasons. We retry once if rejected; if it fails
-// twice, we ship the WRITER's output anyway (better imperfect insight
-// than no insight at all).
-export const VERIFIER_SYSTEM = `You are reviewing a draft reflection that another assistant just wrote about a teacher's unit, against the actual data the teacher provided.
-
-Your job: catch hallucinations and generic filler. Approve or reject.
-
-Reject if any of these are true:
-- The draft mentions retention numbers that don't appear in the data.
-- The draft names a deck title that doesn't appear in the data.
-- The draft makes claims about "students" or "the class" that the data doesn't support (e.g. "students struggled with the concept of X" when no such topic appears).
-- The draft is generic teaching advice that could apply to any unit ("remember to differentiate", "consider scaffolding").
-- The draft fabricates specifics (a 4th week, a Tuesday lesson, etc.) that aren't in the data.
-- The draft contradicts the data (says "retention was high" when the data shows 35%).
-- The draft mentions exit tickets when none were launched, or warmups when none were.
-- The output isn't valid JSON in the required shape.
-
-Otherwise approve. Don't reject for stylistic reasons (sentence length, word choice). The bar is honesty, not poetry.
-
-Output ONLY this JSON:
-{"ok": true}
-OR
-{"ok": false, "issues": ["<short reason>", "<short reason>"]}
-
-Each issue ≤ 12 words.`;
-
-export function buildVerifierMessages(context, draft) {
-  return [
-    {
-      role: "user",
-      content: `SOURCE DATA:\n\`\`\`json\n${JSON.stringify(context, null, 2)}\n\`\`\`\n\nDRAFT REFLECTION TO REVIEW:\n\`\`\`json\n${JSON.stringify(draft, null, 2)}\n\`\`\`\n\nApprove or reject.`,
-    },
-  ];
-}
+// ─── WRITER / VERIFIER prompts: REMOVED in PR 28.16 cleanup ──────────────
+// The WRITER_SYSTEM, VERIFIER_SYSTEM, buildWriterMessages, and
+// buildVerifierMessages exports were unused. The actual WRITER/VERIFIER
+// prompts live INLINE in api/close-unit-narrative.js (the only consumer)
+// — they were duplicated here at some point and the lib copy diverged.
+// The api file is the source of truth; if you need to edit those
+// prompts, edit api/close-unit-narrative.js.
+// ─────────────────────────────────────────────────────────────────────────
 
 // ─── Suggested review deck prompt ────────────────────────────────────────
 //

@@ -20,7 +20,8 @@
 
 // Detect dark mode by reading the document attribute set in tokens.js.
 // SSR-safe: returns false when document is not available.
-export function isDarkMode() {
+// PR 28.16: internal helper. Only used by sectionTheme() below.
+function isDarkMode() {
   if (typeof document === "undefined") return false;
   return document.documentElement.getAttribute("data-theme") === "dark";
 }

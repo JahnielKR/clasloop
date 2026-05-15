@@ -86,7 +86,8 @@ function calculateRetention(lastReviewedAt, intervalDays, correctRate) {
 }
 
 // ─── Update topic retention after a session ─────────
-export async function updateTopicRetention({ classId, topic, subject, totalQuestions, correctAnswers, deckId = null }) {
+// PR 28.16: internal — only used inside this file by submitRetentionForSession.
+async function updateTopicRetention({ classId, topic, subject, totalQuestions, correctAnswers, deckId = null }) {
   if (totalQuestions === 0) return;
 
   const correctRate = correctAnswers / totalQuestions;
@@ -440,71 +441,6 @@ export async function getSuggestedDecksForToday(teacherId) {
     }
   }
   return result;
-}
-
-// ─── Get recently launched decks for a teacher ──────────────────────────────
-// Returns up to N (default 3) decks the teacher has recently launched as
-// sessions, most recent first, deduplicated by deck (so re-launching the
-// same deck 5 times in a week shows up as 1 card, not 5).
-//
-// Definition of "launched": session with status in ('lobby','active','completed').
-// We exclude 'cancelled' (those weren't real launches) and treat lobby+active
-// as "still alive" — they count for recency too.
-//
-// Used by the new /sessions dashboard to power the "Recently launched" row,
-// covering the weekly-routine case ("on Mondays I launch Verbos") without
-// re-introducing the old DeckPicker.
-export async function getRecentlyLaunchedDecks(teacherId, limit = 3) {
-  if (!teacherId) return [];
-
-  // Pull more rows than `limit` so dedupe-by-deck still leaves us with
-  // enough cards. Fetching 30 covers most cases without being heavy.
-  const { data: sessions } = await supabase
-    .from('sessions')
-    .select('id, deck_id, created_at, status, classes ( id, name )')
-    .eq('teacher_id', teacherId)
-    .in('status', ['lobby', 'active', 'completed'])
-    .not('deck_id', 'is', null)
-    .order('created_at', { ascending: false })
-    .limit(30);
-  if (!sessions || sessions.length === 0) return [];
-
-  // Dedupe by deck_id, keeping the most recent session per deck (sessions
-  // are already ordered desc, so first hit wins).
-  const seen = new Set();
-  const dedupedDeckIds = [];
-  const sessionByDeck = new Map();
-  for (const s of sessions) {
-    if (!s.deck_id || seen.has(s.deck_id)) continue;
-    seen.add(s.deck_id);
-    dedupedDeckIds.push(s.deck_id);
-    sessionByDeck.set(s.deck_id, s);
-    if (dedupedDeckIds.length >= limit) break;
-  }
-  if (dedupedDeckIds.length === 0) return [];
-
-  // Fetch the deck rows for those ids
-  const { data: decks } = await supabase
-    .from('decks')
-    .select('*')
-    .in('id', dedupedDeckIds);
-  if (!decks || decks.length === 0) return [];
-
-  // Preserve the recency order from `dedupedDeckIds` — `decks` may come
-  // back in arbitrary order from PG.
-  const deckMap = Object.fromEntries(decks.map(d => [d.id, d]));
-  const out = [];
-  for (const did of dedupedDeckIds) {
-    const deck = deckMap[did];
-    if (!deck) continue; // deck was deleted between the two queries
-    const s = sessionByDeck.get(did);
-    out.push({
-      deck,
-      class: s?.classes || null,
-      lastLaunchedAt: s?.created_at || null,
-    });
-  }
-  return out;
 }
 
 // ─── Get class retention overview ───────────────────

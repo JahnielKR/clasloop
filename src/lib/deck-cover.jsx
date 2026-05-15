@@ -76,7 +76,10 @@ export const resolveColor = (deck) => {
   const found = DECK_COLORS.find(c => c.id === deck?.cover_color);
   return found ? found.value : DECK_COLORS.find(c => c.id === DEFAULT_DECK_COLOR).value;
 };
-export const resolveIcon = (deck) => {
+// PR 28.16: internal helper. Used only within this file by <DeckCover />.
+// Kept here (not collapsed into the component) because three layers
+// reference it during render.
+const resolveIcon = (deck) => {
   if (deck?.cover_icon && DECK_ICONS.includes(deck.cover_icon)) return deck.cover_icon;
   if (deck?.subject && SUBJ_ICON[deck.subject]) return SUBJ_ICON[deck.subject];
   return DEFAULT_DECK_ICON;
@@ -86,7 +89,8 @@ export const resolveIcon = (deck) => {
 //   { kind: "image", url }    → custom uploaded image
 //   { kind: "preset", id }    → SVG preset (re-tinted with cover_color)
 //   { kind: "icon" }          → fallback color + icon
-export const resolveCover = (deck) => {
+// PR 28.16: internal helper.
+const resolveCover = (deck) => {
   const url = deck?.cover_image_url;
   if (url) {
     if (url.startsWith("preset:")) {
@@ -101,7 +105,8 @@ export const resolveCover = (deck) => {
 
 // ── SVG pattern generators ─────────────────────────────────────────────────
 // Each returns a complete <svg>…</svg> string sized 320x180 (16:9-ish), tiled or scaled.
-export function renderPresetSVG(id, color) {
+// PR 28.16: internal helper. Used only by <DeckCover />.
+function renderPresetSVG(id, color) {
   const c = color;
   const lo = shade(color, -25);
   const hi = shade(color, 30);
