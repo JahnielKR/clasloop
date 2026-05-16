@@ -258,6 +258,10 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
+  // PR 36: when the OAuth callback brings us back as a duplicate of an
+  // existing account (same email, different auth.users row), we set this
+  // and render a blocking screen with sign-out instructions.
+  const [duplicateEmailError, setDuplicateEmailError] = useState(false);
   // `page` mirrors the URL (kept in sync by an effect below). Initialised from
   // the current pathname so the very first render already shows the correct
   // page without a flash. Default to "sessions" when path is "/" — fetchProfile
@@ -755,11 +759,35 @@ export default function App() {
 
   const fetchProfile = async (id, isInitial = true) => {
     try {
+      // PR 36: defense against duplicate accounts with the same email.
+      // The OAuth flow can produce two distinct auth.users rows with the
+      // same email if the user signs out and back in. Before we trust
+      // this session, ask the DB if there's another user with our email.
+      // If so, this is a duplicate account — sign out and show a blocking
+      // screen telling the user to keep their original account.
+      try {
+        const { data: isDuplicate } = await supabase.rpc("email_already_registered");
+        if (isDuplicate === true) {
+          setDuplicateEmailError(true);
+          setProfile(null);
+          setLoading(false);
+          return;
+        }
+      } catch (e) {
+        // If the RPC doesn't exist or fails, don't block login. Log and
+        // continue — better to over-permit than to lock everyone out.
+        console.warn("[clasloop] email_already_registered check skipped:", e?.message);
+      }
+
       let { data, error } = await supabase.from("profiles").select("*").eq("id", id).single();
 
       // Defensive: if the DB trigger didn't create a profile row (can happen
       // with OAuth in some configurations), create one now using whatever we
       // know — the auth user's metadata + the pending role from localStorage.
+      // PR 36: This is the ONLY moment pendingRole is consumed — at FIRST
+      // profile creation. Pre-existing profiles never have their role flipped
+      // by a localStorage value (that bug let users toggle roles by logging
+      // out, clicking the other role button, and logging back in).
       if (error && error.code === "PGRST116") {
         const { data: authData } = await supabase.auth.getUser();
         const authUser = authData?.user;
@@ -774,32 +802,18 @@ export default function App() {
         }).select().single();
         data = insert.data;
         error = insert.error;
+        // Clear the pending role NOW — it served its purpose
+        try { localStorage.removeItem("clasloop_pending_role"); } catch (_) {}
+      } else {
+        // Profile already existed. Even if pendingRole is in localStorage
+        // (e.g. user clicked "I'm a Teacher" before logging in to an
+        // existing student account), we IGNORE it. One account = one role.
+        // We do clean up the localStorage so it doesn't sit around.
+        try { localStorage.removeItem("clasloop_pending_role"); } catch (_) {}
       }
 
       if (!error && data) {
-        let finalProfile = data;
-
-        // Apply pending OAuth role if there is one. The select-role screen
-        // saved this to localStorage right before the Google redirect. We
-        // always apply it when present — the user explicitly clicked
-        // "I'm a Teacher" or "I'm a Student" right before logging in, so
-        // their intent is clear. We then clear localStorage so subsequent
-        // logins don't keep flipping the role.
-        try {
-          const pendingRole = localStorage.getItem("clasloop_pending_role");
-          if (pendingRole === "teacher" || pendingRole === "student") {
-            if (data.role !== pendingRole) {
-              const { data: updated } = await supabase
-                .from("profiles")
-                .update({ role: pendingRole })
-                .eq("id", id)
-                .select()
-                .single();
-              if (updated) finalProfile = updated;
-            }
-            localStorage.removeItem("clasloop_pending_role");
-          }
-        } catch (_) { /* localStorage may be disabled */ }
+        const finalProfile = data;
 
         setProfile(finalProfile);
         setLang(finalProfile.language || "en");
@@ -860,6 +874,78 @@ export default function App() {
         onSignIn={() => setAuthIntent({ mode: "login" })}
         onSignUp={(role) => setAuthIntent({ mode: "signup", role })}
       />
+    );
+  }
+
+  // PR 36: blocking screen when the current session is a duplicate of an
+  // existing account (same email, different auth.users row). One email =
+  // one role. The user must sign out, and re-enter with the original
+  // account or contact support.
+  if (duplicateEmailError) {
+    const i18nDup = {
+      en: {
+        title: "Account already exists",
+        body: "There's already a Clasloop account using this email. One email can only be used for one role — either teacher or student, not both. Please sign in with your original account.",
+        signOut: "Sign out",
+      },
+      es: {
+        title: "Esta cuenta ya existe",
+        body: "Ya hay una cuenta de Clasloop con este email. Un email solo puede tener un rol — profesor o estudiante, no ambos. Iniciá sesión con tu cuenta original.",
+        signOut: "Cerrar sesión",
+      },
+      ko: {
+        title: "이미 존재하는 계정",
+        body: "이 이메일을 사용하는 Clasloop 계정이 이미 있습니다. 하나의 이메일은 교사 또는 학생 중 하나의 역할만 사용할 수 있습니다.",
+        signOut: "로그아웃",
+      },
+    };
+    const td = i18nDup[lang] || i18nDup.en;
+    return (
+      <div style={{
+        minHeight: "100vh",
+        background: C.bgSoft,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 24,
+      }}>
+        <div style={{ maxWidth: 460, width: "100%", textAlign: "center" }}>
+          <div style={{ display: "flex", justifyContent: "center", marginBottom: 18 }}>
+            <LogoMark size={48} />
+          </div>
+          <h1 style={{
+            fontFamily: "'Outfit', sans-serif",
+            fontSize: 24, fontWeight: 700,
+            color: C.text,
+            marginBottom: 12,
+          }}>{td.title}</h1>
+          <p style={{
+            color: C.textSecondary,
+            fontSize: 15,
+            lineHeight: 1.5,
+            marginBottom: 28,
+          }}>{td.body}</p>
+          <button
+            onClick={async () => {
+              await supabase.auth.signOut();
+              setDuplicateEmailError(false);
+              setUser(null);
+              setProfile(null);
+            }}
+            style={{
+              padding: "12px 24px",
+              borderRadius: 9,
+              fontSize: 15,
+              fontWeight: 600,
+              background: `linear-gradient(135deg, ${C.accent}, ${C.purple})`,
+              color: "#fff",
+              border: "none",
+              cursor: "pointer",
+              fontFamily: "'Outfit', sans-serif",
+            }}
+          >{td.signOut}</button>
+        </div>
+      </div>
     );
   }
 
