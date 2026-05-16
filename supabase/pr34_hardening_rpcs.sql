@@ -134,6 +134,22 @@ begin
     raise exception 'guests_not_allowed';
   end if;
 
+  -- PR 34.3: en este install guest_token es uuid (no text). Convertimos
+  -- p_guest_token (text) → uuid una sola vez al principio. Si el cliente
+  -- pasó un string no-uuid, falla rápido con un error útil en vez del
+  -- '42804 column is of type uuid but expression is of type text'.
+  declare
+    v_guest_token_uuid uuid := null;
+  begin
+    if p_guest_token is not null and length(p_guest_token) > 0 then
+      begin
+        v_guest_token_uuid := p_guest_token::uuid;
+      exception when others then
+        raise exception 'invalid_guest_token';
+      end;
+    end if;
+  end;
+
   -- Rejoin check
   if p_student_id is not null then
     select id into v_existing_id
@@ -141,11 +157,11 @@ begin
     where session_id = v_session_id
       and student_id = p_student_id
     limit 1;
-  elsif p_guest_token is not null then
+  elsif v_guest_token_uuid is not null then
     select id into v_existing_id
     from public.session_participants
     where session_id = v_session_id
-      and guest_token = p_guest_token
+      and guest_token = v_guest_token_uuid
     limit 1;
   end if;
 
@@ -160,14 +176,14 @@ begin
   if v_has_guest_cols then
     execute 'insert into public.session_participants (session_id, student_name, student_id, guest_token, guest_name, is_guest) values ($1, $2, $3, $4, $5, $6) returning *'
       into v_participant
-      using v_session_id, trim(p_student_name), p_student_id, p_guest_token,
+      using v_session_id, trim(p_student_name), p_student_id, v_guest_token_uuid,
             case when p_student_id is null then trim(p_student_name) else null end,
             p_student_id is null;
   else
     -- Minimal insert path (older installs without guest_name/is_guest cols)
     execute 'insert into public.session_participants (session_id, student_name, student_id, guest_token) values ($1, $2, $3, $4) returning *'
       into v_participant
-      using v_session_id, trim(p_student_name), p_student_id, p_guest_token;
+      using v_session_id, trim(p_student_name), p_student_id, v_guest_token_uuid;
   end if;
 
   return to_jsonb(v_participant);
@@ -235,15 +251,28 @@ begin
     raise exception 'participant_not_found';
   end if;
 
+  -- PR 34.3: Cast guest_token to uuid (it's uuid in this install).
+  declare
+    v_guest_token_uuid uuid := null;
+  begin
+    if p_guest_token is not null and length(p_guest_token) > 0 then
+      begin
+        v_guest_token_uuid := p_guest_token::uuid;
+      exception when others then
+        raise exception 'invalid_guest_token';
+      end;
+    end if;
+  end;
+
   -- Verify the caller owns this participant row
   if v_participant.student_id is not null then
     if auth.uid() is null or auth.uid() <> v_participant.student_id then
       raise exception 'identity_mismatch';
     end if;
   else
-    if p_guest_token is null
+    if v_guest_token_uuid is null
        or v_participant.guest_token is null
-       or p_guest_token <> v_participant.guest_token then
+       or v_guest_token_uuid <> v_participant.guest_token then
       raise exception 'identity_mismatch';
     end if;
   end if;
