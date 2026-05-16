@@ -1040,7 +1040,8 @@ export default function App() {
     // we'd run fetchProfile in parallel and produce duplicate work
     // (and duplicate logs that confused debugging).
     if (fetchProfileInFlightRef.current) {
-      console.log("[clasloop auth] fetchProfile already in-flight, skipping duplicate call");
+      // PR 48: removed debug log. The lock works reliably; no need
+      // to spam the console on every duplicate auth event.
       return;
     }
     fetchProfileInFlightRef.current = true;
@@ -1094,7 +1095,8 @@ export default function App() {
       // que es un user nuevo. El RoleOnboarding componente crea el
       // profile con el rol elegido por el user.
       if (error && error.code === "PGRST116") {
-        console.log("[clasloop auth] profile not found → showing RoleOnboarding");
+        // PR 48: removed debug log. RoleOnboarding render is the
+        // user-visible signal; no need for a console message too.
         setPendingRoleSelectionUser(probeUser.user);
         setLoading(false);
         return;
