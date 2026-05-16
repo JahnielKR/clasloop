@@ -888,41 +888,56 @@ export default function App() {
       } else {
         // Profile already existed. There are TWO sub-cases:
         //
-        // (A) The DB trigger `handle_new_user` just created it. In this
-        //     case the profile is brand new (created_at is seconds ago)
-        //     and the role is whatever default the trigger picked (NOT
-        //     necessarily what the user wanted). If we have a valid
-        //     pendingRole, we should UPDATE the profile to match — this
-        //     is the user's intent.
+        // (A) The DB trigger `handle_new_user` just created it during this
+        //     auth session — this is the user's VERY FIRST sign-in. The
+        //     trigger picked a default role; the user's actual choice is
+        //     in pendingRole. We should apply it.
         //
-        // (B) The profile is an old, established account. The user just
-        //     logged back in. pendingRole in localStorage (if any) is
-        //     stale or wrong, and must be IGNORED (one email = one role,
-        //     no flipping).
+        // (B) The profile is an established account. The user has signed
+        //     in before. pendingRole is stale and must be ignored —
+        //     otherwise rapid signout/signin cycles would let the user
+        //     toggle their role at will.
         //
-        // We distinguish by created_at: if the profile is less than 30
-        // seconds old, treat as case (A). Otherwise case (B).
+        // PR 40: Previously distinguished by created_at < 30s, but that
+        // false-positived during quick signout/signin testing — Jota
+        // could flip roles by signing out and back in within seconds.
+        //
+        // Better check: look at auth.users metadata. Supabase tracks
+        // `last_sign_in_at` per session. On the very first sign-in,
+        // last_sign_in_at is close to created_at. By the second sign-in
+        // it has advanced. We compute the gap between created_at and
+        // last_sign_in_at: small gap = first session, big gap = repeat.
+        //
+        // We use 60 seconds as the threshold: the auth.users row is
+        // created within milliseconds of last_sign_in_at on the first
+        // sign-in (both come from the same OAuth callback), so any gap
+        // larger than that means we're past it.
         let pendingRole = null;
         try { pendingRole = localStorage.getItem("clasloop_pending_role"); } catch (_) {}
-        const profileAgeMs = data?.created_at
-          ? (Date.now() - new Date(data.created_at).getTime())
-          : Infinity;
-        const isFreshlyCreated = profileAgeMs < 30000; // 30s
+
+        const { data: authData } = await supabase.auth.getUser();
+        const authUser = authData?.user;
+        const authCreatedAt = authUser?.created_at ? new Date(authUser.created_at).getTime() : 0;
+        const lastSignInAt = authUser?.last_sign_in_at ? new Date(authUser.last_sign_in_at).getTime() : 0;
+        // Gap of < 60s means this IS the first session
+        const isFirstSession = (lastSignInAt - authCreatedAt) < 60000;
 
         console.log("[clasloop auth] profile lookup result:", {
-          profileAgeMs,
-          isFreshlyCreated,
+          isFirstSession,
+          authCreatedAt: authUser?.created_at,
+          lastSignInAt: authUser?.last_sign_in_at,
+          gapMs: lastSignInAt - authCreatedAt,
           currentRole: data?.role,
           pendingRole,
         });
 
         if (
-          isFreshlyCreated
+          isFirstSession
           && (pendingRole === "teacher" || pendingRole === "student")
           && data?.role !== pendingRole
         ) {
-          // Case (A): trigger just created the profile with a default role.
-          // Update to the role the user actually chose at the auth screen.
+          // Case (A): user's very first session. Trigger picked a default;
+          // we apply what the user actually chose at the auth screen.
           const { data: updated, error: updErr } = await supabase
             .from("profiles")
             .update({ role: pendingRole })
@@ -931,13 +946,16 @@ export default function App() {
             .single();
           if (!updErr && updated) {
             data = updated;
-            console.log("[clasloop auth] applied pendingRole to fresh profile:", pendingRole);
+            console.log("[clasloop auth] applied pendingRole to first-session profile:", pendingRole);
           } else if (updErr) {
-            console.error("[clasloop auth] failed to update fresh profile role:", updErr);
+            console.error("[clasloop auth] failed to update first-session profile role:", updErr);
           }
         }
 
-        // Clean up pendingRole regardless of which branch we took
+        // Clean up pendingRole regardless of which branch we took. This
+        // is critical for case (B): if we don't clean up, the stale role
+        // sits in localStorage until the next signInWithOAuth call
+        // overwrites it.
         try { localStorage.removeItem("clasloop_pending_role"); } catch (_) {}
       }
 
