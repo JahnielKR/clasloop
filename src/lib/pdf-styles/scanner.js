@@ -250,8 +250,18 @@ async function drawFooter(doc, deck, fontFamily) {
 }
 
 // ─── Public API ─────────────────────────────────────────────────────────
+//
+// PR 46: scanner ya no es un "estilo" del modal — ahora es una página
+// adicional que se prepend al examen cuando la variante es
+// "exam_with_scan". Esta función dibuja la hoja escaneable en el doc
+// que recibe (asumiendo página en blanco actual).
+//
+// El dispatcher (pdf-export.js) llama:
+//   1. await drawScanSheet(doc, deck, classObj, opts)
+//   2. doc.addPage()
+//   3. await classic.renderExam(doc, deck, classObj, opts)  // o el style elegido
 
-export async function renderExam(doc, deck, classObj, opts = {}) {
+export async function drawScanSheet(doc, deck, classObj, opts = {}) {
   const { lang = "en", fontFamily = "helvetica" } = opts;
   const labels = LABELS[lang] || LABELS.en;
 
@@ -267,7 +277,7 @@ export async function renderExam(doc, deck, classObj, opts = {}) {
 
   // Hard limit del scanner
   if (scannable.length > MAX_SCAN_QUESTIONS) {
-    // Render una página de error en lugar del deck
+    // Render una página de error en lugar de la hoja
     drawAllFiducials(doc);
     doc.setFont(fontFamily, "bold");
     doc.setFontSize(14);
@@ -276,20 +286,34 @@ export async function renderExam(doc, deck, classObj, opts = {}) {
     doc.setFont(fontFamily, "normal");
     doc.setFontSize(10);
     const errMsg = `This deck has ${scannable.length} MCQ/TF questions. ` +
-      `Scanner mode supports up to ${MAX_SCAN_QUESTIONS}. ` +
-      `Use one of the other PDF styles for this deck, ` +
-      `or trim the deck to ${MAX_SCAN_QUESTIONS} or fewer MCQ/TF.`;
+      `Scan sheet supports up to ${MAX_SCAN_QUESTIONS}. ` +
+      `Print the regular Exam variant (without scan sheet) instead.`;
     doc.text(doc.splitTextToSize(errMsg, PAGE.width - PAGE.marginX * 2), PAGE.marginX, 55);
     return;
   }
 
-  // ─── Dibujar la hoja ────────────────────────────────────────────────────
+  // Si no hay preguntas escaneables, página explicativa (no útil generar)
+  if (scannable.length === 0) {
+    drawAllFiducials(doc);
+    doc.setFont(fontFamily, "bold");
+    doc.setFontSize(14);
+    doc.setTextColor(0, 0, 0);
+    doc.text("No scannable questions", PAGE.marginX, 40);
+    doc.setFont(fontFamily, "normal");
+    doc.setFontSize(10);
+    doc.text(
+      "This deck has no MCQ or T/F questions. The scan sheet has nothing to grade. Print the regular Exam variant instead.",
+      PAGE.marginX, 55, { maxWidth: PAGE.width - PAGE.marginX * 2 }
+    );
+    return;
+  }
+
+  // ─── Dibujar la hoja escaneable ─────────────────────────────────────────
   drawAllFiducials(doc);
 
-  let y = PAGE.marginY + FIDUCIAL_SIZE + 4; // arrancar debajo de los fiduciales
+  let y = PAGE.marginY + FIDUCIAL_SIZE + 4;
   y = drawHeader(doc, deck, classObj, y, fontFamily, labels);
 
-  // Subtítulo: "Answer sheet — fill in the bubble for each question"
   doc.setFont(fontFamily, "italic");
   doc.setFontSize(7.5);
   doc.setTextColor(100, 100, 100);
@@ -299,9 +323,9 @@ export async function renderExam(doc, deck, classObj, opts = {}) {
   );
   y += 3;
 
-  // ─── Bubble grid en 2 columnas ──────────────────────────────────────────
+  // Bubble grid en 2 columnas
   const contentWidth = PAGE.width - PAGE.marginX * 2;
-  const colWidth = contentWidth / 2 - 4; // gap de 8mm entre cols
+  const colWidth = contentWidth / 2 - 4;
   const col1X = PAGE.marginX;
   const col2X = PAGE.marginX + colWidth + 8;
   const gridStartY = y;
@@ -310,8 +334,6 @@ export async function renderExam(doc, deck, classObj, opts = {}) {
   const rowsPerCol = Math.floor(availableHeight / QUESTION_ROW_HEIGHT);
   const totalCapacity = rowsPerCol * 2;
 
-  // Si scannable > capacidad real del layout (no del MAX), avisar.
-  // Esto pasa si MAX_SCAN_QUESTIONS está mal calibrado vs el layout.
   const itemsToRender = scannable.slice(0, totalCapacity);
 
   itemsToRender.forEach((q, idx) => {
@@ -329,60 +351,17 @@ export async function renderExam(doc, deck, classObj, opts = {}) {
     }
   });
 
-  // Si hay preguntas manuales, indicar en el footer text que están abajo
-  // o en otra hoja. Por ahora las marcamos como "graded manually" en el
-  // info al lado del QR.
   if (manual.length > 0) {
     doc.setFont(fontFamily, "italic");
     doc.setFontSize(7);
     doc.setTextColor(120, 120, 120);
     const noteY = gridBottomLimit + 5;
     doc.text(
-      `Note: ${manual.length} question${manual.length > 1 ? "s" : ""} (fill / open / match / order) require manual grading. Print the regular Exam PDF for those.`,
+      `Note: ${manual.length} question${manual.length > 1 ? "s" : ""} (fill / open / match / order) require manual grading.`,
       PAGE.marginX, noteY,
       { maxWidth: contentWidth - QR_SIZE - 4 }
     );
   }
 
-  // ─── Footer con QR + instrucciones ──────────────────────────────────────
   await drawFooter(doc, deck, fontFamily);
-}
-
-export async function renderAnswerKey(doc, deck, classObj, opts = {}) {
-  // El scanner mode no tiene answer key separado — la answer key vive
-  // en la app, en la tabla `decks`. Cuando el profe escanea con la cam,
-  // la app carga las respuestas correctas via el deck_id (en el QR).
-  //
-  // Por compatibilidad con el modal de export PDF (que ofrece "Exam"
-  // o "Answer key" para cualquier estilo), renderizamos una hoja
-  // explicativa.
-  const { lang = "en", fontFamily = "helvetica" } = opts;
-
-  doc.setFont(fontFamily, "bold");
-  doc.setFontSize(14);
-  doc.setTextColor(0, 0, 0);
-  doc.text("Scanner mode — no separate answer key", PAGE.marginX, 40);
-
-  doc.setFont(fontFamily, "normal");
-  doc.setFontSize(10);
-  doc.setTextColor(60, 60, 60);
-  const msg = (lang === "es")
-    ? "El modo escáner no usa una hoja de respuestas separada. " +
-      "Las respuestas correctas están en la app de Clasloop. " +
-      "Cuando escanees con la cámara, Clasloop comparará automáticamente " +
-      "las burbujas marcadas contra las respuestas correctas y te mostrará " +
-      "el resultado en pantalla. Imprimí solo el examen (variante 'Examen')."
-    : (lang === "ko")
-      ? "스캐너 모드는 별도의 정답지를 사용하지 않습니다. " +
-        "정답은 Clasloop 앱에 저장되어 있습니다. " +
-        "카메라로 스캔하면 Clasloop이 자동으로 채점합니다. " +
-        "시험지 변형만 인쇄하세요."
-      : "Scanner mode doesn't use a separate answer key sheet. " +
-        "The correct answers live in the Clasloop app. " +
-        "When you scan the filled-in sheet with the camera, Clasloop " +
-        "automatically compares the marked bubbles against the correct " +
-        "answers and shows the result on screen. Print the Exam variant only.";
-
-  const lines = doc.splitTextToSize(msg, PAGE.width - PAGE.marginX * 2);
-  doc.text(lines, PAGE.marginX, 55);
 }

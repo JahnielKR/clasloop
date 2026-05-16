@@ -45,9 +45,12 @@ import * as classic from "../lib/pdf-styles/classic";
 import * as modern from "../lib/pdf-styles/modern";
 import * as editorial from "../lib/pdf-styles/editorial";
 import * as framed from "../lib/pdf-styles/framed";
-import * as scanner from "../lib/pdf-styles/scanner";
+import { drawScanSheet } from "../lib/pdf-styles/scanner";
 
-const STYLES = { classic, modern, editorial, framed, scanner };
+// PR 46: scanner ya no es un "estilo" — es una página opcional que se
+// preempts al examen cuando variant === "exam_with_scan". El style
+// picker no lo muestra.
+const STYLES = { classic, modern, editorial, framed };
 
 // Per-style default font, mirroring pdf-export.js. Framed uses Times.
 const STYLE_FONT_DEFAULTS = {
@@ -57,6 +60,9 @@ const STYLE_FONT_DEFAULTS = {
 const STORAGE_KEY = "clasloop_pdf_style";
 const PALETTE_STORAGE_KEY = "clasloop_pdf_palette";
 const DEFAULT_STYLE = "classic";
+// PR 46: cuántos styles ver de una vez en el carrusel. 3 entra cómodo
+// en el ancho del modal sin que cada uno quede muy chico.
+const VISIBLE_STYLES = 3;
 
 // i18n strings for the modal — kept local since this is the only place
 // they're used. EN / ES / KO follow the same key set.
@@ -66,7 +72,9 @@ const I18N = {
     subtitle: "Choose the style and the variant",
     variantLabel: "Type",
     variantExam: "Exam",
-    variantKey: "Answer key",
+    variantExamWithScan: "Exam + scan sheet",
+    variantKey: "AK",
+    variantKeyTooltip: "Answer key (for the teacher)",
     styleLabel: "Style",
     classicName: "Classic",
     classicDesc: "Sober, professional",
@@ -76,8 +84,6 @@ const I18N = {
     editorialDesc: "Premium, magazine",
     framedName: "Framed",
     framedDesc: "Formal, bordered",
-    scannerName: "Scanner",
-    scannerDesc: "Bubble sheet, scan with camera",
     paletteLabel: "Color",
     previewLabel: "Preview",
     previewLoading: "Generating preview…",
@@ -91,7 +97,9 @@ const I18N = {
     subtitle: "Elegí el estilo y el tipo",
     variantLabel: "Tipo",
     variantExam: "Examen",
-    variantKey: "Clave de respuestas",
+    variantExamWithScan: "Examen + hoja escaneable",
+    variantKey: "CR",
+    variantKeyTooltip: "Clave de respuestas (para el profe)",
     styleLabel: "Estilo",
     classicName: "Clásico",
     classicDesc: "Sobrio, profesional",
@@ -101,8 +109,6 @@ const I18N = {
     editorialDesc: "Premium, revista",
     framedName: "Marco",
     framedDesc: "Formal, con borde",
-    scannerName: "Escáner",
-    scannerDesc: "Hoja con burbujas, se escanea con la cámara",
     paletteLabel: "Color",
     previewLabel: "Vista previa",
     previewLoading: "Generando vista previa…",
@@ -115,8 +121,10 @@ const I18N = {
     title: "PDF 내보내기",
     subtitle: "스타일과 종류를 선택하세요",
     variantLabel: "종류",
-    variantExam: "시험",
+    variantExam: "시험지",
+    variantExamWithScan: "시험지 + 스캔 시트",
     variantKey: "정답",
+    variantKeyTooltip: "정답 (교사용)",
     styleLabel: "스타일",
     classicName: "클래식",
     classicDesc: "차분하고 전문적",
@@ -126,8 +134,6 @@ const I18N = {
     editorialDesc: "프리미엄 매거진",
     framedName: "프레임",
     framedDesc: "정식, 테두리",
-    scannerName: "스캐너",
-    scannerDesc: "버블 시트, 카메라로 스캔",
     paletteLabel: "색상",
     previewLabel: "미리보기",
     previewLoading: "미리보기 생성 중…",
@@ -384,96 +390,11 @@ function FramedThumb() {
   );
 }
 
-// PR 45: Scanner thumbnail. Bubble-sheet vibe — fiducial corners,
-// bubble grid, QR code in the corner. Pure black + white because the
-// real PDF is also pure b+w (high contrast for camera detection).
-function ScannerThumb() {
-  return (
-    <svg viewBox="0 0 140 190" width="100%" style={{ display: "block" }}>
-      <rect x="0" y="0" width="140" height="190" fill="#fff" stroke="#e5e5e5" strokeWidth="0.5" />
-      {/* Fiducial markers in the 4 corners (cuadraditos negros) */}
-      <rect x="4" y="4" width="6" height="6" fill="#000" />
-      <rect x="130" y="4" width="6" height="6" fill="#000" />
-      <rect x="4" y="180" width="6" height="6" fill="#000" />
-      <rect x="130" y="180" width="6" height="6" fill="#000" />
-      {/* Title centered */}
-      <rect x="40" y="16" width="60" height="3.5" fill="#1a1a1a" />
-      {/* Name / date / score line */}
-      <rect x="14" y="26" width="10" height="1.5" fill="#444" />
-      <line x1="26" y1="27.5" x2="58" y2="27.5" stroke="#888" strokeWidth="0.3" />
-      <rect x="62" y="26" width="8" height="1.5" fill="#444" />
-      <line x1="72" y1="27.5" x2="96" y2="27.5" stroke="#888" strokeWidth="0.3" />
-      <rect x="100" y="26" width="8" height="1.5" fill="#444" />
-      <line x1="110" y1="27.5" x2="126" y2="27.5" stroke="#888" strokeWidth="0.3" />
-      {/* Separator */}
-      <line x1="14" y1="31" x2="126" y2="31" stroke="#000" strokeWidth="0.4" />
-      {/* Bubble grid — 2 columns of 10 rows each */}
-      {Array.from({ length: 10 }).map((_, row) => {
-        const y = 38 + row * 9;
-        return (
-          <g key={row}>
-            {/* Left column */}
-            <rect x="14" y={y} width="3" height="1.8" fill="#1a1a1a" />
-            {["A", "B", "C", "D"].map((letter, i) => (
-              <circle
-                key={`l-${row}-${i}`}
-                cx={22 + i * 5}
-                cy={y + 1}
-                r="1.6"
-                fill="none"
-                stroke="#000"
-                strokeWidth="0.3"
-              />
-            ))}
-            {/* Right column */}
-            <rect x="74" y={y} width="3" height="1.8" fill="#1a1a1a" />
-            {["A", "B", "C", "D"].map((letter, i) => (
-              <circle
-                key={`r-${row}-${i}`}
-                cx={82 + i * 5}
-                cy={y + 1}
-                r="1.6"
-                fill="none"
-                stroke="#000"
-                strokeWidth="0.3"
-              />
-            ))}
-          </g>
-        );
-      })}
-      {/* QR code in bottom-right (as a mini pattern of squares) */}
-      <rect x="110" y="155" width="20" height="20" fill="#fff" stroke="#000" strokeWidth="0.3" />
-      {/* QR-ish pattern */}
-      {[0, 1, 2, 3, 4].map(i =>
-        [0, 1, 2, 3, 4].map(j => {
-          // Pseudo-random pattern that looks QR-ish
-          const isFilled = (i * 7 + j * 3) % 3 === 0;
-          return isFilled ? (
-            <rect
-              key={`qr-${i}-${j}`}
-              x={111 + i * 3.6}
-              y={156 + j * 3.6}
-              width="3"
-              height="3"
-              fill="#000"
-            />
-          ) : null;
-        })
-      )}
-      {/* QR corner squares (the 3 big ones of real QR codes) */}
-      <rect x="111" y="156" width="5" height="5" fill="#fff" stroke="#000" strokeWidth="0.4" />
-      <rect x="124" y="156" width="5" height="5" fill="#fff" stroke="#000" strokeWidth="0.4" />
-      <rect x="111" y="169" width="5" height="5" fill="#fff" stroke="#000" strokeWidth="0.4" />
-    </svg>
-  );
-}
-
 const STYLE_THUMBS = {
   classic: ClassicThumb,
   modern: ModernThumb,
   editorial: EditorialThumb,
   framed: FramedThumb,
-  scanner: ScannerThumb,
 };
 
 // ─── Generate a preview blob (no download trigger) ────────────────────────
@@ -494,6 +415,14 @@ async function generatePreviewBlobURL(deck, classObj, { style, variant, lang, pa
   const renderOpts = { lang, fontFamily, palette };
   if (variant === "answer_key") {
     await renderer.renderAnswerKey(doc, deck, classObj, renderOpts);
+  } else if (variant === "exam_with_scan") {
+    // PR 46: prepend la hoja escaneable, después el exam con el style elegido
+    await drawScanSheet(doc, deck, classObj, {
+      lang,
+      fontFamily: useKorean ? "NotoSansKR" : "helvetica",
+    });
+    doc.addPage();
+    await renderer.renderExam(doc, deck, classObj, renderOpts);
   } else {
     await renderer.renderExam(doc, deck, classObj, renderOpts);
   }
@@ -534,6 +463,11 @@ export default function PDFExportModal({
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  // PR 46: carrusel del style picker. Muestra hasta VISIBLE_STYLES a la
+  // vez, flechas L/R para navegar cuando hay más. Empieza centrado en el
+  // style seleccionado para que el user vea inmediatamente cuál tiene
+  // elegido.
+  const [styleScrollIndex, setStyleScrollIndex] = useState(0);
 
   // Keep previous URL so we can revoke it when we generate a new one
   const previousURL = useRef(null);
@@ -543,6 +477,21 @@ export default function PDFExportModal({
     if (typeof window !== "undefined") {
       window.localStorage?.setItem(STORAGE_KEY, style);
     }
+  }, [style]);
+
+  // PR 46: cuando cambia el style seleccionado (manualmente o desde
+  // localStorage en mount), asegurarse de que sea visible en el
+  // carrusel. Si está fuera del slice visible, scrollear para que
+  // entre.
+  useEffect(() => {
+    const idx = styleOptions.findIndex(s => s.id === style);
+    if (idx === -1) return;
+    if (idx < styleScrollIndex) {
+      setStyleScrollIndex(idx);
+    } else if (idx >= styleScrollIndex + VISIBLE_STYLES) {
+      setStyleScrollIndex(idx - VISIBLE_STYLES + 1);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [style]);
 
   // PR 32: persist palette choice on change
@@ -623,7 +572,6 @@ export default function PDFExportModal({
     { id: "modern", name: t.modernName, desc: t.modernDesc, Thumb: STYLE_THUMBS.modern },
     { id: "editorial", name: t.editorialName, desc: t.editorialDesc, Thumb: STYLE_THUMBS.editorial },
     { id: "framed", name: t.framedName, desc: t.framedDesc, Thumb: STYLE_THUMBS.framed },
-    { id: "scanner", name: t.scannerName, desc: t.scannerDesc, Thumb: STYLE_THUMBS.scanner },
   ];
 
   return (
@@ -670,7 +618,9 @@ export default function PDFExportModal({
 
         {/* Body — scrollable */}
         <div style={{ overflowY: "auto", padding: "16px 24px", flex: 1 }}>
-          {/* Variant toggle */}
+          {/* PR 46: variant selector — 2 botones primarios (exam,
+              exam_with_scan) en una fila + un botón pequeño "AK"
+              (answer_key) debajo a la derecha. */}
           <div style={{ marginBottom: 18 }}>
             <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: C.textSecondary, marginBottom: 6, textTransform: "uppercase", letterSpacing: 0.4 }}>
               {t.variantLabel}
@@ -678,59 +628,129 @@ export default function PDFExportModal({
             <div style={{ display: "flex", gap: 8 }}>
               {[
                 { id: "exam", label: t.variantExam },
-                { id: "answer_key", label: t.variantKey },
+                { id: "exam_with_scan", label: t.variantExamWithScan },
               ].map(v => (
                 <button
                   key={v.id}
                   onClick={() => setVariant(v.id)}
                   style={{
                     flex: 1,
-                    padding: "9px 14px",
-                    borderRadius: 8,
-                    border: `1px solid ${variant === v.id ? C.accent : C.border}`,
+                    padding: "11px 14px",
+                    borderRadius: 9,
+                    border: `1.5px solid ${variant === v.id ? C.accent : C.border}`,
                     background: variant === v.id ? C.accentSoft : C.bg,
-                    color: variant === v.id ? C.accent : C.textSecondary,
+                    color: variant === v.id ? C.accent : C.text,
                     fontWeight: 600,
-                    fontSize: 13,
+                    fontSize: 13.5,
                     cursor: "pointer",
                     fontFamily: "inherit",
+                    transition: "border-color 0.15s, background 0.15s",
                   }}
                 >{v.label}</button>
               ))}
             </div>
+            {/* Botón AK chiquito al lado derecho */}
+            <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 6 }}>
+              <button
+                onClick={() => setVariant("answer_key")}
+                title={t.variantKeyTooltip}
+                style={{
+                  padding: "5px 12px",
+                  borderRadius: 6,
+                  border: `1px solid ${variant === "answer_key" ? C.accent : C.border}`,
+                  background: variant === "answer_key" ? C.accentSoft : "transparent",
+                  color: variant === "answer_key" ? C.accent : C.textMuted,
+                  fontWeight: 500,
+                  fontSize: 11,
+                  cursor: "pointer",
+                  fontFamily: "inherit",
+                  letterSpacing: 0.3,
+                }}
+              >{t.variantKey}</button>
+            </div>
           </div>
 
-          {/* Style picker */}
+          {/* PR 46: Style picker — carrusel con flechas L/R. Muestra
+              hasta VISIBLE_STYLES (3) opciones a la vez. Las flechas se
+              deshabilitan en los extremos. Si total <= VISIBLE_STYLES,
+              las flechas no se renderizan (siempre vemos todo). */}
           <div style={{ marginBottom: 18 }}>
             <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: C.textSecondary, marginBottom: 6, textTransform: "uppercase", letterSpacing: 0.4 }}>
               {t.styleLabel}
             </label>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 8 }}>
-              {styleOptions.map(s => (
+            {(() => {
+              const total = styleOptions.length;
+              const showArrows = total > VISIBLE_STYLES;
+              const maxIndex = Math.max(0, total - VISIBLE_STYLES);
+              const safeIndex = Math.min(styleScrollIndex, maxIndex);
+              const visibleSlice = styleOptions.slice(safeIndex, safeIndex + VISIBLE_STYLES);
+              const canPrev = safeIndex > 0;
+              const canNext = safeIndex < maxIndex;
+
+              const arrowBtn = (direction, enabled, onClick) => (
                 <button
-                  key={s.id}
-                  onClick={() => setStyle(s.id)}
+                  onClick={onClick}
+                  disabled={!enabled}
+                  aria-label={direction === "prev" ? "Previous styles" : "Next styles"}
                   style={{
-                    background: C.bg,
-                    border: `2px solid ${style === s.id ? C.accent : C.border}`,
-                    borderRadius: 10,
-                    padding: 8,
-                    cursor: "pointer",
-                    display: "flex", flexDirection: "column", alignItems: "center", gap: 6,
+                    flexShrink: 0,
+                    width: 32,
+                    height: 32,
+                    alignSelf: "center",
+                    borderRadius: 8,
+                    border: `1px solid ${C.border}`,
+                    background: enabled ? C.bg : "transparent",
+                    color: enabled ? C.text : C.textMuted,
+                    cursor: enabled ? "pointer" : "default",
+                    opacity: enabled ? 1 : 0.35,
                     fontFamily: "inherit",
-                    transition: "border-color 0.15s",
+                    fontSize: 14,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    transition: "opacity 0.15s, background 0.15s",
                   }}
-                >
-                  <div style={{ width: "100%", borderRadius: 4, overflow: "hidden", background: "#fff" }}>
-                    <s.Thumb />
+                >{direction === "prev" ? "‹" : "›"}</button>
+              );
+
+              return (
+                <div style={{ display: "flex", gap: 8, alignItems: "stretch" }}>
+                  {showArrows && arrowBtn("prev", canPrev, () => setStyleScrollIndex(i => Math.max(0, i - 1)))}
+                  <div style={{
+                    flex: 1,
+                    display: "grid",
+                    gridTemplateColumns: `repeat(${VISIBLE_STYLES}, 1fr)`,
+                    gap: 8,
+                  }}>
+                    {visibleSlice.map(s => (
+                      <button
+                        key={s.id}
+                        onClick={() => setStyle(s.id)}
+                        style={{
+                          background: C.bg,
+                          border: `2px solid ${style === s.id ? C.accent : C.border}`,
+                          borderRadius: 10,
+                          padding: 8,
+                          cursor: "pointer",
+                          display: "flex", flexDirection: "column", alignItems: "center", gap: 6,
+                          fontFamily: "inherit",
+                          transition: "border-color 0.15s",
+                        }}
+                      >
+                        <div style={{ width: "100%", borderRadius: 4, overflow: "hidden", background: "#fff" }}>
+                          <s.Thumb />
+                        </div>
+                        <div style={{ textAlign: "center" }}>
+                          <div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{s.name}</div>
+                          <div style={{ fontSize: 11, color: C.textMuted, marginTop: 1 }}>{s.desc}</div>
+                        </div>
+                      </button>
+                    ))}
                   </div>
-                  <div style={{ textAlign: "center" }}>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{s.name}</div>
-                    <div style={{ fontSize: 11, color: C.textMuted, marginTop: 1 }}>{s.desc}</div>
-                  </div>
-                </button>
-              ))}
-            </div>
+                  {showArrows && arrowBtn("next", canNext, () => setStyleScrollIndex(i => Math.min(maxIndex, i + 1)))}
+                </div>
+              );
+            })()}
           </div>
 
           {/* PR 32: Palette picker — color swatches as chips */}

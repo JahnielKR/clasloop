@@ -29,9 +29,11 @@ import * as classic from "./pdf-styles/classic";
 import * as modern from "./pdf-styles/modern";
 import * as editorial from "./pdf-styles/editorial";
 import * as framed from "./pdf-styles/framed";
-import * as scanner from "./pdf-styles/scanner";
+import { drawScanSheet } from "./pdf-styles/scanner";
 
-const STYLES = { classic, modern, editorial, framed, scanner };
+// PR 46: scanner ya NO es un estilo. Sigue siendo una página que se
+// puede prepender al exam pero el style picker no lo muestra.
+const STYLES = { classic, modern, editorial, framed };
 
 // Style preferences for default fonts. Framed uses serif (times) for the
 // academic-paper feel; the others use the dispatcher's chosen font
@@ -43,10 +45,15 @@ const STYLE_DEFAULTS = {
 // ─── Main dispatcher ─────────────────────────────────────────────────────
 // `style` and `variant` default to backwards-compatible values so callers
 // that don't know about the new API get the same PDF they used to get.
+//
+// PR 46: nueva variante "exam_with_scan" — preempt the exam with a
+// scannable answer sheet (bubbles + QR + fiducials). El style elegido
+// solo afecta a las páginas de las preguntas (la hoja del scanner es
+// siempre b+w austera, sin estilo).
 export async function exportPDF(deck, classObj, opts = {}) {
   const {
     style = "classic",
-    variant = "exam",     // "exam" | "answer_key"
+    variant = "exam",     // "exam" | "exam_with_scan" | "answer_key"
     lang = "en",
     paletteId = "default", // PR 32
   } = opts;
@@ -70,11 +77,20 @@ export async function exportPDF(deck, classObj, opts = {}) {
 
   if (variant === "answer_key") {
     await renderer.renderAnswerKey(doc, deck, classObj, renderOpts);
+  } else if (variant === "exam_with_scan") {
+    // Página 1: scan sheet (b+w, sin estilo). Helvetica forzada para
+    // que sea legible en cualquier impresora, sin importar el style.
+    await drawScanSheet(doc, deck, classObj, { lang, fontFamily: useKorean ? "NotoSansKR" : "helvetica" });
+    doc.addPage();
+    // Páginas 2..N: exam normal con el style elegido
+    await renderer.renderExam(doc, deck, classObj, renderOpts);
   } else {
     await renderer.renderExam(doc, deck, classObj, renderOpts);
   }
 
-  const suffix = variant === "answer_key" ? "_answers" : "_exam";
+  let suffix = "_exam";
+  if (variant === "answer_key") suffix = "_answers";
+  else if (variant === "exam_with_scan") suffix = "_exam_scan";
   const fname = sanitizeFilename(deck.title || "deck") + suffix + ".pdf";
   doc.save(fname);
 }
