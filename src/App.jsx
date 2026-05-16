@@ -120,9 +120,21 @@ function AuthScreen({ initialMode = "select", initialRole = "teacher", onBack })
   };
   const handleGoogle = async () => {
     // OAuth bounces us out of the app — the redirect loses React state.
-    // Persist the role choice so we can apply it to the profile when we come
-    // back. Cleared by App.jsx once consumed.
-    try { localStorage.setItem("clasloop_pending_role", role); } catch (_) {}
+    // PR 37: Only persist the role pick when the user is SIGNING UP. In
+    // login mode the user already has an account; their existing profile
+    // is the source of truth. Setting pendingRole in login mode caused
+    // bug #1: clicking "Sign in" + Google for a NEW user created a
+    // profile with whatever default role was in state ("teacher"), or
+    // worse, a stale value from a previous session in localStorage.
+    //
+    // We also defensively CLEAR localStorage in login mode, so a leftover
+    // value from a previous signup attempt doesn't get picked up by the
+    // callback handler.
+    if (mode === "signup") {
+      try { localStorage.setItem("clasloop_pending_role", role); } catch (_) {}
+    } else {
+      try { localStorage.removeItem("clasloop_pending_role"); } catch (_) {}
+    }
     await supabase.auth.signInWithOAuth({ provider: "google", options: { redirectTo: window.location.origin } });
   };
 
@@ -262,6 +274,12 @@ export default function App() {
   // existing account (same email, different auth.users row), we set this
   // and render a blocking screen with sign-out instructions.
   const [duplicateEmailError, setDuplicateEmailError] = useState(false);
+  // PR 37: when an OAuth user lands without a profile AND without a
+  // pendingRole in localStorage (i.e. they clicked "Sign in" not "Sign up"
+  // and they're actually new), we don't know what role they want. Force
+  // them to pick one before creating the profile.
+  const [needsRoleSelection, setNeedsRoleSelection] = useState(false);
+  const [pendingProfileCreation, setPendingProfileCreation] = useState(null);
   // `page` mirrors the URL (kept in sync by an effect below). Initialised from
   // the current pathname so the very first render already shows the correct
   // page without a flash. Default to "sessions" when path is "/" — fetchProfile
@@ -788,17 +806,34 @@ export default function App() {
       // profile creation. Pre-existing profiles never have their role flipped
       // by a localStorage value (that bug let users toggle roles by logging
       // out, clicking the other role button, and logging back in).
+      // PR 37: If pendingRole is NOT set (user clicked "Sign in" rather than
+      // "Sign up"), we DON'T silently pick a default. Instead, force a role
+      // selection screen and stop here — the user picks, then this fn is
+      // re-run from completeProfileCreation().
       if (error && error.code === "PGRST116") {
         const { data: authData } = await supabase.auth.getUser();
         const authUser = authData?.user;
         let pendingRole = null;
         try { pendingRole = localStorage.getItem("clasloop_pending_role"); } catch (_) {}
-        const role = (pendingRole === "teacher" || pendingRole === "student") ? pendingRole : "student";
+
+        if (pendingRole !== "teacher" && pendingRole !== "student") {
+          // No valid pendingRole — user clicked "Sign in" without choosing
+          // a role. Force them to pick one. Save the auth context so we can
+          // resume after they choose.
+          const fullName = authUser?.user_metadata?.full_name
+            || authUser?.user_metadata?.name
+            || (authUser?.email ? authUser.email.split("@")[0] : "User");
+          setPendingProfileCreation({ id, fullName });
+          setNeedsRoleSelection(true);
+          setLoading(false);
+          return;
+        }
+
         const fullName = authUser?.user_metadata?.full_name
           || authUser?.user_metadata?.name
           || (authUser?.email ? authUser.email.split("@")[0] : "User");
         const insert = await supabase.from("profiles").insert({
-          id, full_name: fullName, role,
+          id, full_name: fullName, role: pendingRole,
         }).select().single();
         data = insert.data;
         error = insert.error;
@@ -843,6 +878,30 @@ export default function App() {
       }
     } catch (err) {
       console.error("fetchProfile error:", err);
+    }
+  };
+
+  // PR 37: called by the forced role-picker screen when the user chooses
+  // teacher or student. Creates the profile with the chosen role and then
+  // re-runs fetchProfile so the normal flow continues (set state, redirect).
+  const completeProfileCreation = async (chosenRole) => {
+    if (!pendingProfileCreation) return;
+    const { id, fullName } = pendingProfileCreation;
+    try {
+      const insert = await supabase.from("profiles").insert({
+        id, full_name: fullName, role: chosenRole,
+      }).select().single();
+      if (insert.error) {
+        console.error("[clasloop] profile creation failed:", insert.error);
+        return;
+      }
+      setNeedsRoleSelection(false);
+      setPendingProfileCreation(null);
+      // Re-run fetchProfile to apply normal post-load logic (setProfile,
+      // setLang, navigate to default route).
+      await fetchProfile(id, true);
+    } catch (err) {
+      console.error("[clasloop] completeProfileCreation error:", err);
     }
   };
 
@@ -944,6 +1003,95 @@ export default function App() {
               fontFamily: "'Outfit', sans-serif",
             }}
           >{td.signOut}</button>
+        </div>
+      </div>
+    );
+  }
+
+  // PR 37: forced role selection screen. Appears when an OAuth user lands
+  // without a profile AND without a pendingRole in localStorage (e.g. they
+  // clicked "Sign in" and are actually a new user). We don't know if
+  // they're a teacher or a student; ask explicitly before creating the
+  // profile.
+  if (needsRoleSelection) {
+    const i18nRP = {
+      en: {
+        title: "One more thing",
+        subtitle: "Are you a teacher or a student?",
+        teacher: "I'm a Teacher",
+        student: "I'm a Student",
+      },
+      es: {
+        title: "Una cosa más",
+        subtitle: "¿Sos profesor o estudiante?",
+        teacher: "Soy Profesor",
+        student: "Soy Estudiante",
+      },
+      ko: {
+        title: "한 가지 더",
+        subtitle: "교사이신가요, 학생이신가요?",
+        teacher: "교사입니다",
+        student: "학생입니다",
+      },
+    };
+    const trp = i18nRP[lang] || i18nRP.en;
+    const btnBase = {
+      width: "100%",
+      padding: "14px 18px",
+      borderRadius: 10,
+      fontSize: 15,
+      fontWeight: 600,
+      cursor: "pointer",
+      fontFamily: "'Outfit', sans-serif",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 10,
+    };
+    return (
+      <div style={{
+        minHeight: "100vh",
+        background: C.bgSoft,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 24,
+      }}>
+        <div style={{ maxWidth: 420, width: "100%", textAlign: "center" }}>
+          <div style={{ display: "flex", justifyContent: "center", marginBottom: 18 }}>
+            <LogoMark size={48} />
+          </div>
+          <h1 style={{
+            fontFamily: "'Outfit', sans-serif",
+            fontSize: 24, fontWeight: 700,
+            color: C.text,
+            marginBottom: 8,
+          }}>{trp.title}</h1>
+          <p style={{
+            color: C.textSecondary,
+            fontSize: 15,
+            marginBottom: 28,
+          }}>{trp.subtitle}</p>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            <button
+              onClick={() => completeProfileCreation("teacher")}
+              style={{
+                ...btnBase,
+                background: `linear-gradient(135deg, ${C.accent}, ${C.purple})`,
+                color: "#fff",
+                border: "none",
+              }}
+            ><TeacherInline size={20} /> {trp.teacher}</button>
+            <button
+              onClick={() => completeProfileCreation("student")}
+              style={{
+                ...btnBase,
+                background: C.bg,
+                color: C.text,
+                border: `1px solid ${C.border}`,
+              }}
+            ><StudentInline size={20} /> {trp.student}</button>
+          </div>
         </div>
       </div>
     );
