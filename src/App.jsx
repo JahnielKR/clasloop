@@ -381,6 +381,12 @@ export default function App() {
   // Track whether the initial profile load already ran. Subsequent calls (token
   // refresh on tab return, etc.) shouldn't reset the page state.
   const profileLoadedRef = useRef(false);
+  // PR 41: lock against concurrent fetchProfile invocations. Supabase's
+  // auth-state-change subscription can fire SIGNED_IN multiple times in
+  // quick succession (initial session check + auth event + token recovery)
+  // and without a lock we end up running fetchProfile 3-4 times in parallel,
+  // each one trying to create the profile, each one logging duplicates.
+  const fetchProfileInFlightRef = useRef(false);
 
   // ── Pre-app theme override ────────────────────────────────────────────
   // PublicHome and AuthScreen are pre-app surfaces — marketing-adjacent
@@ -457,6 +463,7 @@ export default function App() {
       if (event === "SIGNED_OUT") {
         setProfile(null);
         profileLoadedRef.current = false;
+        fetchProfileInFlightRef.current = false; // PR 41: release the lock too
       }
 
       // Clean OAuth hash
@@ -817,7 +824,36 @@ export default function App() {
   }, [profile?.id, profile?.role, studentMembershipTick]);
 
   const fetchProfile = async (id, isInitial = true) => {
+    // PR 41: prevent concurrent runs. The auth subscription can fire
+    // SIGNED_IN multiple times during initial load; without this guard
+    // we'd run fetchProfile in parallel and produce duplicate work
+    // (and duplicate logs that confused debugging).
+    if (fetchProfileInFlightRef.current) {
+      console.log("[clasloop auth] fetchProfile already in-flight, skipping duplicate call");
+      return;
+    }
+    fetchProfileInFlightRef.current = true;
     try {
+      // PR 41: detect zombie JWT. The browser may hold a token for a user
+      // that has been deleted on the server (common during testing when
+      // you delete users from Supabase Dashboard but the browser cache
+      // still has the JWT). getUser() returns 403 in that case. If we
+      // detect it, force a clean sign-out so the rest of the app boots
+      // into the public home instead of looping on 406/403 errors.
+      const { data: probeUser, error: probeErr } = await supabase.auth.getUser();
+      if (probeErr || !probeUser?.user) {
+        console.warn("[clasloop auth] JWT invalid or user deleted server-side. Forcing sign-out.", {
+          probeErr: probeErr?.message,
+          status: probeErr?.status,
+        });
+        try { localStorage.removeItem("clasloop_pending_role"); } catch (_) {}
+        await supabase.auth.signOut();
+        setUser(null);
+        setProfile(null);
+        setLoading(false);
+        return;
+      }
+
       // PR 36: defense against duplicate accounts with the same email.
       // The OAuth flow can produce two distinct auth.users rows with the
       // same email if the user signs out and back in. Before we trust
@@ -997,6 +1033,8 @@ export default function App() {
       }
     } catch (err) {
       console.error("fetchProfile error:", err);
+    } finally {
+      fetchProfileInFlightRef.current = false;
     }
   };
 
