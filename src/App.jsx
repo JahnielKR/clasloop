@@ -919,8 +919,15 @@ export default function App() {
         const authUser = authData?.user;
         const authCreatedAt = authUser?.created_at ? new Date(authUser.created_at).getTime() : 0;
         const lastSignInAt = authUser?.last_sign_in_at ? new Date(authUser.last_sign_in_at).getTime() : 0;
-        // Gap of < 60s means this IS the first session
-        const isFirstSession = (lastSignInAt - authCreatedAt) < 60000;
+        // PR 40: threshold 10 segundos. La diferencia entre auth.users
+        // created_at y last_sign_in_at en la PRIMERA sesión es de
+        // milisegundos (ambos timestamps vienen del mismo OAuth callback).
+        // En sesiones subsiguientes el gap es siempre > 10s porque
+        // requiere al menos un signout/signin manual. 10s es el sweet
+        // spot: lo suficientemente alto para tolerar clock skew y
+        // latencia del trigger, lo suficientemente bajo para que ningún
+        // user humano pueda hacer signout+signin dentro del threshold.
+        const isFirstSession = (lastSignInAt - authCreatedAt) < 10000;
 
         console.log("[clasloop auth] profile lookup result:", {
           isFirstSession,
