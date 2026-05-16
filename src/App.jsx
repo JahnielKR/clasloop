@@ -1167,6 +1167,20 @@ export default function App() {
     </div>
   );
 
+  // PR 43.1: cuando user existe pero todavía no resolvimos profile/role,
+  // mostrar loading screen. Sin esto hay un flash de UI rota (dashboard
+  // con profile=null) entre que llega user de OAuth y termina fetchProfile.
+  if (user && !profile && !pendingRoleSelectionUser) return (
+    <div style={{ minHeight: "100vh", background: C.bgSoft, display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <div style={{ textAlign: "center" }}>
+        <div style={{ margin: "0 auto 12px", display: "inline-flex" }}>
+          <LogoMark size={44} />
+        </div>
+        <p style={{ color: C.textMuted, fontSize: 14 }}>Loading...</p>
+      </div>
+    </div>
+  );
+
   if (!user) {
     if (authIntent) {
       return (

@@ -34,6 +34,13 @@ const I18N = {
     warning: "This choice can't be changed later.",
     creating: "Setting up your account…",
     error: "Something went wrong. Try again.",
+    // Confirm step (PR 43.2)
+    confirmTitle: "Are you sure?",
+    confirmTeacher: "You're about to create a Teacher account.",
+    confirmStudent: "You're about to create a Student account.",
+    confirmDetail: "This can't be changed later. If you need the other role, you'll have to use a different email.",
+    confirmBack: "Go back",
+    confirmYes: "Yes, create my account",
   },
   es: {
     welcome: "Bienvenido a Clasloop",
@@ -45,6 +52,12 @@ const I18N = {
     warning: "Esta elección no se puede cambiar después.",
     creating: "Configurando tu cuenta…",
     error: "Algo salió mal. Intentá de nuevo.",
+    confirmTitle: "¿Estás seguro?",
+    confirmTeacher: "Estás por crear una cuenta de Profesor.",
+    confirmStudent: "Estás por crear una cuenta de Estudiante.",
+    confirmDetail: "Esto no se puede cambiar después. Si necesitás el otro rol, vas a tener que usar otro email.",
+    confirmBack: "Volver",
+    confirmYes: "Sí, crear mi cuenta",
   },
   ko: {
     welcome: "Clasloop에 오신 것을 환영합니다",
@@ -56,17 +69,44 @@ const I18N = {
     warning: "이 선택은 나중에 변경할 수 없습니다.",
     creating: "계정을 설정하는 중…",
     error: "문제가 발생했습니다. 다시 시도해 주세요.",
+    confirmTitle: "확실합니까?",
+    confirmTeacher: "교사 계정을 만들려고 합니다.",
+    confirmStudent: "학생 계정을 만들려고 합니다.",
+    confirmDetail: "나중에 변경할 수 없습니다. 다른 역할이 필요하면 다른 이메일을 사용해야 합니다.",
+    confirmBack: "돌아가기",
+    confirmYes: "예, 계정 만들기",
   },
 };
 
 export default function RoleOnboarding({ user, lang = "en", onCreated }) {
   const t = I18N[lang] || I18N.en;
+  const [step, setStep] = useState("select"); // "select" | "confirm"
+  const [pickedRole, setPickedRole] = useState(null); // "teacher" | "student"
   const [submitting, setSubmitting] = useState(false);
   const [hoveredCard, setHoveredCard] = useState(null);
   const [error, setError] = useState("");
 
-  const handleChoose = async (role) => {
+  // Click en una card del select step: solo guardamos la elección y
+  // pasamos al confirm step. No tocamos la DB todavía.
+  const handlePickRole = (role) => {
     if (submitting) return;
+    setPickedRole(role);
+    setStep("confirm");
+    setError("");
+  };
+
+  // Click "Atrás" en el confirm step: volvemos al select sin crear nada.
+  const handleBack = () => {
+    if (submitting) return;
+    setStep("select");
+    setPickedRole(null);
+    setError("");
+  };
+
+  // Click "Sí, crear mi cuenta" en el confirm step: ESTO recién crea
+  // el profile en la DB.
+  const handleConfirm = async () => {
+    if (submitting || !pickedRole) return;
     setSubmitting(true);
     setError("");
 
@@ -83,7 +123,7 @@ export default function RoleOnboarding({ user, lang = "en", onCreated }) {
         .insert({
           id: user.id,
           full_name: fullName,
-          role,
+          role: pickedRole,
           // Si Google nos pasó una avatar URL, la guardamos. Los students
           // de todas formas eligen avatar después; los teachers pueden
           // dejarla.
@@ -112,7 +152,7 @@ export default function RoleOnboarding({ user, lang = "en", onCreated }) {
     return (
       <button
         key={role}
-        onClick={() => handleChoose(role)}
+        onClick={() => handlePickRole(role)}
         onMouseEnter={() => setHoveredCard(role)}
         onMouseLeave={() => setHoveredCard(null)}
         disabled={submitting}
@@ -183,69 +223,155 @@ export default function RoleOnboarding({ user, lang = "en", onCreated }) {
       justifyContent: "center",
       padding: 24,
     }}>
-      <div style={{ maxWidth: 720, width: "100%" }}>
-        {/* Header */}
-        <div style={{ textAlign: "center", marginBottom: 40 }}>
-          <div style={{ display: "flex", justifyContent: "center", marginBottom: 18 }}>
-            <LogoMark size={52} />
+      <div style={{ maxWidth: step === "confirm" ? 460 : 720, width: "100%" }}>
+
+        {/* Step: SELECT — elegir rol entre 2 cards */}
+        {step === "select" && (
+          <>
+            <div style={{ textAlign: "center", marginBottom: 40 }}>
+              <div style={{ display: "flex", justifyContent: "center", marginBottom: 18 }}>
+                <LogoMark size={52} />
+              </div>
+              <h1 style={{
+                fontFamily: "'Outfit', sans-serif",
+                fontSize: 30,
+                fontWeight: 700,
+                color: C.text,
+                marginBottom: 8,
+                letterSpacing: "-0.02em",
+              }}>{t.welcome}</h1>
+              <p style={{
+                fontSize: 16,
+                color: C.textSecondary,
+                fontFamily: "'Outfit', sans-serif",
+              }}>{t.subtitle}</p>
+            </div>
+
+            {error && (
+              <div style={{
+                background: C.redSoft,
+                color: C.red,
+                padding: "12px 16px",
+                borderRadius: 9,
+                marginBottom: 20,
+                textAlign: "center",
+                fontSize: 14,
+              }}>{error}</div>
+            )}
+
+            <div style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+              gap: 16,
+              marginBottom: 24,
+            }}>
+              {buildCard("teacher", t.teacher, t.teacherDesc, TeacherInline, C.accent)}
+              {buildCard("student", t.student, t.studentDesc, StudentInline, C.purple)}
+            </div>
+
+            <p style={{
+              textAlign: "center",
+              fontSize: 12,
+              color: C.textMuted,
+              fontFamily: "'Outfit', sans-serif",
+              marginTop: 8,
+            }}>{t.warning}</p>
+          </>
+        )}
+
+        {/* Step: CONFIRM — confirmación con Atrás/Confirmar */}
+        {step === "confirm" && (
+          <div style={{
+            background: C.bg,
+            border: `1px solid ${C.border}`,
+            borderRadius: 14,
+            padding: 32,
+            textAlign: "center",
+          }}>
+            <div style={{ display: "flex", justifyContent: "center", marginBottom: 18 }}>
+              {pickedRole === "teacher"
+                ? <TeacherInline size={48} />
+                : <StudentInline size={48} />}
+            </div>
+            <h2 style={{
+              fontFamily: "'Outfit', sans-serif",
+              fontSize: 22,
+              fontWeight: 700,
+              color: C.text,
+              marginBottom: 10,
+            }}>{t.confirmTitle}</h2>
+            <p style={{
+              fontSize: 15,
+              color: C.text,
+              fontFamily: "'Outfit', sans-serif",
+              marginBottom: 8,
+              fontWeight: 600,
+            }}>
+              {pickedRole === "teacher" ? t.confirmTeacher : t.confirmStudent}
+            </p>
+            <p style={{
+              fontSize: 13,
+              color: C.textSecondary,
+              fontFamily: "'Outfit', sans-serif",
+              lineHeight: 1.5,
+              marginBottom: 24,
+            }}>{t.confirmDetail}</p>
+
+            {submitting && (
+              <p style={{
+                fontSize: 13,
+                color: C.textSecondary,
+                marginBottom: 14,
+              }}>{t.creating}</p>
+            )}
+            {error && (
+              <div style={{
+                background: C.redSoft,
+                color: C.red,
+                padding: "10px 14px",
+                borderRadius: 9,
+                marginBottom: 16,
+                fontSize: 13,
+              }}>{error}</div>
+            )}
+
+            <div style={{ display: "flex", gap: 10, flexDirection: "column" }}>
+              <button
+                onClick={handleConfirm}
+                disabled={submitting}
+                style={{
+                  padding: "13px 18px",
+                  borderRadius: 10,
+                  fontSize: 15,
+                  fontWeight: 600,
+                  background: `linear-gradient(135deg, ${C.accent}, ${C.purple})`,
+                  color: "#fff",
+                  border: "none",
+                  cursor: submitting ? "default" : "pointer",
+                  opacity: submitting ? 0.6 : 1,
+                  fontFamily: "'Outfit', sans-serif",
+                }}
+              >{t.confirmYes}</button>
+              <button
+                onClick={handleBack}
+                disabled={submitting}
+                style={{
+                  padding: "13px 18px",
+                  borderRadius: 10,
+                  fontSize: 15,
+                  fontWeight: 600,
+                  background: "transparent",
+                  color: C.textSecondary,
+                  border: `1px solid ${C.border}`,
+                  cursor: submitting ? "default" : "pointer",
+                  opacity: submitting ? 0.6 : 1,
+                  fontFamily: "'Outfit', sans-serif",
+                }}
+              >← {t.confirmBack}</button>
+            </div>
           </div>
-          <h1 style={{
-            fontFamily: "'Outfit', sans-serif",
-            fontSize: 30,
-            fontWeight: 700,
-            color: C.text,
-            marginBottom: 8,
-            letterSpacing: "-0.02em",
-          }}>{t.welcome}</h1>
-          <p style={{
-            fontSize: 16,
-            color: C.textSecondary,
-            fontFamily: "'Outfit', sans-serif",
-          }}>{t.subtitle}</p>
-        </div>
-
-        {/* Loading overlay */}
-        {submitting && (
-          <div style={{
-            textAlign: "center",
-            marginBottom: 20,
-            fontSize: 14,
-            color: C.textSecondary,
-          }}>{t.creating}</div>
         )}
 
-        {/* Error */}
-        {error && (
-          <div style={{
-            background: C.redSoft,
-            color: C.red,
-            padding: "12px 16px",
-            borderRadius: 9,
-            marginBottom: 20,
-            textAlign: "center",
-            fontSize: 14,
-          }}>{error}</div>
-        )}
-
-        {/* Cards */}
-        <div style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
-          gap: 16,
-          marginBottom: 24,
-        }}>
-          {buildCard("teacher", t.teacher, t.teacherDesc, TeacherInline, C.accent)}
-          {buildCard("student", t.student, t.studentDesc, StudentInline, C.purple)}
-        </div>
-
-        {/* Warning */}
-        <p style={{
-          textAlign: "center",
-          fontSize: 12,
-          color: C.textMuted,
-          fontFamily: "'Outfit', sans-serif",
-          marginTop: 8,
-        }}>{t.warning}</p>
       </div>
     </div>
   );
