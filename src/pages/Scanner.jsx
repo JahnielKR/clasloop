@@ -37,6 +37,8 @@ const I18N = {
     pickDeckLoading: "Loading your decks…",
     pickDeckEmpty: "You don't have any decks yet.",
     pickDeckPlaceholder: "— select a deck —",
+    searchPlaceholder: "Search your decks…",
+    emptySearch: "No matches. Try a different search.",
     startBtn: "Start scanning",
     captureHelp: "Hold the sheet flat. Align the four corners inside the frame.",
     captureBtn: "Capture",
@@ -61,6 +63,8 @@ const I18N = {
     pickDeckLoading: "Cargando tus decks…",
     pickDeckEmpty: "Todavía no tenés ningún deck.",
     pickDeckPlaceholder: "— elegí un deck —",
+    searchPlaceholder: "Buscá en tus decks…",
+    emptySearch: "Sin resultados. Probá con otra búsqueda.",
     startBtn: "Empezar a escanear",
     captureHelp: "Mantené la hoja plana. Alineá las cuatro esquinas dentro del marco.",
     captureBtn: "Capturar",
@@ -85,6 +89,8 @@ const I18N = {
     pickDeckLoading: "덱 로딩 중…",
     pickDeckEmpty: "아직 덱이 없습니다.",
     pickDeckPlaceholder: "— 덱 선택 —",
+    searchPlaceholder: "덱 검색…",
+    emptySearch: "결과 없음. 다른 검색어를 시도해보세요.",
     startBtn: "스캔 시작",
     captureHelp: "종이를 평평하게 두고 네 모서리를 프레임 안에 맞추세요.",
     captureBtn: "캡처",
@@ -150,14 +156,6 @@ export default function Scanner({ lang = "en", profile, onOpenMobileMenu }) {
       return null;
     }
     return data;
-  };
-
-  const handleStartScanning = async () => {
-    if (!selectedDeckId) return;
-    const fullDeck = await loadDeckFull(selectedDeckId);
-    if (!fullDeck) return;
-    setSelectedDeck(fullDeck);
-    setStage("capture");
   };
 
   // ─── Stage: capture ───────────────────────────────────────────────────────
@@ -293,9 +291,18 @@ export default function Scanner({ lang = "en", profile, onOpenMobileMenu }) {
         <PickDeckStage
           t={t}
           decks={decks}
-          selectedDeckId={selectedDeckId}
-          setSelectedDeckId={setSelectedDeckId}
-          onStart={handleStartScanning}
+          onPickDeck={(deckId) => {
+            setSelectedDeckId(deckId);
+            // load + advance: hacemos el fetch del deck completo (con
+            // questions/answer key) antes de pasar a capture. Si falla
+            // mostramos el error sin cambiar de stage.
+            (async () => {
+              const fullDeck = await loadDeckFull(deckId);
+              if (!fullDeck) return;
+              setSelectedDeck(fullDeck);
+              setStage("capture");
+            })();
+          }}
         />
       )}
 
@@ -335,18 +342,24 @@ export default function Scanner({ lang = "en", profile, onOpenMobileMenu }) {
 
 // ─── Sub-components per stage ───────────────────────────────────────────────
 
-function PickDeckStage({ t, decks, selectedDeckId, setSelectedDeckId, onStart }) {
+function PickDeckStage({ t, decks, onPickDeck }) {
+  const [search, setSearch] = useState("");
+
   if (decks === null) {
     return <p style={{ color: C.textSecondary }}>{t.pickDeckLoading}</p>;
   }
   if (decks.length === 0) {
     return <p style={{ color: C.textSecondary }}>{t.pickDeckEmpty}</p>;
   }
+
+  // Filter case-insensitive por título
+  const q = search.trim().toLowerCase();
+  const filtered = q
+    ? decks.filter(d => (d.title || "").toLowerCase().includes(q))
+    : decks;
+
   return (
-    <div style={{
-      background: C.bg, border: `1px solid ${C.border}`, borderRadius: 12,
-      padding: 24, maxWidth: 540,
-    }}>
+    <div style={{ maxWidth: 540 }}>
       <label style={{
         display: "block", fontSize: 12, fontWeight: 600,
         color: C.textSecondary, textTransform: "uppercase", letterSpacing: 0.4,
@@ -357,36 +370,103 @@ function PickDeckStage({ t, decks, selectedDeckId, setSelectedDeckId, onStart })
       <p style={{ fontSize: 13, color: C.textMuted, margin: "0 0 12px" }}>
         {t.pickDeckHelp}
       </p>
-      <select
-        value={selectedDeckId}
-        onChange={e => setSelectedDeckId(e.target.value)}
+
+      {/* Search input */}
+      <input
+        type="text"
+        value={search}
+        onChange={e => setSearch(e.target.value)}
+        placeholder={t.searchPlaceholder}
+        autoFocus
         style={{
-          width: "100%", padding: "10px 12px", borderRadius: 8,
-          border: `1px solid ${C.border}`, background: C.bg, color: C.text,
-          fontSize: 14, fontFamily: "inherit",
-          marginBottom: 16,
-        }}
-      >
-        <option value="">{t.pickDeckPlaceholder}</option>
-        {decks.map(d => (
-          <option key={d.id} value={d.id}>{d.title || "Untitled"}</option>
-        ))}
-      </select>
-      <button
-        onClick={onStart}
-        disabled={!selectedDeckId}
-        style={{
-          padding: "10px 16px", borderRadius: 8,
-          border: "none",
-          background: selectedDeckId ? C.accent : C.border,
-          color: selectedDeckId ? "#fff" : C.textMuted,
-          fontSize: 14, fontWeight: 600,
-          cursor: selectedDeckId ? "pointer" : "not-allowed",
+          width: "100%",
+          padding: "10px 14px",
+          borderRadius: 8,
+          border: `1px solid ${C.border}`,
+          background: C.bg,
+          fontSize: 13.5,
           fontFamily: "inherit",
+          color: C.text,
+          marginBottom: 14,
+          outline: "none",
+          transition: "border-color .12s ease",
+          boxSizing: "border-box",
         }}
-      >
-        {t.startBtn}
-      </button>
+        onFocus={e => { e.currentTarget.style.borderColor = C.accent; }}
+        onBlur={e => { e.currentTarget.style.borderColor = C.border; }}
+      />
+
+      {/* Results list */}
+      {filtered.length === 0 ? (
+        <div style={{
+          padding: "32px 16px",
+          textAlign: "center",
+          color: C.textMuted,
+          fontSize: 13,
+          lineHeight: 1.5,
+        }}>
+          {t.emptySearch}
+        </div>
+      ) : (
+        <div style={{
+          display: "flex", flexDirection: "column", gap: 6,
+          maxHeight: "60vh", overflowY: "auto",
+          // Padding right para que la scrollbar no pegue contra los cards
+          paddingRight: 4,
+        }}>
+          {filtered.map(deck => (
+            <button
+              key={deck.id}
+              onClick={() => onPickDeck(deck.id)}
+              style={{
+                background: C.bg,
+                border: `1px solid ${C.border}`,
+                borderRadius: 8,
+                padding: "10px 14px",
+                textAlign: "left",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: 12,
+                transition: "border-color .12s ease, background .12s ease",
+                fontFamily: "inherit",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = C.bgSoft || C.bgAlt || C.bg;
+                e.currentTarget.style.borderColor = C.accent;
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = C.bg;
+                e.currentTarget.style.borderColor = C.border;
+              }}
+            >
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{
+                  fontSize: 13.5, fontWeight: 600, color: C.text,
+                  lineHeight: 1.3,
+                  overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                }}>
+                  {deck.title || "Untitled"}
+                </div>
+                {deck.language && (
+                  <div style={{
+                    fontSize: 11, color: C.textMuted,
+                    marginTop: 2,
+                    textTransform: "uppercase",
+                    letterSpacing: 0.4,
+                  }}>
+                    {deck.language}
+                  </div>
+                )}
+              </div>
+              <div style={{
+                fontSize: 18, color: C.textMuted, lineHeight: 1,
+                marginLeft: 4,
+              }}>›</div>
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
