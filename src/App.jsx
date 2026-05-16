@@ -8,6 +8,7 @@ import { LogoMark, TeacherInline, StudentInline, TeacherAvatar, StudentAvatar } 
 // fallback to the very first screen the user sees.
 import PublicHome from './pages/PublicHome';
 import AvatarOnboarding from './pages/AvatarOnboarding';
+import RoleOnboarding from './pages/RoleOnboarding';
 // All other pages are code-split via React.lazy. Each becomes its own chunk
 // that's fetched on demand the first time the user navigates there. The
 // initial JS bundle drops from ~1.5MB to a much smaller core.
@@ -97,119 +98,356 @@ function MyClassesByRole(props) {
 
 const COMPONENTS = { sessions: SessionFlow, studentJoin: StudentJoin, community: Community, achievements: Achievements, settings: Settings, director: Director, notifications: Notifications, decks: Decks, myClasses: MyClassesByRole, teacherProfile: TeacherProfile, adminAIStats: AdminAIStats, review: Review, deckResults: DeckResults, classInsights: ClassInsights, myResults: MyResults, sessionRecap: SessionRecap, favorites: Favorites };
 
-function AuthScreen({ initialMode = "select", initialRole = "teacher", onBack }) {
+// ─── AuthScreen ──────────────────────────────────────────────────────────
+//
+// PR 43: rediseño total. Ya no hay role state. La pantalla solo maneja
+// signup/signin con email-password o Google. El rol se elige DESPUÉS
+// del primer signin/signup, en RoleOnboarding.jsx, una sola vez.
+//
+// Props:
+//   initialMode - "signup" | "login"
+//   onBack      - opcional, callback para volver atrás
+//   lang        - código de idioma
+function AuthScreen({ initialMode = "signup", onBack, lang = "en" }) {
+  const t = AUTH_I18N[lang] || AUTH_I18N.en;
   const [mode, setMode] = useState(initialMode);
-  const [role, setRole] = useState(initialRole);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [pass, setPass] = useState("");
   const [error, setError] = useState("");
+  const [infoMessage, setInfoMessage] = useState("");
   const [loading, setLoading] = useState(false);
 
   const handleSignup = async () => {
-    if (!name || !email || pass.length < 8) return;
-    setLoading(true); setError("");
-    const { error: err } = await supabase.auth.signUp({ email, password: pass, options: { data: { full_name: name, role } } });
-    if (err) { setError(err.message); setLoading(false); }
-  };
-  const handleLogin = async () => {
-    if (!email || !pass) return;
-    setLoading(true); setError("");
-    const { error: err } = await supabase.auth.signInWithPassword({ email, password: pass });
-    if (err) { setError(err.message); setLoading(false); }
-  };
-  const handleGoogle = async () => {
-    // OAuth bounces us out of the app — the redirect loses React state.
-    // PR 37: Only persist the role pick when the user is SIGNING UP. In
-    // login mode the user already has an account; their existing profile
-    // is the source of truth. Setting pendingRole in login mode caused
-    // bug #1: clicking "Sign in" + Google for a NEW user created a
-    // profile with whatever default role was in state ("teacher"), or
-    // worse, a stale value from a previous session in localStorage.
-    //
-    // We also defensively CLEAR localStorage in login mode, so a leftover
-    // value from a previous signup attempt doesn't get picked up by the
-    // callback handler.
-    //
-    // PR 38: localStorage was NOT surviving the OAuth redirect reliably
-    // (Chrome incognito, Safari ITP, and some embedded-browser contexts
-    // wipe it on cross-origin redirects). The role kept ending up as
-    // "student" even when the user picked "Teacher". signInWithOAuth
-    // doesn't accept user_metadata pre-redirect (see auth-js#670), so we
-    // smuggle the role through the `redirectTo` URL as a query param.
-    // That URL survives the redirect 100% and we read it back on landing.
-    // localStorage still gets set as a secondary backup for browsers
-    // that strip query strings during OAuth bounces.
-    const redirectURL = new URL(window.location.origin);
-    if (mode === "signup") {
-      try { localStorage.setItem("clasloop_pending_role", role); } catch (_) {}
-      redirectURL.searchParams.set("role", role);
-    } else {
-      try { localStorage.removeItem("clasloop_pending_role"); } catch (_) {}
+    if (!name || !email || pass.length < 8) {
+      setError(t.errorMissing);
+      return;
     }
-    await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: { redirectTo: redirectURL.toString() },
-    });
+    setLoading(true);
+    setError("");
+    setInfoMessage("");
+    try {
+      const { data, error: err } = await supabase.auth.signUp({
+        email,
+        password: pass,
+        options: { data: { full_name: name } },
+      });
+      if (err) {
+        setError(err.message);
+        setLoading(false);
+        return;
+      }
+      // PR 43: dos casos según config de Supabase:
+      //   - "Confirm Email" OFF: signUp devuelve session inmediata. El
+      //     SIGNED_IN event va a disparar fetchProfile en App.jsx, que
+      //     detectará que no hay profile y mostrará RoleOnboarding.
+      //   - "Confirm Email" ON: session es null hasta que el user clickee
+      //     el link del email. Mostramos un info message acá y bajamos
+      //     el loading. La app NO entra hasta que confirmen.
+      if (data?.session) {
+        // Sesión inmediata: dejamos que onAuthStateChange tome control.
+        // No bajamos loading porque la app va a re-renderizar a otro
+        // screen en milisegundos.
+        return;
+      }
+      // Sin sesión inmediata → email confirmation pendiente
+      setInfoMessage(t.checkEmail);
+      setLoading(false);
+    } catch (err) {
+      console.error("[clasloop] signUp exception:", err);
+      setError(err.message || t.errorGeneric);
+      setLoading(false);
+    }
   };
 
-  const inp = { fontFamily: "'Outfit',sans-serif", background: C.bg, border: `1px solid ${C.border}`, color: C.text, padding: "11px 14px", borderRadius: 8, fontSize: 14, width: "100%", outline: "none" };
-  const btnP = { width: "100%", padding: "12px", borderRadius: 9, fontSize: 15, fontWeight: 600, background: `linear-gradient(135deg,${C.accent},${C.purple})`, color: "#fff", border: "none", cursor: "pointer", opacity: loading ? .5 : 1, fontFamily: "'Outfit',sans-serif" };
-  const btnS = { width: "100%", padding: "12px", borderRadius: 9, fontSize: 15, fontWeight: 600, background: C.bg, color: C.text, border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: "'Outfit',sans-serif" };
+  const handleLogin = async () => {
+    if (!email || !pass) {
+      setError(t.errorMissing);
+      return;
+    }
+    setLoading(true);
+    setError("");
+    setInfoMessage("");
+    try {
+      const { error: err } = await supabase.auth.signInWithPassword({ email, password: pass });
+      if (err) {
+        setError(err.message);
+        setLoading(false);
+        return;
+      }
+      // Éxito: onAuthStateChange dispara, no tocamos loading.
+    } catch (err) {
+      console.error("[clasloop] signIn exception:", err);
+      setError(err.message || t.errorGeneric);
+      setLoading(false);
+    }
+  };
 
-  if (mode === "select") return (
-    <div style={{ minHeight: "100vh", background: C.bgSoft, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
-      <div style={{ maxWidth: 400, width: "100%", textAlign: "center" }}>
-        <div style={{ display: "flex", justifyContent: "center", marginBottom: 16 }}>
-          <LogoMark size={48} />
-        </div>
-        <h1 style={{ fontFamily: "'Outfit'", fontSize: 26, fontWeight: 700, marginBottom: 6 }}>Welcome to Clasloop</h1>
-        <p style={{ color: C.textSecondary, fontSize: 15, marginBottom: 32 }}>Help your students actually remember what you teach</p>
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          <button onClick={() => { setRole("teacher"); setMode("signup"); }} style={{ ...btnP, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}><TeacherInline size={20} /> I'm a Teacher</button>
-          <button onClick={() => { setRole("student"); setMode("signup"); }} style={{ ...btnS, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}><StudentInline size={20} /> I'm a Student</button>
-        </div>
-        <p style={{ marginTop: 24, fontSize: 13, color: C.textMuted, fontFamily: "'Outfit'" }}>Already have an account? <span onClick={() => setMode("login")} style={{ color: C.accent, cursor: "pointer", fontWeight: 500 }}>Sign in</span></p>
-      </div>
-    </div>
-  );
+  const handleGoogle = async () => {
+    // PR 43: sin role state, sin localStorage, sin query params.
+    // Solo iniciamos el flow OAuth. El callback va a App.jsx →
+    // fetchProfile → si no hay profile, RoleOnboarding aparece.
+    setError("");
+    setInfoMessage("");
+    try {
+      await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: { redirectTo: window.location.origin },
+      });
+    } catch (err) {
+      console.error("[clasloop] Google OAuth exception:", err);
+      setError(err.message || t.errorGeneric);
+    }
+  };
+
+  const inp = {
+    fontFamily: "'Outfit',sans-serif",
+    background: C.bg,
+    border: `1px solid ${C.border}`,
+    color: C.text,
+    padding: "11px 14px",
+    borderRadius: 8,
+    fontSize: 14,
+    width: "100%",
+    outline: "none",
+  };
+  const btnP = {
+    width: "100%",
+    padding: "12px",
+    borderRadius: 9,
+    fontSize: 15,
+    fontWeight: 600,
+    background: `linear-gradient(135deg,${C.accent},${C.purple})`,
+    color: "#fff",
+    border: "none",
+    cursor: "pointer",
+    opacity: loading ? 0.5 : 1,
+    fontFamily: "'Outfit',sans-serif",
+  };
+  const btnS = {
+    width: "100%",
+    padding: "12px",
+    borderRadius: 9,
+    fontSize: 15,
+    fontWeight: 600,
+    background: C.bg,
+    color: C.text,
+    border: `1px solid ${C.border}`,
+    cursor: "pointer",
+    fontFamily: "'Outfit',sans-serif",
+  };
 
   return (
     <div style={{ minHeight: "100vh", background: C.bgSoft, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
       <div style={{ maxWidth: 400, width: "100%" }}>
-        <button onClick={() => {
-          // If we entered straight into login/signup from the public home,
-          // "back" should take us back there. Otherwise (came in via the
-          // role-select screen), stay inside AuthScreen and reset to select.
-          if (initialMode !== "select" && onBack) {
-            onBack();
-          } else {
-            setMode("select"); setError("");
-          }
-        }} style={{ background: "transparent", border: "none", color: C.textSecondary, fontSize: 13, cursor: "pointer", marginBottom: 16, fontFamily: "'Outfit'" }}>← Back</button>
+        {onBack && (
+          <button
+            onClick={onBack}
+            style={{
+              background: "transparent",
+              border: "none",
+              color: C.textSecondary,
+              fontSize: 13,
+              cursor: "pointer",
+              marginBottom: 16,
+              fontFamily: "'Outfit'",
+            }}
+          >← {t.back}</button>
+        )}
         <div style={{ background: C.bg, borderRadius: 14, border: `1px solid ${C.border}`, padding: 28 }}>
-          <h2 style={{ fontFamily: "'Outfit'", fontSize: 22, fontWeight: 700, marginBottom: 4 }}>{mode === "signup" ? "Create your account" : "Welcome back"}</h2>
-          <p style={{ fontSize: 13, color: C.textSecondary, marginBottom: 20, fontFamily: "'Outfit'", display: "flex", alignItems: "center", gap: 6 }}>{mode === "signup" ? <>{role === "teacher" ? <><TeacherInline size={16}/> Teacher account</> : <><StudentInline size={16}/> Student account</>}</> : "Sign in to your account"}</p>
-          {error && <div style={{ padding: "10px 14px", borderRadius: 8, background: C.redSoft, color: C.red, fontSize: 13, marginBottom: 14, fontFamily: "'Outfit'" }}>{error}</div>}
-          <button onClick={handleGoogle} style={{ ...btnS, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 16, fontSize: 14 }}>
-            <svg width="18" height="18" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
-            Continue with Google
-          </button>
-          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}><div style={{ flex: 1, height: 1, background: C.border }}/><span style={{ fontSize: 12, color: C.textMuted }}>or</span><div style={{ flex: 1, height: 1, background: C.border }}/></div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            {mode === "signup" && <div><label style={{ display: "block", fontSize: 13, fontWeight: 500, color: C.textSecondary, marginBottom: 5, fontFamily: "'Outfit'" }}>Full name</label><input value={name} onChange={e => setName(e.target.value)} placeholder="Your name" style={inp}/></div>}
-            <div><label style={{ display: "block", fontSize: 13, fontWeight: 500, color: C.textSecondary, marginBottom: 5, fontFamily: "'Outfit'" }}>Email</label><input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@school.edu" style={inp}/></div>
-            <div><label style={{ display: "block", fontSize: 13, fontWeight: 500, color: C.textSecondary, marginBottom: 5, fontFamily: "'Outfit'" }}>Password</label><input type="password" value={pass} onChange={e => setPass(e.target.value)} placeholder={mode === "signup" ? "At least 8 characters" : "Your password"} style={inp} onKeyDown={e => e.key === "Enter" && (mode === "signup" ? handleSignup() : handleLogin())}/></div>
+          <div style={{ display: "flex", justifyContent: "center", marginBottom: 14 }}>
+            <LogoMark size={36} />
           </div>
-          <button onClick={mode === "signup" ? handleSignup : handleLogin} disabled={loading} style={{ ...btnP, marginTop: 16 }}>{loading ? "Loading..." : mode === "signup" ? "Create account" : "Sign in"}</button>
+          <h2 style={{
+            fontFamily: "'Outfit'",
+            fontSize: 22,
+            fontWeight: 700,
+            marginBottom: 4,
+            textAlign: "center",
+          }}>{mode === "signup" ? t.titleSignup : t.titleLogin}</h2>
+          <p style={{
+            fontSize: 13,
+            color: C.textSecondary,
+            marginBottom: 20,
+            fontFamily: "'Outfit'",
+            textAlign: "center",
+          }}>{mode === "signup" ? t.subtitleSignup : t.subtitleLogin}</p>
+
+          {error && (
+            <div style={{
+              padding: "10px 14px",
+              borderRadius: 8,
+              background: C.redSoft,
+              color: C.red,
+              fontSize: 13,
+              marginBottom: 14,
+              fontFamily: "'Outfit'",
+            }}>{error}</div>
+          )}
+          {infoMessage && (
+            <div style={{
+              padding: "10px 14px",
+              borderRadius: 8,
+              background: C.accentSoft,
+              color: C.accent,
+              fontSize: 13,
+              marginBottom: 14,
+              fontFamily: "'Outfit'",
+            }}>{infoMessage}</div>
+          )}
+
+          <button
+            onClick={handleGoogle}
+            disabled={loading}
+            style={{ ...btnS, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 16, fontSize: 14 }}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24">
+              <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/>
+              <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+              <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+              <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+            </svg>
+            {t.continueGoogle}
+          </button>
+
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+            <div style={{ flex: 1, height: 1, background: C.border }} />
+            <span style={{ fontSize: 12, color: C.textMuted }}>{t.or}</span>
+            <div style={{ flex: 1, height: 1, background: C.border }} />
+          </div>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            {mode === "signup" && (
+              <div>
+                <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: C.textSecondary, marginBottom: 5, fontFamily: "'Outfit'" }}>{t.fullName}</label>
+                <input value={name} onChange={e => setName(e.target.value)} placeholder={t.fullNamePlaceholder} style={inp} />
+              </div>
+            )}
+            <div>
+              <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: C.textSecondary, marginBottom: 5, fontFamily: "'Outfit'" }}>{t.email}</label>
+              <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@school.edu" style={inp} />
+            </div>
+            <div>
+              <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: C.textSecondary, marginBottom: 5, fontFamily: "'Outfit'" }}>{t.password}</label>
+              <input
+                type="password"
+                value={pass}
+                onChange={e => setPass(e.target.value)}
+                placeholder={mode === "signup" ? t.passwordPlaceholderSignup : t.passwordPlaceholderLogin}
+                style={inp}
+                onKeyDown={e => e.key === "Enter" && (mode === "signup" ? handleSignup() : handleLogin())}
+              />
+            </div>
+          </div>
+
+          <button
+            onClick={mode === "signup" ? handleSignup : handleLogin}
+            disabled={loading}
+            style={{ ...btnP, marginTop: 16 }}
+          >
+            {loading ? t.loading : (mode === "signup" ? t.createAccount : t.signIn)}
+          </button>
+
           <p style={{ textAlign: "center", marginTop: 14, fontSize: 13, color: C.textMuted, fontFamily: "'Outfit'" }}>
-            {mode === "signup" ? <>Already have an account? <span onClick={() => { setMode("login"); setError(""); }} style={{ color: C.accent, cursor: "pointer", fontWeight: 500 }}>Sign in</span></> : <>Don't have an account? <span onClick={() => { setMode("signup"); setError(""); }} style={{ color: C.accent, cursor: "pointer", fontWeight: 500 }}>Sign up</span></>}
+            {mode === "signup" ? (
+              <>
+                {t.alreadyAccount}{" "}
+                <span
+                  onClick={() => { setMode("login"); setError(""); setInfoMessage(""); }}
+                  style={{ color: C.accent, cursor: "pointer", fontWeight: 500 }}
+                >{t.signIn}</span>
+              </>
+            ) : (
+              <>
+                {t.noAccount}{" "}
+                <span
+                  onClick={() => { setMode("signup"); setError(""); setInfoMessage(""); }}
+                  style={{ color: C.accent, cursor: "pointer", fontWeight: 500 }}
+                >{t.signUp}</span>
+              </>
+            )}
           </p>
         </div>
       </div>
     </div>
   );
 }
+
+// i18n para AuthScreen
+const AUTH_I18N = {
+  en: {
+    back: "Back",
+    titleSignup: "Create your account",
+    titleLogin: "Welcome back",
+    subtitleSignup: "Get started in seconds",
+    subtitleLogin: "Sign in to continue",
+    continueGoogle: "Continue with Google",
+    or: "or",
+    fullName: "Full name",
+    fullNamePlaceholder: "Your name",
+    email: "Email",
+    password: "Password",
+    passwordPlaceholderSignup: "At least 8 characters",
+    passwordPlaceholderLogin: "Your password",
+    createAccount: "Create account",
+    signIn: "Sign in",
+    signUp: "Sign up",
+    loading: "Loading…",
+    alreadyAccount: "Already have an account?",
+    noAccount: "Don't have an account?",
+    errorMissing: "Please fill in all fields (password 8+ chars)",
+    errorGeneric: "Something went wrong. Try again.",
+    checkEmail: "Check your email — we sent you a link to confirm your account.",
+  },
+  es: {
+    back: "Atrás",
+    titleSignup: "Creá tu cuenta",
+    titleLogin: "Bienvenido de vuelta",
+    subtitleSignup: "Empezá en segundos",
+    subtitleLogin: "Iniciá sesión para continuar",
+    continueGoogle: "Continuar con Google",
+    or: "o",
+    fullName: "Nombre completo",
+    fullNamePlaceholder: "Tu nombre",
+    email: "Email",
+    password: "Contraseña",
+    passwordPlaceholderSignup: "Al menos 8 caracteres",
+    passwordPlaceholderLogin: "Tu contraseña",
+    createAccount: "Crear cuenta",
+    signIn: "Iniciar sesión",
+    signUp: "Registrarse",
+    loading: "Cargando…",
+    alreadyAccount: "¿Ya tenés cuenta?",
+    noAccount: "¿No tenés cuenta?",
+    errorMissing: "Llená todos los campos (contraseña 8+ caracteres)",
+    errorGeneric: "Algo salió mal. Intentá de nuevo.",
+    checkEmail: "Revisá tu email — te enviamos un link para confirmar tu cuenta.",
+  },
+  ko: {
+    back: "뒤로",
+    titleSignup: "계정 만들기",
+    titleLogin: "다시 오신 것을 환영합니다",
+    subtitleSignup: "몇 초 만에 시작하세요",
+    subtitleLogin: "계속하려면 로그인하세요",
+    continueGoogle: "Google로 계속하기",
+    or: "또는",
+    fullName: "이름",
+    fullNamePlaceholder: "이름을 입력하세요",
+    email: "이메일",
+    password: "비밀번호",
+    passwordPlaceholderSignup: "최소 8자 이상",
+    passwordPlaceholderLogin: "비밀번호 입력",
+    createAccount: "계정 만들기",
+    signIn: "로그인",
+    signUp: "가입",
+    loading: "로딩 중…",
+    alreadyAccount: "이미 계정이 있으신가요?",
+    noAccount: "계정이 없으신가요?",
+    errorMissing: "모든 필드를 입력해 주세요 (비밀번호 8자 이상)",
+    errorGeneric: "문제가 발생했습니다. 다시 시도해 주세요.",
+    checkEmail: "이메일을 확인하세요 — 계정 확인 링크를 보냈습니다.",
+  },
+};
 
 
 // ── 404 screen ──
@@ -285,21 +523,10 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
-  // PR 36: when the OAuth callback brings us back as a duplicate of an
-  // existing account (same email, different auth.users row), we set this
-  // and render a blocking screen with sign-out instructions.
-  const [duplicateEmailError, setDuplicateEmailError] = useState(false);
-  // PR 37: when an OAuth user lands without a profile AND without a
-  // pendingRole in localStorage (i.e. they clicked "Sign in" not "Sign up"
-  // and they're actually new), we don't know what role they want. Force
-  // them to pick one before creating the profile.
-  const [needsRoleSelection, setNeedsRoleSelection] = useState(false);
-  const [pendingProfileCreation, setPendingProfileCreation] = useState(null);
-  // PR 42: when an existing account tries to log in as a different role
-  // (e.g. clicked "I'm a Teacher" but the account is actually a student),
-  // we block and show a screen with two choices: continue as the real
-  // role, or sign out.
-  const [roleMismatchError, setRoleMismatchError] = useState(null); // { actualRole: 'student'|'teacher', triedRole: 'student'|'teacher' }
+  // PR 43: cuando el OAuth callback trae un user que no tiene profile
+  // (cuenta nueva), mostramos RoleOnboarding.jsx que crea el profile
+  // con el rol elegido. Mientras tanto guardamos el user en state.
+  const [pendingRoleSelectionUser, setPendingRoleSelectionUser] = useState(null);
   // `page` mirrors the URL (kept in sync by an effect below). Initialised from
   // the current pathname so the very first render already shows the correct
   // page without a flash. Default to "sessions" when path is "/" — fetchProfile
@@ -414,31 +641,10 @@ export default function App() {
   }, [isPreAppSurface]);
 
   useEffect(() => {
-    // PR 38: rescue pendingRole from the redirect URL. handleGoogle stuffs
-    // `?role=teacher` (or student) into the redirectTo URL because
-    // localStorage doesn't survive the OAuth bounce in some browsers
-    // (Chrome incognito, Safari ITP, embedded browsers). We pick it up
-    // here BEFORE any fetchProfile call and copy it to localStorage so the
-    // existing flow (which reads localStorage in fetchProfile) finds it.
-    // Then we strip the param from the URL so it doesn't sit in the
-    // address bar.
-    try {
-      const urlParams = new URLSearchParams(window.location.search);
-      const roleFromURL = urlParams.get("role");
-      const lsRoleBefore = localStorage.getItem("clasloop_pending_role");
-      console.log("[clasloop auth] pendingRole sources at landing:", {
-        fromURL: roleFromURL,
-        fromLocalStorage: lsRoleBefore,
-        href: window.location.href,
-      });
-      if (roleFromURL === "teacher" || roleFromURL === "student") {
-        localStorage.setItem("clasloop_pending_role", roleFromURL);
-        urlParams.delete("role");
-        const cleanSearch = urlParams.toString();
-        const newURL = window.location.pathname + (cleanSearch ? "?" + cleanSearch : "") + window.location.hash;
-        window.history.replaceState(null, "", newURL);
-      }
-    } catch (_) { /* ignore */ }
+    // PR 43: limpieza defensiva de localStorage residual de los PRs
+    // 36-42. Si por algún motivo quedó "clasloop_pending_role" del
+    // flow viejo, lo borramos. Ya no se usa en ningún lado.
+    try { localStorage.removeItem("clasloop_pending_role"); } catch (_) {}
 
     // Initial session check
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -859,182 +1065,51 @@ export default function App() {
         return;
       }
 
-      // PR 36: defense against duplicate accounts with the same email.
-      // The OAuth flow can produce two distinct auth.users rows with the
-      // same email if the user signs out and back in. Before we trust
-      // this session, ask the DB if there's another user with our email.
-      // If so, this is a duplicate account — sign out and show a blocking
-      // screen telling the user to keep their original account.
+      // PR 43: defensa silenciosa contra accounts duplicadas con mismo
+      // email. Si el RPC email_already_registered detecta otro auth.users
+      // con el mismo email, forzamos signOut. Antes (PR 36) había una
+      // pantalla bloqueante; ahora simplemente se cierra sesión y vuelve
+      // a PublicHome sin explicación — el caso es tan edge que no vale
+      // la pena el screen.
       try {
         const { data: isDuplicate } = await supabase.rpc("email_already_registered");
         if (isDuplicate === true) {
-          setDuplicateEmailError(true);
+          console.warn("[clasloop auth] duplicate email detected → silent signOut");
+          await supabase.auth.signOut();
+          setUser(null);
           setProfile(null);
           setLoading(false);
           return;
         }
       } catch (e) {
-        // If the RPC doesn't exist or fails, don't block login. Log and
-        // continue — better to over-permit than to lock everyone out.
+        // RPC no existe o falló → no bloqueamos. Mejor permitir entrada
+        // que bloquear a todos por un check defensivo.
         console.warn("[clasloop] email_already_registered check skipped:", e?.message);
       }
 
       let { data, error } = await supabase.from("profiles").select("*").eq("id", id).single();
 
-      // Defensive: if the DB trigger didn't create a profile row (can happen
-      // with OAuth in some configurations), create one now using whatever we
-      // know — the auth user's metadata + the pending role from localStorage.
-      // PR 36: This is the ONLY moment pendingRole is consumed — at FIRST
-      // profile creation. Pre-existing profiles never have their role flipped
-      // by a localStorage value (that bug let users toggle roles by logging
-      // out, clicking the other role button, and logging back in).
-      // PR 37: If pendingRole is NOT set (user clicked "Sign in" rather than
-      // "Sign up"), we DON'T silently pick a default. Instead, force a role
-      // selection screen and stop here — the user picks, then this fn is
-      // re-run from completeProfileCreation().
+      // PR 43: Profile no existe → RoleOnboarding. Sin trigger SQL ahora
+      // (drop en pr43_drop_auto_profile_trigger.sql), esto pasa siempre
+      // que es un user nuevo. El RoleOnboarding componente crea el
+      // profile con el rol elegido por el user.
       if (error && error.code === "PGRST116") {
-        const { data: authData } = await supabase.auth.getUser();
-        const authUser = authData?.user;
-        let pendingRole = null;
-        try { pendingRole = localStorage.getItem("clasloop_pending_role"); } catch (_) {}
-
-        console.log("[clasloop auth] creating fresh profile:", {
-          pendingRole,
-          authUserEmail: authUser?.email,
-        });
-
-        if (pendingRole !== "teacher" && pendingRole !== "student") {
-          // No valid pendingRole — user clicked "Sign in" without choosing
-          // a role. Force them to pick one. Save the auth context so we can
-          // resume after they choose.
-          const fullName = authUser?.user_metadata?.full_name
-            || authUser?.user_metadata?.name
-            || (authUser?.email ? authUser.email.split("@")[0] : "User");
-          setPendingProfileCreation({ id, fullName });
-          setNeedsRoleSelection(true);
-          setLoading(false);
-          return;
-        }
-
-        const fullName = authUser?.user_metadata?.full_name
-          || authUser?.user_metadata?.name
-          || (authUser?.email ? authUser.email.split("@")[0] : "User");
-        const insert = await supabase.from("profiles").insert({
-          id, full_name: fullName, role: pendingRole,
-        }).select().single();
-        data = insert.data;
-        error = insert.error;
-        // Clear the pending role NOW — it served its purpose
-        try { localStorage.removeItem("clasloop_pending_role"); } catch (_) {}
-      } else {
-        // Profile already existed. There are TWO sub-cases:
-        //
-        // (A) The DB trigger `handle_new_user` just created it during this
-        //     auth session — this is the user's VERY FIRST sign-in. The
-        //     trigger picked a default role; the user's actual choice is
-        //     in pendingRole. We should apply it.
-        //
-        // (B) The profile is an established account. The user has signed
-        //     in before. pendingRole is stale and must be ignored —
-        //     otherwise rapid signout/signin cycles would let the user
-        //     toggle their role at will.
-        //
-        // PR 40: Previously distinguished by created_at < 30s, but that
-        // false-positived during quick signout/signin testing — Jota
-        // could flip roles by signing out and back in within seconds.
-        //
-        // Better check: look at auth.users metadata. Supabase tracks
-        // `last_sign_in_at` per session. On the very first sign-in,
-        // last_sign_in_at is close to created_at. By the second sign-in
-        // it has advanced. We compute the gap between created_at and
-        // last_sign_in_at: small gap = first session, big gap = repeat.
-        //
-        // We use 60 seconds as the threshold: the auth.users row is
-        // created within milliseconds of last_sign_in_at on the first
-        // sign-in (both come from the same OAuth callback), so any gap
-        // larger than that means we're past it.
-        let pendingRole = null;
-        try { pendingRole = localStorage.getItem("clasloop_pending_role"); } catch (_) {}
-
-        const { data: authData } = await supabase.auth.getUser();
-        const authUser = authData?.user;
-        const authCreatedAt = authUser?.created_at ? new Date(authUser.created_at).getTime() : 0;
-        const lastSignInAt = authUser?.last_sign_in_at ? new Date(authUser.last_sign_in_at).getTime() : 0;
-        // PR 40: threshold 10 segundos. La diferencia entre auth.users
-        // created_at y last_sign_in_at en la PRIMERA sesión es de
-        // milisegundos (ambos timestamps vienen del mismo OAuth callback).
-        // En sesiones subsiguientes el gap es siempre > 10s porque
-        // requiere al menos un signout/signin manual. 10s es el sweet
-        // spot: lo suficientemente alto para tolerar clock skew y
-        // latencia del trigger, lo suficientemente bajo para que ningún
-        // user humano pueda hacer signout+signin dentro del threshold.
-        const isFirstSession = (lastSignInAt - authCreatedAt) < 10000;
-
-        console.log("[clasloop auth] profile lookup result:", {
-          isFirstSession,
-          authCreatedAt: authUser?.created_at,
-          lastSignInAt: authUser?.last_sign_in_at,
-          gapMs: lastSignInAt - authCreatedAt,
-          currentRole: data?.role,
-          pendingRole,
-        });
-
-        if (
-          isFirstSession
-          && (pendingRole === "teacher" || pendingRole === "student")
-          && data?.role !== pendingRole
-        ) {
-          // Case (A): user's very first session. Trigger picked a default;
-          // we apply what the user actually chose at the auth screen.
-          const { data: updated, error: updErr } = await supabase
-            .from("profiles")
-            .update({ role: pendingRole })
-            .eq("id", id)
-            .select()
-            .single();
-          if (!updErr && updated) {
-            data = updated;
-            console.log("[clasloop auth] applied pendingRole to first-session profile:", pendingRole);
-          } else if (updErr) {
-            console.error("[clasloop auth] failed to update first-session profile role:", updErr);
-          }
-        } else if (
-          !isFirstSession
-          && (pendingRole === "teacher" || pendingRole === "student")
-          && data?.role !== pendingRole
-        ) {
-          // PR 42: Existing account, but user clicked the OTHER role at
-          // the auth screen (e.g. clicked "I'm a Teacher" but the account
-          // is a student). Don't silently log them in as the existing role
-          // — that's confusing UX. Block with a screen explaining and ask
-          // them to choose.
-          console.log("[clasloop auth] role mismatch detected:", {
-            actualRole: data.role,
-            triedRole: pendingRole,
-          });
-          setRoleMismatchError({
-            actualRole: data.role,
-            triedRole: pendingRole,
-          });
-          // We DON'T setProfile here — let the mismatch screen handle the
-          // decision. Clean up pendingRole regardless.
-          try { localStorage.removeItem("clasloop_pending_role"); } catch (_) {}
-          setLoading(false);
-          return;
-        }
-
-        // Clean up pendingRole regardless of which branch we took. This
-        // is critical for case (B): if we don't clean up, the stale role
-        // sits in localStorage until the next signInWithOAuth call
-        // overwrites it.
-        try { localStorage.removeItem("clasloop_pending_role"); } catch (_) {}
+        console.log("[clasloop auth] profile not found → showing RoleOnboarding");
+        setPendingRoleSelectionUser(probeUser.user);
+        setLoading(false);
+        return;
       }
 
-      if (!error && data) {
-        const finalProfile = data;
+      if (error) {
+        // Error inesperado en el SELECT — log y fail silencioso.
+        console.error("[clasloop auth] profile fetch error:", error);
+        setLoading(false);
+        return;
+      }
 
-        setProfile(finalProfile);
-        setLang(finalProfile.language || "en");
+      if (data) {
+        setProfile(data);
+        setLang(data.language || "en");
 
         // Only set the default page on the first profile load. Re-fetches
         // (e.g. token refresh on tab return) shouldn't yank the user back to
@@ -1047,12 +1122,8 @@ export default function App() {
         // `page` state in sync.
         if (isInitial && location.pathname === "/") {
           if (viewingTeacherId) {
-            // Defensive: viewingTeacherId is derived from the URL, so this
-            // branch only fires if pathname is "/teacher/:id" — which the
-            // outer `=== "/"` guard rules out. Kept for completeness in case
-            // the matching logic changes later.
             navigate(buildRoute.teacher(viewingTeacherId), { replace: true });
-          } else if (finalProfile.role === "student") {
+          } else if (data.role === "student") {
             navigate(defaultRouteForRole("student"), { replace: true });
           } else {
             navigate(defaultRouteForRole("teacher"), { replace: true });
@@ -1066,27 +1137,20 @@ export default function App() {
     }
   };
 
-  // PR 37: called by the forced role-picker screen when the user chooses
-  // teacher or student. Creates the profile with the chosen role and then
-  // re-runs fetchProfile so the normal flow continues (set state, redirect).
-  const completeProfileCreation = async (chosenRole) => {
-    if (!pendingProfileCreation) return;
-    const { id, fullName } = pendingProfileCreation;
-    try {
-      const insert = await supabase.from("profiles").insert({
-        id, full_name: fullName, role: chosenRole,
-      }).select().single();
-      if (insert.error) {
-        console.error("[clasloop] profile creation failed:", insert.error);
-        return;
+  // PR 43: callback que RoleOnboarding llama cuando el user elige su rol
+  // y el insert del profile fue exitoso. Levantamos el profile a state y
+  // cerramos la pantalla de onboarding.
+  const handleRoleOnboardingCreated = (newProfile) => {
+    setPendingRoleSelectionUser(null);
+    setProfile(newProfile);
+    setLang(newProfile.language || "en");
+    // Navegar a la home del rol elegido
+    if (location.pathname === "/") {
+      if (newProfile.role === "student") {
+        navigate(defaultRouteForRole("student"), { replace: true });
+      } else {
+        navigate(defaultRouteForRole("teacher"), { replace: true });
       }
-      setNeedsRoleSelection(false);
-      setPendingProfileCreation(null);
-      // Re-run fetchProfile to apply normal post-load logic (setProfile,
-      // setLang, navigate to default route).
-      await fetchProfile(id, true);
-    } catch (err) {
-      console.error("[clasloop] completeProfileCreation error:", err);
     }
   };
 
@@ -1108,282 +1172,32 @@ export default function App() {
       return (
         <AuthScreen
           initialMode={authIntent.mode}
-          initialRole={authIntent.role || "teacher"}
           onBack={() => setAuthIntent(null)}
+          lang={lang}
         />
       );
     }
     return (
       <PublicHome
         onSignIn={() => setAuthIntent({ mode: "login" })}
-        onSignUp={(role) => setAuthIntent({ mode: "signup", role })}
+        onSignUp={() => setAuthIntent({ mode: "signup" })}
       />
     );
   }
 
-  // PR 36: blocking screen when the current session is a duplicate of an
-  // existing account (same email, different auth.users row). One email =
-  // one role. The user must sign out, and re-enter with the original
-  // account or contact support.
-  if (duplicateEmailError) {
-    const i18nDup = {
-      en: {
-        title: "Account already exists",
-        body: "There's already a Clasloop account using this email. One email can only be used for one role — either teacher or student, not both. Please sign in with your original account.",
-        signOut: "Sign out",
-      },
-      es: {
-        title: "Esta cuenta ya existe",
-        body: "Ya hay una cuenta de Clasloop con este email. Un email solo puede tener un rol — profesor o estudiante, no ambos. Iniciá sesión con tu cuenta original.",
-        signOut: "Cerrar sesión",
-      },
-      ko: {
-        title: "이미 존재하는 계정",
-        body: "이 이메일을 사용하는 Clasloop 계정이 이미 있습니다. 하나의 이메일은 교사 또는 학생 중 하나의 역할만 사용할 수 있습니다.",
-        signOut: "로그아웃",
-      },
-    };
-    const td = i18nDup[lang] || i18nDup.en;
-    return (
-      <div style={{
-        minHeight: "100vh",
-        background: C.bgSoft,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: 24,
-      }}>
-        <div style={{ maxWidth: 460, width: "100%", textAlign: "center" }}>
-          <div style={{ display: "flex", justifyContent: "center", marginBottom: 18 }}>
-            <LogoMark size={48} />
-          </div>
-          <h1 style={{
-            fontFamily: "'Outfit', sans-serif",
-            fontSize: 24, fontWeight: 700,
-            color: C.text,
-            marginBottom: 12,
-          }}>{td.title}</h1>
-          <p style={{
-            color: C.textSecondary,
-            fontSize: 15,
-            lineHeight: 1.5,
-            marginBottom: 28,
-          }}>{td.body}</p>
-          <button
-            onClick={async () => {
-              await supabase.auth.signOut();
-              setDuplicateEmailError(false);
-              setUser(null);
-              setProfile(null);
-            }}
-            style={{
-              padding: "12px 24px",
-              borderRadius: 9,
-              fontSize: 15,
-              fontWeight: 600,
-              background: `linear-gradient(135deg, ${C.accent}, ${C.purple})`,
-              color: "#fff",
-              border: "none",
-              cursor: "pointer",
-              fontFamily: "'Outfit', sans-serif",
-            }}
-          >{td.signOut}</button>
-        </div>
-      </div>
-    );
-  }
 
-  // PR 42: role-mismatch screen. Existing account tried to sign in with
-  // the OTHER role. Block with a message + two choices: continue as the
-  // real role, or sign out.
-  if (roleMismatchError) {
-    const roleNames = {
-      en: { teacher: "Teacher", student: "Student" },
-      es: { teacher: "Profesor", student: "Estudiante" },
-      ko: { teacher: "교사", student: "학생" },
-    };
-    const i18nRM = {
-      en: {
-        title: "Account exists with a different role",
-        body: (actual, tried) => `This Google account is already registered as a ${actual}. You can't sign in as a ${tried} with the same email — one account per role.`,
-        continueBtn: (actual) => `Continue as ${actual}`,
-        signOut: "Sign out",
-      },
-      es: {
-        title: "Esta cuenta tiene otro rol",
-        body: (actual, tried) => `Esta cuenta de Google ya está registrada como ${actual}. No podés iniciar sesión como ${tried} con el mismo email — un rol por cuenta.`,
-        continueBtn: (actual) => `Continuar como ${actual}`,
-        signOut: "Cerrar sesión",
-      },
-      ko: {
-        title: "다른 역할로 등록된 계정",
-        body: (actual, tried) => `이 Google 계정은 이미 ${actual}로 등록되어 있습니다. 같은 이메일로 ${tried}으로 로그인할 수 없습니다.`,
-        continueBtn: (actual) => `${actual}로 계속하기`,
-        signOut: "로그아웃",
-      },
-    };
-    const trm = i18nRM[lang] || i18nRM.en;
-    const rn = roleNames[lang] || roleNames.en;
-    const actualName = rn[roleMismatchError.actualRole];
-    const triedName = rn[roleMismatchError.triedRole];
+  // PR 43: RoleOnboarding — pantalla obligatoria post-primer-signin que
+  // pregunta "¿sos profesor o estudiante?". Aparece cuando:
+  //   - El user está autenticado (user existe)
+  //   - Pero no tiene profile en la DB todavía (cuenta recién creada)
+  // El componente crea el profile con el rol elegido vía supabase.from('profiles').insert.
+  if (pendingRoleSelectionUser) {
     return (
-      <div style={{
-        minHeight: "100vh",
-        background: C.bgSoft,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: 24,
-      }}>
-        <div style={{ maxWidth: 460, width: "100%", textAlign: "center" }}>
-          <div style={{ display: "flex", justifyContent: "center", marginBottom: 18 }}>
-            <LogoMark size={48} />
-          </div>
-          <h1 style={{
-            fontFamily: "'Outfit', sans-serif",
-            fontSize: 24, fontWeight: 700,
-            color: C.text,
-            marginBottom: 12,
-          }}>{trm.title}</h1>
-          <p style={{
-            color: C.textSecondary,
-            fontSize: 15,
-            lineHeight: 1.5,
-            marginBottom: 24,
-          }}>{trm.body(actualName, triedName)}</p>
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            <button
-              onClick={() => {
-                // User confirms: continue with the existing role.
-                // Re-fetch profile to load it properly.
-                setRoleMismatchError(null);
-                if (user?.id) {
-                  fetchProfile(user.id, true);
-                }
-              }}
-              style={{
-                padding: "12px 24px",
-                borderRadius: 9,
-                fontSize: 15,
-                fontWeight: 600,
-                background: `linear-gradient(135deg, ${C.accent}, ${C.purple})`,
-                color: "#fff",
-                border: "none",
-                cursor: "pointer",
-                fontFamily: "'Outfit', sans-serif",
-              }}
-            >{trm.continueBtn(actualName)}</button>
-            <button
-              onClick={async () => {
-                await supabase.auth.signOut();
-                setRoleMismatchError(null);
-                setUser(null);
-                setProfile(null);
-              }}
-              style={{
-                padding: "12px 24px",
-                borderRadius: 9,
-                fontSize: 15,
-                fontWeight: 600,
-                background: C.bg,
-                color: C.text,
-                border: `1px solid ${C.border}`,
-                cursor: "pointer",
-                fontFamily: "'Outfit', sans-serif",
-              }}
-            >{trm.signOut}</button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // PR 37: forced role selection screen. Appears when an OAuth user lands
-  // without a profile AND without a pendingRole in localStorage (e.g. they
-  // clicked "Sign in" and are actually a new user). We don't know if
-  // they're a teacher or a student; ask explicitly before creating the
-  // profile.
-  if (needsRoleSelection) {
-    const i18nRP = {
-      en: {
-        title: "One more thing",
-        subtitle: "Are you a teacher or a student?",
-        teacher: "I'm a Teacher",
-        student: "I'm a Student",
-      },
-      es: {
-        title: "Una cosa más",
-        subtitle: "¿Sos profesor o estudiante?",
-        teacher: "Soy Profesor",
-        student: "Soy Estudiante",
-      },
-      ko: {
-        title: "한 가지 더",
-        subtitle: "교사이신가요, 학생이신가요?",
-        teacher: "교사입니다",
-        student: "학생입니다",
-      },
-    };
-    const trp = i18nRP[lang] || i18nRP.en;
-    const btnBase = {
-      width: "100%",
-      padding: "14px 18px",
-      borderRadius: 10,
-      fontSize: 15,
-      fontWeight: 600,
-      cursor: "pointer",
-      fontFamily: "'Outfit', sans-serif",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      gap: 10,
-    };
-    return (
-      <div style={{
-        minHeight: "100vh",
-        background: C.bgSoft,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: 24,
-      }}>
-        <div style={{ maxWidth: 420, width: "100%", textAlign: "center" }}>
-          <div style={{ display: "flex", justifyContent: "center", marginBottom: 18 }}>
-            <LogoMark size={48} />
-          </div>
-          <h1 style={{
-            fontFamily: "'Outfit', sans-serif",
-            fontSize: 24, fontWeight: 700,
-            color: C.text,
-            marginBottom: 8,
-          }}>{trp.title}</h1>
-          <p style={{
-            color: C.textSecondary,
-            fontSize: 15,
-            marginBottom: 28,
-          }}>{trp.subtitle}</p>
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            <button
-              onClick={() => completeProfileCreation("teacher")}
-              style={{
-                ...btnBase,
-                background: `linear-gradient(135deg, ${C.accent}, ${C.purple})`,
-                color: "#fff",
-                border: "none",
-              }}
-            ><TeacherInline size={20} /> {trp.teacher}</button>
-            <button
-              onClick={() => completeProfileCreation("student")}
-              style={{
-                ...btnBase,
-                background: C.bg,
-                color: C.text,
-                border: `1px solid ${C.border}`,
-              }}
-            ><StudentInline size={20} /> {trp.student}</button>
-          </div>
-        </div>
-      </div>
+      <RoleOnboarding
+        user={pendingRoleSelectionUser}
+        lang={lang}
+        onCreated={handleRoleOnboardingCreated}
+      />
     );
   }
 

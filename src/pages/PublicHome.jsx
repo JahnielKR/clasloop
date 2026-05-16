@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { LogoMark, CIcon, TeacherInline, StudentInline } from "../components/Icons";
+import { LogoMark, CIcon } from "../components/Icons";
 import { C, MONO } from "../components/tokens";
 
 // ─── i18n ──────────────────────────────────────────────────
@@ -446,8 +446,9 @@ export default function PublicHome({ onSignIn, onSignUp }) {
     // localStorage reconnect logic untouched.
     window.location.href = `/join?code=${code}&lang=${lang}`;
   };
-  const handleTeacher = () => onSignUp?.("teacher");
-  const handleStudent = () => onSignUp?.("student");
+  // PR 43: sin role pre-selection. Cualquier signup/signin va directo al
+  // AuthScreen. El rol se elige en RoleOnboarding después del primer login.
+  const handleSignUp = () => onSignUp?.();
   const handleLogin = () => onSignIn?.();
 
   // Helper para float class por id
@@ -503,7 +504,7 @@ export default function PublicHome({ onSignIn, onSignUp }) {
             >{t.signIn}</button>
             <button
               className="ph-btn-primary"
-              onClick={() => setMode("auth-select")}
+              onClick={() => handleSignUp()}
               style={{
                 fontSize: 16, padding: "10px 18px",
                 background: C.accent, color: "#fff",
@@ -612,7 +613,7 @@ export default function PublicHome({ onSignIn, onSignUp }) {
 
             <button
               className="ph-cta-primary ph-btn-primary"
-              onClick={() => setMode("auth-select")}
+              onClick={() => handleSignUp()}
               style={{
                 background: C.accent, color: "#fff",
                 padding: "20px 44px", borderRadius: 12,
@@ -780,7 +781,7 @@ export default function PublicHome({ onSignIn, onSignUp }) {
           }}>{t.finalSub}</p>
           <button
             className="ph-cta-primary ph-btn-primary"
-            onClick={() => setMode("auth-select")}
+            onClick={() => handleSignUp()}
             style={{
               background: C.accent, color: "#fff",
               padding: "20px 48px", borderRadius: 12,
@@ -889,70 +890,8 @@ export default function PublicHome({ onSignIn, onSignUp }) {
           </div>
         )}
 
-        {/* DIALOG — auth-select (role picker) */}
-        {mode === "auth-select" && (
-          <div className="ph-dialog-bg" onClick={() => setMode("home")}>
-            <div className="ph-dialog" onClick={(e) => e.stopPropagation()}>
-              <button
-                onClick={() => setMode("home")}
-                style={{
-                  background: "transparent", border: "none",
-                  color: C.textSecondary, fontSize: 13,
-                  cursor: "pointer", marginBottom: 12,
-                  fontFamily: "'Outfit',sans-serif", padding: 0,
-                }}
-              >{t.back}</button>
-              <h3 style={{
-                fontSize: 20, fontWeight: 700, color: C.text,
-                margin: "0 0 18px",
-              }}>{t.signUp}</h3>
-              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                <button
-                  onClick={handleTeacher}
-                  className="ph-cta-secondary"
-                  style={{
-                    padding: "14px 16px", borderRadius: 12,
-                    fontSize: 15, fontWeight: 600,
-                    background: C.bg, color: C.text,
-                    border: `1.5px solid ${C.border}`, cursor: "pointer",
-                    fontFamily: "'Outfit',sans-serif",
-                    display: "flex", alignItems: "center", gap: 10,
-                    textAlign: "left",
-                  }}
-                >
-                  <TeacherInline size={22} />
-                  {t.teacherSignup}
-                </button>
-                <button
-                  onClick={handleStudent}
-                  className="ph-cta-secondary"
-                  style={{
-                    padding: "14px 16px", borderRadius: 12,
-                    fontSize: 15, fontWeight: 600,
-                    background: C.bg, color: C.text,
-                    border: `1.5px solid ${C.border}`, cursor: "pointer",
-                    fontFamily: "'Outfit',sans-serif",
-                    display: "flex", alignItems: "center", gap: 10,
-                    textAlign: "left",
-                  }}
-                >
-                  <StudentInline size={22} />
-                  {t.studentSignup}
-                </button>
-              </div>
-              <p style={{
-                textAlign: "center", marginTop: 20, marginBottom: 0,
-                fontSize: 13, color: C.textMuted,
-              }}>
-                {t.haveAccount}{" "}
-                <span
-                  onClick={handleLogin}
-                  style={{ color: C.accent, cursor: "pointer", fontWeight: 600 }}
-                >{t.signIn}</span>
-              </p>
-            </div>
-          </div>
-        )}
+        {/* PR 43: el dialog auth-select fue eliminado en el rediseño OAuth.
+            El rol se elige post-signup en RoleOnboarding.jsx, no acá. */}
 
       </div>
     </>
