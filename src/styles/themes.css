@@ -2352,8 +2352,15 @@
 .stage[data-theme="ocean"] .stage-next-btn .stage-next-text-fill {
   color: #1F1733;
 }
+/* Pop: botón vacío es blanco con borde negro; barra de fill es morado.
+ * Base negra (lee sobre blanco), overlay amarillo (lee sobre morado y
+ * conserva la energía pop del tema). PR 44.2 corrige el original que
+ * tenía amarillo sobre blanco = invisible. */
+.stage[data-theme="pop"] .stage-next-btn.is-auto-advancing {
+  color: #1F1733;
+}
 .stage[data-theme="pop"] .stage-next-btn .stage-next-text-fill {
-  color: #FFFFFF;
+  color: #FFD93D;
 }
 /* Mono: base blanca (sobre botón oscuro), overlay negra (sobre fill
  * blanca) — invertido del PR 28.12.2 original (que era negro sobre negro). */
