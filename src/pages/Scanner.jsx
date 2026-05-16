@@ -122,9 +122,9 @@ export default function Scanner({ lang = "en", profile, onOpenMobileMenu }) {
       if (!profile?.id) return;
       const { data, error } = await supabase
         .from("decks")
-        .select("id, title, language, updated_at")
-        .eq("teacher_id", profile.id)
-        .order("updated_at", { ascending: false });
+        .select("id, title, language, created_at")
+        .eq("author_id", profile.id)
+        .order("created_at", { ascending: false });
       if (cancelled) return;
       if (error) {
         console.error("[scanner] decks fetch failed:", error);
