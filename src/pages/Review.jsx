@@ -276,13 +276,20 @@ export default function Review({ profile, lang = "en", onOpenMobileMenu }) {
   // The query: every responses row WHERE needs_review=true AND
   // teacher_grade IS NULL, joined to sessions (for class_id + deck_id),
   // session_participants (for student_name), decks (for title +
-  // questions[]), and classes (for name). RLS filters automatically to
-  // sessions owned by this teacher.
+  // questions[]), and classes (for name).
+  //
+  // PR 33: explicit `session.teacher_id = profile.id` filter added.
+  // Previously this comment said "RLS filters automatically to sessions
+  // owned by this teacher" — that turned out to be FALSE because RLS
+  // on responses + sessions was `using (true)`, leaking cross-tenant
+  // data. RLS has been fixed (see pr33_rls_security_fix.sql) but we
+  // also add the client-side filter as defense in depth.
   //
   // We sort by created_at ascending so the oldest (= waiting longest)
   // bubbles to the top. Cap at 200 — anything more is a usage problem
   // we'd discover before solving here.
   const fetchPending = useCallback(async () => {
+    if (!profile?.id) return;
     setError("");
     setLoading(true);
     try {
@@ -314,6 +321,7 @@ export default function Review({ profile, lang = "en", onOpenMobileMenu }) {
         `)
         .eq("needs_review", true)
         .is("teacher_grade", null)
+        .eq("session.teacher_id", profile.id)
         .order("created_at", { ascending: true })
         .limit(200);
       if (err) {
@@ -367,7 +375,7 @@ export default function Review({ profile, lang = "en", onOpenMobileMenu }) {
     } finally {
       setLoading(false);
     }
-  }, [t.fetchError]);
+  }, [t.fetchError, profile?.id]);
 
   useEffect(() => {
     fetchPending();
