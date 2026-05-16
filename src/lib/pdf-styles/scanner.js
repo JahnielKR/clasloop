@@ -46,6 +46,9 @@ const PAGE = {
   marginY: 12,
 };
 
+// PR 49: exportado para el CV (sabe la proporción target del warp).
+export const PAGE_DIMS = { width: PAGE.width, height: PAGE.height };
+
 // ─── Marcas fiduciales ──────────────────────────────────────────────────
 const FIDUCIAL_CORNER = 7;
 const FIDUCIAL_CORNER_INSET = 6;
@@ -71,7 +74,10 @@ const QR_SIZE = 22;
 const QR_OFFSET_FROM_RULE = 5;
 
 // ─── Templates: layout params por cada uno ──────────────────────────────
-const TEMPLATES = {
+// PR 49: exportados para que el CV pipeline del scanner cam pueda
+// replicar las coordenadas exactas de las burbujas y saber dónde
+// samplear en la imagen "ideal" (después del 4-point warp).
+export const TEMPLATES = {
   T10: {
     capacity: 10,
     cols: 1,
@@ -141,7 +147,7 @@ const TEMPLATES = {
   },
 };
 
-function pickTemplate(scannableCount) {
+export function pickTemplate(scannableCount) {
   if (scannableCount <= 10) return TEMPLATES.T10;
   if (scannableCount <= 20) return TEMPLATES.T20;
   if (scannableCount <= 30) return TEMPLATES.T30;

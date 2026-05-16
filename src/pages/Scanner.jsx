@@ -26,6 +26,7 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { C } from "../components/tokens";
+import { processScanFrame, loadOpenCV } from "../lib/scanner-cv";
 
 // ─── i18n ───────────────────────────────────────────────────────────────────
 const I18N = {
@@ -52,6 +53,14 @@ const I18N = {
     resultDetail: "Detail",
     nextSheetBtn: "Next sheet",
     finishBtn: "Finish",
+    retryBtn: "Try again",
+    errTitle: "Couldn't read this sheet",
+    errNoFiducials: "I couldn't find the four corner marks of the answer sheet. Make sure the whole sheet is visible, well-lit, and flat.",
+    errQrNotFound: "I couldn't read the QR code at the bottom. Make sure the sheet isn't cropped.",
+    errWrongDeck: "This sheet belongs to a different deck. Pick the right deck and try again.",
+    errOpenCvFailed: "Scanner failed to load. Check your internet connection and try again.",
+    errNoQuestions: "This deck has no MCQ or T/F questions to scan.",
+    errUnexpected: "Something went wrong. Try capturing the sheet again.",
     summary: (n) => `You scanned ${n} ${n === 1 ? "sheet" : "sheets"}.`,
     backToStart: "Back to start",
   },
@@ -78,6 +87,14 @@ const I18N = {
     resultDetail: "Detalle",
     nextSheetBtn: "Siguiente hoja",
     finishBtn: "Terminar",
+    retryBtn: "Intentar de nuevo",
+    errTitle: "No pude leer esta hoja",
+    errNoFiducials: "No encontré las cuatro marcas de las esquinas. Asegurate de que toda la hoja esté visible, bien iluminada y plana.",
+    errQrNotFound: "No pude leer el QR de abajo. Asegurate de que la hoja no esté cortada.",
+    errWrongDeck: "Esta hoja pertenece a otro deck. Elegí el deck correcto y probá de nuevo.",
+    errOpenCvFailed: "El escáner no pudo cargar. Revisá la conexión a internet y probá de nuevo.",
+    errNoQuestions: "Este deck no tiene preguntas MCQ ni V/F para escanear.",
+    errUnexpected: "Algo falló. Probá capturando la hoja de nuevo.",
     summary: (n) => `Escaneaste ${n} ${n === 1 ? "hoja" : "hojas"}.`,
     backToStart: "Volver al inicio",
   },
@@ -104,6 +121,14 @@ const I18N = {
     resultDetail: "상세",
     nextSheetBtn: "다음 답안지",
     finishBtn: "완료",
+    retryBtn: "다시 시도",
+    errTitle: "답안지를 읽을 수 없습니다",
+    errNoFiducials: "답안지의 네 모서리 표시를 찾을 수 없습니다. 종이 전체가 보이고 조명이 충분하며 평평한지 확인하세요.",
+    errQrNotFound: "하단의 QR 코드를 읽을 수 없습니다. 종이가 잘리지 않았는지 확인하세요.",
+    errWrongDeck: "이 답안지는 다른 덱에 속합니다. 올바른 덱을 선택하고 다시 시도하세요.",
+    errOpenCvFailed: "스캐너 로딩 실패. 인터넷 연결을 확인하고 다시 시도하세요.",
+    errNoQuestions: "이 덱에는 스캔할 MCQ나 T/F 문제가 없습니다.",
+    errUnexpected: "오류가 발생했습니다. 답안지를 다시 캡처해보세요.",
     summary: (n) => `${n}장의 답안지를 스캔했습니다.`,
     backToStart: "처음으로",
   },
@@ -177,6 +202,14 @@ export default function Scanner({ lang = "en", profile, onOpenMobileMenu }) {
     if (stage !== "capture") return;
     let cancelled = false;
 
+    // Lazy warmup de OpenCV — disparamos la carga apenas el profe entra
+    // a la pantalla de captura, así para cuando aprieta "Capturar" ya
+    // está listo. La promesa es safe de llamar múltiples veces
+    // (loadOpenCV cachea internamente).
+    loadOpenCV().catch(err => {
+      console.warn("[scanner] OpenCV warmup failed:", err);
+    });
+
     (async () => {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
@@ -216,7 +249,10 @@ export default function Scanner({ lang = "en", profile, onOpenMobileMenu }) {
     };
   }, [stage, t]);
 
-  const handleCapture = () => {
+  // Error from CV pipeline (shown to user in process/result stage).
+  const [processError, setProcessError] = useState(null);
+
+  const handleCapture = async () => {
     if (!videoRef.current || !streamRef.current) return;
     // Snapshot the current frame to a canvas
     const video = videoRef.current;
@@ -231,26 +267,32 @@ export default function Scanner({ lang = "en", profile, onOpenMobileMenu }) {
     streamRef.current = null;
 
     setStage("process");
+    setProcessError(null);
 
-    // TEMP (will be replaced by real CV pipeline):
-    // Wait a beat then show a fake result so we can validate the UI flow
-    // before wiring OpenCV.
-    setTimeout(() => {
-      const fakeResult = {
-        score: 12,
-        total: 15,
-        answers: [
-          { qNum: 1, marked: "A", correct: "A", isRight: true },
-          { qNum: 2, marked: "B", correct: "B", isRight: true },
-          { qNum: 3, marked: "C", correct: "A", isRight: false },
-          { qNum: 4, marked: "D", correct: "D", isRight: true },
-          { qNum: 5, marked: null, correct: "B", isRight: false },
-        ],
-      };
-      setCurrentResult(fakeResult);
-      setResults(prev => [...prev, fakeResult]);
+    try {
+      const result = await processScanFrame(canvas, selectedDeck);
+
+      if (!result.ok) {
+        // CV failed: show the error to the user, let them retry
+        setProcessError({
+          code: result.code,
+          message: result.message,
+        });
+        setStage("processError");
+        return;
+      }
+
+      setCurrentResult(result);
+      setResults(prev => [...prev, result]);
       setStage("result");
-    }, 1200);
+    } catch (err) {
+      console.error("[scanner] CV pipeline threw:", err);
+      setProcessError({
+        code: "unexpected",
+        message: err?.message || "Unexpected error",
+      });
+      setStage("processError");
+    }
   };
 
   // ─── Stage: result ────────────────────────────────────────────────────────
@@ -318,6 +360,18 @@ export default function Scanner({ lang = "en", profile, onOpenMobileMenu }) {
 
       {stage === "process" && (
         <ProcessStage t={t} />
+      )}
+
+      {stage === "processError" && processError && (
+        <ProcessErrorStage
+          t={t}
+          error={processError}
+          onRetry={() => {
+            setProcessError(null);
+            setStage("capture");
+          }}
+          onCancel={handleBackToStart}
+        />
       )}
 
       {stage === "result" && currentResult && (
@@ -528,6 +582,47 @@ function ProcessStage({ t }) {
       }} />
       <p style={{ color: C.textSecondary, fontSize: 14, margin: 0 }}>{t.processing}</p>
       <style>{`@keyframes cl-scanner-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
+    </div>
+  );
+}
+
+function ProcessErrorStage({ t, error, onRetry, onCancel }) {
+  // Map error codes to user-friendly messages
+  const msgByCode = {
+    no_fiducials: t.errNoFiducials,
+    qr_not_found: t.errQrNotFound,
+    wrong_deck: t.errWrongDeck,
+    opencv_failed: t.errOpenCvFailed,
+    no_questions: t.errNoQuestions,
+    unexpected: t.errUnexpected,
+  };
+  const userMsg = msgByCode[error.code] || t.errUnexpected;
+
+  return (
+    <div style={{
+      maxWidth: 540, margin: "0 auto",
+      padding: 24,
+      background: C.bg, border: `1px solid ${C.border}`, borderRadius: 12,
+      textAlign: "center",
+    }}>
+      <div style={{
+        fontSize: 36, marginBottom: 12,
+      }}>⚠</div>
+      <h2 style={{
+        fontSize: 18, fontWeight: 700, color: C.text, margin: 0, marginBottom: 8,
+      }}>
+        {t.errTitle}
+      </h2>
+      <p style={{
+        fontSize: 14, color: C.textSecondary, margin: 0, marginBottom: 20,
+        lineHeight: 1.5,
+      }}>
+        {userMsg}
+      </p>
+      <div style={{ display: "flex", gap: 12, justifyContent: "center" }}>
+        <button onClick={onCancel} style={btnSecondary}>{t.cancelBtn}</button>
+        <button onClick={onRetry} style={btnPrimary}>{t.retryBtn}</button>
+      </div>
     </div>
   );
 }
