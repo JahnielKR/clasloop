@@ -618,14 +618,15 @@ export default function PDFExportModal({
 
         {/* Body — scrollable */}
         <div style={{ overflowY: "auto", padding: "16px 24px", flex: 1 }}>
-          {/* PR 46: variant selector — 2 botones primarios (exam,
-              exam_with_scan) en una fila + un botón pequeño "AK"
-              (answer_key) debajo a la derecha. */}
+          {/* PR 46.1: variant selector — los 3 botones en una sola fila.
+              Exam y Exam+scan toman el espacio principal (flex: 1 cada
+              uno), AK queda a la derecha con tamaño natural — chiquito
+              pero al mismo nivel. */}
           <div style={{ marginBottom: 18 }}>
             <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: C.textSecondary, marginBottom: 6, textTransform: "uppercase", letterSpacing: 0.4 }}>
               {t.variantLabel}
             </label>
-            <div style={{ display: "flex", gap: 8 }}>
+            <div style={{ display: "flex", gap: 8, alignItems: "stretch" }}>
               {[
                 { id: "exam", label: t.variantExam },
                 { id: "exam_with_scan", label: t.variantExamWithScan },
@@ -635,36 +636,35 @@ export default function PDFExportModal({
                   onClick={() => setVariant(v.id)}
                   style={{
                     flex: 1,
-                    padding: "11px 14px",
+                    padding: "10px 12px",
                     borderRadius: 9,
                     border: `1.5px solid ${variant === v.id ? C.accent : C.border}`,
                     background: variant === v.id ? C.accentSoft : C.bg,
                     color: variant === v.id ? C.accent : C.text,
                     fontWeight: 600,
-                    fontSize: 13.5,
+                    fontSize: 12.5,
                     cursor: "pointer",
                     fontFamily: "inherit",
                     transition: "border-color 0.15s, background 0.15s",
+                    whiteSpace: "nowrap",
                   }}
                 >{v.label}</button>
               ))}
-            </div>
-            {/* Botón AK chiquito al lado derecho */}
-            <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 6 }}>
               <button
                 onClick={() => setVariant("answer_key")}
                 title={t.variantKeyTooltip}
                 style={{
-                  padding: "5px 12px",
-                  borderRadius: 6,
-                  border: `1px solid ${variant === "answer_key" ? C.accent : C.border}`,
-                  background: variant === "answer_key" ? C.accentSoft : "transparent",
+                  padding: "10px 14px",
+                  borderRadius: 9,
+                  border: `1.5px solid ${variant === "answer_key" ? C.accent : C.border}`,
+                  background: variant === "answer_key" ? C.accentSoft : C.bg,
                   color: variant === "answer_key" ? C.accent : C.textMuted,
-                  fontWeight: 500,
-                  fontSize: 11,
+                  fontWeight: 600,
+                  fontSize: 12.5,
                   cursor: "pointer",
                   fontFamily: "inherit",
                   letterSpacing: 0.3,
+                  flexShrink: 0,
                 }}
               >{t.variantKey}</button>
             </div>
