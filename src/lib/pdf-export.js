@@ -29,8 +29,9 @@ import * as classic from "./pdf-styles/classic";
 import * as modern from "./pdf-styles/modern";
 import * as editorial from "./pdf-styles/editorial";
 import * as framed from "./pdf-styles/framed";
+import * as scanner from "./pdf-styles/scanner";
 
-const STYLES = { classic, modern, editorial, framed };
+const STYLES = { classic, modern, editorial, framed, scanner };
 
 // Style preferences for default fonts. Framed uses serif (times) for the
 // academic-paper feel; the others use the dispatcher's chosen font

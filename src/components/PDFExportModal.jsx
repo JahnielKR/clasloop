@@ -45,8 +45,9 @@ import * as classic from "../lib/pdf-styles/classic";
 import * as modern from "../lib/pdf-styles/modern";
 import * as editorial from "../lib/pdf-styles/editorial";
 import * as framed from "../lib/pdf-styles/framed";
+import * as scanner from "../lib/pdf-styles/scanner";
 
-const STYLES = { classic, modern, editorial, framed };
+const STYLES = { classic, modern, editorial, framed, scanner };
 
 // Per-style default font, mirroring pdf-export.js. Framed uses Times.
 const STYLE_FONT_DEFAULTS = {
@@ -75,6 +76,8 @@ const I18N = {
     editorialDesc: "Premium, magazine",
     framedName: "Framed",
     framedDesc: "Formal, bordered",
+    scannerName: "Scanner",
+    scannerDesc: "Bubble sheet, scan with camera",
     paletteLabel: "Color",
     previewLabel: "Preview",
     previewLoading: "Generating preview…",
@@ -98,6 +101,8 @@ const I18N = {
     editorialDesc: "Premium, revista",
     framedName: "Marco",
     framedDesc: "Formal, con borde",
+    scannerName: "Escáner",
+    scannerDesc: "Hoja con burbujas, se escanea con la cámara",
     paletteLabel: "Color",
     previewLabel: "Vista previa",
     previewLoading: "Generando vista previa…",
@@ -121,6 +126,8 @@ const I18N = {
     editorialDesc: "프리미엄 매거진",
     framedName: "프레임",
     framedDesc: "정식, 테두리",
+    scannerName: "스캐너",
+    scannerDesc: "버블 시트, 카메라로 스캔",
     paletteLabel: "색상",
     previewLabel: "미리보기",
     previewLoading: "미리보기 생성 중…",
@@ -377,11 +384,96 @@ function FramedThumb() {
   );
 }
 
+// PR 45: Scanner thumbnail. Bubble-sheet vibe — fiducial corners,
+// bubble grid, QR code in the corner. Pure black + white because the
+// real PDF is also pure b+w (high contrast for camera detection).
+function ScannerThumb() {
+  return (
+    <svg viewBox="0 0 140 190" width="100%" style={{ display: "block" }}>
+      <rect x="0" y="0" width="140" height="190" fill="#fff" stroke="#e5e5e5" strokeWidth="0.5" />
+      {/* Fiducial markers in the 4 corners (cuadraditos negros) */}
+      <rect x="4" y="4" width="6" height="6" fill="#000" />
+      <rect x="130" y="4" width="6" height="6" fill="#000" />
+      <rect x="4" y="180" width="6" height="6" fill="#000" />
+      <rect x="130" y="180" width="6" height="6" fill="#000" />
+      {/* Title centered */}
+      <rect x="40" y="16" width="60" height="3.5" fill="#1a1a1a" />
+      {/* Name / date / score line */}
+      <rect x="14" y="26" width="10" height="1.5" fill="#444" />
+      <line x1="26" y1="27.5" x2="58" y2="27.5" stroke="#888" strokeWidth="0.3" />
+      <rect x="62" y="26" width="8" height="1.5" fill="#444" />
+      <line x1="72" y1="27.5" x2="96" y2="27.5" stroke="#888" strokeWidth="0.3" />
+      <rect x="100" y="26" width="8" height="1.5" fill="#444" />
+      <line x1="110" y1="27.5" x2="126" y2="27.5" stroke="#888" strokeWidth="0.3" />
+      {/* Separator */}
+      <line x1="14" y1="31" x2="126" y2="31" stroke="#000" strokeWidth="0.4" />
+      {/* Bubble grid — 2 columns of 10 rows each */}
+      {Array.from({ length: 10 }).map((_, row) => {
+        const y = 38 + row * 9;
+        return (
+          <g key={row}>
+            {/* Left column */}
+            <rect x="14" y={y} width="3" height="1.8" fill="#1a1a1a" />
+            {["A", "B", "C", "D"].map((letter, i) => (
+              <circle
+                key={`l-${row}-${i}`}
+                cx={22 + i * 5}
+                cy={y + 1}
+                r="1.6"
+                fill="none"
+                stroke="#000"
+                strokeWidth="0.3"
+              />
+            ))}
+            {/* Right column */}
+            <rect x="74" y={y} width="3" height="1.8" fill="#1a1a1a" />
+            {["A", "B", "C", "D"].map((letter, i) => (
+              <circle
+                key={`r-${row}-${i}`}
+                cx={82 + i * 5}
+                cy={y + 1}
+                r="1.6"
+                fill="none"
+                stroke="#000"
+                strokeWidth="0.3"
+              />
+            ))}
+          </g>
+        );
+      })}
+      {/* QR code in bottom-right (as a mini pattern of squares) */}
+      <rect x="110" y="155" width="20" height="20" fill="#fff" stroke="#000" strokeWidth="0.3" />
+      {/* QR-ish pattern */}
+      {[0, 1, 2, 3, 4].map(i =>
+        [0, 1, 2, 3, 4].map(j => {
+          // Pseudo-random pattern that looks QR-ish
+          const isFilled = (i * 7 + j * 3) % 3 === 0;
+          return isFilled ? (
+            <rect
+              key={`qr-${i}-${j}`}
+              x={111 + i * 3.6}
+              y={156 + j * 3.6}
+              width="3"
+              height="3"
+              fill="#000"
+            />
+          ) : null;
+        })
+      )}
+      {/* QR corner squares (the 3 big ones of real QR codes) */}
+      <rect x="111" y="156" width="5" height="5" fill="#fff" stroke="#000" strokeWidth="0.4" />
+      <rect x="124" y="156" width="5" height="5" fill="#fff" stroke="#000" strokeWidth="0.4" />
+      <rect x="111" y="169" width="5" height="5" fill="#fff" stroke="#000" strokeWidth="0.4" />
+    </svg>
+  );
+}
+
 const STYLE_THUMBS = {
   classic: ClassicThumb,
   modern: ModernThumb,
   editorial: EditorialThumb,
   framed: FramedThumb,
+  scanner: ScannerThumb,
 };
 
 // ─── Generate a preview blob (no download trigger) ────────────────────────
@@ -531,6 +623,7 @@ export default function PDFExportModal({
     { id: "modern", name: t.modernName, desc: t.modernDesc, Thumb: STYLE_THUMBS.modern },
     { id: "editorial", name: t.editorialName, desc: t.editorialDesc, Thumb: STYLE_THUMBS.editorial },
     { id: "framed", name: t.framedName, desc: t.framedDesc, Thumb: STYLE_THUMBS.framed },
+    { id: "scanner", name: t.scannerName, desc: t.scannerDesc, Thumb: STYLE_THUMBS.scanner },
   ];
 
   return (
