@@ -886,10 +886,58 @@ export default function App() {
         // Clear the pending role NOW — it served its purpose
         try { localStorage.removeItem("clasloop_pending_role"); } catch (_) {}
       } else {
-        // Profile already existed. Even if pendingRole is in localStorage
-        // (e.g. user clicked "I'm a Teacher" before logging in to an
-        // existing student account), we IGNORE it. One account = one role.
-        // We do clean up the localStorage so it doesn't sit around.
+        // Profile already existed. There are TWO sub-cases:
+        //
+        // (A) The DB trigger `handle_new_user` just created it. In this
+        //     case the profile is brand new (created_at is seconds ago)
+        //     and the role is whatever default the trigger picked (NOT
+        //     necessarily what the user wanted). If we have a valid
+        //     pendingRole, we should UPDATE the profile to match — this
+        //     is the user's intent.
+        //
+        // (B) The profile is an old, established account. The user just
+        //     logged back in. pendingRole in localStorage (if any) is
+        //     stale or wrong, and must be IGNORED (one email = one role,
+        //     no flipping).
+        //
+        // We distinguish by created_at: if the profile is less than 30
+        // seconds old, treat as case (A). Otherwise case (B).
+        let pendingRole = null;
+        try { pendingRole = localStorage.getItem("clasloop_pending_role"); } catch (_) {}
+        const profileAgeMs = data?.created_at
+          ? (Date.now() - new Date(data.created_at).getTime())
+          : Infinity;
+        const isFreshlyCreated = profileAgeMs < 30000; // 30s
+
+        console.log("[clasloop auth] profile lookup result:", {
+          profileAgeMs,
+          isFreshlyCreated,
+          currentRole: data?.role,
+          pendingRole,
+        });
+
+        if (
+          isFreshlyCreated
+          && (pendingRole === "teacher" || pendingRole === "student")
+          && data?.role !== pendingRole
+        ) {
+          // Case (A): trigger just created the profile with a default role.
+          // Update to the role the user actually chose at the auth screen.
+          const { data: updated, error: updErr } = await supabase
+            .from("profiles")
+            .update({ role: pendingRole })
+            .eq("id", id)
+            .select()
+            .single();
+          if (!updErr && updated) {
+            data = updated;
+            console.log("[clasloop auth] applied pendingRole to fresh profile:", pendingRole);
+          } else if (updErr) {
+            console.error("[clasloop auth] failed to update fresh profile role:", updErr);
+          }
+        }
+
+        // Clean up pendingRole regardless of which branch we took
         try { localStorage.removeItem("clasloop_pending_role"); } catch (_) {}
       }
 
