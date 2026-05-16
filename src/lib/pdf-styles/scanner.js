@@ -80,6 +80,8 @@ const TEMPLATES = {
     rowHeight: 12,
     fontNum: 9,
     fontLetter: 3.5,
+    fontHeader: 8,        // letras A/B/C/D arriba de cada columna
+    headerOffset: 6,      // mm arriba del centro de la primera burbuja
     numTextOffset: -8,
     colXBase: [88],
     yStart: 95,
@@ -94,6 +96,8 @@ const TEMPLATES = {
     rowHeight: 10,
     fontNum: 7,
     fontLetter: 2.7,
+    fontHeader: 6.5,
+    headerOffset: 5,
     numTextOffset: -7,
     colXBase: [65, 125],
     yStart: 90,
@@ -108,6 +112,8 @@ const TEMPLATES = {
     rowHeight: 9,
     fontNum: 6,
     fontLetter: 2.2,
+    fontHeader: 6,
+    headerOffset: 4.5,
     numTextOffset: -7,
     colXBase: [35, 97, 159],
     yStart: 89.5,
@@ -123,6 +129,8 @@ const TEMPLATES = {
     rowHeight: 8.5,
     fontNum: 6,
     fontLetter: 2.2,
+    fontHeader: 6,
+    headerOffset: 4.5,
     numTextOffset: -7,
     colXBase: [38, 97, 156],
     yStart: 88.5,
@@ -215,24 +223,42 @@ function drawTitle(doc, deck, fontFamily) {
 }
 
 function drawBubbleRow(doc, numLabel, choices, baseX, baseY, t, fontFamily) {
+  // Número de pregunta a la izquierda
   doc.setFont(fontFamily, "normal");
   doc.setFontSize(t.fontNum);
   doc.setTextColor(0, 0, 0);
   doc.text(numLabel, baseX + t.numTextOffset, baseY + t.fontNum / 4, { align: "right" });
 
+  // Solo las circulos vacías — los headers A/B/C/D van arriba de la columna
+  // (drawColumnHeader), no dentro de cada burbuja.
   doc.setDrawColor(0, 0, 0);
   doc.setLineWidth(0.4);
   choices.forEach((letter, i) => {
     const cx = baseX + i * t.bubbleGap;
     doc.circle(cx, baseY, t.bubbleR, "S");
   });
+}
 
-  doc.setFont(fontFamily, "normal");
-  doc.setFontSize(t.fontLetter);
-  doc.setTextColor(170, 170, 170);
+/**
+ * Header de columna: dibuja "A B C D" arriba de la primera fila de
+ * burbujas, alineado horizontalmente con los centros. Diseño minimal,
+ * tipográfico — letterspacing generoso, color gris medio para que no
+ * compita con los números de pregunta.
+ *
+ * Para columnas que tienen solo TF preguntas mostraría "T F", pero
+ * como típicamente las cols son MCQ-mayoritarias o mixtas, siempre
+ * pinto "A B C D" (las TF usan A=T, B=F implícitamente — su burbuja
+ * sigue siendo válida en posiciones 1 y 2).
+ */
+function drawColumnHeader(doc, colBaseX, yStart, t, fontFamily) {
+  const choices = ["A", "B", "C", "D"];
+  const headerY = yStart - t.headerOffset;
+  doc.setFont(fontFamily, "bold");
+  doc.setFontSize(t.fontHeader);
+  doc.setTextColor(110, 110, 110);
   choices.forEach((letter, i) => {
-    const cx = baseX + i * t.bubbleGap;
-    doc.text(letter, cx, baseY + t.fontLetter / 4, { align: "center" });
+    const cx = colBaseX + i * t.bubbleGap;
+    doc.text(letter, cx, headerY, { align: "center" });
   });
 }
 
@@ -267,18 +293,21 @@ function drawGrid(doc, scannable, t, fontFamily) {
     for (let c = 0; c < t.cols; c++) {
       const colQs = upper.slice(c * 10, (c + 1) * 10);
       if (colQs.length === 0) break;
+      drawColumnHeader(doc, t.colXBase[c], t.yStart, t, fontFamily);
       drawColumn(doc, colQs, c * 10 + 1, t.colXBase[c], t.yStart, t, fontFamily);
     }
     const lower = scannable.slice(30, 50);
     for (let c = 0; c < t.cols2; c++) {
       const colQs = lower.slice(c * 10, (c + 1) * 10);
       if (colQs.length === 0) break;
+      drawColumnHeader(doc, t.colXBase2[c], t.yStart2, t, fontFamily);
       drawColumn(doc, colQs, 30 + c * 10 + 1, t.colXBase2[c], t.yStart2, t, fontFamily);
     }
   } else {
     for (let c = 0; c < t.cols; c++) {
       const colQs = scannable.slice(c * 10, (c + 1) * 10);
       if (colQs.length === 0) break;
+      drawColumnHeader(doc, t.colXBase[c], t.yStart, t, fontFamily);
       drawColumn(doc, colQs, c * 10 + 1, t.colXBase[c], t.yStart, t, fontFamily);
     }
   }
