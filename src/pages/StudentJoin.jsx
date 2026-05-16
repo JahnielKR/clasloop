@@ -2457,6 +2457,23 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
       displayedQ_PR2811.items.every(it => typeof it === 'string');
     const displayedFreeThemed = displayedQType === 'free';
 
+    // PR 35: detect "simple centered" question types — ones where the
+    // prompt should sit visually centered between the meta bar and the
+    // answers tile grid. Applies to MCQ (text-only, no images) and TF.
+    // For complex types (match, order, fill with input, free with
+    // textarea, MCQ with image options), the centered flex was removed
+    // in PR 28.20 because the bigger content needs predictable
+    // top-anchored layout to avoid collisions.
+    const displayedIsImageMcq =
+      displayedQType === 'mcq' &&
+      Array.isArray(displayedQ_PR2811?.options) &&
+      displayedQ_PR2811.options.some(
+        o => o && typeof o === 'object' && typeof o.image_url === 'string' && o.image_url.length > 0
+      );
+    const displayedSimpleCentered =
+      (displayedQType === 'mcq' && !displayedIsImageMcq) ||
+      displayedQType === 'tf';
+
     if (themedRenderEligible) {
       const totalScore = answers.reduce((s, a) => s + (a?.points || 0), 0);
       const studentInitial = (participant?.student_name || "?").trim().charAt(0).toUpperCase() || "?";
@@ -2585,7 +2602,7 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
                           pairs block is centered and there's natural
                           breathing room below — instead of the panel
                           being stuck at the bottom of the screen. */}
-                      <div className="question-center">
+                      <div className={`question-center${displayedSimpleCentered ? ' is-centered' : ''}`}>
                         <div className="question-prompt-label">
                           {/* PR 28.11: displayedQType (not qType) so the
                               label matches the question body during the

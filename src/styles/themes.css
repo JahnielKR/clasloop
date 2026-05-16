@@ -243,6 +243,16 @@
   /* Modest top padding so the label has breathing room from .question-meta */
   padding-top: 8px;
 }
+
+/* PR 35: simple MCQ (text-only) and TF questions return to the
+ * "centered between meta and answers" look that PR 28.20 had to drop
+ * for everything. Match/order/free/image-MCQ still get the
+ * top-anchored layout because their content height is unpredictable
+ * and collisions matter more than centering. */
+.stage .question-center.is-centered {
+  flex: 1;
+  justify-content: center;
+}
 .stage .question-meta {
   display: flex;
   justify-content: space-between;
