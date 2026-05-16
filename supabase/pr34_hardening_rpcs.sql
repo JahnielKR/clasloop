@@ -334,12 +334,14 @@ grant execute on function public.submit_response(uuid, integer, jsonb, boolean, 
 -- model.
 
 drop policy if exists "Anyone can join sessions" on public.session_participants;
+drop policy if exists "Direct inserts blocked — use join_session RPC" on public.session_participants;
 create policy "Direct inserts blocked — use join_session RPC"
 on public.session_participants
 for insert
 with check (false);
 
 drop policy if exists "Anyone can create responses" on public.responses;
+drop policy if exists "Direct inserts blocked — use submit_response RPC" on public.responses;
 create policy "Direct inserts blocked — use submit_response RPC"
 on public.responses
 for insert
