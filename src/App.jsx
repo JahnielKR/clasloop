@@ -130,12 +130,27 @@ function AuthScreen({ initialMode = "select", initialRole = "teacher", onBack })
     // We also defensively CLEAR localStorage in login mode, so a leftover
     // value from a previous signup attempt doesn't get picked up by the
     // callback handler.
+    //
+    // PR 38: localStorage was NOT surviving the OAuth redirect reliably
+    // (Chrome incognito, Safari ITP, and some embedded-browser contexts
+    // wipe it on cross-origin redirects). The role kept ending up as
+    // "student" even when the user picked "Teacher". signInWithOAuth
+    // doesn't accept user_metadata pre-redirect (see auth-js#670), so we
+    // smuggle the role through the `redirectTo` URL as a query param.
+    // That URL survives the redirect 100% and we read it back on landing.
+    // localStorage still gets set as a secondary backup for browsers
+    // that strip query strings during OAuth bounces.
+    const redirectURL = new URL(window.location.origin);
     if (mode === "signup") {
       try { localStorage.setItem("clasloop_pending_role", role); } catch (_) {}
+      redirectURL.searchParams.set("role", role);
     } else {
       try { localStorage.removeItem("clasloop_pending_role"); } catch (_) {}
     }
-    await supabase.auth.signInWithOAuth({ provider: "google", options: { redirectTo: window.location.origin } });
+    await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo: redirectURL.toString() },
+    });
   };
 
   const inp = { fontFamily: "'Outfit',sans-serif", background: C.bg, border: `1px solid ${C.border}`, color: C.text, padding: "11px 14px", borderRadius: 8, fontSize: 14, width: "100%", outline: "none" };
@@ -388,6 +403,32 @@ export default function App() {
   }, [isPreAppSurface]);
 
   useEffect(() => {
+    // PR 38: rescue pendingRole from the redirect URL. handleGoogle stuffs
+    // `?role=teacher` (or student) into the redirectTo URL because
+    // localStorage doesn't survive the OAuth bounce in some browsers
+    // (Chrome incognito, Safari ITP, embedded browsers). We pick it up
+    // here BEFORE any fetchProfile call and copy it to localStorage so the
+    // existing flow (which reads localStorage in fetchProfile) finds it.
+    // Then we strip the param from the URL so it doesn't sit in the
+    // address bar.
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      const roleFromURL = urlParams.get("role");
+      const lsRoleBefore = localStorage.getItem("clasloop_pending_role");
+      console.log("[clasloop auth] pendingRole sources at landing:", {
+        fromURL: roleFromURL,
+        fromLocalStorage: lsRoleBefore,
+        href: window.location.href,
+      });
+      if (roleFromURL === "teacher" || roleFromURL === "student") {
+        localStorage.setItem("clasloop_pending_role", roleFromURL);
+        urlParams.delete("role");
+        const cleanSearch = urlParams.toString();
+        const newURL = window.location.pathname + (cleanSearch ? "?" + cleanSearch : "") + window.location.hash;
+        window.history.replaceState(null, "", newURL);
+      }
+    } catch (_) { /* ignore */ }
+
     // Initial session check
     supabase.auth.getSession().then(({ data: { session } }) => {
       const u = session?.user ?? null;
@@ -815,6 +856,11 @@ export default function App() {
         const authUser = authData?.user;
         let pendingRole = null;
         try { pendingRole = localStorage.getItem("clasloop_pending_role"); } catch (_) {}
+
+        console.log("[clasloop auth] creating fresh profile:", {
+          pendingRole,
+          authUserEmail: authUser?.email,
+        });
 
         if (pendingRole !== "teacher" && pendingRole !== "student") {
           // No valid pendingRole — user clicked "Sign in" without choosing
