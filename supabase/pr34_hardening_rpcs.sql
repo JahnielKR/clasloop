@@ -77,9 +77,13 @@ security definer
 set search_path = public
 as $$
 declare
-  v_session    public.sessions%rowtype;
+  v_session_id uuid;
+  v_session_status text;
+  v_session_allow_guests boolean;
   v_participant public.session_participants%rowtype;
   v_existing_id uuid;
+  v_has_guest_cols boolean;
+  v_has_allow_guests boolean;
 begin
   -- Validate inputs
   if p_pin is null or length(trim(p_pin)) = 0 then
@@ -92,34 +96,55 @@ begin
     raise exception 'missing_identity';
   end if;
 
-  -- Find the session by pin. Must be in lobby or active.
-  select * into v_session
-  from public.sessions
-  where pin = p_pin
-    and status in ('lobby', 'active')
-  limit 1;
+  -- Detect optional columns once (some installs added these via PRs not
+  -- tracked in schema.sql). We avoid hard references that would error
+  -- on rows where the column doesn't exist.
+  select exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public'
+      and table_name = 'sessions'
+      and column_name = 'allow_guests'
+  ) into v_has_allow_guests;
 
-  if not found then
+  select exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public'
+      and table_name = 'session_participants'
+      and column_name = 'guest_name'
+  ) into v_has_guest_cols;
+
+  -- Lookup session by pin. Project only id + status + (optionally)
+  -- allow_guests, via dynamic SQL so missing columns don't blow up.
+  if v_has_allow_guests then
+    execute 'select id, status, coalesce(allow_guests, false) from public.sessions where pin = $1 and status in (''lobby'', ''active'') limit 1'
+      into v_session_id, v_session_status, v_session_allow_guests
+      using p_pin;
+  else
+    execute 'select id, status, true from public.sessions where pin = $1 and status in (''lobby'', ''active'') limit 1'
+      into v_session_id, v_session_status, v_session_allow_guests
+      using p_pin;
+  end if;
+
+  if v_session_id is null then
     raise exception 'session_not_found';
   end if;
 
   -- Block guests if the session doesn't allow them
-  if p_student_id is null and not coalesce(v_session.allow_guests, false) then
+  if p_student_id is null and not v_session_allow_guests then
     raise exception 'guests_not_allowed';
   end if;
 
-  -- Rejoin check: same authenticated student or same guest_token already
-  -- joined? Return that row instead of duplicating.
+  -- Rejoin check
   if p_student_id is not null then
     select id into v_existing_id
     from public.session_participants
-    where session_id = v_session.id
+    where session_id = v_session_id
       and student_id = p_student_id
     limit 1;
   elsif p_guest_token is not null then
     select id into v_existing_id
     from public.session_participants
-    where session_id = v_session.id
+    where session_id = v_session_id
       and guest_token = p_guest_token
     limit 1;
   end if;
@@ -131,24 +156,19 @@ begin
     return to_jsonb(v_participant);
   end if;
 
-  -- Fresh insert
-  insert into public.session_participants (
-    session_id,
-    student_name,
-    student_id,
-    guest_token,
-    guest_name,
-    is_guest
-  )
-  values (
-    v_session.id,
-    trim(p_student_name),
-    p_student_id,
-    p_guest_token,
-    case when p_student_id is null then trim(p_student_name) else null end,
-    p_student_id is null
-  )
-  returning * into v_participant;
+  -- Fresh insert. Dynamic SQL so we only reference columns we know exist.
+  if v_has_guest_cols then
+    execute 'insert into public.session_participants (session_id, student_name, student_id, guest_token, guest_name, is_guest) values ($1, $2, $3, $4, $5, $6) returning *'
+      into v_participant
+      using v_session_id, trim(p_student_name), p_student_id, p_guest_token,
+            case when p_student_id is null then trim(p_student_name) else null end,
+            p_student_id is null;
+  else
+    -- Minimal insert path (older installs without guest_name/is_guest cols)
+    execute 'insert into public.session_participants (session_id, student_name, student_id, guest_token) values ($1, $2, $3, $4) returning *'
+      into v_participant
+      using v_session_id, trim(p_student_name), p_student_id, p_guest_token;
+  end if;
 
   return to_jsonb(v_participant);
 end;
@@ -195,8 +215,9 @@ set search_path = public
 as $$
 declare
   v_participant public.session_participants%rowtype;
-  v_session     public.sessions%rowtype;
-  v_response    public.responses%rowtype;
+  v_session_status text;
+  v_response jsonb;
+  v_has_responses_guest_token boolean;
 begin
   if p_participant_id is null then
     raise exception 'invalid_participant';
@@ -215,8 +236,6 @@ begin
   end if;
 
   -- Verify the caller owns this participant row
-  -- Auth path: profile id matches participant.student_id
-  -- Guest path: guest_token matches
   if v_participant.student_id is not null then
     if auth.uid() is null or auth.uid() <> v_participant.student_id then
       raise exception 'identity_mismatch';
@@ -229,53 +248,73 @@ begin
     end if;
   end if;
 
-  -- Session must be active (lobby is OK too for warmup-up answers
-  -- that arrive at the very start)
-  select * into v_session
+  -- Session must not be completed/cancelled
+  select status into v_session_status
   from public.sessions
   where id = v_participant.session_id;
 
-  if not found or v_session.status = 'completed' or v_session.status = 'cancelled' then
+  if v_session_status is null
+     or v_session_status = 'completed'
+     or v_session_status = 'cancelled' then
     raise exception 'session_not_active';
   end if;
 
-  -- Upsert. Same unique constraint used by the previous direct
-  -- upsert: (session_id, participant_id, question_index).
-  insert into public.responses (
-    session_id,
-    participant_id,
-    question_index,
-    answer,
-    is_correct,
-    points,
-    max_points,
-    needs_review,
-    time_taken_ms,
-    guest_token
-  )
-  values (
-    v_participant.session_id,
-    p_participant_id,
-    p_question_index,
-    p_answer,
-    coalesce(p_is_correct, true),
-    coalesce(p_points, 0),
-    coalesce(p_max_points, 1),
-    coalesce(p_needs_review, false),
-    coalesce(p_time_taken_ms, 0),
-    case when v_participant.student_id is null then v_participant.guest_token else null end
-  )
-  on conflict (session_id, participant_id, question_index) do update
-  set
-    answer        = excluded.answer,
-    is_correct    = excluded.is_correct,
-    points        = excluded.points,
-    max_points    = excluded.max_points,
-    needs_review  = excluded.needs_review,
-    time_taken_ms = excluded.time_taken_ms
-  returning * into v_response;
+  -- Detect optional guest_token column on responses
+  select exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public'
+      and table_name = 'responses'
+      and column_name = 'guest_token'
+  ) into v_has_responses_guest_token;
 
-  return to_jsonb(v_response);
+  -- Upsert via dynamic SQL so we don't reference guest_token if it
+  -- doesn't exist in this install.
+  if v_has_responses_guest_token then
+    execute $sql$
+      insert into public.responses (
+        session_id, participant_id, question_index, answer, is_correct,
+        points, max_points, needs_review, time_taken_ms, guest_token
+      )
+      values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      on conflict (session_id, participant_id, question_index) do update
+      set answer        = excluded.answer,
+          is_correct    = excluded.is_correct,
+          points        = excluded.points,
+          max_points    = excluded.max_points,
+          needs_review  = excluded.needs_review,
+          time_taken_ms = excluded.time_taken_ms
+      returning to_jsonb(responses.*)
+    $sql$
+    into v_response
+    using v_participant.session_id, p_participant_id, p_question_index, p_answer,
+          coalesce(p_is_correct, true), coalesce(p_points, 0),
+          coalesce(p_max_points, 1), coalesce(p_needs_review, false),
+          coalesce(p_time_taken_ms, 0),
+          case when v_participant.student_id is null then v_participant.guest_token else null end;
+  else
+    execute $sql$
+      insert into public.responses (
+        session_id, participant_id, question_index, answer, is_correct,
+        points, max_points, needs_review, time_taken_ms
+      )
+      values ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      on conflict (session_id, participant_id, question_index) do update
+      set answer        = excluded.answer,
+          is_correct    = excluded.is_correct,
+          points        = excluded.points,
+          max_points    = excluded.max_points,
+          needs_review  = excluded.needs_review,
+          time_taken_ms = excluded.time_taken_ms
+      returning to_jsonb(responses.*)
+    $sql$
+    into v_response
+    using v_participant.session_id, p_participant_id, p_question_index, p_answer,
+          coalesce(p_is_correct, true), coalesce(p_points, 0),
+          coalesce(p_max_points, 1), coalesce(p_needs_review, false),
+          coalesce(p_time_taken_ms, 0);
+  end if;
+
+  return v_response;
 end;
 $$;
 

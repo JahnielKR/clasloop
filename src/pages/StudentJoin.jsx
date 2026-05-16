@@ -1594,6 +1594,14 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
       p_guest_token: insertData.guest_token ?? null,
     });
     if (rpcErr) {
+      // Log the FULL error object so we can diagnose 400s
+      console.error("[clasloop] join_session RPC failed:", {
+        message: rpcErr.message,
+        code: rpcErr.code,
+        details: rpcErr.details,
+        hint: rpcErr.hint,
+        raw: rpcErr,
+      });
       // Map the RPC error messages to user-facing copy
       const msg = rpcErr.message || "";
       if (msg.includes("session_not_found") || msg.includes("session_not_open")) {
@@ -1601,7 +1609,6 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
       } else if (msg.includes("guests_not_allowed")) {
         setError(t.notFound);
       } else {
-        console.error("[clasloop] join_session RPC failed:", rpcErr);
         setError(rpcErr.message || t.notFound);
       }
       return;
