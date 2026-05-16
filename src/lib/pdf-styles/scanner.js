@@ -37,7 +37,7 @@
 // para cargar las respuestas correctas y comparar.
 
 import QRCode from "qrcode";
-import { PAGE_A4 } from "./shared";
+import { PAGE_A4, groupQuestionsBySection } from "./shared";
 
 // ─── Page geometry ──────────────────────────────────────────────────────
 const PAGE = {
@@ -451,9 +451,30 @@ export async function drawScanSheet(doc, deck, classObj, opts = {}) {
 
   const allQuestions = deck.questions || [];
 
-  const scannable = allQuestions.filter(
+  // BUG FIX (PR 47.2): el scan sheet DEBE seguir el mismo orden que el
+  // exam normal. Los styles del exam usan groupQuestionsBySection que
+  // reordena dentro de "selection" según SELECTION_TYPE_ORDER (mcq, tf,
+  // match, order, slider, fill) — entonces los MCQ van primero, después
+  // los TF.
+  //
+  // Antes filtrábamos directo de deck.questions en orden de creación,
+  // lo que producía: si el deck era [MCQ, TF, MCQ, TF], el exam lo
+  // mostraba como 1=MCQ, 2=MCQ, 3=TF, 4=TF — pero el scan sheet lo
+  // mostraba como 1=MCQ, 2=TF, 3=MCQ, 4=TF. Resultado: el estudiante
+  // marca según el exam y todo va mal al escanear.
+  //
+  // Ahora usamos la misma función de agrupación → orden consistente →
+  // la fila N del scan sheet corresponde exactamente a la pregunta N
+  // del exam.
+  const { selection } = groupQuestionsBySection(allQuestions);
+
+  // Dentro de "selection" filtramos solo los tipos escaneables (MCQ +
+  // TF). El orden se preserva: MCQs primero, después TFs.
+  const scannable = selection.filter(
     q => q && (q.type === "mcq" || q.type === "tf")
   );
+  // Para la nota footer, contar TODAS las no escaneables (selection
+  // tipos no MCQ/TF + written).
   const manual = allQuestions.filter(
     q => q && q.type !== "mcq" && q.type !== "tf"
   );
