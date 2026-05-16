@@ -84,6 +84,7 @@ declare
   v_existing_id uuid;
   v_has_guest_cols boolean;
   v_has_allow_guests boolean;
+  v_guest_token_uuid uuid := null;
 begin
   -- Validate inputs
   if p_pin is null or length(trim(p_pin)) = 0 then
@@ -134,21 +135,17 @@ begin
     raise exception 'guests_not_allowed';
   end if;
 
-  -- PR 34.3: en este install guest_token es uuid (no text). Convertimos
+  -- PR 34.3/34.4: en este install guest_token es uuid (no text). Convertimos
   -- p_guest_token (text) → uuid una sola vez al principio. Si el cliente
-  -- pasó un string no-uuid, falla rápido con un error útil en vez del
+  -- pasó un string no-uuid, falla rápido con error útil en vez del
   -- '42804 column is of type uuid but expression is of type text'.
-  declare
-    v_guest_token_uuid uuid := null;
-  begin
-    if p_guest_token is not null and length(p_guest_token) > 0 then
-      begin
-        v_guest_token_uuid := p_guest_token::uuid;
-      exception when others then
-        raise exception 'invalid_guest_token';
-      end;
-    end if;
-  end;
+  if p_guest_token is not null and length(p_guest_token) > 0 then
+    begin
+      v_guest_token_uuid := p_guest_token::uuid;
+    exception when others then
+      raise exception 'invalid_guest_token';
+    end;
+  end if;
 
   -- Rejoin check
   if p_student_id is not null then
@@ -234,6 +231,7 @@ declare
   v_session_status text;
   v_response jsonb;
   v_has_responses_guest_token boolean;
+  v_guest_token_uuid uuid := null;
 begin
   if p_participant_id is null then
     raise exception 'invalid_participant';
@@ -251,18 +249,14 @@ begin
     raise exception 'participant_not_found';
   end if;
 
-  -- PR 34.3: Cast guest_token to uuid (it's uuid in this install).
-  declare
-    v_guest_token_uuid uuid := null;
-  begin
-    if p_guest_token is not null and length(p_guest_token) > 0 then
-      begin
-        v_guest_token_uuid := p_guest_token::uuid;
-      exception when others then
-        raise exception 'invalid_guest_token';
-      end;
-    end if;
-  end;
+  -- PR 34.3/34.4: Cast guest_token to uuid (it's uuid in this install).
+  if p_guest_token is not null and length(p_guest_token) > 0 then
+    begin
+      v_guest_token_uuid := p_guest_token::uuid;
+    exception when others then
+      raise exception 'invalid_guest_token';
+    end;
+  end if;
 
   -- Verify the caller owns this participant row
   if v_participant.student_id is not null then
