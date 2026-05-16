@@ -1581,15 +1581,32 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
       return;
     }
 
-    const { data: part, error: joinErr } = await supabase.from("session_participants").insert(insertData).select().single();
-    if (joinErr) {
-      if (joinErr.code === "23505") {
-        // Belt-and-suspenders: if somehow we still race into a duplicate,
-        // fetch by name and reuse.
-        const { data: raceWinner } = await supabase.from("session_participants").select("*").eq("session_id", sess.id).eq("student_name", name.trim()).single();
-        setParticipant(raceWinner);
-      } else { setError(joinErr.message); return; }
-    } else { setParticipant(part); }
+    // PR 34: replaced direct INSERT with security-definer RPC.
+    // Previously the client called supabase.from("session_participants")
+    // .insert(insertData) directly, which trusted the client to provide
+    // a valid session_id and student name. After PR 34 the RPC validates
+    // server-side: pin must be real, session must be in lobby/active,
+    // guests blocked when allow_guests=false, etc. Idempotent on rejoin.
+    const { data: rpcPart, error: rpcErr } = await supabase.rpc("join_session", {
+      p_pin: sess.pin,
+      p_student_name: insertData.student_name,
+      p_student_id: insertData.student_id ?? null,
+      p_guest_token: insertData.guest_token ?? null,
+    });
+    if (rpcErr) {
+      // Map the RPC error messages to user-facing copy
+      const msg = rpcErr.message || "";
+      if (msg.includes("session_not_found") || msg.includes("session_not_open")) {
+        setError(t.notFound);
+      } else if (msg.includes("guests_not_allowed")) {
+        setError(t.notFound);
+      } else {
+        console.error("[clasloop] join_session RPC failed:", rpcErr);
+        setError(rpcErr.message || t.notFound);
+      }
+      return;
+    }
+    setParticipant(rpcPart);
     setSession(sess);
     setStep(sess.status === "active" ? "quiz" : "waiting");
   };
@@ -1650,9 +1667,25 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
         // the new answer overwrites the old one, treating re-entry as
         // a correction. The (session_id, participant_id, question_index)
         // unique constraint was added in supabase/phase14_responses_unique.sql.
-        await supabase.from("responses").upsert(insertData, {
-          onConflict: "session_id,participant_id,question_index",
+        // PR 34: replaced direct upsert with security-definer RPC.
+        // The RPC validates that the caller owns the participant row
+        // (auth.uid matches student_id for logged-in students; guest_token
+        // matches for guests). Prevents one student from submitting
+        // answers as another, even by hand-crafting REST calls.
+        const { error: rpcErr } = await supabase.rpc("submit_response", {
+          p_participant_id: insertData.participant_id,
+          p_question_index: insertData.question_index,
+          p_answer: insertData.answer,
+          p_is_correct: insertData.is_correct,
+          p_points: insertData.points,
+          p_max_points: insertData.max_points,
+          p_needs_review: insertData.needs_review,
+          p_time_taken_ms: insertData.time_taken_ms,
+          p_guest_token: insertData.guest_token ?? null,
         });
+        if (rpcErr) {
+          throw rpcErr;
+        }
       } catch (err) {
         // PR 24.4.5: was silently swallowed. That hid the 400-on-empty
         // submission bug for weeks. Log to console so future failures
