@@ -295,6 +295,11 @@ export default function App() {
   // them to pick one before creating the profile.
   const [needsRoleSelection, setNeedsRoleSelection] = useState(false);
   const [pendingProfileCreation, setPendingProfileCreation] = useState(null);
+  // PR 42: when an existing account tries to log in as a different role
+  // (e.g. clicked "I'm a Teacher" but the account is actually a student),
+  // we block and show a screen with two choices: continue as the real
+  // role, or sign out.
+  const [roleMismatchError, setRoleMismatchError] = useState(null); // { actualRole: 'student'|'teacher', triedRole: 'student'|'teacher' }
   // `page` mirrors the URL (kept in sync by an effect below). Initialised from
   // the current pathname so the very first render already shows the correct
   // page without a flash. Default to "sessions" when path is "/" — fetchProfile
@@ -993,6 +998,29 @@ export default function App() {
           } else if (updErr) {
             console.error("[clasloop auth] failed to update first-session profile role:", updErr);
           }
+        } else if (
+          !isFirstSession
+          && (pendingRole === "teacher" || pendingRole === "student")
+          && data?.role !== pendingRole
+        ) {
+          // PR 42: Existing account, but user clicked the OTHER role at
+          // the auth screen (e.g. clicked "I'm a Teacher" but the account
+          // is a student). Don't silently log them in as the existing role
+          // — that's confusing UX. Block with a screen explaining and ask
+          // them to choose.
+          console.log("[clasloop auth] role mismatch detected:", {
+            actualRole: data.role,
+            triedRole: pendingRole,
+          });
+          setRoleMismatchError({
+            actualRole: data.role,
+            triedRole: pendingRole,
+          });
+          // We DON'T setProfile here — let the mismatch screen handle the
+          // decision. Clean up pendingRole regardless.
+          try { localStorage.removeItem("clasloop_pending_role"); } catch (_) {}
+          setLoading(false);
+          return;
         }
 
         // Clean up pendingRole regardless of which branch we took. This
@@ -1160,6 +1188,111 @@ export default function App() {
               fontFamily: "'Outfit', sans-serif",
             }}
           >{td.signOut}</button>
+        </div>
+      </div>
+    );
+  }
+
+  // PR 42: role-mismatch screen. Existing account tried to sign in with
+  // the OTHER role. Block with a message + two choices: continue as the
+  // real role, or sign out.
+  if (roleMismatchError) {
+    const roleNames = {
+      en: { teacher: "Teacher", student: "Student" },
+      es: { teacher: "Profesor", student: "Estudiante" },
+      ko: { teacher: "교사", student: "학생" },
+    };
+    const i18nRM = {
+      en: {
+        title: "Account exists with a different role",
+        body: (actual, tried) => `This Google account is already registered as a ${actual}. You can't sign in as a ${tried} with the same email — one account per role.`,
+        continueBtn: (actual) => `Continue as ${actual}`,
+        signOut: "Sign out",
+      },
+      es: {
+        title: "Esta cuenta tiene otro rol",
+        body: (actual, tried) => `Esta cuenta de Google ya está registrada como ${actual}. No podés iniciar sesión como ${tried} con el mismo email — un rol por cuenta.`,
+        continueBtn: (actual) => `Continuar como ${actual}`,
+        signOut: "Cerrar sesión",
+      },
+      ko: {
+        title: "다른 역할로 등록된 계정",
+        body: (actual, tried) => `이 Google 계정은 이미 ${actual}로 등록되어 있습니다. 같은 이메일로 ${tried}으로 로그인할 수 없습니다.`,
+        continueBtn: (actual) => `${actual}로 계속하기`,
+        signOut: "로그아웃",
+      },
+    };
+    const trm = i18nRM[lang] || i18nRM.en;
+    const rn = roleNames[lang] || roleNames.en;
+    const actualName = rn[roleMismatchError.actualRole];
+    const triedName = rn[roleMismatchError.triedRole];
+    return (
+      <div style={{
+        minHeight: "100vh",
+        background: C.bgSoft,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 24,
+      }}>
+        <div style={{ maxWidth: 460, width: "100%", textAlign: "center" }}>
+          <div style={{ display: "flex", justifyContent: "center", marginBottom: 18 }}>
+            <LogoMark size={48} />
+          </div>
+          <h1 style={{
+            fontFamily: "'Outfit', sans-serif",
+            fontSize: 24, fontWeight: 700,
+            color: C.text,
+            marginBottom: 12,
+          }}>{trm.title}</h1>
+          <p style={{
+            color: C.textSecondary,
+            fontSize: 15,
+            lineHeight: 1.5,
+            marginBottom: 24,
+          }}>{trm.body(actualName, triedName)}</p>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            <button
+              onClick={() => {
+                // User confirms: continue with the existing role.
+                // Re-fetch profile to load it properly.
+                setRoleMismatchError(null);
+                if (user?.id) {
+                  fetchProfile(user.id, true);
+                }
+              }}
+              style={{
+                padding: "12px 24px",
+                borderRadius: 9,
+                fontSize: 15,
+                fontWeight: 600,
+                background: `linear-gradient(135deg, ${C.accent}, ${C.purple})`,
+                color: "#fff",
+                border: "none",
+                cursor: "pointer",
+                fontFamily: "'Outfit', sans-serif",
+              }}
+            >{trm.continueBtn(actualName)}</button>
+            <button
+              onClick={async () => {
+                await supabase.auth.signOut();
+                setRoleMismatchError(null);
+                setUser(null);
+                setProfile(null);
+              }}
+              style={{
+                padding: "12px 24px",
+                borderRadius: 9,
+                fontSize: 15,
+                fontWeight: 600,
+                background: C.bg,
+                color: C.text,
+                border: `1px solid ${C.border}`,
+                cursor: "pointer",
+                fontFamily: "'Outfit', sans-serif",
+              }}
+            >{trm.signOut}</button>
+          </div>
         </div>
       </div>
     );
