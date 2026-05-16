@@ -701,3 +701,77 @@ Bienvenido. Suerte.
 ---
 
 *Document created at end of PR 23.13.5 session. Last commit: `b41fa8f`. May 2026.*
+
+---
+
+## 11. Sesión 2026-05-16 — PRs 43 a 47.1 (post-OAuth marathon)
+
+Sesión muy productiva, 9 PRs. Working tree limpio al final. Último commit: `99c64d4`.
+
+### PRs deployed/probados
+
+| PR | Hash | Qué |
+|---|---|---|
+| 43 | `896d539` | OAuth redesign total — RoleOnboarding screen, linear flow, sin role state pre-auth, sin SQL trigger handle_new_user |
+| 43.1 | `0224356` | Polish OAuth: loading guard contra parpadeo + confirm step para que no se cree profile con un click sin querer |
+| 44 | `772b130` | Next button dual-text base (con bug de sync de la barra) |
+| 44.1 | `c75e521` | Sync fix: overlay absoluto al BOTÓN entero, no al wrapper inline-block |
+| 44.2 | `ac27bfc` | Pop button base negra (amarillo sobre blanco era invisible) |
+| 44.3 | `ab83244` | Pop fill bar negro (consistencia con la paleta) |
+| 45 | `b630366` | Scanner PDF inicial (DEPRECADO por PR 46+47) |
+| 46 | `2409fc1` | Modal PDF redesign — scanner como variante "exam+scan", carrusel de styles, 3 botones |
+| 46.1 | `19e7555` | 3 botones variant en una sola fila (Exam / Exam+scan / AK) |
+| 47 | `f462ffa` | Scan sheet rediseñado total con identidad Clasloop + 4 templates fijos (T10/T20/T30/T50) |
+| 47.1 | `99c64d4` | Headers ABCD arriba de cada columna en lugar de dentro de las burbujas |
+
+### Bug del email/password resuelto
+
+Signup con email/pass mostraba loading infinito. Causa: `handleSignup` no detectaba el caso de `data.session === null` (cuando Supabase requiere confirmación de email pero no manda redirect). **Fix:** detecta sesión null → muestra mensaje "Revisá tu email..." en lugar de seguir loading. En `App.jsx`.
+
+### Email confirmation queda OFF hasta producción
+
+Supabase free tier SMTP entrega a spam. Cuando vayamos a producción, ~15 min configurar Resend (gratis 3000/mes). Por ahora dejamos "Confirm Email" toggle prendido en Supabase pero sabiendo que el correo llega a spam — el código en handleSignup ya maneja el caso. No necesario desactivar.
+
+### Regla 2.9 saved
+
+Jota: "si vez algo raro o complicado, en vez de forzarte a arreglarlo, mejor rediseñar es mejor y más rápido". Triggers: 3+ iteraciones de fix en la misma área = STOP, proponer redesign. PRs 36-42 son el ejemplo cautionary (7 patches OAuth en cascada). PR 43 la resolución. PR 47 también siguió la regla: mockup ANTES de codear.
+
+### Workflow nuevo establecido en PR 47
+
+Para cualquier diseño visual no-trivial: **SVG mockup primero, código después**. Iteramos en `visualize:show_widget` hasta que Jota aprueba, después codeo el PDF/HTML real. Ahorra muchísimo tiempo (no codear → tirar → recodear).
+
+### Estado actual del scanner PDF
+
+100% completo:
+- Variant "exam_with_scan" en modal
+- 4 templates internos (T10/T20/T30/T50) según cantidad MCQ/TF
+- Identidad Clasloop (logomark, doble línea, sin cajas grises)
+- ABCD headers arriba de columnas
+- Mini ejemplo abajo (T10/T20/T30) o al costado (T50)
+- 6 marcas fiduciales (4 esquinas + 2 mid-laterales)
+- QR con `clasloop:deck:{id}` para futuro scanner cam
+- Max 50 MCQ (decisión final, "no se discute")
+
+### Sesión cerrada por buena vibra
+
+Jota propuso audio cue on timeout, tuvo bloqueo creativo en qué sonido. Recomendé cerrar la sesión con cabeza fresca para que próxima vez tenga ideas claras. Aprobó. **NO cerrar sesión nunca cuando hay momentum** — pero cuando hay bloqueo + ya hicimos 9 PRs, cerrar es la opción correcta.
+
+### Próxima sesión — backlog priorizado
+
+1. **Scanner cam (PR 48)** — feature grande, sesión completa dedicada. Jota tiene ideas. getUserMedia + jsQR + bubble detection + matching + UI. ~8-15h, varias sesiones.
+2. **Sistema de escuelas** — prioridad next-non-security desde hace tiempo
+3. **Bug exit join-class** — 5 min, cerrar deuda
+4. **Console.log cleanup** — logs de debug PRs 38-41
+5. **Audio cue timeout** — cuando Jota tenga visión clara del sonido
+6. **PR 31 estilo Pop PDF** — 5to style
+7. **History page** — mockups aprobados
+8. **Landing + Pricing real**
+9. **Año escolar**
+
+### Detalles a recordar de esta sesión
+
+- El modal PDFExportModal.jsx tiene VISIBLE_STYLES=3 en el carrusel. Cuando agreguemos pop (PR 31), aparecen las flechas automáticamente.
+- scanner.js ahora exporta `drawScanSheet` (no `renderExam`), dibuja en página actual del doc, no crea doc nuevo. El dispatcher pdf-export.js hace addPage cuando necesita.
+- En T50 hay separación implícita entre bloque 1-30 y 31-50: 12mm de gap entre fila 30 y el header de fila 31.
+- Bug exit join-class sigue abierto. Si Jota lo testea de nuevo, recordarle que está en backlog.
+
