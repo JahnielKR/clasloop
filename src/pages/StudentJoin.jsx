@@ -2926,11 +2926,25 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
                               bar. Bare text nodes don't match `> *`,
                               so without this span the Netflix fill
                               covers the word "Next" while the arrow
-                              stays visible. */}
-                          <span>
-                            {current + 1 >= questions.length
-                              ? (t.seeResults || "See results")
-                              : (t.next || "Next")}
+                              stays visible.
+                              PR 44: dos copias del texto encimadas. La
+                              base usa el color "antes del fill"; la
+                              fill-overlay usa el color "sobre el fill"
+                              y tiene clip-path animado en sincronía con
+                              la barra de progreso. A medida que la barra
+                              avanza, el texto se "reescribe" en el
+                              color complementario. */}
+                          <span className="stage-next-text">
+                            <span className="stage-next-text-base">
+                              {current + 1 >= questions.length
+                                ? (t.seeResults || "See results")
+                                : (t.next || "Next")}
+                            </span>
+                            <span className="stage-next-text-fill" aria-hidden="true">
+                              {current + 1 >= questions.length
+                                ? (t.seeResults || "See results")
+                                : (t.next || "Next")}
+                            </span>
                           </span>
                           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                             <path d="M5 12h14M13 6l6 6-6 6"/>
