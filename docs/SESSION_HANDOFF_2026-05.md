@@ -204,6 +204,28 @@ Don't over-ask. If a question is trivial, just make the call. Reserve asking for
 - **No `view` on files outside the working dir.** Skills at `/mnt/skills/public/` are read-only and rarely needed for this project (we're not creating docx/pdf/pptx).
 - **Don't ask permission** to use `web_search` or `bash_tool`. Just use them.
 
+### 2.9 ⚠️ Redesign over patch — important Jota rule
+
+**Direct quote from Jota (May 16, 2026, after OAuth marathon):**
+> "la próxima vez, si vez algo raro o complicado, en vez de forzarte a arreglarlo, mejor rediseñar es mejor y más rápido"
+
+**The rule:** if a bug fix is getting into the 3rd or 4th iteration without working cleanly, or if I find myself adding cascading checks ("but if A and not B and timestamp > X..."), **STOP and propose a redesign** instead of another patch. Jota prefers losing some work and rewriting the logic to fighting a complex chain of fixes.
+
+**Real example — what NOT to do:** OAuth signup flow. PRs 36→42 (seven iterations) trying to patch around role-flipping, duplicate emails, race conditions with a SQL trigger, localStorage not surviving redirects, query param smuggling, last_sign_in_at threshold checks, role-mismatch screens. Each PR added complexity. Eventually Jota said "let's redesign, this is dumb" → PR 43 wiped most of that in favor of a single linear flow (drop the trigger, one auth button, mandatory RoleOnboarding screen). The redesign was simpler, faster to write, and bug-free.
+
+**Concrete heuristics for when to redesign:**
+
+- Same area has 3+ fix-iterations and the next bug is still in the same area
+- A fix requires explaining 2+ time thresholds, race conditions, or "if A AND NOT B"
+- The solution feels brittle (e.g. "if user does X within Y seconds")
+- I'm relying on browser-specific behavior (localStorage surviving redirects, etc)
+- A SQL trigger is racing against client code
+- I find myself writing defensive `if (...)` checks just to cover what the previous fix broke
+
+**How to propose:**
+
+Pause, recap what we've tried, what failed, what the root mismatch is. Then sketch an alternative architecture in 1-2 paragraphs. Let Jota approve before coding the new thing. Don't just start rewriting silently.
+
 ---
 
 ## 3. Project state — May 2026
