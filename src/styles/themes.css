@@ -2275,7 +2275,10 @@
   color: #FFD93D;
 }
 .stage[data-theme="pop"] .stage-next-btn.is-auto-advancing::before {
-  background: #C147FF;
+  /* PR 44.3: barra de fill ahora es NEGRA (#1F1733) en lugar de morado.
+   * Coherente con la paleta del tema Pop (negro + amarillo + blanco).
+   * El overlay text en amarillo lee bien sobre el negro. */
+  background: #1F1733;
 }
 .stage[data-theme="mono"] .stage-next-btn.is-auto-advancing {
   background: #1F1733;
