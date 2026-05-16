@@ -52,6 +52,7 @@ export const ROUTES = {
 
   SCHOOL: "/school",                    // Director (label en sidebar dice "School")
   COMMUNITY: "/community",
+  SCAN: "/scan",                        // PR 49: Scanner — teacher only
   // TEACHER: "/teacher/:teacherId"      → buildRoute.teacher(id)
 
   // ─ Student ─
@@ -140,6 +141,7 @@ export const ROUTE_PATTERNS = {
 
   SCHOOL: "/school",
   COMMUNITY: "/community",
+  SCAN: "/scan",
   TEACHER: "/teacher/:teacherId",
 
   CLASSES: "/classes",
@@ -196,6 +198,7 @@ export const PAGE_TO_ROUTE = {
   myClasses: ROUTES.CLASSES,
   review: ROUTES.REVIEW,
   favorites: ROUTES.FAVORITES,
+  scan: ROUTES.SCAN,
   // teacherProfile no entra acá: es ruta con param. Se navega con
   // buildRoute.teacher(id), no con setPage("teacherProfile").
   adminAIStats: ROUTES.ADMIN_AI_STATS,
@@ -245,6 +248,7 @@ export function pathToPage(pathname) {
   if (pathname === "/review")              return "review";
 
   if (pathname === "/admin/ai-stats")      return "adminAIStats";
+  if (pathname === "/scan")                return "scan";
 
   if (pathname === "/join")                return null; // GuestJoin, fuera del shell auth
 
@@ -283,6 +287,7 @@ const TEACHER_ONLY_PAGES = new Set([
   "decks",
   "director",       // /school — analytics dashboard, accessible from MyClasses header
   "adminAIStats",   // additionally requires is_admin, checked at the page level
+  "scan",           // PR 49: Scanner — only teachers grade exams
 ]);
 
 // Note: review, deckResults and classInsights are *not* listed above —

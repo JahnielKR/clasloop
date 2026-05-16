@@ -88,6 +88,7 @@ const TEACHER_NAV_GROUPS = [
     items: [
       { id: "myClasses", glyph: "▤", label: "My Classes" },
       { id: "decks",     glyph: "▥", label: "Library" },
+      { id: "scan",      glyph: "▢", label: "Scanner" },
     ],
   },
   {
