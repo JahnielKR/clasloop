@@ -2920,35 +2920,42 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
                           className={`stage-next-btn ${autoAdvanceStart !== null ? 'is-auto-advancing' : ''}`}
                           onClick={handleNext}
                         >
-                          {/* PR 28.12.1: text must be wrapped in an
-                              element so the `.stage-next-btn > *`
-                              z-index:1 rule lifts it above the fill
-                              bar. Bare text nodes don't match `> *`,
-                              so without this span the Netflix fill
-                              covers the word "Next" while the arrow
-                              stays visible.
-                              PR 44: dos copias del texto encimadas. La
-                              base usa el color "antes del fill"; la
-                              fill-overlay usa el color "sobre el fill"
-                              y tiene clip-path animado en sincronía con
-                              la barra de progreso. A medida que la barra
-                              avanza, el texto se "reescribe" en el
-                              color complementario. */}
-                          <span className="stage-next-text">
-                            <span className="stage-next-text-base">
-                              {current + 1 >= questions.length
-                                ? (t.seeResults || "See results")
-                                : (t.next || "Next")}
-                            </span>
-                            <span className="stage-next-text-fill" aria-hidden="true">
-                              {current + 1 >= questions.length
-                                ? (t.seeResults || "See results")
-                                : (t.next || "Next")}
-                            </span>
+                          {/* PR 28.12.1: text wrapped in element so the
+                              `.stage-next-btn > *` z-index:1 rule lifts
+                              it above the fill bar.
+                              PR 44 / 44.1: dual-text trick para que la
+                              palabra sea legible en ambos lados del
+                              fill. El overlay (.stage-next-text-fill) es
+                              hermano DEL BOTÓN entero, posicionado
+                              absolutamente sobre él, así su clip-path
+                              animado va al mismo ritmo que la barra de
+                              progreso (que también cubre el botón
+                              completo). Si el overlay viviera dentro de
+                              .stage-next-text (que es del ancho del
+                              texto), la animación se completaría más
+                              rápido que la barra → desfase visual. */}
+                          <span className="stage-next-text-base">
+                            {current + 1 >= questions.length
+                              ? (t.seeResults || "See results")
+                              : (t.next || "Next")}
                           </span>
                           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                             <path d="M5 12h14M13 6l6 6-6 6"/>
                           </svg>
+                          {/* Overlay: misma layout que el botón (mismo
+                              padding, mismo flex), absolutamente posicionado
+                              encima. Clip-path animado en sincronía con la
+                              barra. aria-hidden porque es decorativo. */}
+                          <span className="stage-next-text-fill" aria-hidden="true">
+                            <span className="stage-next-text-fill-label">
+                              {current + 1 >= questions.length
+                                ? (t.seeResults || "See results")
+                                : (t.next || "Next")}
+                            </span>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M5 12h14M13 6l6 6-6 6"/>
+                            </svg>
+                          </span>
                         </button>
                       )}
                     </div>

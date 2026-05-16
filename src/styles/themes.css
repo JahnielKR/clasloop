@@ -2285,73 +2285,67 @@
   background: #FFFFFF;
 }
 
-/* ─── PR 44: doble texto con clip-path animado ─────────────────────────
- * Two stacked copies of the "Next" text so the label stays readable
- * BOTH before the fill bar reaches it (base color) AND after (fill
- * color). Same trick as a film-strip mask: clip the overlay to the
- * progress percentage, animated in sync with the fill bar.
+/* ─── PR 44 / 44.1: doble texto con clip-path animado, sincronizado
+ * con la barra de progreso ──────────────────────────────────────────────
  *
- * - .stage-next-text          : positioning wrapper, takes the spot of
- *                               the old single span. Keeps the z-index
- *                               trick from PR 28.12 (children > * get
- *                               z-index 1 so they sit above the fill).
- * - .stage-next-text-base     : visible label, colored to read against
- *                               the BUTTON background (the empty state
- *                               of the fill). Inherits `color` from the
- *                               theme's .is-auto-advancing rule.
- * - .stage-next-text-fill     : overlay copy, absolutely positioned on
- *                               top of the base. Clipped to 0% width by
- *                               default. When .is-auto-advancing fires,
- *                               its clip-path animates from inset(0
- *                               100% 0 0) to inset(0 0% 0 0) — i.e. it
- *                               reveals left-to-right at the same speed
- *                               as the fill bar.
+ * El overlay (.stage-next-text-fill) es hermano del SVG y del span
+ * base — vive directamente dentro del botón. CSS lo posiciona
+ * absolutamente cubriendo el botón entero, con el mismo padding y
+ * flex layout que el botón en sí, para que el texto del overlay quede
+ * pixel-perfect encima del texto base.
  *
- * The pair lets us pick a color for "base" (legible against the empty
- * button) and a different color for "fill" (legible against the moving
- * accent bar), and the eye sees a smooth color crossfade following the
- * progress.
+ * Su clip-path se anima de inset(0 100% 0 0) a inset(0 0% 0 0) en
+ * 4000ms linear forwards — IDÉNTICO al de la barra de progreso
+ * (cl-next-fill). Como ambos cubren el ancho del botón completo, el
+ * texto se revela en lockstep visual con la barra: cuando la barra
+ * pasa por el pixel X, el clip del texto también está en pixel X.
+ *
+ * Versión previa (PR 44 inicial) ponía los spans dentro de un wrapper
+ * .stage-next-text que era del ancho del texto (~40px), no del botón
+ * (~200px). El clip-path animado de 100% al 0% se completaba en 40px,
+ * mientras la barra seguía avanzando los 200px. Desfase notorio.
  */
-.stage .stage-next-btn .stage-next-text {
-  position: relative;
-  display: inline-block;
-}
 .stage .stage-next-btn .stage-next-text-base {
-  /* Inherits color from .stage-next-btn (or its theme override) */
+  /* Hereda color del .stage-next-btn (o del override per-tema en
+   * .is-auto-advancing). El z-index ya viene de `.stage-next-btn > *`
+   * (PR 28.12.1) que pone los hijos directos arriba del ::before del
+   * fill bar. */
 }
 .stage .stage-next-btn .stage-next-text-fill {
   position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  /* Default: not visible (clipped to 0% width). When auto-advancing
-   * fires, the keyframe below animates clip-path to reveal it. */
+  inset: 0;
+  /* Mismo layout que el botón mismo, para alinear el texto encima del
+   * base. Si .stage-next-btn cambia su flex/padding, este también
+   * tiene que reflejar el cambio. */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 14px 18px;
+  font-family: 'Outfit', sans-serif;
+  font-weight: 700;
+  font-size: 15px;
+  /* Default: clipped a 0% (no visible). Cuando entra is-auto-advancing
+   * el keyframe lo revela. */
   clip-path: inset(0 100% 0 0);
-  /* color is set per-theme below; default is the inverse of base */
+  /* color se setea per-tema más abajo. */
   color: inherit;
   pointer-events: none;
+  /* z-index: 2 para estar arriba del base (que está en z-index 1 vía
+   * la regla > *). */
+  z-index: 2;
 }
 @keyframes cl-next-text-fill {
   from { clip-path: inset(0 100% 0 0); }
   to   { clip-path: inset(0 0%   0 0); }
 }
 .stage .stage-next-btn.is-auto-advancing .stage-next-text-fill {
-  /* Same 4000ms linear forwards as the fill bar so they stay in lockstep */
+  /* Mismo timing que la barra para sync visual exacto */
   animation: cl-next-text-fill 4000ms linear forwards;
 }
 
-/* Per-theme: pick the COLOR of the fill-overlay text. The base color
- * comes from the .is-auto-advancing rule (already set per-theme above).
- * The overlay color should read against the FILL BAR background:
- *   - calm:  fill is teal accent (--accent). White overlay reads.
- *   - ocean: fill is mint-green accent. Dark overlay reads.
- *   - pop:   fill is morado #C147FF. Yellow base stays + white fill reads on purple.
- *   - mono:  fill is white #FFFFFF. Black base + white-no-wait, base is
- *            already black-on-black at start. We invert: base is white
- *            (readable on the dark empty button), fill-overlay is black
- *            (readable on the white sweep). This means we have to also
- *            override the .is-auto-advancing color for mono.
- */
+/* Per-theme: color de la copia overlay (debe leer contra la BARRA
+ * de fill, no contra el botón vacío). */
 .stage[data-theme="calm"] .stage-next-btn .stage-next-text-fill {
   color: #FFFFFF;
 }
@@ -2361,9 +2355,8 @@
 .stage[data-theme="pop"] .stage-next-btn .stage-next-text-fill {
   color: #FFFFFF;
 }
-/* Mono needs base to be WHITE (the empty button is dark) and overlay to
- * be BLACK (the moving fill is white). Override the base color from
- * the .is-auto-advancing rule (which had it at #1F1733). */
+/* Mono: base blanca (sobre botón oscuro), overlay negra (sobre fill
+ * blanca) — invertido del PR 28.12.2 original (que era negro sobre negro). */
 .stage[data-theme="mono"] .stage-next-btn.is-auto-advancing {
   color: #FFFFFF;
 }
