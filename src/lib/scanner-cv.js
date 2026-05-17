@@ -1,145 +1,77 @@
 // ─── lib/scanner-cv.js ──────────────────────────────────────────────────
 //
-// PR 49: pipeline de computer vision para el scanner camera.
+// PR 49.5: pipeline de computer vision en JavaScript puro.
 //
-// Recibe un canvas con el frame capturado de la cámara y devuelve un
-// resultado con las respuestas detectadas + score contra la answer key.
+// Reemplaza la versión anterior basada en OpenCV.js (PR 49.3). OpenCV.js
+// (~8MB WASM) no se carga confiablemente en navegadores móviles (Safari
+// iOS y Chrome Android tarda minutos o nunca completa la inicialización
+// en redes/CPUs típicas).
+//
+// Esta versión usa solo APIs nativas del browser:
+//   - Canvas 2D para leer pixeles
+//   - Algoritmos de CV implementados a mano (~250 líneas)
+//   - jsQR para leer el QR (~25KB, sin WASM)
 //
 // Pipeline:
-//   1. Convertir a escala de grises + thresholding adaptativo
-//   2. Detectar contornos de los 4 fiduciales esquineros (cuadrados
-//      negros sólidos en las esquinas, definidos por scanner.js como
-//      cuadrados de 7mm con 6mm de inset)
-//   3. Identificar cuáles son las 4 esquinas (TL, TR, BL, BR) por
-//      posición relativa al centro de la imagen
-//   4. Computar la matriz de perspectiva (cv.getPerspectiveTransform)
-//   5. Warp a una imagen "ideal" de proporción A4 (210:297) con
-//      tamaño fijo (ej. 1050×1485, factor 5x sobre los mm reales)
-//   6. Detectar el QR code (jsQR) en la región esperada (esquina
-//      inferior-derecha) → extraer el deck_id
-//   7. Verificar que el deck_id del QR coincide con el deck seleccionado
-//   8. Para cada burbuja según el template:
-//        a. Convertir coordenadas mm → píxeles (factor 5x)
-//        b. Samplear un círculo pequeño en el centro
-//        c. Calcular el "darkness ratio" (% de píxeles oscuros)
-//        d. Si supera el threshold (~40%), está marcada
-//   9. Para cada pregunta: si tiene exactamente 1 burbuja marcada,
-//      esa es la respuesta. Si tiene 0 → null (en blanco). Si tiene
-//      2+ → "ambiguous" (treated as null, contado como incorrecta)
-//  10. Comparar contra la answer key del deck → score + detalle
+//   1. Render del frame a canvas grayscale (Uint8ClampedArray)
+//   2. Adaptive threshold local (~31×31 px) → binary
+//   3. Connected-component labeling (flood-fill 4-conn) → blobs
+//   4. Filter blobs por shape (square-ish, área proporcional, solidez)
+//   5. Identificar 4 esquinas extremas
+//   6. Perspective transform: calcular matriz 3x3 (DLT)
+//   7. Warp inverso a canvas "ideal" A4 (~1050×1485 px)
+//   8. jsQR sobre la región del QR
+//   9. Sample pixels alrededor del centro de cada burbuja → darkness
+//  10. Comparar contra answer key del deck → score + detalle
 //
-// OpenCV.js (~8MB) y jsQR (~25KB) se cargan lazy desde acá. La primera
-// llamada inicializa todo y devuelve la promesa cuando está listo.
+// API pública intencionalmente idéntica a la versión anterior:
+//   processScanFrame(canvas, deck) → result
+//   loadOpenCV() → no-op (lo mantenemos exportado para no romper imports)
 
 import { TEMPLATES, pickTemplate, PAGE_DIMS } from "./pdf-styles/scanner";
 import jsQR from "jsqr";
 
 // ─── Constants ──────────────────────────────────────────────────────────
 
-// Resolución del warp "ideal". 5x sobre los mm reales del A4
-// (210×297mm) da 1050×1485px. Suficiente para distinguir burbujas de
-// 1.7mm = 8.5px de radio (el caso más chico del T50).
+// Warp target: 5× sobre los mm reales del A4 (210×297mm) = 1050×1485 px.
+// Suficiente para distinguir las burbujas más chicas (1.7mm = 8.5px de
+// radio).
 const WARP_SCALE = 5;
-const WARP_W = PAGE_DIMS.width * WARP_SCALE;   // 1050
-const WARP_H = PAGE_DIMS.height * WARP_SCALE;  // 1485
+const WARP_W = PAGE_DIMS.width  * WARP_SCALE; // 1050
+const WARP_H = PAGE_DIMS.height * WARP_SCALE; // 1485
 
-// Threshold para considerar una burbuja "marcada". Promedio de
-// intensidad (0-255) por debajo de este valor = marcada. Calibrado
-// para detectar marcas con lápiz oscuro o pluma; toleranta hojas
-// con sombras o impresión irregular.
+// Bubble sampling thresholds (mismos valores que la versión OpenCV).
 const BUBBLE_DARK_THRESHOLD = 130;
-
-// Si la diferencia entre la burbuja más oscura y la segunda más oscura
-// de una fila es muy chica (<15), consideramos que es ambigüo y no
-// asignamos respuesta. Esto evita decir "marcó A" cuando en realidad
-// está toda la fila oscura por una sombra.
 const BUBBLE_AMBIGUITY_MARGIN = 15;
-
-// Tamaño del kernel de muestreo dentro de la burbuja, en mm. La burbuja
-// más chica tiene radio 1.7mm. Sampleo un cuadrado de 2mm de lado
-// centrado en la burbuja (queda dentro del círculo en todos los
-// templates).
 const SAMPLE_RADIUS_MM = 1.4;
 
-// Coordenadas esperadas del QR en la hoja, en mm. Definidas por
-// scanner.js drawFooter: QR de 22×22mm en el lower-right, justo
-// debajo del bottomRule. La posición exacta depende del template
-// (T10/20/30 vs T50). Por ahora buscamos en una región amplia del
-// lower-right de la hoja.
+// QR search region en mm (lower-right, cubre tanto T50 como otros).
 const QR_SEARCH_REGION_MM = {
-  x: 130,    // desde la izquierda
-  y: 240,    // desde arriba
-  w: 70,     // ancho
-  h: 55,     // alto (cubre tanto T50 con bottomRule 272 como los demás con 245)
+  x: 130, y: 240, w: 70, h: 55,
 };
 
-// ─── OpenCV lazy loader ─────────────────────────────────────────────────
+// Adaptive threshold params (ajustables).
+const THRESHOLD_BLOCK = 31;  // tamaño de bloque para promedio local
+const THRESHOLD_OFFSET = 10; // píxeles más oscuros que (promedio - offset) → foreground
 
-const OPENCV_URL = "https://docs.opencv.org/4.10.0/opencv.js";
+// Fiducial inset esperado en mm (centro del cuadrado de esquina):
+// 6mm (CORNER_INSET) + 3.5mm (CORNER_SIZE/2) = 9.5mm.
+const FIDUCIAL_INSET_MM = 9.5;
 
-let openCvPromise = null;
-
-/**
- * Carga OpenCV.js dinámicamente (1 sola vez) y resuelve cuando el
- * runtime está listo. La librería se inicializa async — el script
- * inicial define window.cv pero `cv.Mat` no existe hasta que se
- * dispara onRuntimeInitialized.
- */
+// ─── No-op para compat con import existente ─────────────────────────────
 export function loadOpenCV() {
-  if (openCvPromise) return openCvPromise;
-
-  openCvPromise = new Promise((resolve, reject) => {
-    // Si ya está cargado (ej. desde otro lugar), usar directo.
-    if (window.cv && typeof window.cv.Mat === "function") {
-      resolve(window.cv);
-      return;
-    }
-
-    const script = document.createElement("script");
-    script.src = OPENCV_URL;
-    script.async = true;
-    script.onerror = () => reject(new Error("Failed to load OpenCV.js from CDN"));
-    script.onload = () => {
-      // OpenCV.js define window.cv, pero el runtime WASM no está listo
-      // todavía. Hay dos casos:
-      //   - cv.Mat ya existe → listo (sucede en algunos browsers)
-      //   - cv.onRuntimeInitialized lo dispara cuando termina (común)
-      if (window.cv && typeof window.cv.Mat === "function") {
-        resolve(window.cv);
-        return;
-      }
-      if (window.cv && typeof window.cv === "object") {
-        window.cv.onRuntimeInitialized = () => resolve(window.cv);
-        // Safety timeout: si OpenCV no inicializa en 30s asumimos que
-        // algo se rompió y rechazamos.
-        setTimeout(() => reject(new Error("OpenCV initialization timeout")), 30000);
-        return;
-      }
-      reject(new Error("OpenCV.js loaded but window.cv is missing"));
-    };
-    document.head.appendChild(script);
-  });
-
-  return openCvPromise;
+  return Promise.resolve(); // no más OpenCV — todo en JS puro
 }
 
 // ─── Pipeline ───────────────────────────────────────────────────────────
 
 /**
- * Result types:
- *   { ok: true, score, total, answers: [...], deckId, warpedCanvas }
- *   { ok: false, code: "no_fiducials" | "wrong_deck" | "qr_not_found" |
- *                      "opencv_failed" | "no_questions", message }
+ * Process a captured frame against the selected deck.
+ * Returns:
+ *   { ok: true,  score, total, answers, deckId, template, warpedCanvas }
+ *   { ok: false, code, message, ...extra }
  */
 export async function processScanFrame(sourceCanvas, deck) {
-  let cv;
-  try {
-    cv = await loadOpenCV();
-  } catch (err) {
-    return { ok: false, code: "opencv_failed", message: err.message };
-  }
-
-  // ─── Identify expected scannable questions + template ─────────────
   const scannable = (deck.questions || []).filter(
     q => q && (q.type === "mcq" || q.type === "tf")
   );
@@ -148,194 +80,376 @@ export async function processScanFrame(sourceCanvas, deck) {
   }
   const template = pickTemplate(scannable.length);
 
-  // OpenCV mats que necesitamos liberar al final.
-  const toDelete = [];
+  // 1. Source → grayscale Uint8Array
+  const srcCtx = sourceCanvas.getContext("2d", { willReadFrequently: true });
+  const srcImg = srcCtx.getImageData(0, 0, sourceCanvas.width, sourceCanvas.height);
+  const W = srcImg.width, H = srcImg.height;
+  const gray = toGrayscale(srcImg);
 
-  try {
-    // 1. Source → Mat
-    const src = cv.imread(sourceCanvas);
-    toDelete.push(src);
+  // Allow the browser to paint between costly steps.
+  await yieldToBrowser();
 
-    // 2. Gray + binarize
-    const gray = new cv.Mat();
-    toDelete.push(gray);
-    cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
+  // 2. Adaptive threshold → binary (Uint8Array, 0 or 255)
+  const bin = adaptiveThreshold(gray, W, H, THRESHOLD_BLOCK, THRESHOLD_OFFSET);
+  await yieldToBrowser();
 
-    const bin = new cv.Mat();
-    toDelete.push(bin);
-    // Adaptive threshold tolera iluminación irregular mejor que un
-    // threshold fijo. Block size 51 + C 10 calibrado empíricamente
-    // para hojas A4 fotografiadas con luz de aula típica.
-    cv.adaptiveThreshold(
-      gray, bin, 255,
-      cv.ADAPTIVE_THRESH_MEAN_C,
-      cv.THRESH_BINARY_INV,
-      51, 10
-    );
+  // 3. Connected component labeling → list of blobs with bbox + area
+  const blobs = findBlobs(bin, W, H);
+  await yieldToBrowser();
 
-    // 3. Find contours
-    const contours = new cv.MatVector();
-    const hierarchy = new cv.Mat();
-    toDelete.push(contours, hierarchy);
-    cv.findContours(bin, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
-
-    // 4. Filter contours that look like fiducials: small square-ish
-    // dark blobs (the corner marks are 7mm = 35-50px depending on
-    // capture resolution).
-    const candidates = [];
-    const srcArea = src.rows * src.cols;
-    // Fiducial expected area range: between 0.01% and 1% of the image
-    // (covers a wide range of capture distances).
-    const minArea = srcArea * 0.0001;
-    const maxArea = srcArea * 0.01;
-
-    for (let i = 0; i < contours.size(); i++) {
-      const cnt = contours.get(i);
-      const area = cv.contourArea(cnt);
-      if (area < minArea || area > maxArea) {
-        cnt.delete();
-        continue;
-      }
-      const rect = cv.boundingRect(cnt);
-      // Square-ish: aspect ratio within [0.7, 1.4]
-      const aspect = rect.width / rect.height;
-      if (aspect < 0.7 || aspect > 1.4) {
-        cnt.delete();
-        continue;
-      }
-      // Solidity: area / bounding rect area should be >0.7 (filled square)
-      const solidity = area / (rect.width * rect.height);
-      if (solidity < 0.7) {
-        cnt.delete();
-        continue;
-      }
-      candidates.push({
-        cx: rect.x + rect.width / 2,
-        cy: rect.y + rect.height / 2,
-        area,
-      });
-      cnt.delete();
-    }
-
-    // 5. Identify the 4 corner fiducials. The PDF has 4 corner + 2
-    // mid-lateral fiducials. We pick the 4 that are "most extreme"
-    // in each corner direction.
-    if (candidates.length < 4) {
-      return { ok: false, code: "no_fiducials", message: `Only found ${candidates.length} fiducial candidates` };
-    }
-
-    const cx = src.cols / 2;
-    const cy = src.rows / 2;
-    // For each corner, pick the candidate furthest from center in that
-    // direction (TL = most -x AND most -y; etc).
-    const corners = pickCornerFiducials(candidates, cx, cy);
-    if (!corners) {
-      return { ok: false, code: "no_fiducials", message: "Could not identify 4 distinct corners" };
-    }
-
-    // 6. Compute perspective transform: corners → ideal A4 rect
-    const srcPts = cv.matFromArray(4, 1, cv.CV_32FC2, [
-      corners.tl.cx, corners.tl.cy,
-      corners.tr.cx, corners.tr.cy,
-      corners.br.cx, corners.br.cy,
-      corners.bl.cx, corners.bl.cy,
-    ]);
-    toDelete.push(srcPts);
-
-    // The fiducial centers correspond to specific mm positions on the
-    // page (from scanner.js):
-    //   TL: (FIDUCIAL_CORNER_INSET + FIDUCIAL_CORNER/2, same) = (9.5, 9.5)
-    //   TR: (PAGE.width - 9.5, 9.5)
-    //   BR: (PAGE.width - 9.5, PAGE.height - 9.5)
-    //   BL: (9.5, PAGE.height - 9.5)
-    // Scaled by WARP_SCALE.
-    const FID_INSET = (6 + 3.5) * WARP_SCALE; // 47.5
-    const dstPts = cv.matFromArray(4, 1, cv.CV_32FC2, [
-      FID_INSET,           FID_INSET,
-      WARP_W - FID_INSET,  FID_INSET,
-      WARP_W - FID_INSET,  WARP_H - FID_INSET,
-      FID_INSET,           WARP_H - FID_INSET,
-    ]);
-    toDelete.push(dstPts);
-
-    const M = cv.getPerspectiveTransform(srcPts, dstPts);
-    toDelete.push(M);
-
-    // 7. Warp to ideal A4
-    const warped = new cv.Mat();
-    toDelete.push(warped);
-    cv.warpPerspective(src, warped, M, new cv.Size(WARP_W, WARP_H));
-
-    // Also create grayscale of warped for sampling
-    const warpedGray = new cv.Mat();
-    toDelete.push(warpedGray);
-    cv.cvtColor(warped, warpedGray, cv.COLOR_RGBA2GRAY);
-
-    // Render warped to a canvas (for QR reading + optional debug display)
-    const warpedCanvas = document.createElement("canvas");
-    warpedCanvas.width = WARP_W;
-    warpedCanvas.height = WARP_H;
-    cv.imshow(warpedCanvas, warped);
-
-    // 8. Detect QR in the lower-right region
-    const qrCtx = warpedCanvas.getContext("2d");
-    const qrRegion = qrCtx.getImageData(
-      QR_SEARCH_REGION_MM.x * WARP_SCALE,
-      QR_SEARCH_REGION_MM.y * WARP_SCALE,
-      QR_SEARCH_REGION_MM.w * WARP_SCALE,
-      QR_SEARCH_REGION_MM.h * WARP_SCALE,
-    );
-    const qrCode = jsQR(qrRegion.data, qrRegion.width, qrRegion.height);
-    if (!qrCode) {
-      return {
-        ok: false, code: "qr_not_found",
-        message: "Could not read QR code on the answer sheet",
-        warpedCanvas,
-      };
-    }
-
-    // 9. Validate deck_id
-    // QR payload format from scanner.js drawFooter: `clasloop:deck:${deck.id}`
-    const expectedQR = `clasloop:deck:${deck.id}`;
-    if (qrCode.data !== expectedQR) {
-      // Extract deck_id from QR if format matches, for better error msg
-      const m = /^clasloop:deck:(.+)$/.exec(qrCode.data);
-      const sheetDeckId = m ? m[1] : qrCode.data;
-      return {
-        ok: false, code: "wrong_deck",
-        message: `Sheet belongs to a different deck`,
-        sheetDeckId,
-        expectedDeckId: deck.id,
-        warpedCanvas,
-      };
-    }
-
-    // 10. Sample each bubble
-    const answers = sampleAllBubbles(warpedGray, scannable, template, cv);
-
-    // 11. Score
-    let score = 0;
-    answers.forEach(a => { if (a.isRight) score++; });
-
+  // 4. Filter blobs that look like fiducial squares
+  const candidates = filterFiducialCandidates(blobs, W, H);
+  if (candidates.length < 4) {
     return {
-      ok: true,
-      score,
-      total: scannable.length,
-      answers,
-      deckId: deck.id,
-      template: templateName(template),
+      ok: false, code: "no_fiducials",
+      message: `Only found ${candidates.length} fiducial candidates`,
+    };
+  }
+
+  // 5. Identify 4 corners by extreme position
+  const corners = pickCornerFiducials(candidates, W / 2, H / 2);
+  if (!corners) {
+    return { ok: false, code: "no_fiducials", message: "Could not identify 4 distinct corners" };
+  }
+
+  // 6. Build perspective transform: source corners → destination corners
+  // Destination = fiducial centers in the ideal warped A4
+  const fidInsetPx = FIDUCIAL_INSET_MM * WARP_SCALE;
+  const srcPts = [
+    [corners.tl.cx, corners.tl.cy],
+    [corners.tr.cx, corners.tr.cy],
+    [corners.br.cx, corners.br.cy],
+    [corners.bl.cx, corners.bl.cy],
+  ];
+  const dstPts = [
+    [fidInsetPx,             fidInsetPx],
+    [WARP_W - fidInsetPx,    fidInsetPx],
+    [WARP_W - fidInsetPx,    WARP_H - fidInsetPx],
+    [fidInsetPx,             WARP_H - fidInsetPx],
+  ];
+
+  const inverseMatrix = computePerspectiveTransform(dstPts, srcPts);
+  if (!inverseMatrix) {
+    return { ok: false, code: "no_fiducials", message: "Degenerate perspective transform" };
+  }
+
+  await yieldToBrowser();
+
+  // 7. Warp: para cada pixel del destino calculamos su origen en la fuente
+  const warpedCanvas = document.createElement("canvas");
+  warpedCanvas.width = WARP_W;
+  warpedCanvas.height = WARP_H;
+  const warpedCtx = warpedCanvas.getContext("2d", { willReadFrequently: true });
+  const warpedImg = warpPerspective(srcImg, inverseMatrix, WARP_W, WARP_H);
+  warpedCtx.putImageData(warpedImg, 0, 0);
+
+  await yieldToBrowser();
+
+  // Grayscale version of warped image for sampling
+  const warpedGray = toGrayscale(warpedImg);
+
+  // 8. Read QR
+  const qrX = QR_SEARCH_REGION_MM.x * WARP_SCALE;
+  const qrY = QR_SEARCH_REGION_MM.y * WARP_SCALE;
+  const qrW = QR_SEARCH_REGION_MM.w * WARP_SCALE;
+  const qrH = QR_SEARCH_REGION_MM.h * WARP_SCALE;
+  const qrRegion = warpedCtx.getImageData(qrX, qrY, qrW, qrH);
+  const qrCode = jsQR(qrRegion.data, qrRegion.width, qrRegion.height, {
+    inversionAttempts: "attemptBoth",
+  });
+  if (!qrCode) {
+    return {
+      ok: false, code: "qr_not_found",
+      message: "Could not read QR code on the answer sheet",
       warpedCanvas,
     };
-
-  } finally {
-    // Clean up all OpenCV mats to avoid memory leaks
-    toDelete.forEach(m => {
-      try { m.delete(); } catch {}
-    });
   }
+
+  // 9. Validate deck_id
+  const expectedQR = `clasloop:deck:${deck.id}`;
+  if (qrCode.data !== expectedQR) {
+    const m = /^clasloop:deck:(.+)$/.exec(qrCode.data);
+    const sheetDeckId = m ? m[1] : qrCode.data;
+    return {
+      ok: false, code: "wrong_deck",
+      message: "Sheet belongs to a different deck",
+      sheetDeckId, expectedDeckId: deck.id,
+      warpedCanvas,
+    };
+  }
+
+  // 10. Sample each bubble
+  const answers = sampleAllBubbles(warpedGray, WARP_W, WARP_H, scannable, template);
+  let score = 0;
+  answers.forEach(a => { if (a.isRight) score++; });
+
+  return {
+    ok: true,
+    score,
+    total: scannable.length,
+    answers,
+    deckId: deck.id,
+    template: templateName(template),
+    warpedCanvas,
+  };
 }
 
-// ─── Helpers ────────────────────────────────────────────────────────────
+// ─── JS-puro CV primitives ──────────────────────────────────────────────
+
+/** ImageData (RGBA) → Uint8Array (grayscale 0-255). */
+function toGrayscale(imgData) {
+  const data = imgData.data;
+  const N = imgData.width * imgData.height;
+  const out = new Uint8Array(N);
+  for (let i = 0, j = 0; i < N; i++, j += 4) {
+    // Rec. 709 luminance: 0.2126 R + 0.7152 G + 0.0722 B
+    out[i] = (data[j] * 0.2126 + data[j + 1] * 0.7152 + data[j + 2] * 0.0722) | 0;
+  }
+  return out;
+}
+
+/**
+ * Adaptive threshold: cada pixel se compara contra el promedio de un
+ * bloque local (mean - C). Foreground (oscuro) = 255 en el output.
+ * Implementado con integral image (suma acumulada) → O(N).
+ */
+function adaptiveThreshold(gray, W, H, block, C) {
+  // Build integral image
+  const intg = new Float64Array((W + 1) * (H + 1));
+  for (let y = 1; y <= H; y++) {
+    let rowSum = 0;
+    for (let x = 1; x <= W; x++) {
+      rowSum += gray[(y - 1) * W + (x - 1)];
+      intg[y * (W + 1) + x] = intg[(y - 1) * (W + 1) + x] + rowSum;
+    }
+  }
+  const r = Math.floor(block / 2);
+  const out = new Uint8Array(W * H);
+  for (let y = 0; y < H; y++) {
+    const y1 = Math.max(0, y - r);
+    const y2 = Math.min(H - 1, y + r);
+    for (let x = 0; x < W; x++) {
+      const x1 = Math.max(0, x - r);
+      const x2 = Math.min(W - 1, x + r);
+      const area = (x2 - x1 + 1) * (y2 - y1 + 1);
+      const sum =
+        intg[(y2 + 1) * (W + 1) + (x2 + 1)] -
+        intg[(y1)     * (W + 1) + (x2 + 1)] -
+        intg[(y2 + 1) * (W + 1) + (x1)] +
+        intg[(y1)     * (W + 1) + (x1)];
+      const mean = sum / area;
+      out[y * W + x] = gray[y * W + x] < mean - C ? 255 : 0;
+    }
+  }
+  return out;
+}
+
+/**
+ * Connected component labeling (4-connectivity).
+ * Devuelve array de { area, bbox: {x, y, w, h} } sin las regiones que
+ * tocan el borde de la imagen (típicamente ruido o el papel mismo).
+ *
+ * Implementado con un BFS iterativo usando un buffer plano (no recursivo
+ * para evitar stack overflow en imágenes grandes).
+ */
+function findBlobs(bin, W, H) {
+  const labels = new Int32Array(W * H); // 0 = no asignado
+  const blobs = [];
+  let nextLabel = 1;
+  const queueX = new Int32Array(W * H);
+  const queueY = new Int32Array(W * H);
+
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      const idx = y * W + x;
+      if (bin[idx] !== 255 || labels[idx] !== 0) continue;
+
+      const label = nextLabel++;
+      let qHead = 0, qTail = 0;
+      queueX[qTail] = x; queueY[qTail] = y; qTail++;
+      labels[idx] = label;
+
+      let area = 0, minX = x, minY = y, maxX = x, maxY = y;
+      let touchesBorder = false;
+
+      while (qHead < qTail) {
+        const cx = queueX[qHead], cy = queueY[qHead];
+        qHead++;
+        area++;
+        if (cx < minX) minX = cx;
+        if (cy < minY) minY = cy;
+        if (cx > maxX) maxX = cx;
+        if (cy > maxY) maxY = cy;
+        if (cx === 0 || cy === 0 || cx === W - 1 || cy === H - 1) {
+          touchesBorder = true;
+        }
+        // 4-connected neighbors
+        for (let d = 0; d < 4; d++) {
+          const nx = cx + (d === 0 ? -1 : d === 1 ? 1 : 0);
+          const ny = cy + (d === 2 ? -1 : d === 3 ? 1 : 0);
+          if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
+          const nIdx = ny * W + nx;
+          if (bin[nIdx] === 255 && labels[nIdx] === 0) {
+            labels[nIdx] = label;
+            queueX[qTail] = nx; queueY[qTail] = ny; qTail++;
+          }
+        }
+      }
+
+      if (!touchesBorder) {
+        blobs.push({
+          area,
+          bbox: { x: minX, y: minY, w: maxX - minX + 1, h: maxY - minY + 1 },
+        });
+      }
+    }
+  }
+  return blobs;
+}
+
+/** Apply same shape filter as PR 49.3 to find fiducial candidates. */
+function filterFiducialCandidates(blobs, W, H) {
+  const imgArea = W * H;
+  const minArea = imgArea * 0.0001;
+  const maxArea = imgArea * 0.01;
+  const out = [];
+  for (const b of blobs) {
+    if (b.area < minArea || b.area > maxArea) continue;
+    const aspect = b.bbox.w / b.bbox.h;
+    if (aspect < 0.7 || aspect > 1.4) continue;
+    const solidity = b.area / (b.bbox.w * b.bbox.h);
+    if (solidity < 0.7) continue;
+    out.push({
+      cx: b.bbox.x + b.bbox.w / 2,
+      cy: b.bbox.y + b.bbox.h / 2,
+      area: b.area,
+    });
+  }
+  return out;
+}
+
+/** Pick the 4 candidates most extreme in each corner direction. */
+function pickCornerFiducials(cands, imgCx, imgCy) {
+  let tl = null, tr = null, br = null, bl = null;
+  let tlS = Infinity, trS = -Infinity, brS = -Infinity, blS = -Infinity;
+  for (const c of cands) {
+    const dx = c.cx - imgCx;
+    const dy = c.cy - imgCy;
+    if (dx + dy < tlS) { tlS = dx + dy; tl = c; }
+    if (dx - dy > trS) { trS = dx - dy; tr = c; }
+    if (dx + dy > brS) { brS = dx + dy; br = c; }
+    if (dy - dx > blS) { blS = dy - dx; bl = c; }
+  }
+  if (!tl || !tr || !br || !bl) return null;
+  if (new Set([tl, tr, br, bl]).size < 4) return null;
+  return { tl, tr, br, bl };
+}
+
+/**
+ * Compute the 3×3 perspective transform matrix mapping 4 source points
+ * to 4 destination points. Solves the linear system from the DLT
+ * (Direct Linear Transform).
+ *
+ * Returns a flat array [a, b, c, d, e, f, g, h, 1] or null if degenerate.
+ *
+ * Math: for each (x, y) → (X, Y):
+ *   X = (a x + b y + c) / (g x + h y + 1)
+ *   Y = (d x + e y + f) / (g x + h y + 1)
+ *
+ * Rearranged into 8 linear equations in (a, b, c, d, e, f, g, h).
+ */
+function computePerspectiveTransform(srcPts, dstPts) {
+  // 8×8 system A · h = b
+  const A = [];
+  const b = [];
+  for (let i = 0; i < 4; i++) {
+    const [x, y] = srcPts[i];
+    const [X, Y] = dstPts[i];
+    A.push([x, y, 1, 0, 0, 0, -X * x, -X * y]); b.push(X);
+    A.push([0, 0, 0, x, y, 1, -Y * x, -Y * y]); b.push(Y);
+  }
+  const h = solveLinearSystem(A, b);
+  if (!h) return null;
+  return [h[0], h[1], h[2], h[3], h[4], h[5], h[6], h[7], 1];
+}
+
+/** Solve a square linear system A x = b via Gaussian elimination. */
+function solveLinearSystem(A, b) {
+  const n = A.length;
+  // Build augmented matrix
+  const M = A.map((row, i) => [...row, b[i]]);
+  for (let col = 0; col < n; col++) {
+    // Partial pivot
+    let maxRow = col;
+    for (let r = col + 1; r < n; r++) {
+      if (Math.abs(M[r][col]) > Math.abs(M[maxRow][col])) maxRow = r;
+    }
+    if (Math.abs(M[maxRow][col]) < 1e-9) return null; // singular
+    if (maxRow !== col) {
+      const tmp = M[col]; M[col] = M[maxRow]; M[maxRow] = tmp;
+    }
+    // Eliminate
+    for (let r = col + 1; r < n; r++) {
+      const factor = M[r][col] / M[col][col];
+      for (let c = col; c <= n; c++) {
+        M[r][c] -= factor * M[col][c];
+      }
+    }
+  }
+  // Back-substitution
+  const x = new Array(n);
+  for (let r = n - 1; r >= 0; r--) {
+    let sum = M[r][n];
+    for (let c = r + 1; c < n; c++) sum -= M[r][c] * x[c];
+    x[r] = sum / M[r][r];
+  }
+  return x;
+}
+
+/**
+ * Apply perspective transform to warp source image into dst W×H.
+ * The matrix maps DST → SRC (inverse warp): for each dst pixel we
+ * compute the source coords and sample (nearest-neighbor for speed).
+ */
+function warpPerspective(srcImg, matrix, dstW, dstH) {
+  const [a, b, c, d, e, f, g, h] = matrix;
+  const out = new ImageData(dstW, dstH);
+  const outData = out.data;
+  const srcData = srcImg.data;
+  const srcW = srcImg.width;
+  const srcH = srcImg.height;
+
+  let oi = 0;
+  for (let y = 0; y < dstH; y++) {
+    for (let x = 0; x < dstW; x++, oi += 4) {
+      const denom = g * x + h * y + 1;
+      const sx = (a * x + b * y + c) / denom;
+      const sy = (d * x + e * y + f) / denom;
+      const xi = sx | 0;
+      const yi = sy | 0;
+      if (xi < 0 || yi < 0 || xi >= srcW || yi >= srcH) {
+        // Outside source: leave as default (transparent black). Set alpha
+        // anyway so jsQR can read uniform background as "white".
+        outData[oi] = 255; outData[oi + 1] = 255;
+        outData[oi + 2] = 255; outData[oi + 3] = 255;
+        continue;
+      }
+      const si = (yi * srcW + xi) * 4;
+      outData[oi]     = srcData[si];
+      outData[oi + 1] = srcData[si + 1];
+      outData[oi + 2] = srcData[si + 2];
+      outData[oi + 3] = 255;
+    }
+  }
+  return out;
+}
+
+/** Yield to the browser so it can repaint between heavy steps. */
+function yieldToBrowser() {
+  return new Promise(r => setTimeout(r, 0));
+}
+
+// ─── Bubble sampling ────────────────────────────────────────────────────
 
 function templateName(t) {
   if (t === TEMPLATES.T10) return "T10";
@@ -344,81 +458,30 @@ function templateName(t) {
   return "T50";
 }
 
-/**
- * From a list of fiducial candidates, pick the 4 that are at the
- * most extreme corners of the image. Returns { tl, tr, br, bl } or
- * null if not enough distinct candidates.
- */
-function pickCornerFiducials(cands, imgCx, imgCy) {
-  // Score each candidate by how far it is in each corner direction.
-  // For TL: minimize (cx + cy). For TR: maximize cx, minimize cy. Etc.
-  let tl = null, tr = null, br = null, bl = null;
-  let tlScore = Infinity, trScore = -Infinity, brScore = -Infinity, blScore = -Infinity;
-
-  for (const c of cands) {
-    const dx = c.cx - imgCx;
-    const dy = c.cy - imgCy;
-    // TL: most negative dx AND dy
-    const tlS = dx + dy;
-    if (tlS < tlScore) { tlScore = tlS; tl = c; }
-    // TR: positive dx, negative dy → maximize (dx - dy)
-    const trS = dx - dy;
-    if (trS > trScore) { trScore = trS; tr = c; }
-    // BR: positive dx AND dy
-    const brS = dx + dy;
-    if (brS > brScore) { brScore = brS; br = c; }
-    // BL: negative dx, positive dy → maximize (-dx + dy) = (dy - dx)
-    const blS = dy - dx;
-    if (blS > blScore) { blScore = blS; bl = c; }
-  }
-
-  // Sanity: all 4 must be distinct
-  if (!tl || !tr || !br || !bl) return null;
-  const set = new Set([tl, tr, br, bl]);
-  if (set.size < 4) return null;
-
-  return { tl, tr, br, bl };
-}
-
-/**
- * For each question in the scan template, sample the bubbles and decide
- * which (if any) is marked. Compare against the question's correct_answer.
- *
- * Returns an array of: { qNum, marked, correct, isRight }
- *   marked  = "A"/"B"/"C"/"D" or "T"/"F" or null (blank/ambiguous)
- *   correct = same letter set, what the answer key says
- *   isRight = true if marked === correct
- */
-function sampleAllBubbles(warpedGray, scannable, template, cv) {
+function sampleAllBubbles(warpedGray, W, H, scannable, template) {
   const results = [];
   const sampleRadiusPx = Math.round(SAMPLE_RADIUS_MM * WARP_SCALE);
+  const positions = computeBubblePositions(scannable, template);
 
-  // For T50 the questions are split between upper block and lower block.
-  // Build a list of { q, qNum, cxMm, cyMm, choices } for all questions.
-  const bubblePositions = computeBubblePositions(scannable, template);
-
-  for (const item of bubblePositions) {
+  for (const item of positions) {
     const samples = item.choices.map((letter, i) => {
       const xMm = item.cxMm + i * template.bubbleGap;
       const yMm = item.cyMm;
       const xPx = Math.round(xMm * WARP_SCALE);
       const yPx = Math.round(yMm * WARP_SCALE);
-      const intensity = sampleIntensity(warpedGray, xPx, yPx, sampleRadiusPx, cv);
+      const intensity = sampleIntensity(warpedGray, W, H, xPx, yPx, sampleRadiusPx);
       return { letter, intensity };
     });
 
-    // Pick the darkest sample
     samples.sort((a, b) => a.intensity - b.intensity);
     const darkest = samples[0];
     const second = samples[1];
 
     let marked = null;
     if (darkest.intensity < BUBBLE_DARK_THRESHOLD) {
-      // Could be marked. Check ambiguity.
       if (!second || (second.intensity - darkest.intensity) >= BUBBLE_AMBIGUITY_MARGIN) {
         marked = darkest.letter;
       }
-      // Otherwise multiple bubbles are equally dark → ambiguous → null
     }
 
     const correct = extractCorrectAnswer(item.q);
@@ -433,42 +496,25 @@ function sampleAllBubbles(warpedGray, scannable, template, cv) {
   return results;
 }
 
-/**
- * Compute (cxMm, cyMm) of the FIRST bubble center for each question,
- * plus the list of choices (which letters are present).
- *
- * Follows the same layout logic as scanner.js drawGrid:
- *   - T10/T20/T30: one block, cols × 10 rows. Questions filled
- *     col-first: q1-q10 in col 1, q11-q20 in col 2, etc.
- *   - T50: upper block (3 cols × 10 = 30 questions) + lower block
- *     (2 cols × 10 = 20 questions).
- */
 function computeBubblePositions(scannable, t) {
   const positions = [];
-
   const addColumn = (qsInCol, startQNum, colBaseX, yStart) => {
     qsInCol.forEach((q, idx) => {
       const cyMm = yStart + idx * t.rowHeight;
       const choices = q.type === "tf" ? ["T", "F"] : ["A", "B", "C", "D"];
       positions.push({
-        q,
-        qNum: startQNum + idx,
-        cxMm: colBaseX,
-        cyMm,
-        choices,
+        q, qNum: startQNum + idx,
+        cxMm: colBaseX, cyMm, choices,
       });
     });
   };
-
   if (t === TEMPLATES.T50) {
-    // Upper: 3 cols × 10 (questions 1-30)
     const upper = scannable.slice(0, 30);
     for (let c = 0; c < t.cols; c++) {
       const colQs = upper.slice(c * 10, (c + 1) * 10);
       if (colQs.length === 0) break;
       addColumn(colQs, c * 10 + 1, t.colXBase[c], t.yStart);
     }
-    // Lower: 2 cols × 10 (questions 31-50)
     const lower = scannable.slice(30, 50);
     for (let c = 0; c < t.cols2; c++) {
       const colQs = lower.slice(c * 10, (c + 1) * 10);
@@ -482,59 +528,34 @@ function computeBubblePositions(scannable, t) {
       addColumn(colQs, c * 10 + 1, t.colXBase[c], t.yStart);
     }
   }
-
   return positions;
 }
 
-/**
- * Sample a small square region around (cxPx, cyPx) in the grayscale
- * image and return the mean intensity (0-255). Lower = darker = more
- * likely to be a filled bubble.
- */
-function sampleIntensity(grayMat, cxPx, cyPx, radiusPx, cv) {
-  // Bound check
-  const x = Math.max(0, cxPx - radiusPx);
-  const y = Math.max(0, cyPx - radiusPx);
-  const w = Math.min(grayMat.cols - x, radiusPx * 2);
-  const h = Math.min(grayMat.rows - y, radiusPx * 2);
-  if (w <= 0 || h <= 0) return 255;
-
-  const roi = grayMat.roi(new cv.Rect(x, y, w, h));
-  const mean = cv.mean(roi);
-  roi.delete();
-  return mean[0]; // grayscale channel
+function sampleIntensity(gray, W, H, cxPx, cyPx, radiusPx) {
+  const x0 = Math.max(0, cxPx - radiusPx);
+  const y0 = Math.max(0, cyPx - radiusPx);
+  const x1 = Math.min(W - 1, cxPx + radiusPx);
+  const y1 = Math.min(H - 1, cyPx + radiusPx);
+  let sum = 0, count = 0;
+  for (let y = y0; y <= y1; y++) {
+    for (let x = x0; x <= x1; x++) {
+      sum += gray[y * W + x];
+      count++;
+    }
+  }
+  return count > 0 ? sum / count : 255;
 }
 
-/**
- * Extract the correct answer from a question object.
- *
- * Shape del codebase (single source of truth en src/lib/scoring.js):
- *   MCQ: q.correct es el índice 0-based en q.options.
- *        (Si es un array, es multi-correct — para el scanner solo
- *        consideramos respuestas únicas; si la pregunta es multi-correct
- *        devolvemos null y la marcamos como "incorrect" implícitamente,
- *        ya que ninguna sola burbuja marcada va a coincidir.)
- *   TF:  q.correct es true | false (boolean).
- *
- * Returns "A"/"B"/"C"/"D" or "T"/"F" or null.
- */
 function extractCorrectAnswer(q) {
   if (!q) return null;
-
   if (q.type === "mcq") {
-    if (typeof q.correct === "number") {
-      return "ABCD"[q.correct] || null;
-    }
-    // Multi-correct: scanner no soporta. Devolver null (la pregunta
-    // no va a sumar punto).
+    if (typeof q.correct === "number") return "ABCD"[q.correct] || null;
     return null;
   }
-
   if (q.type === "tf") {
     if (q.correct === true) return "T";
     if (q.correct === false) return "F";
     return null;
   }
-
   return null;
 }

@@ -26,7 +26,7 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { C } from "../components/tokens";
-import { processScanFrame, loadOpenCV } from "../lib/scanner-cv";
+import { processScanFrame } from "../lib/scanner-cv";
 
 // ─── i18n ───────────────────────────────────────────────────────────────────
 const I18N = {
@@ -279,18 +279,14 @@ export default function Scanner({ lang = "en", profile, onOpenMobileMenu }) {
 
     setStage("process");
     setProcessError(null);
-    setProcessSubState("loadingOpenCV");
+    setProcessSubState("processing");
+
+    // Yield al browser para que pinte el loader antes de empezar el
+    // procesamiento. processScanFrame ya hace yields internos entre
+    // pasos pesados (toGrayscale, adaptiveThreshold, findBlobs, warp).
+    await new Promise(r => setTimeout(r, 50));
 
     try {
-      // PR 49.4: Cargar OpenCV.js AHORA (no antes). En la primera
-      // captura puede tardar 5-15s en cel. Después queda cacheado.
-      await loadOpenCV();
-
-      // Dar un tick al browser para que pinte el loader actualizado
-      // antes de empezar el procesamiento pesado.
-      setProcessSubState("processing");
-      await new Promise(r => setTimeout(r, 50));
-
       const result = await processScanFrame(canvas, selectedDeck);
 
       if (!result.ok) {
