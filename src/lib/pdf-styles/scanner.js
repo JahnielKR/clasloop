@@ -87,6 +87,11 @@ const QR_OFFSET_FROM_RULE = 5;
 // replicar las coordenadas exactas de las burbujas y saber dónde
 // samplear en la imagen "ideal" (después del 4-point warp).
 export const TEMPLATES = {
+  // PR 58.1 (fix bug del scanner — Jota notó que el contenido se veía
+  // desplazado a la izquierda y el scanner sampleaba en posiciones
+  // equivocadas). Con márgenes 22mm (PR 56.1), el área útil va de
+  // 22 a 188 con centro en x=105. Recentramos cols para que el row
+  // (número + 4 burbujas) quede balanceado respecto a ese centro.
   T10: {
     capacity: 10,
     cols: 1,
@@ -98,7 +103,8 @@ export const TEMPLATES = {
     fontHeader: 8,        // letras A/B/C/D arriba de cada columna
     headerOffset: 6,      // mm arriba del centro de la primera burbuja
     numTextOffset: -8,
-    colXBase: [88],
+    // Centro col = colXBase + 1.5*bubbleGap = 87 + 18 = 105 (centro A4 con 22mm margenes)
+    colXBase: [87],
     yStart: 95,
     exampleAt: { x: 60, y: 222 },
     bottomRuleY: BOTTOM_RULE_Y_DEFAULT,
@@ -114,7 +120,11 @@ export const TEMPLATES = {
     fontHeader: 6.5,
     headerOffset: 5,
     numTextOffset: -7,
-    colXBase: [65, 125],
+    // 2 cols: área útil 166mm dividida en 2 = 83mm cada col.
+    // Centros: 22 + 41.5 = 63.5  y  22 + 124.5 = 146.5
+    // Centro col = colXBase + 1.5*bubbleGap(8) = colXBase + 12
+    // → colXBase = 51.5, 134.5
+    colXBase: [52, 134],
     yStart: 90,
     exampleAt: { x: 60, y: 200 },
     bottomRuleY: BOTTOM_RULE_Y_DEFAULT,
@@ -130,7 +140,11 @@ export const TEMPLATES = {
     fontHeader: 6,
     headerOffset: 4.5,
     numTextOffset: -7,
-    colXBase: [35, 97, 159],
+    // 3 cols: área útil 166mm dividida en 3 = 55.3mm cada col.
+    // Centros: 22 + 27.7 = 49.7  /  22 + 83 = 105  /  22 + 138.3 = 160.3
+    // Centro col = colXBase + 1.5*bubbleGap(6) = colXBase + 9
+    // → colXBase = 40.7, 96, 151.3
+    colXBase: [41, 96, 151],
     yStart: 89.5,
     exampleAt: { x: 60, y: 195 },
     bottomRuleY: BOTTOM_RULE_Y_DEFAULT,
@@ -147,9 +161,14 @@ export const TEMPLATES = {
     fontHeader: 6,
     headerOffset: 4.5,
     numTextOffset: -7,
-    colXBase: [38, 97, 156],
+    // T50 upper (3 cols): mismo cálculo que T30
+    // → colXBase = 41, 96, 151
+    colXBase: [41, 96, 151],
     yStart: 88.5,
-    colXBase2: [38, 97],
+    // T50 lower (2 cols): mismo cálculo que T20 pero bubbleGap=6
+    // Centro col = colXBase + 1.5*bubbleGap(6) = colXBase + 9
+    // Centros de cols: 63.5 y 146.5  → colXBase2 = 54.5, 137.5
+    colXBase2: [55, 137],
     yStart2: 182,
     exampleAt: { x: 145, y: 195 },
     bottomRuleY: BOTTOM_RULE_Y_T50,
