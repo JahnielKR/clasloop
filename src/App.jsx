@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { useLocation, useNavigate, useMatch } from 'react-router-dom';
+import { Capacitor } from '@capacitor/core';
 import { ROUTES, PAGE_TO_ROUTE, pathToPage, defaultRouteForRole, buildRoute, buildPathWithOpts, isPageAllowedForRole } from './routes';
 import { supabase } from './lib/supabase';
+import { googleOAuthNative } from './lib/native-oauth';
 import { LogoMark, TeacherInline, StudentInline, TeacherAvatar, StudentAvatar } from './components/Icons';
 // PublicHome and AvatarOnboarding are eagerly imported because they paint
 // before the authed shell — making them lazy would just add a Suspense
@@ -189,8 +191,28 @@ function AuthScreen({ initialMode = "signup", onBack, lang = "en" }) {
     // PR 43: sin role state, sin localStorage, sin query params.
     // Solo iniciamos el flow OAuth. El callback va a App.jsx →
     // fetchProfile → si no hay profile, RoleOnboarding aparece.
+    //
+    // PR 51 (FASE 2 Capacitor): si estamos en la app nativa, el flow
+    // es distinto — no podemos usar redirect a window.location porque
+    // el redirect va a un deep link. googleOAuthNative se encarga.
     setError("");
     setInfoMessage("");
+
+    if (Capacitor.isNativePlatform()) {
+      try {
+        await googleOAuthNative();
+        // googleOAuthNative resuelve cuando la sesión está establecida.
+        // El listener onAuthStateChange en App.jsx detecta SIGNED_IN y
+        // dispara fetchProfile automáticamente. No hace falta hacer
+        // nada más acá.
+      } catch (err) {
+        console.error("[clasloop] Google OAuth (native) exception:", err);
+        setError(err.message || t.errorGeneric);
+      }
+      return;
+    }
+
+    // Web flow — sin cambios desde PR 43.
     try {
       await supabase.auth.signInWithOAuth({
         provider: "google",
