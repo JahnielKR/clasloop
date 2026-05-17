@@ -48,6 +48,7 @@ const I18N = {
     permissionDenied: "Camera permission denied. Please allow camera access in your browser settings.",
     cameraError: "Couldn't open the camera. Try a different device or browser.",
     loadingScanner: "Loading scanner…",
+    loadingScannerFirstTime: "Loading scanner…  First time may take 10–15 seconds.",
     processing: "Processing…",
     resultScore: (n, total) => `${n} / ${total}`,
     resultDetail: "Detail",
@@ -82,6 +83,7 @@ const I18N = {
     permissionDenied: "Permiso de cámara denegado. Habilitalo en la configuración del navegador.",
     cameraError: "No se pudo abrir la cámara. Probá con otro dispositivo o navegador.",
     loadingScanner: "Cargando escáner…",
+    loadingScannerFirstTime: "Cargando escáner…  La primera vez puede tardar 10–15 segundos.",
     processing: "Procesando…",
     resultScore: (n, total) => `${n} / ${total}`,
     resultDetail: "Detalle",
@@ -116,6 +118,7 @@ const I18N = {
     permissionDenied: "카메라 권한이 거부되었습니다. 브라우저 설정에서 허용해주세요.",
     cameraError: "카메라를 열 수 없습니다. 다른 기기나 브라우저를 사용해보세요.",
     loadingScanner: "스캐너 로딩 중…",
+    loadingScannerFirstTime: "스캐너 로딩 중…  처음에는 10-15초 정도 걸릴 수 있습니다.",
     processing: "처리 중…",
     resultScore: (n, total) => `${n} / ${total}`,
     resultDetail: "상세",
@@ -202,13 +205,10 @@ export default function Scanner({ lang = "en", profile, onOpenMobileMenu }) {
     if (stage !== "capture") return;
     let cancelled = false;
 
-    // Lazy warmup de OpenCV — disparamos la carga apenas el profe entra
-    // a la pantalla de captura, así para cuando aprieta "Capturar" ya
-    // está listo. La promesa es safe de llamar múltiples veces
-    // (loadOpenCV cachea internamente).
-    loadOpenCV().catch(err => {
-      console.warn("[scanner] OpenCV warmup failed:", err);
-    });
+    // PR 49.4: NO cargamos OpenCV acá. En iPhone (Safari/WebKit) la
+    // carga de OpenCV.js (~8MB WASM) bloquea el main thread mientras
+    // getUserMedia está activo, congelando la UI. Movido a handleCapture
+    // donde se carga DESPUÉS de parar el stream.
 
     (async () => {
       try {
@@ -246,11 +246,18 @@ export default function Scanner({ lang = "en", profile, onOpenMobileMenu }) {
         streamRef.current.getTracks().forEach(tk => tk.stop());
         streamRef.current = null;
       }
+      // Also clear video element srcObject to release the camera fully
+      if (videoRef.current) {
+        try { videoRef.current.srcObject = null; } catch {}
+      }
     };
   }, [stage, t]);
 
   // Error from CV pipeline (shown to user in process/result stage).
   const [processError, setProcessError] = useState(null);
+  // Sub-state del stage="process" para mostrar mensaje contextual.
+  // null | "loadingOpenCV" | "processing"
+  const [processSubState, setProcessSubState] = useState(null);
 
   const handleCapture = async () => {
     if (!videoRef.current || !streamRef.current) return;
@@ -262,36 +269,52 @@ export default function Scanner({ lang = "en", profile, onOpenMobileMenu }) {
     const ctx = canvas.getContext("2d");
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-    // Stop the camera — we have our frame now.
+    // PR 49.4: Stop the camera + clear srcObject BEFORE loading OpenCV.
+    // En iPhone (WebKit) la carga del WASM bloquea el main thread y si
+    // getUserMedia sigue activo, congela todo. Liberar acá la GPU/cámara
+    // y dejar paso libre al runtime.
     streamRef.current.getTracks().forEach(tk => tk.stop());
     streamRef.current = null;
+    try { video.srcObject = null; } catch {}
 
     setStage("process");
     setProcessError(null);
+    setProcessSubState("loadingOpenCV");
 
     try {
+      // PR 49.4: Cargar OpenCV.js AHORA (no antes). En la primera
+      // captura puede tardar 5-15s en cel. Después queda cacheado.
+      await loadOpenCV();
+
+      // Dar un tick al browser para que pinte el loader actualizado
+      // antes de empezar el procesamiento pesado.
+      setProcessSubState("processing");
+      await new Promise(r => setTimeout(r, 50));
+
       const result = await processScanFrame(canvas, selectedDeck);
 
       if (!result.ok) {
-        // CV failed: show the error to the user, let them retry
         setProcessError({
           code: result.code,
           message: result.message,
         });
         setStage("processError");
+        setProcessSubState(null);
         return;
       }
 
       setCurrentResult(result);
       setResults(prev => [...prev, result]);
       setStage("result");
+      setProcessSubState(null);
     } catch (err) {
       console.error("[scanner] CV pipeline threw:", err);
       setProcessError({
-        code: "unexpected",
+        code: err?.message?.includes("OpenCV") ? "opencv_failed" : "unexpected",
         message: err?.message || "Unexpected error",
       });
       setStage("processError");
+      setProcessSubState(null);
     }
   };
 
@@ -359,7 +382,7 @@ export default function Scanner({ lang = "en", profile, onOpenMobileMenu }) {
       )}
 
       {stage === "process" && (
-        <ProcessStage t={t} />
+        <ProcessStage t={t} subState={processSubState} />
       )}
 
       {stage === "processError" && processError && (
@@ -571,7 +594,10 @@ function CaptureStage({ t, videoRef, camError, onCapture, onCancel }) {
   );
 }
 
-function ProcessStage({ t }) {
+function ProcessStage({ t, subState }) {
+  const msg = subState === "loadingOpenCV"
+    ? t.loadingScannerFirstTime
+    : t.processing;
   return (
     <div style={{ textAlign: "center", padding: "60px 20px" }}>
       <div style={{
@@ -580,7 +606,7 @@ function ProcessStage({ t }) {
         margin: "0 auto 20px",
         animation: "cl-scanner-spin 0.8s linear infinite",
       }} />
-      <p style={{ color: C.textSecondary, fontSize: 14, margin: 0 }}>{t.processing}</p>
+      <p style={{ color: C.textSecondary, fontSize: 14, margin: 0, lineHeight: 1.5 }}>{msg}</p>
       <style>{`@keyframes cl-scanner-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
     </div>
   );
