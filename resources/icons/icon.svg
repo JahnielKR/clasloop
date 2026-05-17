@@ -1,0 +1,17 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <!--
+    Clasloop app icon — variante A (oscuro).
+    Diseño minimal: dos círculos concéntricos blancos sobre fondo grafito.
+
+    Fondo: #1a1a1a (mismo que splash y status bar)
+    Círculos: blanco puro.
+    Proporciones: el círculo externo ocupa ~62% del canvas para que
+    quede aire alrededor (cuando Android crop a círculo en algunos
+    launchers, todavía hay margen).
+  -->
+  <rect width="1024" height="1024" fill="#1a1a1a"/>
+  <!-- Outer ring -->
+  <circle cx="512" cy="512" r="320" fill="none" stroke="#ffffff" stroke-width="56"/>
+  <!-- Inner solid disc -->
+  <circle cx="512" cy="512" r="160" fill="#ffffff"/>
+</svg>

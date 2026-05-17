@@ -1,0 +1,15 @@
+<svg width="432" height="432" viewBox="0 0 432 432" xmlns="http://www.w3.org/2000/svg">
+  <!--
+    Adaptive icon foreground (Android 8+).
+    Canvas 432×432, pero solo los ~66% centrales son "safe zone" — el
+    launcher puede hacer crop circular, squircle, rounded square, etc.
+    El logomark va en esa zona segura (≈ centro 264×264).
+
+    NO incluye background — eso es un layer separado. Esto es solo el
+    logomark sobre transparencia.
+  -->
+  <!-- Outer ring -->
+  <circle cx="216" cy="216" r="100" fill="none" stroke="#ffffff" stroke-width="22"/>
+  <!-- Inner disc -->
+  <circle cx="216" cy="216" r="48" fill="#ffffff"/>
+</svg>

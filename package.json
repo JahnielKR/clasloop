@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "patch:android": "node scripts/patch-android.js"
+    "patch:android": "node scripts/patch-android.cjs",
+    "icons:generate": "node scripts/generate-android-assets.cjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.3.4",
@@ -34,6 +35,7 @@
   "devDependencies": {
     "@capacitor/cli": "^8.3.4",
     "@vitejs/plugin-react": "^4.2.1",
+    "sharp": "^0.34.5",
     "vite": "^5.2.0"
   }
 }
