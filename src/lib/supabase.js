@@ -11,6 +11,22 @@ if (!supabaseUrl || !supabaseAnonKey) {
     'VITE_SUPABASE_URL=https://your-project.supabase.co\n' +
     'VITE_SUPABASE_ANON_KEY=your-anon-key'
   );
+  // PR 55: en lugar de fallback silencioso a placeholder.supabase.co
+  // (que confunde por días), mostramos un overlay en pantalla con el
+  // error. Sólo afecta la app si las env vars NO están al hacer build.
+  if (typeof document !== "undefined") {
+    document.body.innerHTML = `
+      <div style="font-family:sans-serif;padding:32px;background:#fff;color:#222;min-height:100vh">
+        <h1 style="color:#c00">⚠️ Build sin credenciales Supabase</h1>
+        <p>El archivo .env no se leyó al hacer build.</p>
+        <p>VITE_SUPABASE_URL: ${supabaseUrl || "(vacío)"}</p>
+        <p>VITE_SUPABASE_ANON_KEY: ${supabaseAnonKey ? "(presente)" : "(vacío)"}</p>
+        <p>Solución: verificar .env en raíz del proyecto, después:</p>
+        <pre>npm run build &amp;&amp; npx cap sync android</pre>
+      </div>
+    `;
+  }
+  throw new Error("Missing Supabase credentials");
 }
 
 // PR 51 (FASE 2 Capacitor): flowType condicional.
@@ -30,8 +46,8 @@ if (!supabaseUrl || !supabaseAnonKey) {
 const isNative = Capacitor.isNativePlatform();
 
 export const supabase = createClient(
-  supabaseUrl || 'https://placeholder.supabase.co',
-  supabaseAnonKey || 'placeholder',
+  supabaseUrl,
+  supabaseAnonKey,
   {
     auth: {
       autoRefreshToken: true,
