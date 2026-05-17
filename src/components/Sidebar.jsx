@@ -88,7 +88,10 @@ const TEACHER_NAV_GROUPS = [
     items: [
       { id: "myClasses", glyph: "▤", label: "My Classes" },
       { id: "decks",     glyph: "▥", label: "Library" },
-      { id: "scan",      glyph: "▢", label: "Scanner" },
+      // PR 49 retired: el scanner cam vuelve cuando tengamos la app nativa
+      // de Capacitor (ver docs/CAPACITOR_MIGRATION_PLAN.md). El código de
+      // /scan sigue existiendo pero no es accesible desde la UI por ahora.
+      // { id: "scan",      glyph: "▢", label: "Scanner" },
     ],
   },
   {
