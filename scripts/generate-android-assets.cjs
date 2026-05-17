@@ -23,21 +23,14 @@
 //   - iOS-style: fondo gris claro neutro (#F0F0EC) + logo flotando
 //     adentro con gradiente. Más premium, más Notion/Linear-vibe.
 //
-// SPLASH:
-//   - Fondo grafito #1a1a1a + logo (igual que el ícono pero con
-//     fondo distinto para hacer contraste) + "Clasloop" en DM Sans
-//     700 sentence case bold.
-//
-// La font DM Sans NO está disponible en Android nativamente. Por eso
-// convertimos el texto "Clasloop" a SVG paths usando opentype.js +
-// wawoff2, leyendo el woff2 de la dep `typeface-dm-sans` que viene
-// instalada en node_modules.
+// SPLASH (PR 53.1):
+//   - Fondo blanco neutro #F0F0EC (mismo que el background del ícono)
+//   - Logo centrado, sin wordmark.
+//   - Una sola transición visual al abrir: splash → app. Limpio.
 
 const fs = require("fs");
 const path = require("path");
 const sharp = require("sharp");
-const opentype = require("opentype.js");
-const wawoff = require("wawoff2");
 
 const ROOT = process.cwd();
 const SRC_DIR = path.join(ROOT, "resources", "icons");
@@ -56,8 +49,11 @@ const ICON_SVG = fs.readFileSync(path.join(SRC_DIR, "icon.svg"));
 const ICON_FOREGROUND_SVG = fs.readFileSync(path.join(SRC_DIR, "icon-foreground.svg"));
 
 // Colors
-const ADAPTIVE_BG_COLOR = "#F0F0EC";  // gris claro neutro (iOS-style)
-const SPLASH_BG_COLOR = "#1a1a1a";    // grafito oscuro
+// PR 53.1: Jota prefirió splash claro (sin transición a oscuro).
+// El fondo del splash y del adaptive icon background son el mismo
+// blanco neutro → toda la app abre con coherencia visual.
+const ADAPTIVE_BG_COLOR = "#F0F0EC";  // gris claro neutro
+const SPLASH_BG_COLOR = "#F0F0EC";    // mismo color, sin oscuro
 
 // Legacy icons sizes
 const LEGACY_SIZES = {
@@ -86,65 +82,27 @@ const SPLASH_SIZES = {
 // ─── Helpers ─────────────────────────────────────────────────────────────
 
 /**
- * Convierte "Clasloop" en un <path> SVG usando DM Sans 700.
- * Retorna { pathD, width, height } donde pathD es el atributo d del
- * <path> y width/height son las dimensiones del bbox.
+ * PR 53.1: splash simplificado — solo el logo Clasloop centrado sobre
+ * fondo neutro claro. Sin wordmark (Jota lo prefirió así, sin la
+ * transición a un splash oscuro custom).
  *
- * fontSize: tamaño de la font en unidades SVG.
- * x, y: posición de la baseline. Si x=0, y=0, el texto queda con
- *       baseline en y=0 y el bbox puede tener x negativos o positivos
- *       (depende del primer glyph).
+ * El logo es el mismo del ícono: cuadrado redondeado con gradiente azul,
+ * reloj blanco con manecillas, sol amarillo arriba.
  */
-async function textToPath(text, fontSize) {
-  const woff2Path = path.join(
-    ROOT, "node_modules", "typeface-dm-sans", "files", "dm-sans-latin-700.woff2"
-  );
-  if (!fs.existsSync(woff2Path)) {
-    throw new Error(`DM Sans woff2 no encontrado en ${woff2Path}. Correr: npm install`);
-  }
-  const woff2 = fs.readFileSync(woff2Path);
-  const ttfBytes = await wawoff.decompress(woff2);
-  const font = opentype.parse(
-    ttfBytes.buffer.slice(ttfBytes.byteOffset, ttfBytes.byteOffset + ttfBytes.byteLength)
-  );
-  const p = font.getPath(text, 0, 0, fontSize);
-  const bbox = p.getBoundingBox();
-  return {
-    pathD: p.toPathData(2),
-    bbox,
-    width: bbox.x2 - bbox.x1,
-    height: bbox.y2 - bbox.y1,
-  };
-}
-
-/**
- * Genera el SVG del splash con tamaño dado.
- * Layout: logo centrado horizontalmente, "Clasloop" wordmark debajo.
- * El conjunto (logo + wordmark) está centrado verticalmente en el canvas.
- */
-async function buildSplashSvg(w, h) {
-  // Diseñamos sobre un canvas conceptual de 2732×2732 y después
-  // dejamos que sharp haga "cover" sobre w×h. Como el fondo es sólido,
+function buildSplashSvg() {
+  // Canvas conceptual cuadrado 2732×2732. Sharp después hace "cover"
+  // sobre las dimensiones reales del device. Como fondo es sólido,
   // el cover no genera bordes raros.
   const C = 2732;
 
-  // Tamaño del logo (cuadrado redondeado) — proporcional al canvas
-  const logoSize = 380;
+  // Tamaño del logo proporcional al canvas.
+  const logoSize = 420;
   const logoX = (C - logoSize) / 2;
-  const logoY = C / 2 - logoSize / 2 - 80; // un poco arriba del centro
+  const logoY = (C - logoSize) / 2;  // centrado en ambas dimensiones
 
-  // Reloj parámetros (dentro del logo)
   const r = logoSize / 2;
   const cx = logoX + r;
   const cy = logoY + r;
-
-  // Wordmark
-  const fontSize = 120;
-  const tp = await textToPath("Clasloop", fontSize);
-  // Centrar el path en el canvas y posicionarlo debajo del logo.
-  const textY = logoY + logoSize + 90 - tp.bbox.y1;
-  // Mover el path a (canvasCenter - bbox.center, textY)
-  const textX = C / 2 - (tp.bbox.x1 + tp.width / 2);
 
   return Buffer.from(`<svg width="${C}" height="${C}" viewBox="0 0 ${C} ${C}" xmlns="http://www.w3.org/2000/svg">
   <defs>
@@ -163,10 +121,6 @@ async function buildSplashSvg(w, h) {
         stroke-linecap="round" stroke-linejoin="round"/>
   <!-- Sol arriba del logo (fuera del reloj) -->
   <circle cx="${cx}" cy="${logoY - r * 0.06}" r="${r * 0.10}" fill="#FFEAA7"/>
-  <!-- Wordmark "Clasloop" -->
-  <g transform="translate(${textX}, ${textY})" fill="#fff">
-    <path d="${tp.pathD}"/>
-  </g>
 </svg>`);
 }
 
@@ -232,12 +186,12 @@ async function main() {
 `);
   console.log(`✓ values/ic_launcher_background.xml  (${ADAPTIVE_BG_COLOR})`);
 
-  // 6. Splash screens (con DM Sans path-converted)
-  console.log("\nGenerando splash con DM Sans 700 (text → SVG paths)...");
+  // 6. Splash screens (solo logo, fondo claro neutro)
+  console.log("\nGenerando splash...");
   for (const [folder, [w, h]] of Object.entries(SPLASH_SIZES)) {
     const outDir = path.join(ANDROID_RES, folder);
     fs.mkdirSync(outDir, { recursive: true });
-    const splashSvg = await buildSplashSvg(w, h);
+    const splashSvg = buildSplashSvg();
     await sharp(splashSvg)
       .resize(w, h, { fit: "cover", position: "center", background: SPLASH_BG_COLOR })
       .png()
@@ -248,7 +202,7 @@ async function main() {
   // Default fallback
   const defaultSplashDir = path.join(ANDROID_RES, "drawable");
   fs.mkdirSync(defaultSplashDir, { recursive: true });
-  const splashSvg = await buildSplashSvg(480, 320);
+  const splashSvg = buildSplashSvg();
   await sharp(splashSvg)
     .resize(480, 320, { fit: "cover", position: "center", background: SPLASH_BG_COLOR })
     .png()

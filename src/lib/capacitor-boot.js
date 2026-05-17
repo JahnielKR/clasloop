@@ -26,10 +26,11 @@ export async function bootCapacitor() {
   if (booted) return; // idempotente, por si React StrictMode lo monta 2 veces
   booted = true;
 
-  // ── 1. Status bar oscura coherente con el splash ──
+  // ── 1. Status bar clara coherente con el splash blanco ──
+  // PR 53.1: Style.Light = texto/íconos oscuros sobre fondo claro
   try {
-    await StatusBar.setStyle({ style: Style.Dark });
-    await StatusBar.setBackgroundColor({ color: "#1a1a1a" });
+    await StatusBar.setStyle({ style: Style.Light });
+    await StatusBar.setBackgroundColor({ color: "#F0F0EC" });
   } catch (err) {
     // StatusBar plugin no está disponible en algunas versiones de
     // Android antiguas. No crítico.

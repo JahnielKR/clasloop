@@ -30,22 +30,25 @@ const config: CapacitorConfig = {
   // Los que NO están acá usan sus defaults.
   plugins: {
     SplashScreen: {
-      // Mantener el splash hasta que React monte y dispare hide()
-      // manualmente. Evita el flash blanco entre splash y app.
-      launchShowDuration: 2000,
-      launchAutoHide: false,
-      backgroundColor: '#1a1a1a',  // grafito oscuro, coherente con tema dark
+      // PR 53.1: Jota prefirió splash claro (blanco neutro #F0F0EC) +
+      // logo, sin transición a un splash custom oscuro. Más limpio.
+      // launchAutoHide=true → el sistema cierra el splash solito
+      // cuando termina la animación (~0.5s típico).
+      launchShowDuration: 500,
+      launchAutoHide: true,
+      backgroundColor: '#F0F0EC',
       androidSplashResourceName: 'splash',
       androidScaleType: 'CENTER_CROP',
-      showSpinner: false,           // sin spinner, solo logo limpio
+      showSpinner: false,
       splashFullScreen: true,
       splashImmersive: true,
     },
     StatusBar: {
-      // Coherente con el splash oscuro. Se puede cambiar dinámicamente
-      // desde la app (e.g. quiz themed override).
-      backgroundColor: '#1a1a1a',
-      style: 'DARK',                // texto/íconos claros sobre fondo oscuro
+      // PR 53.1: status bar también clara, coherente con el splash.
+      // Se puede cambiar dinámicamente desde la app (e.g. quiz themed
+      // override) si hace falta.
+      backgroundColor: '#F0F0EC',
+      style: 'LIGHT',                // texto/íconos oscuros sobre fondo claro
       overlaysWebView: false,
     },
     Keyboard: {
@@ -63,9 +66,10 @@ const config: CapacitorConfig = {
     // OJO: cuando se publique a Play Store hay que revisar si dejamos esto
     // o lo restringimos.
     allowMixedContent: true,
-    // Background color del WebView mientras carga, antes que el CSS pinte.
-    // Evita un flash blanco al abrir.
-    backgroundColor: '#1a1a1a',
+    // PR 53.1: background del WebView mientras carga = mismo blanco
+    // neutro que el splash. Si hubiera un flash entre splash y app,
+    // sería del mismo color, invisible.
+    backgroundColor: '#F0F0EC',
   },
 };
 
