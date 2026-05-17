@@ -1,17 +1,43 @@
 <svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
   <!--
-    Clasloop app icon — variante A (oscuro).
-    Diseño minimal: dos círculos concéntricos blancos sobre fondo grafito.
+    Clasloop app icon — logo REAL (reloj con sol).
 
-    Fondo: #1a1a1a (mismo que splash y status bar)
-    Círculos: blanco puro.
-    Proporciones: el círculo externo ocupa ~62% del canvas para que
-    quede aire alrededor (cuando Android crop a círculo en algunos
-    launchers, todavía hay margen).
+    Diseño iOS-style: fondo neutro gris claro + logo con gradiente azul
+    flotando dentro. El logo NO ocupa todo el canvas — está centrado
+    con padding generoso (estilo Apple).
+
+    Fondo: #F0F0EC (gris claro neutro, ligeramente cálido)
+    Logo: cuadrado redondeado con gradiente sky→ocean, reloj blanco,
+          puntito amarillo arriba (sol).
   -->
-  <rect width="1024" height="1024" fill="#1a1a1a"/>
-  <!-- Outer ring -->
-  <circle cx="512" cy="512" r="320" fill="none" stroke="#ffffff" stroke-width="56"/>
-  <!-- Inner solid disc -->
-  <circle cx="512" cy="512" r="160" fill="#ffffff"/>
+  <defs>
+    <linearGradient id="cl-logo-grad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#38A1F0" />
+      <stop offset="1" stop-color="#1452A8" />
+    </linearGradient>
+  </defs>
+
+  <!-- Background neutro claro -->
+  <rect width="1024" height="1024" fill="#F0F0EC"/>
+
+  <!-- Logo flotando: cuadrado redondeado con gradiente, centrado.
+       Tamaño 60% del canvas (614×614), centrado en (205, 205).
+       rx proporcional: 22% del lado = 135. -->
+  <g transform="translate(205, 205)">
+    <rect width="614" height="614" rx="135" fill="url(#cl-logo-grad)"/>
+
+    <!-- Reloj: círculo blanco centrado. Centro del reloj = (307, 307).
+         Radio del círculo = 175 (29% del cuadrado). -->
+    <circle cx="307" cy="307" r="175" fill="none" stroke="#fff" stroke-width="38"/>
+
+    <!-- Manecillas del reloj. La vertical va del centro hacia arriba,
+         la diagonal hacia abajo-derecha (representan "10 minutos pasados"
+         aprox, igual que en el LogoMark del código). -->
+    <path d="M307 211 L307 307 L375 336"
+          fill="none" stroke="#fff" stroke-width="42"
+          stroke-linecap="round" stroke-linejoin="round"/>
+
+    <!-- Sol arriba del reloj -->
+    <circle cx="307" cy="115" r="31" fill="#FFEAA7"/>
+  </g>
 </svg>

@@ -44,6 +44,7 @@ if (!fs.existsSync(ANDROID_DIR)) {
 const patches = [
   patchProguard,
   patchDeepLink,
+  patchSplashTheme,
 ];
 
 let totalApplied = 0;
@@ -133,5 +134,68 @@ function patchDeepLink() {
 
   fs.writeFileSync(filePath, content);
   console.log("✓ Deep link: intent-filter agregado para com.clasloop.app://");
+  return "applied";
+}
+
+/**
+ * PR 53: configurar el Android 12+ Splash Screen API correctamente.
+ *
+ * En Android 12+, el splash que muestra el sistema operativo NO es el
+ * drawable/splash.png que generamos. Es construido por el OS usando 3
+ * atributos del tema:
+ *   - windowSplashScreenBackground: el color de fondo
+ *   - windowSplashScreenAnimatedIcon: el ícono central
+ *   - windowSplashScreenAnimationDuration: cuánto dura visible
+ *
+ * Si no configuramos estos atributos, Android default a:
+ *   - background: color del status bar (gris claro por default) ← bug 1
+ *   - icon: el app icon adaptive foreground SIN background ← bug 2
+ *
+ * Por eso veías un splash gris/blanco con el logomark contorneado de
+ * negro (era el adaptive foreground sin su background grafito).
+ *
+ * Patch: sobrescribimos AppTheme.NoActionBarLaunch en styles.xml para
+ * setear los 3 atributos a nuestros valores.
+ */
+function patchSplashTheme() {
+  const filePath = path.join(
+    ANDROID_DIR, "app", "src", "main", "res", "values", "styles.xml"
+  );
+  if (!fs.existsSync(filePath)) {
+    console.warn("⚠ styles.xml no encontrado, skipping splash theme patch");
+    return "skipped";
+  }
+
+  let content = fs.readFileSync(filePath, "utf8");
+
+  // Si ya está aplicado, no hacer nada
+  if (content.includes("windowSplashScreenBackground")) {
+    console.log("○ Splash theme: ya está aplicado");
+    return "skipped";
+  }
+
+  // Reemplazar el <style name="AppTheme.NoActionBarLaunch"> existente.
+  // Capacitor lo genera con un solo item:
+  //   <item name="android:background">@drawable/splash</item>
+  // Lo reemplazamos con la config moderna del Splash Screen API.
+  const newStyle = `<style name="AppTheme.NoActionBarLaunch" parent="Theme.SplashScreen">
+        <item name="android:background">@drawable/splash</item>
+        <item name="windowSplashScreenBackground">@color/ic_launcher_background</item>
+        <item name="windowSplashScreenAnimatedIcon">@mipmap/ic_launcher_foreground</item>
+        <item name="windowSplashScreenAnimationDuration">200</item>
+        <item name="postSplashScreenTheme">@style/AppTheme.NoActionBar</item>
+    </style>`;
+
+  const oldStyleRegex =
+    /<style name="AppTheme\.NoActionBarLaunch"[^>]*>[\s\S]*?<\/style>/;
+
+  if (!oldStyleRegex.test(content)) {
+    console.warn("⚠ Splash theme: no encontré AppTheme.NoActionBarLaunch para patchear");
+    return "skipped";
+  }
+
+  content = content.replace(oldStyleRegex, newStyle);
+  fs.writeFileSync(filePath, content);
+  console.log("✓ Splash theme: configurado para Android 12+ Splash Screen API");
   return "applied";
 }

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-// ─── scripts/generate-android-assets.js ─────────────────────────────────
+// ─── scripts/generate-android-assets.cjs ────────────────────────────────
 //
 // Genera todos los íconos y splash screens de Android desde los SVG
 // fuente en resources/icons/.
@@ -9,52 +9,35 @@
 //
 //   npm run icons:generate
 //
-// Después correr una vez:
+// Después correr:
 //
-//   npx cap copy android
+//   npx cap copy android   (o npx cap sync android)
 //
-// (o npm run sync, lo que prefieras) para que los assets copien al
-// directorio android/.
+// para que los assets copien al directorio android/.
 //
-// Lo que genera:
+// LOGO REAL DE CLASLOOP:
+//   Reloj con sol sobre gradiente sky→ocean (#38A1F0 → #1452A8).
+//   Definido en src/components/Icons.jsx como LogoMark.
 //
-//   ÍCONOS LEGACY (para Android <8):
-//     android/app/src/main/res/mipmap-mdpi/ic_launcher.png        (48px)
-//     android/app/src/main/res/mipmap-hdpi/ic_launcher.png        (72px)
-//     android/app/src/main/res/mipmap-xhdpi/ic_launcher.png       (96px)
-//     android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png      (144px)
-//     android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png     (192px)
-//     ic_launcher_round.png (mismos tamaños) — versión circular
+// DISEÑO DEL ÍCONO DE APP (decidido con Jota):
+//   - iOS-style: fondo gris claro neutro (#F0F0EC) + logo flotando
+//     adentro con gradiente. Más premium, más Notion/Linear-vibe.
 //
-//   ÍCONO ADAPTATIVO (Android 8+):
-//     android/app/src/main/res/mipmap-mdpi/ic_launcher_foreground.png   (108px)
-//     android/app/src/main/res/mipmap-hdpi/ic_launcher_foreground.png   (162px)
-//     android/app/src/main/res/mipmap-xhdpi/ic_launcher_foreground.png  (216px)
-//     android/app/src/main/res/mipmap-xxhdpi/ic_launcher_foreground.png (324px)
-//     android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_foreground.png(432px)
+// SPLASH:
+//   - Fondo grafito #1a1a1a + logo (igual que el ícono pero con
+//     fondo distinto para hacer contraste) + "Clasloop" en DM Sans
+//     700 sentence case bold.
 //
-//   ARCHIVO XML del adaptive icon:
-//     android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
-//     android/app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml
-//     android/app/src/main/res/values/ic_launcher_background.xml
-//     (definen background color + foreground PNG)
-//
-//   SPLASH SCREEN:
-//     android/app/src/main/res/drawable/splash.png                 (480×320)
-//     android/app/src/main/res/drawable-port-mdpi/splash.png       (320×480)
-//     android/app/src/main/res/drawable-port-hdpi/splash.png       (480×800)
-//     android/app/src/main/res/drawable-port-xhdpi/splash.png      (720×1280)
-//     android/app/src/main/res/drawable-port-xxhdpi/splash.png     (960×1600)
-//     android/app/src/main/res/drawable-port-xxxhdpi/splash.png    (1280×1920)
-//     android/app/src/main/res/drawable-land-mdpi/splash.png       (480×320)
-//     android/app/src/main/res/drawable-land-hdpi/splash.png       (800×480)
-//     android/app/src/main/res/drawable-land-xhdpi/splash.png      (1280×720)
-//     android/app/src/main/res/drawable-land-xxhdpi/splash.png     (1600×960)
-//     android/app/src/main/res/drawable-land-xxxhdpi/splash.png    (1920×1280)
+// La font DM Sans NO está disponible en Android nativamente. Por eso
+// convertimos el texto "Clasloop" a SVG paths usando opentype.js +
+// wawoff2, leyendo el woff2 de la dep `typeface-dm-sans` que viene
+// instalada en node_modules.
 
 const fs = require("fs");
 const path = require("path");
 const sharp = require("sharp");
+const opentype = require("opentype.js");
+const wawoff = require("wawoff2");
 
 const ROOT = process.cwd();
 const SRC_DIR = path.join(ROOT, "resources", "icons");
@@ -71,33 +54,22 @@ if (!fs.existsSync(path.join(ROOT, "android"))) {
 
 const ICON_SVG = fs.readFileSync(path.join(SRC_DIR, "icon.svg"));
 const ICON_FOREGROUND_SVG = fs.readFileSync(path.join(SRC_DIR, "icon-foreground.svg"));
-const SPLASH_SVG = fs.readFileSync(path.join(SRC_DIR, "splash.svg"));
 
-// El color de background del adaptive icon es plano (#1a1a1a).
-const ADAPTIVE_BG_COLOR = "#1a1a1a";
+// Colors
+const ADAPTIVE_BG_COLOR = "#F0F0EC";  // gris claro neutro (iOS-style)
+const SPLASH_BG_COLOR = "#1a1a1a";    // grafito oscuro
 
-// ─── Legacy icons (mipmap-{density}/ic_launcher.png) ───────────────────
+// Legacy icons sizes
 const LEGACY_SIZES = {
-  mdpi: 48,
-  hdpi: 72,
-  xhdpi: 96,
-  xxhdpi: 144,
-  xxxhdpi: 192,
+  mdpi: 48, hdpi: 72, xhdpi: 96, xxhdpi: 144, xxxhdpi: 192,
 };
 
-// ─── Adaptive foreground sizes (mipmap-{density}/ic_launcher_foreground.png) ─
-// Los foregrounds adaptativos son 108dp en density-independent units.
-// En pixels: 108 × density factor.
+// Adaptive foreground sizes
 const ADAPTIVE_FG_SIZES = {
-  mdpi: 108,
-  hdpi: 162,
-  xhdpi: 216,
-  xxhdpi: 324,
-  xxxhdpi: 432,
+  mdpi: 108, hdpi: 162, xhdpi: 216, xxhdpi: 324, xxxhdpi: 432,
 };
 
-// ─── Splash sizes ───────────────────────────────────────────────────────
-// (width, height) por densidad. Portrait y landscape.
+// Splash sizes
 const SPLASH_SIZES = {
   "drawable-port-mdpi":   [320, 480],
   "drawable-port-hdpi":   [480, 800],
@@ -111,26 +83,104 @@ const SPLASH_SIZES = {
   "drawable-land-xxxhdpi": [1920, 1280],
 };
 
+// ─── Helpers ─────────────────────────────────────────────────────────────
+
+/**
+ * Convierte "Clasloop" en un <path> SVG usando DM Sans 700.
+ * Retorna { pathD, width, height } donde pathD es el atributo d del
+ * <path> y width/height son las dimensiones del bbox.
+ *
+ * fontSize: tamaño de la font en unidades SVG.
+ * x, y: posición de la baseline. Si x=0, y=0, el texto queda con
+ *       baseline en y=0 y el bbox puede tener x negativos o positivos
+ *       (depende del primer glyph).
+ */
+async function textToPath(text, fontSize) {
+  const woff2Path = path.join(
+    ROOT, "node_modules", "typeface-dm-sans", "files", "dm-sans-latin-700.woff2"
+  );
+  if (!fs.existsSync(woff2Path)) {
+    throw new Error(`DM Sans woff2 no encontrado en ${woff2Path}. Correr: npm install`);
+  }
+  const woff2 = fs.readFileSync(woff2Path);
+  const ttfBytes = await wawoff.decompress(woff2);
+  const font = opentype.parse(
+    ttfBytes.buffer.slice(ttfBytes.byteOffset, ttfBytes.byteOffset + ttfBytes.byteLength)
+  );
+  const p = font.getPath(text, 0, 0, fontSize);
+  const bbox = p.getBoundingBox();
+  return {
+    pathD: p.toPathData(2),
+    bbox,
+    width: bbox.x2 - bbox.x1,
+    height: bbox.y2 - bbox.y1,
+  };
+}
+
+/**
+ * Genera el SVG del splash con tamaño dado.
+ * Layout: logo centrado horizontalmente, "Clasloop" wordmark debajo.
+ * El conjunto (logo + wordmark) está centrado verticalmente en el canvas.
+ */
+async function buildSplashSvg(w, h) {
+  // Diseñamos sobre un canvas conceptual de 2732×2732 y después
+  // dejamos que sharp haga "cover" sobre w×h. Como el fondo es sólido,
+  // el cover no genera bordes raros.
+  const C = 2732;
+
+  // Tamaño del logo (cuadrado redondeado) — proporcional al canvas
+  const logoSize = 380;
+  const logoX = (C - logoSize) / 2;
+  const logoY = C / 2 - logoSize / 2 - 80; // un poco arriba del centro
+
+  // Reloj parámetros (dentro del logo)
+  const r = logoSize / 2;
+  const cx = logoX + r;
+  const cy = logoY + r;
+
+  // Wordmark
+  const fontSize = 120;
+  const tp = await textToPath("Clasloop", fontSize);
+  // Centrar el path en el canvas y posicionarlo debajo del logo.
+  const textY = logoY + logoSize + 90 - tp.bbox.y1;
+  // Mover el path a (canvasCenter - bbox.center, textY)
+  const textX = C / 2 - (tp.bbox.x1 + tp.width / 2);
+
+  return Buffer.from(`<svg width="${C}" height="${C}" viewBox="0 0 ${C} ${C}" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#38A1F0"/>
+      <stop offset="1" stop-color="#1452A8"/>
+    </linearGradient>
+  </defs>
+  <rect width="${C}" height="${C}" fill="${SPLASH_BG_COLOR}"/>
+  <!-- Logo cuadrado redondeado con gradiente -->
+  <rect x="${logoX}" y="${logoY}" width="${logoSize}" height="${logoSize}" rx="${logoSize * 0.22}" fill="url(#g)"/>
+  <!-- Reloj -->
+  <circle cx="${cx}" cy="${cy}" r="${r * 0.57}" fill="none" stroke="#fff" stroke-width="${r * 0.124}"/>
+  <path d="M ${cx} ${cy - r * 0.31} L ${cx} ${cy} L ${cx + r * 0.22} ${cy + r * 0.095}"
+        fill="none" stroke="#fff" stroke-width="${r * 0.137}"
+        stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Sol arriba del logo (fuera del reloj) -->
+  <circle cx="${cx}" cy="${logoY - r * 0.06}" r="${r * 0.10}" fill="#FFEAA7"/>
+  <!-- Wordmark "Clasloop" -->
+  <g transform="translate(${textX}, ${textY})" fill="#fff">
+    <path d="${tp.pathD}"/>
+  </g>
+</svg>`);
+}
+
+// ─── Main ───────────────────────────────────────────────────────────────
+
 async function main() {
   console.log("🎨 Generando assets Android desde resources/icons/...\n");
 
-  // 1. Legacy icons (square + round versions)
+  // 1. Legacy icons (mipmap-{density}/ic_launcher.png + _round)
   for (const [density, size] of Object.entries(LEGACY_SIZES)) {
     const outDir = path.join(ANDROID_RES, `mipmap-${density}`);
     fs.mkdirSync(outDir, { recursive: true });
-
-    // ic_launcher.png — square
-    await sharp(ICON_SVG)
-      .resize(size, size)
-      .png()
-      .toFile(path.join(outDir, "ic_launcher.png"));
-
-    // ic_launcher_round.png — same image, Android crops to circle at runtime
-    await sharp(ICON_SVG)
-      .resize(size, size)
-      .png()
-      .toFile(path.join(outDir, "ic_launcher_round.png"));
-
+    await sharp(ICON_SVG).resize(size, size).png().toFile(path.join(outDir, "ic_launcher.png"));
+    await sharp(ICON_SVG).resize(size, size).png().toFile(path.join(outDir, "ic_launcher_round.png"));
     console.log(`✓ mipmap-${density}/ic_launcher.png  (${size}×${size})`);
   }
 
@@ -138,19 +188,15 @@ async function main() {
   for (const [density, size] of Object.entries(ADAPTIVE_FG_SIZES)) {
     const outDir = path.join(ANDROID_RES, `mipmap-${density}`);
     fs.mkdirSync(outDir, { recursive: true });
-
-    await sharp(ICON_FOREGROUND_SVG)
-      .resize(size, size)
-      .png()
-      .toFile(path.join(outDir, "ic_launcher_foreground.png"));
-
+    await sharp(ICON_FOREGROUND_SVG).resize(size, size).png().toFile(
+      path.join(outDir, "ic_launcher_foreground.png")
+    );
     console.log(`✓ mipmap-${density}/ic_launcher_foreground.png  (${size}×${size})`);
   }
 
   // 3. Adaptive icon XML (anydpi-v26)
   const anydpiDir = path.join(ANDROID_RES, "mipmap-anydpi-v26");
   fs.mkdirSync(anydpiDir, { recursive: true });
-
   const adaptiveXml = `<?xml version="1.0" encoding="utf-8"?>
 <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
     <background android:drawable="@color/ic_launcher_background"/>
@@ -162,59 +208,59 @@ async function main() {
   console.log(`✓ mipmap-anydpi-v26/ic_launcher.xml`);
   console.log(`✓ mipmap-anydpi-v26/ic_launcher_round.xml`);
 
-  // 4. ic_launcher_background color resource
+  // 4. Limpiar drawables conflictivos que Capacitor genera por default
+  const drawableDir = path.join(ANDROID_RES, "drawable");
+  const drawableV24Dir = path.join(ANDROID_RES, "drawable-v24");
+  for (const dir of [drawableDir, drawableV24Dir]) {
+    for (const f of ["ic_launcher_background.xml", "ic_launcher_foreground.xml"]) {
+      const p = path.join(dir, f);
+      if (fs.existsSync(p)) {
+        fs.unlinkSync(p);
+        console.log(`✓ borrado ${path.relative(ANDROID_RES, p)} (conflicto)`);
+      }
+    }
+  }
+
+  // 5. Color resource para el background del adaptive icon
   const valuesDir = path.join(ANDROID_RES, "values");
   fs.mkdirSync(valuesDir, { recursive: true });
-
-  // Read existing colors.xml if it exists, replace or add ic_launcher_background
-  const colorsPath = path.join(valuesDir, "ic_launcher_background.xml");
-  const bgColorXml = `<?xml version="1.0" encoding="utf-8"?>
+  fs.writeFileSync(path.join(valuesDir, "ic_launcher_background.xml"),
+    `<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="ic_launcher_background">${ADAPTIVE_BG_COLOR}</color>
 </resources>
-`;
-  fs.writeFileSync(colorsPath, bgColorXml);
-  console.log(`✓ values/ic_launcher_background.xml`);
+`);
+  console.log(`✓ values/ic_launcher_background.xml  (${ADAPTIVE_BG_COLOR})`);
 
-  // 5. Splash screens
+  // 6. Splash screens (con DM Sans path-converted)
+  console.log("\nGenerando splash con DM Sans 700 (text → SVG paths)...");
   for (const [folder, [w, h]] of Object.entries(SPLASH_SIZES)) {
     const outDir = path.join(ANDROID_RES, folder);
     fs.mkdirSync(outDir, { recursive: true });
-
-    // El splash SVG es cuadrado 2732×2732 con el logo centrado.
-    // Para portrait/landscape, hacemos resize a "cover" para que el
-    // logo quede centrado y el fondo #1a1a1a llene los bordes.
-    // Como el fondo del SVG es #1a1a1a, cover funciona perfecto sin
-    // bordes raros.
-    await sharp(SPLASH_SVG)
-      .resize(w, h, {
-        fit: "cover",
-        position: "center",
-        background: ADAPTIVE_BG_COLOR,
-      })
+    const splashSvg = await buildSplashSvg(w, h);
+    await sharp(splashSvg)
+      .resize(w, h, { fit: "cover", position: "center", background: SPLASH_BG_COLOR })
       .png()
       .toFile(path.join(outDir, "splash.png"));
-
     console.log(`✓ ${folder}/splash.png  (${w}×${h})`);
   }
 
-  // Default drawable/splash.png (fallback que Android usa si no hay
-  // qualifier que matchee)
+  // Default fallback
   const defaultSplashDir = path.join(ANDROID_RES, "drawable");
   fs.mkdirSync(defaultSplashDir, { recursive: true });
-  await sharp(SPLASH_SVG)
-    .resize(480, 320, { fit: "cover", position: "center", background: ADAPTIVE_BG_COLOR })
+  const splashSvg = await buildSplashSvg(480, 320);
+  await sharp(splashSvg)
+    .resize(480, 320, { fit: "cover", position: "center", background: SPLASH_BG_COLOR })
     .png()
     .toFile(path.join(defaultSplashDir, "splash.png"));
   console.log(`✓ drawable/splash.png  (480×320, fallback)`);
 
   console.log("\n✅ Todos los assets generados.");
-  console.log("");
-  console.log("Próximos pasos en tu PC:");
-  console.log("  1. npx cap copy android   (copia los nuevos assets al wrapper)");
-  console.log("  2. Build → Rebuild en Android Studio");
-  console.log("  3. Desinstalá la app vieja del emulador (sino usa el ícono cacheado)");
-  console.log("  4. Run → debería abrir con splash nuevo + ícono nuevo");
+  console.log("\nPróximos pasos:");
+  console.log("  1. npm run patch:android   (configura splash theme + deep link)");
+  console.log("  2. npx cap sync android");
+  console.log("  3. Desinstalá la app del emulador (Android cachea íconos)");
+  console.log("  4. En Android Studio: Build → Clean → Rebuild → Run");
 }
 
 main().catch(err => {

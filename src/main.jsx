@@ -1,9 +1,10 @@
-import React from 'react'
+import React, { useState } from 'react'
 import ReactDOM from 'react-dom/client'
 import { BrowserRouter, HashRouter, Routes, Route } from 'react-router-dom'
 import { Capacitor } from '@capacitor/core'
 import App from './App'
 import GuestJoin from './pages/GuestJoin'
+import CustomSplash from './components/CustomSplash'
 import './index.css'
 // PR 20: theme stylesheets for lobby + live screens. Loaded eagerly
 // since they're small (~5KB) and avoid a flash when the lobby mounts.
@@ -46,14 +47,28 @@ const Router = isNative ? HashRouter : BrowserRouter;
 // The catch-all "/*" handing routing to App lets App own *all* its internal
 // routes (sessions, decks, settings, /teacher/:id, etc.) while keeping
 // /join as a sibling that bypasses the auth shell entirely.
+//
+// PR 53 (FASE 2 Capacitor — splash polish): cuando estamos en la app
+// nativa, montamos <CustomSplash /> arriba de todo. El sistema OS de
+// Android 12+ ya mostró su splash con el logomark (theme configurado),
+// y ahora React monta y vemos el CustomSplash con MISMO background
+// grafito + logo + wordmark "Clasloop". Al usuario le parece continuo
+// porque el fondo no cambia. Después de ~1.5s, CustomSplash hace
+// fade-out y se ve la app debajo.
 function Root() {
+  const [splashDone, setSplashDone] = useState(false);
   return (
-    <Router>
-      <Routes>
-        <Route path={ROUTE_PATTERNS.JOIN} element={<GuestJoin />} />
-        <Route path="/*" element={<App />} />
-      </Routes>
-    </Router>
+    <>
+      {isNative && !splashDone && (
+        <CustomSplash onDone={() => setSplashDone(true)} />
+      )}
+      <Router>
+        <Routes>
+          <Route path={ROUTE_PATTERNS.JOIN} element={<GuestJoin />} />
+          <Route path="/*" element={<App />} />
+        </Routes>
+      </Router>
+    </>
   );
 }
 
