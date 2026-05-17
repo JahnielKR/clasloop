@@ -362,15 +362,23 @@ const css = `
 
   /* Mobile (≤640px) — header simplificado: solo logo + Sign up free + langs.
      "Got a code?" se mueve al hero como botón secundario debajo del CTA.
-     "Sign in" se esconde — el dialog de signup ya tiene link "ya tengo cuenta".
-     Tagline más chico, padding reducido. */
+     PR 56 fix 4: antes Sign in se escondía en mobile porque el plan era
+     que el dialog de signup tuviera link "ya tengo cuenta" — pero ese
+     dialog nunca se construyó. Sin Sign in visible, un usuario en mobile
+     que ya tiene cuenta no puede hacer login. Lo dejamos visible pero
+     más compacto. */
   @media (max-width: 640px) {
     .ph-tagline { font-size: 32px !important; line-height: 1.15 !important; }
     .ph-sub { font-size: 16px !important; }
     .ph-cta-primary { font-size: 16px !important; padding: 13px 28px !important; }
     .ph-have-code-btn { display: none !important; }
-    .ph-sign-in-btn { display: none !important; }
+    .ph-sign-in-btn { font-size: 13px !important; padding: 6px 8px !important; }
     .ph-mobile-code-btn { display: inline-block !important; }
+    /* PR 56 fix 3: el header CTA "Sign up free" / "Registrarse gratis"
+       se desbordaba en mobile cuando el idioma es ES (palabra larga).
+       Padding y font reducidos. La regla específica para header es
+       más estricta que .ph-cta-primary que ya está arriba. */
+    header .ph-btn-primary { font-size: 13px !important; padding: 7px 11px !important; }
     .ph-section { padding: 56px 20px !important; }
     .ph-section-h2 { font-size: 30px !important; }
     .ph-section-sub { font-size: 16px !important; }

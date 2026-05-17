@@ -75,74 +75,72 @@ import { buildRoute } from "../routes";
 // the "everything packed under one header" feel of the v1 sidebar.
 
 // Teacher nav groups
+//
+// PR 56 fix 5: las labels son CLAVES, no texto literal. Se traducen al
+// render con el i18n abajo. Antes estaba hardcoded en inglés y nunca
+// pasaba por traducción.
 const TEACHER_NAV_GROUPS = [
   {
-    title: "Today",
+    title: "today",
     items: [
-      { id: "sessions", glyph: "●", label: "Today" },
-      { id: "review",   glyph: "✎", label: "To review", showBadge: "review" },
+      { id: "sessions", glyph: "●", label: "today" },
+      { id: "review",   glyph: "✎", label: "toReview", showBadge: "review" },
     ],
   },
   {
-    title: "Teach",
+    title: "teach",
     items: [
-      { id: "myClasses", glyph: "▤", label: "My Classes" },
-      { id: "decks",     glyph: "▥", label: "Library" },
+      { id: "myClasses", glyph: "▤", label: "myClasses" },
+      { id: "decks",     glyph: "▥", label: "library" },
       // PR 49 retired: el scanner cam vuelve cuando tengamos la app nativa
       // de Capacitor (ver docs/CAPACITOR_MIGRATION_PLAN.md). El código de
       // /scan sigue existiendo pero no es accesible desde la UI por ahora.
-      // { id: "scan",      glyph: "▢", label: "Scanner" },
+      // { id: "scan",      glyph: "▢", label: "scanner" },
     ],
   },
   {
-    title: "Discover",
+    title: "discover",
     items: [
-      { id: "community", glyph: "◇", label: "Community" },
+      { id: "community", glyph: "◇", label: "community" },
     ],
   },
   {
-    title: "Account",
-    // A subtle divider before this group — it's the meta/settings cluster
-    // and should feel a step removed from the work clusters above.
+    title: "account",
     divided: true,
     items: [
-      { id: "notifications", glyph: "○", label: "Notifications", showBadge: "notifs" },
-      { id: "settings",      glyph: "⚙", label: "Settings" },
+      { id: "notifications", glyph: "○", label: "notifications", showBadge: "notifs" },
+      { id: "settings",      glyph: "⚙", label: "settings" },
     ],
   },
 ];
 
-// Student nav groups. Same logic, different shape:
-//   LEARN    — daily learning: classes + joining sessions
-//   PROGRESS — gamification view (achievements)
-//   DISCOVER — community
-//   ACCOUNT  — notifications + settings
+// Student nav groups
 const STUDENT_NAV_GROUPS = [
   {
-    title: "Learn",
+    title: "learn",
     items: [
-      { id: "myClasses",   glyph: "▤", label: "My Classes" },
-      { id: "studentJoin", glyph: "⊕", label: "Join Session" },
+      { id: "myClasses",   glyph: "▤", label: "myClasses" },
+      { id: "studentJoin", glyph: "⊕", label: "joinSession" },
     ],
   },
   {
-    title: "Progress",
+    title: "progress",
     items: [
-      { id: "achievements", glyph: "★", label: "Achievements" },
+      { id: "achievements", glyph: "★", label: "achievements" },
     ],
   },
   {
-    title: "Discover",
+    title: "discover",
     items: [
-      { id: "community", glyph: "◇", label: "Community" },
+      { id: "community", glyph: "◇", label: "community" },
     ],
   },
   {
-    title: "Account",
+    title: "account",
     divided: true,
     items: [
-      { id: "notifications", glyph: "○", label: "Notifications", showBadge: "notifs" },
-      { id: "settings",      glyph: "⚙", label: "Settings" },
+      { id: "notifications", glyph: "○", label: "notifications", showBadge: "notifs" },
+      { id: "settings",      glyph: "⚙", label: "settings" },
     ],
   },
 ];
@@ -151,11 +149,43 @@ const STUDENT_NAV_GROUPS = [
 // reads as "you're a power user, here's the extra stuff" rather than
 // inserted somewhere weird.
 const ADMIN_GROUP = {
-  title: "Admin",
+  title: "admin",
   divided: true,
   items: [
-    { id: "adminAIStats", glyph: "⚡", label: "AI Stats" },
+    { id: "adminAIStats", glyph: "⚡", label: "aiStats" },
   ],
+};
+
+// PR 56 fix 5: i18n para todas las labels y group titles del sidebar.
+// Single source of truth — agregar nuevo nav item = agregar key acá.
+const SIDEBAR_I18N = {
+  en: {
+    today: "Today", toReview: "To review",
+    teach: "Teach", myClasses: "My Classes", library: "Library", scanner: "Scanner",
+    discover: "Discover", community: "Community",
+    account: "Account", notifications: "Notifications", settings: "Settings",
+    learn: "Learn", joinSession: "Join Session",
+    progress: "Progress", achievements: "Achievements",
+    admin: "Admin", aiStats: "AI Stats",
+  },
+  es: {
+    today: "Hoy", toReview: "Por revisar",
+    teach: "Enseñar", myClasses: "Mis Clases", library: "Biblioteca", scanner: "Escáner",
+    discover: "Descubrir", community: "Comunidad",
+    account: "Cuenta", notifications: "Notificaciones", settings: "Ajustes",
+    learn: "Aprender", joinSession: "Unirse a Sesión",
+    progress: "Progreso", achievements: "Logros",
+    admin: "Admin", aiStats: "Estadísticas IA",
+  },
+  ko: {
+    today: "오늘", toReview: "복습할 항목",
+    teach: "수업", myClasses: "내 수업", library: "라이브러리", scanner: "스캐너",
+    discover: "둘러보기", community: "커뮤니티",
+    account: "계정", notifications: "알림", settings: "설정",
+    learn: "학습", joinSession: "세션 참여",
+    progress: "진행 상황", achievements: "업적",
+    admin: "관리자", aiStats: "AI 통계",
+  },
 };
 
 // ─── Subcomponents ─────────────────────────────────────────────────────
@@ -314,7 +344,21 @@ export default function Sidebar({
   // Pick the group set for this role and append the admin group if applicable.
   // The result is a list of groups, each with its own title + items.
   const baseGroups = isTeacher ? TEACHER_NAV_GROUPS : STUDENT_NAV_GROUPS;
-  const navGroups = isAdmin ? [...baseGroups, ADMIN_GROUP] : baseGroups;
+  const rawGroups = isAdmin ? [...baseGroups, ADMIN_GROUP] : baseGroups;
+
+  // PR 56 fix 5: traducir labels y group titles según el idioma actual.
+  // Antes estaban hardcoded en inglés y el sidebar nunca cambiaba al
+  // cambiar idioma. Ahora todos los labels son keys, y acá las
+  // resolvemos al texto del idioma.
+  const tr = SIDEBAR_I18N[lang] || SIDEBAR_I18N.en;
+  const navGroups = rawGroups.map(group => ({
+    ...group,
+    title: tr[group.title] || group.title,
+    items: group.items.map(item => ({
+      ...item,
+      label: tr[item.label] || item.label,
+    })),
+  }));
 
   // Width math: identical to the previous version so App.jsx's marginLeft
   // calculation doesn't need to change.

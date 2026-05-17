@@ -71,6 +71,10 @@ const i18n = {
     shuffleQuestionsHelp: "Each student sees the questions in a different order. Helps against copying.",
     backToDecks: "Back to deck selection",
     launchSession: "Launch session", starting: "Starting...",
+    // PR 56 fix 1: mobile block modal
+    mobileBlockTitle: "Live sessions from a bigger screen",
+    mobileBlockMessage: "Live sessions are only handled from tablets, laptops, or desktops. Open clasloop.com from one of those to launch any test.",
+    mobileBlockOK: "Got it",
     lobbyTitle: "Waiting for students",
     sharePin: "Share this code with your students",
     joinAt: "Join at",
@@ -156,6 +160,10 @@ const i18n = {
     shuffleQuestionsHelp: "Cada estudiante ve las preguntas en distinto orden. Ayuda contra la copia.",
     backToDecks: "Volver a selección",
     launchSession: "Lanzar sesión", starting: "Iniciando...",
+    // PR 56 fix 1: mobile block modal
+    mobileBlockTitle: "Las sesiones en vivo desde una pantalla más grande",
+    mobileBlockMessage: "Por el momento las sesiones en vivo solo se manejan desde tablets, laptops o PC. Abrí clasloop.com desde uno de esos para lanzar cualquier test.",
+    mobileBlockOK: "Entendido",
     lobbyTitle: "Esperando estudiantes",
     sharePin: "Comparte este código con tus estudiantes",
     joinAt: "Únete en",
@@ -241,6 +249,10 @@ const i18n = {
     shuffleQuestionsHelp: "학생마다 문제가 다른 순서로 나타납니다. 베끼기 방지에 도움이 됩니다.",
     backToDecks: "덱 선택으로",
     launchSession: "세션 시작", starting: "시작 중...",
+    // PR 56 fix 1: mobile block modal
+    mobileBlockTitle: "라이브 세션은 큰 화면에서",
+    mobileBlockMessage: "라이브 세션은 태블릿, 노트북 또는 PC에서만 진행됩니다. 시험을 시작하려면 그 중 하나에서 clasloop.com을 열어주세요.",
+    mobileBlockOK: "확인",
     lobbyTitle: "학생 기다리는 중",
     sharePin: "학생들과 이 코드를 공유하세요",
     joinAt: "참여 주소",
@@ -377,12 +389,31 @@ function SessionOptions({ deck, classes, t, lang = "en", onLaunch, onBack }) {
   // permutation from a seed based on participant_id; see StudentJoin.
   const [shuffleQuestions, setShuffleQuestions] = useState(false);
   const [launching, setLaunching] = useState(false);
+  // PR 56 (FASE 2 smoke fixes): bloqueo suave para teacher lanzando
+  // sesión desde mobile. La pantalla del lobby + live no está optimizada
+  // para portrait phones (números cortados, layout desbordado).
+  // Aceptable mientras la app sea complementaria: la app es para
+  // scan / reviews / quick tests, las sesiones live se manejan desde
+  // tablet/laptop/desktop. useIsMobile usa matchMedia(max-width:768px),
+  // así que el Galaxy Tab S9 (1024+ ancho) NO dispara este modal —
+  // solo phones reales.
+  const isMobile = useIsMobile();
+  const [showMobileBlockModal, setShowMobileBlockModal] = useState(false);
 
   const accent = resolveColor(deck);
   const qs = deck.questions || [];
 
   const handleLaunch = async () => {
     if (!classId) return; // safety net — button is disabled in this state
+
+    // PR 56 fix 1: si estamos en mobile (phone, no tablet), mostramos
+    // modal explicando que las sesiones live se manejan desde
+    // tablet/laptop/PC en este momento.
+    if (isMobile) {
+      setShowMobileBlockModal(true);
+      return;
+    }
+
     setLaunching(true);
     // El campo `timeLimit` legacy queda como segundos para compatibilidad
     // con SessionFlow's onLaunch handler que ya espera ese shape. En modo
@@ -560,6 +591,57 @@ function SessionOptions({ deck, classes, t, lang = "en", onLaunch, onBack }) {
         <CIcon name="rocket" size={16} inline />
         {launching ? t.starting : t.launchSession}
       </button>
+
+      {/* PR 56 fix 1: modal de bloqueo cuando teacher intenta lanzar
+          sesión desde phone (no tablet, no laptop). */}
+      {showMobileBlockModal && (
+        <div
+          onClick={() => setShowMobileBlockModal(false)}
+          style={{
+            position: "fixed", inset: 0, zIndex: 1000,
+            background: "rgba(0,0,0,0.5)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            padding: 20,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: C.bg, borderRadius: 16, padding: 24,
+              maxWidth: 380, width: "100%",
+              boxShadow: "0 20px 60px rgba(0,0,0,0.3)",
+            }}
+          >
+            <div style={{ fontSize: 32, marginBottom: 12 }}>💻</div>
+            <h2 style={{
+              fontFamily: "'Outfit',sans-serif",
+              fontSize: 20, fontWeight: 600, margin: 0, marginBottom: 12,
+              color: C.text,
+            }}>
+              {t.mobileBlockTitle}
+            </h2>
+            <p style={{
+              fontFamily: "'DM Sans',sans-serif",
+              fontSize: 14, lineHeight: 1.5, margin: 0, marginBottom: 20,
+              color: C.textMuted,
+            }}>
+              {t.mobileBlockMessage}
+            </p>
+            <button
+              onClick={() => setShowMobileBlockModal(false)}
+              style={{
+                width: "100%", padding: 12, borderRadius: 10,
+                fontFamily: "'Outfit',sans-serif",
+                fontSize: 14, fontWeight: 600,
+                background: C.accent, color: "#fff",
+                border: "none", cursor: "pointer",
+              }}
+            >
+              {t.mobileBlockOK}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
