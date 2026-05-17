@@ -64,9 +64,13 @@ create index if not exists scans_teacher_created_idx
   on public.scans(teacher_id, created_at desc);
 create index if not exists scans_deck_created_idx
   on public.scans(deck_id, created_at desc);
+-- Index sobre expires_at para que cleanup_expired_scans() sea rápido.
+-- Nota: originalmente intenté un partial index `where expires_at < now() + ...`
+-- pero Postgres rechaza funciones STABLE (como now()) en index predicates.
+-- El error: "functions in index predicate must be marked IMMUTABLE".
+-- Index completo es solo ~2KB más, no vale la pena complicar.
 create index if not exists scans_expires_idx
-  on public.scans(expires_at)
-  where expires_at < now() + interval '1 day';  -- partial: solo near-expiry
+  on public.scans(expires_at);
 
 -- ── RLS ────────────────────────────────────────────────────────────────
 alter table public.scans enable row level security;
