@@ -40,10 +40,17 @@ import QRCode from "qrcode";
 import { PAGE_A4, groupQuestionsBySection } from "./shared";
 
 // ─── Page geometry ──────────────────────────────────────────────────────
+//
+// PR 56.1 (FASE 2 Capacitor): márgenes aumentados de 12mm a 22mm.
+// El scan sheet del PR 47 quedaba muy apretado contra los bordes — daba
+// sensación de "ocupar toda la página". Con 22mm respira más, queda
+// con el "aire" típico de documentos formales.
+//
+// El cap de 50 preguntas (T50 template) sigue siendo el máximo soportado.
 const PAGE = {
   ...PAGE_A4,
-  marginX: 12,
-  marginY: 12,
+  marginX: 22,
+  marginY: 22,
 };
 
 // PR 49: exportado para el CV (sabe la proporción target del warp).
@@ -58,7 +65,9 @@ const FIDUCIAL_MID_Y = PAGE.height / 2 - FIDUCIAL_MID / 2;
 // ─── Header / branding constants ────────────────────────────────────────
 const HEADER_LOGO_X = 22;
 const HEADER_LOGO_Y = 24;
-const HEADER_SCORE_BOX_X = 155;
+// PR 56.1: score box termina en (PAGE.width - marginX) = 188.
+// El antiguo X=155 lo dejaba terminando en 190 (margen viejo de 12).
+const HEADER_SCORE_BOX_X = 153;
 const HEADER_SCORE_BOX_Y = 17;
 const HEADER_SCORE_BOX_W = 35;
 const HEADER_SCORE_BOX_H = 14;
@@ -166,16 +175,52 @@ function drawFiducials(doc) {
   doc.rect(PAGE.width - FIDUCIAL_CORNER_INSET - FIDUCIAL_MID - 1, FIDUCIAL_MID_Y, FIDUCIAL_MID, FIDUCIAL_MID, "F");
 }
 
-function drawLogomark(doc, cx, cy, outerR = 3.5, innerR = 1.8) {
-  doc.setDrawColor(0, 0, 0);
+// PR 56.1 (FASE 2 Capacitor): logo REAL de Clasloop, no círculos
+// concéntricos inventados.
+//
+// El logo real (definido en src/components/Icons.jsx LogoMark) es un
+// cuadrado redondeado con gradiente azul + reloj blanco con manecillas
+// + punto amarillo arriba (sol). Pero en el scan sheet PDF NO usamos
+// gradiente ni colores — la hoja es B+W austero porque las cámaras
+// detectan mejor en alto contraste.
+//
+// Versión monocroma del logo:
+//   - Cuadrado redondeado relleno NEGRO
+//   - Reloj blanco contorneado (círculo + manecillas) adentro
+//   - Sol como circulito blanco arriba del reloj (negativo)
+//
+// Parámetros:
+//   cx, cy: centro del cuadrado
+//   size:   lado del cuadrado en mm
+function drawLogomark(doc, cx, cy, size = 7) {
+  const half = size / 2;
+  const x = cx - half;
+  const y = cy - half;
+  const radius = size * 0.22;
+
+  // Cuadrado redondeado relleno negro
   doc.setFillColor(0, 0, 0);
-  doc.setLineWidth(0.6);
-  doc.circle(cx, cy, outerR, "S");
-  doc.circle(cx, cy, innerR, "F");
+  doc.setDrawColor(0, 0, 0);
+  doc.roundedRect(x, y, size, size, radius, radius, "F");
+
+  // Reloj: círculo blanco contorneado (centrado en el cuadrado)
+  doc.setDrawColor(255, 255, 255);
+  doc.setLineWidth(size * 0.06);
+  const clockR = size * 0.28;
+  doc.circle(cx, cy, clockR, "S");
+
+  // Manecillas del reloj (línea desde centro hacia arriba, después diagonal)
+  doc.setLineWidth(size * 0.07);
+  doc.line(cx, cy, cx, cy - clockR * 0.7);
+  doc.line(cx, cy, cx + clockR * 0.45, cy + clockR * 0.2);
+
+  // Sol: circulito blanco arriba del cuadrado (apenas pegado al borde)
+  doc.setFillColor(255, 255, 255);
+  doc.circle(cx, y + size * 0.16, size * 0.045, "F");
 }
 
 function drawHeader(doc, fontFamily) {
-  drawLogomark(doc, HEADER_LOGO_X, HEADER_LOGO_Y, 3.5, 1.8);
+  drawLogomark(doc, HEADER_LOGO_X, HEADER_LOGO_Y, 7);
   doc.setFont(fontFamily, "bold");
   doc.setFontSize(10);
   doc.setTextColor(0, 0, 0);
@@ -198,9 +243,9 @@ function drawHeader(doc, fontFamily) {
 
   doc.setDrawColor(0, 0, 0);
   doc.setLineWidth(0.8);
-  doc.line(20, TOP_RULE_Y, 190, TOP_RULE_Y);
+  doc.line(PAGE.marginX, TOP_RULE_Y, PAGE.width - PAGE.marginX, TOP_RULE_Y);
   doc.setLineWidth(0.2);
-  doc.line(20, TOP_RULE_Y + 1.5, 190, TOP_RULE_Y + 1.5);
+  doc.line(PAGE.marginX, TOP_RULE_Y + 1.5, PAGE.width - PAGE.marginX, TOP_RULE_Y + 1.5);
 }
 
 function drawFields(doc, fontFamily) {
@@ -208,16 +253,19 @@ function drawFields(doc, fontFamily) {
   doc.setFontSize(7);
   doc.setTextColor(136, 136, 136);
 
-  doc.text("NAME", 20, FIELDS_Y, { charSpace: 0.5 });
+  const xLeft = PAGE.marginX;
+  const xRight = PAGE.width - PAGE.marginX;
+
+  doc.text("NAME", xLeft, FIELDS_Y, { charSpace: 0.5 });
   doc.setDrawColor(0, 0, 0);
   doc.setLineWidth(0.4);
-  doc.line(20, FIELDS_Y + 6, 120, FIELDS_Y + 6);
+  doc.line(xLeft, FIELDS_Y + 6, 120, FIELDS_Y + 6);
 
   doc.text("DATE", 128, FIELDS_Y, { charSpace: 0.5 });
-  doc.line(128, FIELDS_Y + 6, 190, FIELDS_Y + 6);
+  doc.line(128, FIELDS_Y + 6, xRight, FIELDS_Y + 6);
 
-  doc.text("CLASS", 20, FIELDS_Y + 13, { charSpace: 0.5 });
-  doc.line(20, FIELDS_Y + 19, 190, FIELDS_Y + 19);
+  doc.text("CLASS", xLeft, FIELDS_Y + 13, { charSpace: 0.5 });
+  doc.line(xLeft, FIELDS_Y + 19, xRight, FIELDS_Y + 19);
 }
 
 function drawTitle(doc, deck, fontFamily) {
@@ -418,9 +466,9 @@ function drawExample(doc, t, fontFamily) {
 async function drawFooter(doc, deck, fontFamily, bottomRuleY) {
   doc.setDrawColor(0, 0, 0);
   doc.setLineWidth(0.8);
-  doc.line(20, bottomRuleY, 190, bottomRuleY);
+  doc.line(PAGE.marginX, bottomRuleY, PAGE.width - PAGE.marginX, bottomRuleY);
   doc.setLineWidth(0.2);
-  doc.line(20, bottomRuleY + 1.5, 190, bottomRuleY + 1.5);
+  doc.line(PAGE.marginX, bottomRuleY + 1.5, PAGE.width - PAGE.marginX, bottomRuleY + 1.5);
 
   const qrPayload = `clasloop:deck:${deck.id || ""}`;
   let qrDataURL;
@@ -443,11 +491,11 @@ async function drawFooter(doc, deck, fontFamily, bottomRuleY) {
   }
 
   const logoY = qrYSafe + 10;
-  drawLogomark(doc, 22, logoY, 2.5, 1.2);
+  drawLogomark(doc, PAGE.marginX + 2, logoY, 5);
   doc.setFont(fontFamily, "bold");
   doc.setFontSize(7);
   doc.setTextColor(0, 0, 0);
-  doc.text("clasloop.com", 26, logoY + 1.5, { charSpace: 0.4 });
+  doc.text("clasloop.com", PAGE.marginX + 8, logoY + 1.5, { charSpace: 0.4 });
 }
 
 // ─── Public API ─────────────────────────────────────────────────────────
