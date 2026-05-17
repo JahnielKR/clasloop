@@ -29,6 +29,7 @@
 //   loadOpenCV() → no-op (lo mantenemos exportado para no romper imports)
 
 import { TEMPLATES, pickTemplate, PAGE_DIMS } from "./pdf-styles/scanner";
+import { groupQuestionsBySection } from "./pdf-styles/shared";
 import jsQR from "jsqr";
 
 // ─── Constants ──────────────────────────────────────────────────────────
@@ -72,7 +73,13 @@ export function loadOpenCV() {
  *   { ok: false, code, message, ...extra }
  */
 export async function processScanFrame(sourceCanvas, deck) {
-  const scannable = (deck.questions || []).filter(
+  // PR 49.6 fix 1: usar el MISMO ordering que scanner.js drawScanSheet
+  // y los styles del exam. Antes filtrábamos de deck.questions en orden
+  // de creación → el scan sheet (que usa groupQuestionsBySection) tenía
+  // MCQ primero + TF después, pero el CV miraba en otro orden →
+  // respuestas mapeadas mal.
+  const { selection } = groupQuestionsBySection(deck.questions || []);
+  const scannable = selection.filter(
     q => q && (q.type === "mcq" || q.type === "tf")
   );
   if (scannable.length === 0) {
@@ -307,18 +314,30 @@ function findBlobs(bin, W, H) {
   return blobs;
 }
 
-/** Apply same shape filter as PR 49.3 to find fiducial candidates. */
+/**
+ * PR 49.6 fix 2/3: filtros más estrictos. Antes el filtro era muy laxo
+ * (0.01% a 1% de área) y dejaba pasar sombras y manchas. El usuario
+ * veía resultados inconsistentes porque a veces se elegían fiduciales
+ * espurios.
+ *
+ * Ahora exigimos:
+ *   - Área entre 0.05% y 0.5% (fiducial real es ~0.1% de un frame
+ *     1920×1080 cuando la hoja llena el viewport)
+ *   - Aspect ratio más estricto (0.8-1.25)
+ *   - Solidity ≥ 0.85 (los fiduciales son cuadrados SÓLIDOS, no
+ *     blobs con huecos)
+ */
 function filterFiducialCandidates(blobs, W, H) {
   const imgArea = W * H;
-  const minArea = imgArea * 0.0001;
-  const maxArea = imgArea * 0.01;
+  const minArea = imgArea * 0.0005;
+  const maxArea = imgArea * 0.005;
   const out = [];
   for (const b of blobs) {
     if (b.area < minArea || b.area > maxArea) continue;
     const aspect = b.bbox.w / b.bbox.h;
-    if (aspect < 0.7 || aspect > 1.4) continue;
+    if (aspect < 0.8 || aspect > 1.25) continue;
     const solidity = b.area / (b.bbox.w * b.bbox.h);
-    if (solidity < 0.7) continue;
+    if (solidity < 0.85) continue;
     out.push({
       cx: b.bbox.x + b.bbox.w / 2,
       cy: b.bbox.y + b.bbox.h / 2,
@@ -342,6 +361,33 @@ function pickCornerFiducials(cands, imgCx, imgCy) {
   }
   if (!tl || !tr || !br || !bl) return null;
   if (new Set([tl, tr, br, bl]).size < 4) return null;
+
+  // PR 49.6 fix 3: validación geométrica. Los 4 fiduciales en una hoja
+  // A4 forman un rectángulo casi 1:√2 (proporción A4 = 210:297 = 0.707).
+  // Después de perspectiva, los lados opuestos del cuadrilátero detectado
+  // deben tener longitudes similares (no más de 30% de diferencia) y
+  // las áreas de los 4 blobs deben ser parecidas (todos son cuadrados
+  // del mismo tamaño en la página).
+  const dist = (a, b) => Math.hypot(a.cx - b.cx, a.cy - b.cy);
+  const top    = dist(tl, tr);
+  const bottom = dist(bl, br);
+  const left   = dist(tl, bl);
+  const right  = dist(tr, br);
+
+  const horzRatio = Math.min(top, bottom) / Math.max(top, bottom);
+  const vertRatio = Math.min(left, right) / Math.max(left, right);
+  if (horzRatio < 0.7 || vertRatio < 0.7) {
+    return null; // shape too distorted, probably wrong corners
+  }
+
+  // Areas similares: el más chico debe ser ≥ 50% del más grande.
+  const areas = [tl.area, tr.area, br.area, bl.area];
+  const minA = Math.min(...areas);
+  const maxA = Math.max(...areas);
+  if (minA / maxA < 0.5) {
+    return null; // sizes too different → probably some are not real fiducials
+  }
+
   return { tl, tr, br, bl };
 }
 
@@ -531,14 +577,28 @@ function computeBubblePositions(scannable, t) {
   return positions;
 }
 
+/**
+ * Sample mean intensity within a CIRCLE around (cx, cy).
+ *
+ * PR 49.6 fix 3: antes samplábamos un cuadrado, lo que incluía las
+ * esquinas FUERA del círculo de la burbuja → contaba blanco extra que
+ * bajaba el promedio. Resultado: una burbuja apenas rellena podía
+ * pasar el threshold a veces y otras no.
+ *
+ * Ahora samplemos solo dentro del círculo de radio r. Eso da una señal
+ * más limpia: burbuja vacía promedia ~250, burbuja rellena promedia
+ * ~50-100. Mucho más margen.
+ */
 function sampleIntensity(gray, W, H, cxPx, cyPx, radiusPx) {
-  const x0 = Math.max(0, cxPx - radiusPx);
-  const y0 = Math.max(0, cyPx - radiusPx);
-  const x1 = Math.min(W - 1, cxPx + radiusPx);
-  const y1 = Math.min(H - 1, cyPx + radiusPx);
+  const r2 = radiusPx * radiusPx;
   let sum = 0, count = 0;
-  for (let y = y0; y <= y1; y++) {
-    for (let x = x0; x <= x1; x++) {
+  for (let dy = -radiusPx; dy <= radiusPx; dy++) {
+    const y = cyPx + dy;
+    if (y < 0 || y >= H) continue;
+    for (let dx = -radiusPx; dx <= radiusPx; dx++) {
+      if (dx * dx + dy * dy > r2) continue; // outside circle
+      const x = cxPx + dx;
+      if (x < 0 || x >= W) continue;
       sum += gray[y * W + x];
       count++;
     }
