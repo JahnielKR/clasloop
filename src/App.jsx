@@ -212,11 +212,21 @@ function AuthScreen({ initialMode = "signup", onBack, lang = "en" }) {
       return;
     }
 
-    // Web flow — sin cambios desde PR 43.
+    // Web flow.
+    //
+    // PR 58 fix bug 2: prompt='select_account' fuerza a Google a mostrar
+    // siempre el selector de cuenta. Sin esto, si el browser tiene una
+    // sesión Google activa, te loguea con esa sin preguntar — imposible
+    // probar con otra cuenta sin modo incógnito.
     try {
       await supabase.auth.signInWithOAuth({
         provider: "google",
-        options: { redirectTo: window.location.origin },
+        options: {
+          redirectTo: window.location.origin,
+          queryParams: {
+            prompt: "select_account",
+          },
+        },
       });
     } catch (err) {
       console.error("[clasloop] Google OAuth exception:", err);

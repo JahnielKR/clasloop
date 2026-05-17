@@ -70,11 +70,20 @@ export async function googleOAuthNative() {
   }
 
   // 2. Pedirle a Supabase el URL del flow, sin redirigir
+  //
+  // PR 58 fix bug 2: prompt='select_account' fuerza a Google a mostrar
+  // siempre el selector de cuenta, en lugar de loguear automáticamente
+  // la última cuenta usada en el browser/sistema. Sin esto, una vez que
+  // un usuario se logueó, es imposible loguearse con otra cuenta en el
+  // mismo dispositivo sin abrir modo incógnito.
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: "google",
     options: {
       redirectTo: REDIRECT_URI,
       skipBrowserRedirect: true,
+      queryParams: {
+        prompt: "select_account",
+      },
     },
   });
 
