@@ -25,6 +25,7 @@ import jsPDF from "jspdf";
 import { ensureKoreanFont } from "./pdf-fonts";
 import { sanitizeFilename } from "./pdf-styles/shared";
 import { getPalette } from "./pdf-styles/palettes";
+import { savePdfCrossPlatform } from "./native-pdf";
 import * as classic from "./pdf-styles/classic";
 import * as modern from "./pdf-styles/modern";
 import * as editorial from "./pdf-styles/editorial";
@@ -92,7 +93,10 @@ export async function exportPDF(deck, classObj, opts = {}) {
   if (variant === "answer_key") suffix = "_answers";
   else if (variant === "exam_with_scan") suffix = "_exam_scan";
   const fname = sanitizeFilename(deck.title || "deck") + suffix + ".pdf";
-  doc.save(fname);
+  // PR 54 (FASE 2 Capacitor): en native, doc.save() no funciona porque
+  // los blob: URLs no disparan download manager. savePdfCrossPlatform
+  // hace doc.save() en web y filesystem + share sheet en native.
+  await savePdfCrossPlatform(doc, fname);
 }
 
 // ─── Legacy shims ────────────────────────────────────────────────────────
