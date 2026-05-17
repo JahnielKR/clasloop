@@ -1,6 +1,6 @@
 # FASE 3 — Scan sheet con ML Kit nativo (PR 57)
 
-**Estado:** PR 57.1 (DB schema) listo. PR 57.2-4 vienen después.
+**Estado:** PR 57.1 (DB), 57.2 (lib), 57.3 (UI) listos. Falta 57.4 (/scans page).
 
 ---
 
@@ -29,7 +29,60 @@
 
 ---
 
-## PR 57.1 — Instrucciones de deploy
+## PR 57.3 — Scanner UI rewrite (este zip)
+
+Reescribe `src/pages/Scanner.jsx` completo. Stages nuevos:
+- pickDeck (mejorado, search + cards)
+- webFallback (banner "Descargá app" cuando no es native)
+- scanning (loader mientras ML Kit + sampling corren)
+- reviewUncertain (revisión manual de burbujas con confidence < 0.3)
+- result (score grande + foto + grid de respuestas verde/rojo)
+- scanError (con retry/back)
+
+Borra `src/lib/scanner-cv.js` (~600 líneas de JS puro + OpenCV.js).
+Borra dep `jsqr`.
+
+Reactiva item Scanner en el sidebar.
+
+### Cómo deployar
+
+```powershell
+cd C:\path\a\clasloop-phase1
+git pull origin feature/capacitor-android
+npm install
+npm run build
+npx cap sync android
+```
+
+En Android Studio: Build → Clean → Rebuild → Run.
+
+### Cómo probar (en device físico real, NO emulador)
+
+1. App native abierta como teacher
+2. Sidebar → "Scanner" / "Escáner" (debería aparecer ahora)
+3. Picker de deck → seleccioná uno con preguntas MCQ/TF
+4. Aparece la cámara ML Kit nativa
+5. Apuntá a una hoja escaneada (la generaste con Export PDF → exam_with_scan)
+6. ML Kit detecta los bordes automáticamente, hacé tap en confirmar
+7. Espera mientras lee QR + samplea burbujas
+8. Si hay burbujas dudosas, te muestra cada una con botones A/B/C/D
+9. Score grande + grid de respuestas verde/rojo
+10. "Guardar y escanear otra" para hacer otra hoja
+11. "Guardar y terminar" para volver al picker
+
+### Verificar en Supabase
+
+Después de guardar:
+- **Database → scans:** una row con teacher_id = tu uid
+- **Storage → scan-images:** carpeta con tu uid → un .jpg
+
+### Lo que NO hace este PR
+
+- **Página /scans (histórico):** viene en PR 57.4
+- **Banner web con QR real:** muestra botones "Coming soon" por ahora,
+  hasta que publiquemos la app en Play Store
+
+---
 
 ### 1. Aplicar migration en Supabase
 

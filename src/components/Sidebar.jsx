@@ -92,10 +92,10 @@ const TEACHER_NAV_GROUPS = [
     items: [
       { id: "myClasses", glyph: "▤", label: "myClasses" },
       { id: "decks",     glyph: "▥", label: "library" },
-      // PR 49 retired: el scanner cam vuelve cuando tengamos la app nativa
-      // de Capacitor (ver docs/CAPACITOR_MIGRATION_PLAN.md). El código de
-      // /scan sigue existiendo pero no es accesible desde la UI por ahora.
-      // { id: "scan",      glyph: "▢", label: "scanner" },
+      // PR 57.3: reactivado. El scanner ahora corre con ML Kit nativo.
+      // En web muestra banner "Descargá la app", en native abre la cámara
+      // ML Kit del sistema.
+      { id: "scan",      glyph: "▢", label: "scanner" },
     ],
   },
   {
