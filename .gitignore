@@ -4,3 +4,13 @@
 node_modules/
 dist/
 .DS_Store
+
+# Capacitor: el directorio android/ se commitea (contiene configuración
+# importante como AndroidManifest.xml, build.gradle, etc). Capacitor mismo
+# genera un .gitignore adecuado adentro de android/ cuando se hace
+# `npx cap add android`, que excluye los outputs de build.
+#
+# Lo único que ignoramos a nivel raíz son los iOS Pods (si en el futuro
+# agregamos iOS), porque pueden ser pesados y se regeneran con `pod install`.
+ios/App/Pods/
+ios/App/build/

@@ -1,6 +1,7 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { BrowserRouter, HashRouter, Routes, Route } from 'react-router-dom'
+import { Capacitor } from '@capacitor/core'
 import App from './App'
 import GuestJoin from './pages/GuestJoin'
 import './index.css'
@@ -10,6 +11,7 @@ import './styles/themes.css'
 import './styles/theme-overlays.css'
 import { ensureThemeCss, applyTheme, getStoredTheme } from './components/tokens'
 import { ROUTE_PATTERNS } from './routes'
+import { bootCapacitor } from './lib/capacitor-boot'
 
 // ── Theme boot ──
 // Inject the theme CSS variables and apply the persisted theme BEFORE
@@ -22,6 +24,19 @@ requestAnimationFrame(() => {
   document.documentElement.classList.add("theme-ready");
 });
 
+// ── Router selection ──
+// PR 50 (FASE 1 Capacitor): when running inside the Capacitor WebView
+// the files are served from a capacitor:// or file:// scheme, where
+// BrowserRouter (which uses HTML5 History API) doesn't behave the same
+// way (no real "URL bar"). HashRouter sidesteps the issue by encoding
+// routes after a # (e.g. /#/decks), which works regardless of the
+// underlying scheme.
+//
+// On the web (browser) we keep BrowserRouter for clean URLs (/decks
+// instead of /#/decks).
+const isNative = Capacitor.isNativePlatform();
+const Router = isNative ? HashRouter : BrowserRouter;
+
 // Routing entry point.
 //
 // /join is the only truly public, no-auth entry point (guests joining a
@@ -33,12 +48,12 @@ requestAnimationFrame(() => {
 // /join as a sibling that bypasses the auth shell entirely.
 function Root() {
   return (
-    <BrowserRouter>
+    <Router>
       <Routes>
         <Route path={ROUTE_PATTERNS.JOIN} element={<GuestJoin />} />
         <Route path="/*" element={<App />} />
       </Routes>
-    </BrowserRouter>
+    </Router>
   );
 }
 
@@ -47,3 +62,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     <Root />
   </React.StrictMode>,
 )
+
+// PR 50 (FASE 1 Capacitor): inicializar plugins nativos después de
+// montar React. En web es no-op.
+bootCapacitor();
