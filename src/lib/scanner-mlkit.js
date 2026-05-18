@@ -1,80 +1,65 @@
 // ─── lib/scanner-mlkit.js ──────────────────────────────────────────────
 //
-// PR 57.2 (FASE 3 Capacitor): scanner cam usando ML Kit nativo.
-//
-// Reemplaza scanner-cv.js (~600 líneas con OpenCV.js de 8MB).
+// PR 60 (FIX REAL del bug de respuestas alucinadas): el scanner ahora
+// detecta las 8 fiduciales del PDF (PR 59) y corrige las posiciones de
+// las burbujas usando esos puntos de referencia.
 //
 // Pipeline:
 //   1. DocumentScanner.scanDocument() → ML Kit abre cámara nativa,
-//      detecta hoja, hace cropping + perspective correction
-//      automáticamente. Retorna URI a JPEG ya rectificado.
-//   2. BarcodeScanner.readBarcodesFromImage(uri) → lee QR de la hoja
-//      para validar deck_id.
-//   3. sampleBubbles(uri, template, deck) → carga imagen como
-//      ImageData en un canvas, samplea pixels en las posiciones
-//      conocidas (en mm) de cada burbuja según el template.
-//   4. Retorna [{question_id, qNum, marked, correct, is_correct,
-//      confidence, is_uncertain}].
+//      detecta hoja, hace cropping + perspective correction del PAPEL.
+//      Retorna URI a JPEG ya rectificado a tamaño A4.
+//   2. BarcodeScanner.readBarcodesFromImage(uri) → lee QR para validar
+//      deck_id.
+//   3. NUEVO (PR 60): findFiducials(grayData) → busca las 8 fiduciales
+//      negras del PDF en posiciones esperadas. Devuelve los centros
+//      detectados.
+//   4. NUEVO (PR 60): para cada burbuja, calcular su posición REAL en
+//      la imagen usando interpolación bilineal entre las fiduciales
+//      vecinas (compensa margen de impresora, curvatura del papel,
+//      inclinación residual).
+//   5. sampleBubbles(...) → samplea pixels en las posiciones corregidas.
 //
-// Las funciones de sampling (computeBubblePositions, sampleIntensity,
-// extractCorrectAnswer) se reutilizan de la lógica del PR 49 — esa
-// parte estaba bien, lo que fallaba era el pipeline de CV en JS puro
-// (adaptive threshold, blob detection, perspective transform).
-// ML Kit hace todo eso por nosotros.
+// Por qué interpolación bilineal y no homografía/perspective warp:
+//   - ML Kit ya rectificó el papel (eliminó perspective)
+//   - Las distorsiones restantes son LOCALES (margen impresora 3-5mm en
+//     un lado, curvatura del papel en el medio, etc)
+//   - Una homografía global asume papel perfectamente plano (no es así)
+//   - Bilineal por cuadrantes captura las distorsiones locales mejor
+//
+// Fallback: si findFiducials no detecta las 8 (foto muy mala, sombras,
+// dedo tapando), usar las coordenadas crudas (comportamiento viejo).
+// Esto da degradación graciosa — peor caso = como antes, no peor.
 
 import { Capacitor } from "@capacitor/core";
-import { TEMPLATES, pickTemplate, PAGE_DIMS } from "./pdf-styles/scanner";
+import {
+  TEMPLATES,
+  pickTemplate,
+  PAGE_DIMS,
+  SCAN_AREA,
+  FIDUCIAL_CENTERS,
+} from "./pdf-styles/scanner";
 import { groupQuestionsBySection } from "./pdf-styles/shared";
 
 // ─── Constants ─────────────────────────────────────────────────────────
-//
-// WARP_SCALE: pixels por mm en la imagen rectificada. ML Kit devuelve
-// imágenes de tamaño variable según el device. Cuando cargamos la
-// imagen en canvas, la escalamos a este factor para tener coordenadas
-// predecibles.
-//
-// Páginas A4 son 210×297mm. Con WARP_SCALE=5: 1050×1485px.
 const WARP_SCALE = 5;
 const WARP_W = PAGE_DIMS.width * WARP_SCALE;
 const WARP_H = PAGE_DIMS.height * WARP_SCALE;
 
-// Bubble sampling thresholds:
-//
-// - Una burbuja vacía promedia intensidad ~250 (blanco)
-// - Una burbuja rellena promedia ~50-100 (negro)
-// - BUBBLE_DARK_THRESHOLD: por debajo de esto, consideramos que está
-//   rellena. Probado en PR 49 y funcionaba.
-// - BUBBLE_AMBIGUITY_MARGIN: si la 2da burbuja más oscura está dentro
-//   de este margen de la 1ra, hay duda (ej: profe rellenó dos por
-//   error, o luz mala). Marcamos como dudosa.
+// Fiducial detection:
+const FIDUCIAL_SEARCH_RADIUS_MM = 15;
+const FIDUCIAL_BINARY_THRESHOLD = 100;
+const FIDUCIAL_MIN_AREA_PX = 300;
+const FIDUCIAL_MAX_AREA_PX = 2500;
+
+// Bubble sampling (igual que antes):
 const BUBBLE_DARK_THRESHOLD = 130;
 const BUBBLE_AMBIGUITY_MARGIN = 15;
 const SAMPLE_RADIUS_MM = 1.4;
-
-// Confidence thresholds:
-//
-// - Si darkest < THRESHOLD - HIGH_CONF_BUFFER → very confident (1.0)
-// - Si darkest cerca de THRESHOLD → low confidence
-// - Si dos burbujas similares → low confidence
-//
-// is_uncertain = confidence < 0.3 (revisión manual por el profe)
 const HIGH_CONF_BUFFER = 40;
 const UNCERTAIN_THRESHOLD = 0.3;
 
 // ─── Public API ────────────────────────────────────────────────────────
 
-/**
- * Opens ML Kit native document scanner. User points camera at the
- * scan sheet, ML Kit auto-detects edges + does perspective correction,
- * user confirms, we get back a JPEG URI of the rectified document.
- *
- * Throws if:
- *   - Not running in native (web has no ML Kit)
- *   - User cancels the scan
- *   - Device doesn't have Google Play Services (rare on modern Android)
- *
- * @returns {Promise<string>} URI to the scanned JPEG image
- */
 export async function scanDocument() {
   if (!Capacitor.isNativePlatform()) {
     throw new Error("scanDocument() requires native platform (Capacitor)");
@@ -82,40 +67,25 @@ export async function scanDocument() {
 
   const { DocumentScanner } = await import("@capacitor-mlkit/document-scanner");
 
-  // Check if the ML Kit module is installed. On a fresh device, ML Kit
-  // downloads its model on first use (~10MB), so first scan can be slow.
   const { available } = await DocumentScanner.isGoogleDocumentScannerModuleAvailable();
   if (!available) {
-    // Trigger the install. The user sees a progress notification from
-    // Google Play Services. We could subscribe to the
-    // 'googleDocumentScannerModuleInstallProgress' event for a custom
-    // UI, but for now just start the install and rely on the system UI.
     await DocumentScanner.installGoogleDocumentScannerModule();
   }
 
   const result = await DocumentScanner.scanDocument({
-    galleryImportAllowed: true,   // user can pick from gallery if scan fails
-    pageLimit: 1,                  // we only want 1 page (1 hoja)
-    resultFormats: "JPEG",         // we don't need PDF, just the image
-    scannerMode: "FULL",           // full UX: auto-detect + manual crop + filter
+    galleryImportAllowed: true,
+    pageLimit: 1,
+    resultFormats: "JPEG",
+    scannerMode: "FULL",
   });
 
   if (!result.scannedImages || result.scannedImages.length === 0) {
     throw new Error("No image returned from document scanner");
   }
 
-  // Returns a file:// URI on Android.
   return result.scannedImages[0];
 }
 
-/**
- * Reads a QR code from a scanned image. Expects payload like
- * "clasloop:deck:{deck_id}". Returns the deck_id, or null if no
- * QR found or payload doesn't match our format.
- *
- * @param {string} imageUri  URI from scanDocument()
- * @returns {Promise<string|null>}
- */
 export async function readQRFromImage(imageUri) {
   if (!Capacitor.isNativePlatform()) {
     throw new Error("readQRFromImage() requires native platform");
@@ -123,7 +93,6 @@ export async function readQRFromImage(imageUri) {
 
   const { BarcodeScanner } = await import("@capacitor-mlkit/barcode-scanning");
 
-  // Check ML Kit module (separate from DocumentScanner)
   const { available } = await BarcodeScanner.isGoogleBarcodeScannerModuleAvailable();
   if (!available) {
     await BarcodeScanner.installGoogleBarcodeScannerModule();
@@ -131,14 +100,13 @@ export async function readQRFromImage(imageUri) {
 
   const result = await BarcodeScanner.readBarcodesFromImage({
     path: imageUri,
-    formats: ["QR_CODE"],   // only QR, ignore other barcode types
+    formats: ["QR_CODE"],
   });
 
   if (!result.barcodes || result.barcodes.length === 0) {
     return null;
   }
 
-  // Find first barcode whose payload matches "clasloop:deck:{uuid}"
   for (const barcode of result.barcodes) {
     const m = barcode.rawValue?.match(/^clasloop:deck:(.+)$/);
     if (m) return m[1];
@@ -148,53 +116,54 @@ export async function readQRFromImage(imageUri) {
 }
 
 /**
- * Samples all bubbles in the scanned image and returns the marked
- * answers per question with confidence.
+ * Samples all bubbles in the scanned image and returns marked answers.
  *
- * @param {string} imageUri   URI from scanDocument()
- * @param {object} deck       deck object with questions[]
+ * PR 60: ahora usa detección de fiduciales + interpolación bilineal
+ * para corregir las posiciones de las burbujas. Si las fiduciales no
+ * se detectan, fallback a coords crudas (comportamiento viejo).
+ *
  * @returns {Promise<{
- *   answers: Array<{
- *     question_id: string,
- *     qNum: number,
- *     marked: string|null,
- *     correct: string|null,
- *     is_correct: boolean,
- *     confidence: number,
- *     is_uncertain: boolean,
- *   }>,
+ *   answers: Array<{...}>,
  *   score: number,
  *   total: number,
+ *   fiducialsDetected: number,   // 0-8
+ *   warpApplied: boolean,
  * }>}
  */
 export async function sampleBubbles(imageUri, deck) {
-  // Get scannable questions in the canonical order (MCQ first then TF,
-  // same as the PDF — PR 47.2 fix). We trust this matches the PDF.
   const grouped = groupQuestionsBySection(deck.questions || []);
   const scannable = [
     ...(grouped.selection || []).filter(q => q.type === "mcq" || q.type === "tf"),
   ];
 
-  // Order: MCQ first, TF second (same as drawScanSheet does)
   scannable.sort((a, b) => {
     if (a.type === b.type) return 0;
     return a.type === "mcq" ? -1 : 1;
   });
 
   if (scannable.length === 0) {
-    return { answers: [], score: 0, total: 0 };
+    return { answers: [], score: 0, total: 0, fiducialsDetected: 0, warpApplied: false };
   }
   if (scannable.length > 50) {
     throw new Error(`Too many scannable questions (${scannable.length} > 50)`);
   }
 
   const template = pickTemplate(scannable.length);
-
-  // Load the image into a canvas at WARP_W × WARP_H so we can sample
-  // pixels at predictable mm coordinates.
   const grayData = await loadImageAsGrayscale(imageUri, WARP_W, WARP_H);
 
-  // Sample each bubble per question
+  // PR 60: detectar fiduciales
+  const fiducials = findFiducials(grayData, WARP_W, WARP_H);
+  const detectedCount = Object.values(fiducials).filter(f => f.found).length;
+  const warpApplied = detectedCount >= 6;  // necesitamos al menos 6 de 8
+
+  if (warpApplied) {
+    console.log(`[scanner-mlkit] Fiduciales detectadas: ${detectedCount}/8. Warp bilineal aplicado.`);
+  } else {
+    console.warn(`[scanner-mlkit] Solo ${detectedCount}/8 fiduciales detectadas. Usando coords crudas (degraded mode).`);
+  }
+
+  const virtualCenter = computeVirtualCenter(fiducials);
+
   const positions = computeBubblePositions(scannable, template);
   const sampleRadiusPx = Math.round(SAMPLE_RADIUS_MM * WARP_SCALE);
 
@@ -205,8 +174,14 @@ export async function sampleBubbles(imageUri, deck) {
     const samples = item.choices.map((letter, i) => {
       const xMm = item.cxMm + i * template.bubbleGap;
       const yMm = item.cyMm;
-      const xPx = Math.round(xMm * WARP_SCALE);
-      const yPx = Math.round(yMm * WARP_SCALE);
+
+      // PR 60: corregir posición usando fiduciales (si están detectadas)
+      const { x: correctedX, y: correctedY } = warpApplied
+        ? warpPosition(xMm, yMm, fiducials, virtualCenter)
+        : { x: xMm, y: yMm };
+
+      const xPx = Math.round(correctedX * WARP_SCALE);
+      const yPx = Math.round(correctedY * WARP_SCALE);
       const intensity = sampleIntensity(grayData, WARP_W, WARP_H, xPx, yPx, sampleRadiusPx);
       return { letter, intensity };
     });
@@ -215,7 +190,6 @@ export async function sampleBubbles(imageUri, deck) {
     const darkest = samples[0];
     const second = samples[1];
 
-    // Detect marked letter
     let marked = null;
     let confidence = 0;
     let is_uncertain = false;
@@ -224,9 +198,6 @@ export async function sampleBubbles(imageUri, deck) {
       const gap = second ? second.intensity - darkest.intensity : 1000;
       if (gap >= BUBBLE_AMBIGUITY_MARGIN) {
         marked = darkest.letter;
-        // Confidence based on how dark + how clear the gap is:
-        //   - intensity well below threshold = high confidence
-        //   - big gap to second = high confidence
         const darknessConf = Math.min(
           1.0,
           (BUBBLE_DARK_THRESHOLD - darkest.intensity) / HIGH_CONF_BUFFER
@@ -237,20 +208,17 @@ export async function sampleBubbles(imageUri, deck) {
         );
         confidence = Math.min(darknessConf, gapConf);
       } else {
-        // Two similar dark bubbles → ambiguous, marked but uncertain
         marked = darkest.letter;
         confidence = 0.2;
         is_uncertain = true;
       }
     } else if (darkest.intensity < BUBBLE_DARK_THRESHOLD + 30) {
-      // Borderline: probably filled but not confidently
       marked = darkest.letter;
       confidence = 0.25;
       is_uncertain = true;
     } else {
-      // Nothing marked
       marked = null;
-      confidence = 0.9;  // confident that nothing is marked
+      confidence = 0.9;
     }
 
     is_uncertain = is_uncertain || confidence < UNCERTAIN_THRESHOLD;
@@ -271,18 +239,15 @@ export async function sampleBubbles(imageUri, deck) {
     });
   }
 
-  return { answers, score, total: scannable.length };
+  return {
+    answers,
+    score,
+    total: scannable.length,
+    fiducialsDetected: detectedCount,
+    warpApplied,
+  };
 }
 
-/**
- * Helper for the Scanner.jsx UI: when user manually confirms/changes
- * an answer that was uncertain. Returns updated answers + new score.
- *
- * @param {Array} answers     current answers from sampleBubbles
- * @param {string} questionId which question
- * @param {string|null} newMarked the user's confirmed answer
- * @returns {{answers, score, total}}
- */
 export function updateAnswer(answers, questionId, newMarked) {
   const updated = answers.map(a => {
     if (a.question_id !== questionId) return a;
@@ -290,7 +255,7 @@ export function updateAnswer(answers, questionId, newMarked) {
       ...a,
       marked: newMarked,
       is_correct: newMarked !== null && newMarked === a.correct,
-      confidence: 1.0,        // user confirmed = max confidence
+      confidence: 1.0,
       is_uncertain: false,
     };
   });
@@ -298,17 +263,239 @@ export function updateAnswer(answers, questionId, newMarked) {
   return { answers: updated, score, total: answers.length };
 }
 
-// ─── Internal helpers ──────────────────────────────────────────────────
+// ─── Fiducial detection (PR 60) ────────────────────────────────────────
 
 /**
- * Loads an image from a URI into a canvas, converts to grayscale,
- * resizes to (w, h), and returns the grayscale Uint8Array.
- *
- * The image from ML Kit comes already rectified (perspective corrected)
- * so we can just resize and grayscale it without any CV transforms.
+ * Busca las 8 fiduciales del PDF en la imagen rectificada.
+ * Para cada fiducial esperada, busca en una ventana de ±FIDUCIAL_SEARCH_RADIUS_MM
+ * alrededor de su posición esperada. Encuentra el blob negro más grande
+ * dentro de esa ventana cuyo área esté en el rango esperado, y calcula
+ * su centroide.
  */
+function findFiducials(gray, W, H) {
+  const searchRadiusPx = Math.round(FIDUCIAL_SEARCH_RADIUS_MM * WARP_SCALE);
+  const result = {};
+
+  for (const [name, expectedMm] of Object.entries(FIDUCIAL_CENTERS)) {
+    const expectedPx = {
+      x: expectedMm.x * WARP_SCALE,
+      y: expectedMm.y * WARP_SCALE,
+    };
+
+    const x0 = Math.max(0, Math.round(expectedPx.x - searchRadiusPx));
+    const y0 = Math.max(0, Math.round(expectedPx.y - searchRadiusPx));
+    const x1 = Math.min(W - 1, Math.round(expectedPx.x + searchRadiusPx));
+    const y1 = Math.min(H - 1, Math.round(expectedPx.y + searchRadiusPx));
+
+    const blob = findLargestDarkBlob(gray, W, H, x0, y0, x1, y1, expectedPx.x, expectedPx.y);
+
+    result[name] = {
+      expected: expectedPx,
+      found: blob,
+    };
+  }
+
+  return result;
+}
+
+/**
+ * Dentro de una ventana rectangular, encuentra el blob de pixels oscuros
+ * (< threshold) que mejor matchea una fiducial: área en rango esperado
+ * y centroide CERCANO a la posición esperada.
+ *
+ * IMPORTANTE: NO elegimos "el blob más grande" — eso puede agarrar el
+ * logo Clasloop o números de pregunta. Elegimos el blob cuyo centroide
+ * está MÁS CERCA del centro esperado, dentro del rango de área válido.
+ *
+ * BFS de componentes conexos (4-connectivity).
+ */
+function findLargestDarkBlob(gray, W, H, x0, y0, x1, y1, expectedCenterX, expectedCenterY) {
+  const winW = x1 - x0 + 1;
+  const winH = y1 - y0 + 1;
+  const visited = new Uint8Array(winW * winH);
+
+  let bestBlob = null;
+  let bestDist = Infinity;
+
+  for (let y = y0; y <= y1; y++) {
+    for (let x = x0; x <= x1; x++) {
+      const winIdx = (y - y0) * winW + (x - x0);
+      if (visited[winIdx]) continue;
+      if (gray[y * W + x] >= FIDUCIAL_BINARY_THRESHOLD) {
+        visited[winIdx] = 1;
+        continue;
+      }
+
+      const blob = floodFillBlob(gray, W, H, visited, x, y, x0, y0, winW, winH);
+
+      if (blob.area >= FIDUCIAL_MIN_AREA_PX && blob.area <= FIDUCIAL_MAX_AREA_PX) {
+        const dx = blob.x - expectedCenterX;
+        const dy = blob.y - expectedCenterY;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < bestDist) {
+          bestDist = dist;
+          bestBlob = blob;
+        }
+      }
+    }
+  }
+
+  return bestBlob;
+}
+
+/**
+ * BFS flood fill desde un pixel oscuro. Stack-based para evitar
+ * stack overflow en blobs grandes.
+ */
+function floodFillBlob(gray, W, H, visited, startX, startY, winX0, winY0, winW, winH) {
+  const stack = [startX, startY];
+  let sumX = 0, sumY = 0, count = 0;
+
+  while (stack.length > 0) {
+    const y = stack.pop();
+    const x = stack.pop();
+
+    const winIdx = (y - winY0) * winW + (x - winX0);
+    if (visited[winIdx]) continue;
+    if (gray[y * W + x] >= FIDUCIAL_BINARY_THRESHOLD) {
+      visited[winIdx] = 1;
+      continue;
+    }
+
+    visited[winIdx] = 1;
+    sumX += x;
+    sumY += y;
+    count++;
+
+    // 4-vecinos, solo si dentro de la ventana
+    if (x > winX0 && !visited[winIdx - 1]) stack.push(x - 1, y);
+    if (x < winX0 + winW - 1 && !visited[winIdx + 1]) stack.push(x + 1, y);
+    if (y > winY0 && !visited[winIdx - winW]) stack.push(x, y - 1);
+    if (y < winY0 + winH - 1 && !visited[winIdx + winW]) stack.push(x, y + 1);
+  }
+
+  return {
+    x: count > 0 ? sumX / count : 0,
+    y: count > 0 ? sumY / count : 0,
+    area: count,
+  };
+}
+
+// ─── Bilinear warp (PR 60) ─────────────────────────────────────────────
+
+/**
+ * Calcula el "centro virtual" del área escaneable como el promedio de
+ * las 4 fiduciales medio (TC, BC, ML, MR). Si alguna no se detectó,
+ * fallback al centro geométrico esperado.
+ */
+function computeVirtualCenter(fiducials) {
+  const midNames = ["topCenter", "bottomCenter", "midLeft", "midRight"];
+  const found = midNames
+    .map(n => fiducials[n])
+    .filter(f => f && f.found);
+
+  if (found.length === 4) {
+    const sumX = found.reduce((s, f) => s + f.found.x, 0);
+    const sumY = found.reduce((s, f) => s + f.found.y, 0);
+    return { x: sumX / 4, y: sumY / 4 };
+  }
+
+  return {
+    x: (SCAN_AREA.x + SCAN_AREA.width / 2) * WARP_SCALE,
+    y: (SCAN_AREA.y + SCAN_AREA.height / 2) * WARP_SCALE,
+  };
+}
+
+/**
+ * Corrige una posición esperada (xMm, yMm) usando interpolación
+ * bilineal entre las 4 fiduciales del cuadrante correspondiente.
+ *
+ * El área escaneable se divide en 4 cuadrantes (TL, TR, BL, BR).
+ * Cada cuadrante tiene 4 vertices: V1 (top-left), V2 (top-right),
+ * V3 (bottom-left), V4 (bottom-right) referidos al cuadrante.
+ *
+ * Fórmula bilineal: P = (1-u)(1-v)·V1 + u(1-v)·V2 + (1-u)v·V3 + uv·V4
+ */
+function warpPosition(xMm, yMm, fiducials, virtualCenter) {
+  const xPx = xMm * WARP_SCALE;
+  const yPx = yMm * WARP_SCALE;
+
+  const expectedCenterX = (SCAN_AREA.x + SCAN_AREA.width / 2) * WARP_SCALE;
+  const expectedCenterY = (SCAN_AREA.y + SCAN_AREA.height / 2) * WARP_SCALE;
+
+  const isLeft = xPx < expectedCenterX;
+  const isTop = yPx < expectedCenterY;
+
+  // Helper: obtener posición real (found) o esperada (fallback)
+  const getPos = (name) => {
+    if (name === "_virtual") return virtualCenter;
+    const f = fiducials[name];
+    return (f && f.found) ? f.found : f.expected;
+  };
+
+  // Identificar V1, V2, V3, V4 según cuadrante
+  // Cada cuadrante: V1=top-left, V2=top-right, V3=bottom-left, V4=bottom-right
+  let v1Name, v2Name, v3Name, v4Name;
+  if (isTop && isLeft) {
+    // Cuadrante TL: vertices son TL, TC, ML, virtualCenter
+    v1Name = "topLeft"; v2Name = "topCenter";
+    v3Name = "midLeft"; v4Name = "_virtual";
+  } else if (isTop && !isLeft) {
+    // Cuadrante TR: TC, TR, virtualCenter, MR
+    v1Name = "topCenter"; v2Name = "topRight";
+    v3Name = "_virtual"; v4Name = "midRight";
+  } else if (!isTop && isLeft) {
+    // Cuadrante BL: ML, virtualCenter, BL, BC
+    v1Name = "midLeft"; v2Name = "_virtual";
+    v3Name = "bottomLeft"; v4Name = "bottomCenter";
+  } else {
+    // Cuadrante BR: virtualCenter, MR, BC, BR
+    v1Name = "_virtual"; v2Name = "midRight";
+    v3Name = "bottomCenter"; v4Name = "bottomRight";
+  }
+
+  const v1 = getPos(v1Name);
+  const v2 = getPos(v2Name);
+  const v3 = getPos(v3Name);
+  const v4 = getPos(v4Name);
+
+  // Posiciones ESPERADAS de los 4 vertices del cuadrante (para calcular u, v)
+  const getExpected = (name) => {
+    if (name === "_virtual") {
+      return { x: expectedCenterX, y: expectedCenterY };
+    }
+    const f = FIDUCIAL_CENTERS[name];
+    return { x: f.x * WARP_SCALE, y: f.y * WARP_SCALE };
+  };
+
+  const expV1 = getExpected(v1Name);
+  const expV2 = getExpected(v2Name);
+  const expV3 = getExpected(v3Name);
+  // expV4 no se usa para u,v (asumimos cuadrante esperado rectangular)
+
+  // u, v normalizados en [0,1] dentro del cuadrante (basado en expected)
+  // expV1 es top-left, expV2 es top-right, expV3 es bottom-left
+  const dxQuadrant = expV2.x - expV1.x;
+  const dyQuadrant = expV3.y - expV1.y;
+
+  const u = dxQuadrant !== 0 ? (xPx - expV1.x) / dxQuadrant : 0;
+  const v = dyQuadrant !== 0 ? (yPx - expV1.y) / dyQuadrant : 0;
+
+  const uc = Math.max(0, Math.min(1, u));
+  const vc = Math.max(0, Math.min(1, v));
+
+  // Interpolación bilineal usando posiciones REALES
+  const newX = (1 - uc) * (1 - vc) * v1.x + uc * (1 - vc) * v2.x
+             + (1 - uc) * vc * v3.x + uc * vc * v4.x;
+  const newY = (1 - uc) * (1 - vc) * v1.y + uc * (1 - vc) * v2.y
+             + (1 - uc) * vc * v3.y + uc * vc * v4.y;
+
+  return { x: newX / WARP_SCALE, y: newY / WARP_SCALE };
+}
+
+// ─── Image loading ─────────────────────────────────────────────────────
+
 async function loadImageAsGrayscale(imageUri, w, h) {
-  // Convert file:// URI to a webview-readable URL if needed
   let url = imageUri;
   if (imageUri.startsWith("file://") || imageUri.startsWith("/")) {
     url = Capacitor.convertFileSrc(imageUri);
@@ -322,11 +509,8 @@ async function loadImageAsGrayscale(imageUri, w, h) {
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("Failed to get 2d context");
 
-  // Draw image scaled to the canvas. ML Kit gives us a rectified image
-  // so this is a clean stretch — no perspective transform needed.
   ctx.drawImage(img, 0, 0, w, h);
 
-  // Pull pixel data + convert to grayscale
   const imgData = ctx.getImageData(0, 0, w, h);
   const rgba = imgData.data;
   const gray = new Uint8Array(w * h);
@@ -335,7 +519,6 @@ async function loadImageAsGrayscale(imageUri, w, h) {
     const r = rgba[i * 4];
     const g = rgba[i * 4 + 1];
     const b = rgba[i * 4 + 2];
-    // Standard luminance formula
     gray[i] = Math.round(0.299 * r + 0.587 * g + 0.114 * b);
   }
 
@@ -352,24 +535,20 @@ function loadImage(src) {
   });
 }
 
-/**
- * Computes the (cx, cy) in mm for each question's bubble row.
- *
- * REUTILIZADO de scanner-cv.js (PR 49.6). La lógica era correcta;
- * el problema del scanner viejo era el pipeline de CV, no este sampling.
- */
+// ─── Bubble positions + intensity sampling ────────────────────────────
+
 function computeBubblePositions(scannable, t) {
   const positions = [];
   const addColumn = (qsInCol, startQNum, colBaseX, yStart) => {
     qsInCol.forEach((q, idx) => {
       const cyMm = yStart + idx * t.rowHeight;
-      const choices = q.type === "tf" ? ["T", "F"] : ["A", "B", "C", "D"];
+      // PR 60: TF usa A=T y B=F (consistente con el PDF nuevo)
+      const choices = q.type === "tf" ? ["A", "B"] : ["A", "B", "C", "D"];
       positions.push({ q, qNum: startQNum + idx, cxMm: colBaseX, cyMm, choices });
     });
   };
 
   if (t === TEMPLATES.T50) {
-    // T50 has 2 sets of columns (upper + lower)
     const upper = scannable.slice(0, 30);
     for (let c = 0; c < t.cols; c++) {
       const colQs = upper.slice(c * 10, (c + 1) * 10);
@@ -392,14 +571,6 @@ function computeBubblePositions(scannable, t) {
   return positions;
 }
 
-/**
- * Sample mean grayscale intensity within a circle centered at (cx, cy).
- * Returns mean intensity 0..255. Lower = darker = bubble is filled.
- *
- * REUTILIZADO de scanner-cv.js (PR 49.6 fix 3): sampleamos solo dentro
- * del círculo (no del bounding square) para evitar contaminación de
- * píxeles blancos en las esquinas → señal mucho más limpia.
- */
 function sampleIntensity(gray, W, H, cxPx, cyPx, radiusPx) {
   const r2 = radiusPx * radiusPx;
   let sum = 0, count = 0;
@@ -420,15 +591,36 @@ function extractCorrectAnswer(q) {
   if (!q) return null;
   if (q.type === "mcq") {
     if (typeof q.correct === "number") return "ABCD"[q.correct] || null;
+    // PR 60: si correct es array (multi-respuesta), tomar primera por ahora.
+    // PR 61 hará el manejo completo de respuestas múltiples.
+    if (Array.isArray(q.correct) && q.correct.length > 0) {
+      const v = q.correct[0];
+      if (typeof v === "number") return "ABCD"[v] || null;
+      if (typeof v === "string") return v.toUpperCase();
+    }
     return null;
   }
   if (q.type === "tf") {
-    if (q.correct === true) return "T";
-    if (q.correct === false) return "F";
+    if (q.correct === true) return "A";   // T = A en el nuevo layout
+    if (q.correct === false) return "B";  // F = B
     return null;
   }
   return null;
 }
 
-// Re-export for convenience (Scanner.jsx might use these)
+// Re-export for convenience
 export { TEMPLATES, pickTemplate, PAGE_DIMS };
+
+// ─── Internal exports for testing (PR 60) ──────────────────────────────
+export const _internal = {
+  findFiducials,
+  findLargestDarkBlob,
+  warpPosition,
+  computeVirtualCenter,
+  loadImageAsGrayscale,
+  sampleIntensity,
+  computeBubblePositions,
+  WARP_SCALE,
+  WARP_W,
+  WARP_H,
+};
