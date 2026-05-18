@@ -65,56 +65,73 @@ const ADAPTIVE_FG_SIZES = {
   mdpi: 108, hdpi: 162, xhdpi: 216, xxhdpi: 324, xxxhdpi: 432,
 };
 
-// Splash sizes
+// Splash sizes.
+// PR 64: xxhdpi y xxxhdpi aumentados para que tablets HD modernas
+// (Tab S9 = 1600×2560 px) reciban un splash en (o cerca de) su
+// resolución nativa, sin upscale del sistema → nitidez perfecta.
+//   Antes:               Ahora:
+//   xxhdpi  960×1600     1440×2400
+//   xxxhdpi 1280×1920    1920×2560   ← Tab S9 = 1600×2560, ahora downscale leve
+//
+// Las densidades chicas (mdpi/hdpi/xhdpi) quedan igual — los devices que
+// las usan tienen pantallas pequeñas y el aumento de tamaño solo
+// engordaría el APK sin beneficio visual.
 const SPLASH_SIZES = {
   "drawable-port-mdpi":   [320, 480],
   "drawable-port-hdpi":   [480, 800],
   "drawable-port-xhdpi":  [720, 1280],
-  "drawable-port-xxhdpi": [960, 1600],
-  "drawable-port-xxxhdpi": [1280, 1920],
+  "drawable-port-xxhdpi": [1440, 2400],
+  "drawable-port-xxxhdpi": [1920, 2560],
   "drawable-land-mdpi":   [480, 320],
   "drawable-land-hdpi":   [800, 480],
   "drawable-land-xhdpi":  [1280, 720],
-  "drawable-land-xxhdpi": [1600, 960],
-  "drawable-land-xxxhdpi": [1920, 1280],
+  "drawable-land-xxhdpi": [2400, 1440],
+  "drawable-land-xxxhdpi": [2560, 1920],
 };
 
 // ─── Helpers ─────────────────────────────────────────────────────────────
 
 /**
- * PR 53.1: splash simplificado — solo el logo Clasloop centrado sobre
- * fondo neutro claro. Sin wordmark (Jota lo prefirió así, sin la
- * transición a un splash oscuro custom).
+ * PR 64 (FIX splash borroso): el splash anterior se generaba sobre un
+ * canvas CUADRADO de 2732×2732 con un logo de 420px (~15% del canvas),
+ * y después sharp hacía "cover" sobre dimensiones rectangulares como
+ * 1280×1920 — un DOUBLE RESIZE que sumaba blur. Además, el logo de
+ * 420px sobre 2732 quedaba muy chico en pantallas grandes (Tab S9 lo
+ * veía a ~15% de la pantalla y borroso).
  *
- * El logo es el mismo del ícono: cuadrado redondeado con gradiente azul,
- * reloj blanco con manecillas, sol amarillo arriba.
+ * Solución: generar cada splash DIRECTO en sus dimensiones finales (sin
+ * canvas intermedio), con el logo proporcional al lado más corto del
+ * splash. Esto elimina el resize intermedio → nitidez perfecta — y
+ * permite controlar el tamaño visual del logo con una sola constante.
+ *
+ * @param {number} w   ancho del splash en px
+ * @param {number} h   alto del splash en px
+ * @param {number} logoRatio  logo size relativo al lado más corto (0..1)
  */
-function buildSplashSvg() {
-  // Canvas conceptual cuadrado 2732×2732. Sharp después hace "cover"
-  // sobre las dimensiones reales del device. Como fondo es sólido,
-  // el cover no genera bordes raros.
-  const C = 2732;
-
-  // Tamaño del logo proporcional al canvas.
-  const logoSize = 420;
-  const logoX = (C - logoSize) / 2;
-  const logoY = (C - logoSize) / 2;  // centrado en ambas dimensiones
+function buildSplashSvg(w, h, logoRatio = 0.30) {
+  // Logo proporcional al lado más corto de la pantalla. 30% = "Notion/
+  // Linear vibe" — suficientemente grande para verse claro en tablet,
+  // sin sentirse desproporcionado en pantallas más grandes.
+  const shortSide = Math.min(w, h);
+  const logoSize = Math.round(shortSide * logoRatio);
+  const logoX = (w - logoSize) / 2;
+  const logoY = (h - logoSize) / 2;
 
   const r = logoSize / 2;
   const cx = logoX + r;
   const cy = logoY + r;
 
-  return Buffer.from(`<svg width="${C}" height="${C}" viewBox="0 0 ${C} ${C}" xmlns="http://www.w3.org/2000/svg">
+  return Buffer.from(`<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg">
   <defs>
     <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0" stop-color="#38A1F0"/>
       <stop offset="1" stop-color="#1452A8"/>
     </linearGradient>
   </defs>
-  <rect width="${C}" height="${C}" fill="${SPLASH_BG_COLOR}"/>
+  <rect width="${w}" height="${h}" fill="${SPLASH_BG_COLOR}"/>
   <!-- Logo cuadrado redondeado con gradiente -->
   <rect x="${logoX}" y="${logoY}" width="${logoSize}" height="${logoSize}" rx="${logoSize * 0.22}" fill="url(#g)"/>
-  <!-- Reloj -->
+  <!-- Reloj: círculo + manecillas blancas -->
   <circle cx="${cx}" cy="${cy}" r="${r * 0.57}" fill="none" stroke="#fff" stroke-width="${r * 0.124}"/>
   <path d="M ${cx} ${cy - r * 0.31} L ${cx} ${cy} L ${cx + r * 0.22} ${cy + r * 0.095}"
         fill="none" stroke="#fff" stroke-width="${r * 0.137}"
@@ -187,24 +204,26 @@ async function main() {
   console.log(`✓ values/ic_launcher_background.xml  (${ADAPTIVE_BG_COLOR})`);
 
   // 6. Splash screens (solo logo, fondo claro neutro)
+  // PR 64: cada splash se genera DIRECTO en su tamaño final (sin canvas
+  // intermedio + cover). Esto evita el double-resize y produce nitidez
+  // perfecta. El logo es proporcional al lado más corto del splash
+  // (30% del shortSide) — se ve consistente en todas las densidades.
   console.log("\nGenerando splash...");
   for (const [folder, [w, h]] of Object.entries(SPLASH_SIZES)) {
     const outDir = path.join(ANDROID_RES, folder);
     fs.mkdirSync(outDir, { recursive: true });
-    const splashSvg = buildSplashSvg();
+    const splashSvg = buildSplashSvg(w, h, 0.30);
     await sharp(splashSvg)
-      .resize(w, h, { fit: "cover", position: "center", background: SPLASH_BG_COLOR })
       .png()
       .toFile(path.join(outDir, "splash.png"));
     console.log(`✓ ${folder}/splash.png  (${w}×${h})`);
   }
 
-  // Default fallback
+  // Default fallback (drawable/ sin densidad)
   const defaultSplashDir = path.join(ANDROID_RES, "drawable");
   fs.mkdirSync(defaultSplashDir, { recursive: true });
-  const splashSvg = buildSplashSvg();
-  await sharp(splashSvg)
-    .resize(480, 320, { fit: "cover", position: "center", background: SPLASH_BG_COLOR })
+  const defaultSplashSvg = buildSplashSvg(480, 320, 0.30);
+  await sharp(defaultSplashSvg)
     .png()
     .toFile(path.join(defaultSplashDir, "splash.png"));
   console.log(`✓ drawable/splash.png  (480×320, fallback)`);
