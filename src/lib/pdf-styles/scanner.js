@@ -142,12 +142,13 @@ const QZ = 3;
 //   110-225:  grid de burbujas (rango variable según template)
 //   ...:      example caja
 //   240:      bottom rule (línea doble)
-//   246:      footer (logo + url izq, QR der)
+//   246:      footer (url izq, QR der)  -- PR 59.2: sin logo
 //   256-261:  fiduciales inferiores
-const HEADER_LOGO_X = SCAN_AREA.x + QZ + 5;    // 34.5
-const HEADER_LOGO_Y = 47;
-const HEADER_LOGO_SIZE = 7;
-const HEADER_TEXT_X = HEADER_LOGO_X + 6;       // 40.5 (al lado del logo)
+//
+// PR 59.2: eliminados los logos del header y footer. El nombre "CLASLOOP"
+// arriba y "clasloop.com" abajo identifican suficiente — el logo era
+// redundante.
+const HEADER_TEXT_X = SCAN_AREA.x + QZ + 5;    // 34.5
 const HEADER_TEXT_TITLE_Y = 46;
 const HEADER_TEXT_SUB_Y = 50;
 
@@ -168,12 +169,12 @@ const TITLE_Y = 98;
 
 // Footer
 // BOTTOM_RULE_Y_DEFAULT: para T10/T20/T30, deja espacio para el example
-//   caja horizontal (y 211-225) + footer (logo y 234, qr y 234).
+//   caja horizontal (y 211-225) + footer (url y 234, qr y 234).
 // BOTTOM_RULE_Y_T50: el grid de T50 termina en y=180+9*6.5=238.5 (centro
 //   última fila), las burbujas r=2 llegan a y=240.5. Línea en y=243.
 const BOTTOM_RULE_Y_DEFAULT = 230;
 const BOTTOM_RULE_Y_T50 = 244;
-const FOOTER_LOGO_X = SCAN_AREA.x + QZ + 4;     // 33.5
+const FOOTER_URL_X = SCAN_AREA.x + QZ + 4;      // 33.5 (PR 59.2: ex FOOTER_LOGO_X)
 const FOOTER_QR_SIZE = 16;
 const FOOTER_QR_OFFSET = 4; // px debajo del bottom rule
 
@@ -318,6 +319,10 @@ function drawFiducials(doc) {
 // Logo monocromo Clasloop — versión simplificada B+N para CV-friendly.
 // (El logo real con gradiente está en src/components/Icons.jsx LogoMark
 // pero acá usamos B+N porque las cámaras detectan mejor en alto contraste.)
+//
+// PR 59.2: el logo se quitó del header y footer del scan sheet (el wordmark
+// CLASLOOP + clasloop.com identifican suficiente). La función queda acá
+// disponible por si en algún rediseño futuro se decide reintroducirlo.
 function drawLogomark(doc, cx, cy, size = 7) {
   const half = size / 2;
   const x = cx - half;
@@ -346,7 +351,7 @@ function drawLogomark(doc, cx, cy, size = 7) {
 }
 
 function drawHeader(doc, fontFamily) {
-  drawLogomark(doc, HEADER_LOGO_X, HEADER_LOGO_Y, HEADER_LOGO_SIZE);
+  // PR 59.2: sin logo, solo el wordmark.
   doc.setFont(fontFamily, "bold");
   doc.setFontSize(10);
   doc.setTextColor(0, 0, 0);
@@ -692,13 +697,13 @@ async function drawFooter(doc, deck, fontFamily, bottomRuleY) {
   doc.setLineWidth(0.2);
   doc.line(FIELDS_X_LEFT, bottomRuleY + 1.5, FIELDS_X_RIGHT, bottomRuleY + 1.5);
 
-  // Logo + clasloop.com a la izquierda
-  const logoY = bottomRuleY + 5;
-  drawLogomark(doc, FOOTER_LOGO_X, logoY, 5);
+  // PR 59.2: sin logo, solo el url. El nombre "CLASLOOP" arriba + 
+  // "clasloop.com" abajo identifican suficiente.
+  const urlY = bottomRuleY + 5;
   doc.setFont(fontFamily, "bold");
   doc.setFontSize(7);
   doc.setTextColor(0, 0, 0);
-  doc.text("clasloop.com", FOOTER_LOGO_X + 5, logoY + 1.5, { charSpace: 0.4 });
+  doc.text("clasloop.com", FOOTER_URL_X, urlY + 1.5, { charSpace: 0.4 });
 
   // QR a la derecha — tamaño adaptativo según el espacio disponible
   // hasta la fiducial inferior (y=256).
