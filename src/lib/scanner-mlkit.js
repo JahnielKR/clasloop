@@ -186,53 +186,41 @@ export async function sampleBubbles(imageUri, deck) {
       return { letter, intensity };
     });
 
-    samples.sort((a, b) => a.intensity - b.intensity);
-    const darkest = samples[0];
-    const second = samples[1];
-
-    let marked = null;
-    let confidence = 0;
-    let is_uncertain = false;
-
-    if (darkest.intensity < BUBBLE_DARK_THRESHOLD) {
-      const gap = second ? second.intensity - darkest.intensity : 1000;
-      if (gap >= BUBBLE_AMBIGUITY_MARGIN) {
-        marked = darkest.letter;
-        const darknessConf = Math.min(
-          1.0,
-          (BUBBLE_DARK_THRESHOLD - darkest.intensity) / HIGH_CONF_BUFFER
-        );
-        const gapConf = Math.min(
-          1.0,
-          gap / (BUBBLE_AMBIGUITY_MARGIN * 3)
-        );
-        confidence = Math.min(darknessConf, gapConf);
-      } else {
-        marked = darkest.letter;
-        confidence = 0.2;
-        is_uncertain = true;
-      }
-    } else if (darkest.intensity < BUBBLE_DARK_THRESHOLD + 30) {
-      marked = darkest.letter;
-      confidence = 0.25;
-      is_uncertain = true;
-    } else {
-      marked = null;
-      confidence = 0.9;
-    }
+    // PR 61: detección por GAP en lugar de "elegir la más oscura".
+    //
+    // Algoritmo:
+    //   1. Ordenar burbujas por intensidad ascendente (más oscura primero).
+    //   2. Buscar el "salto" más grande entre intensidades consecutivas.
+    //   3. Si el salto es lo suficientemente grande Y la burbuja anterior
+    //      al salto está bajo el umbral oscuro → todas las anteriores
+    //      al salto están MARCADAS.
+    //   4. Si no hay salto claro o ninguna está oscura → nada marcado.
+    //
+    // Esto permite detectar 0, 1, 2, 3 o 4 burbujas marcadas en la misma
+    // pregunta sin un umbral fijo absoluto (más robusto a luz variable).
+    const detection = detectMarkedBubbles(samples);
+    const marked = detection.marked;        // array de letras, puede ser []
+    const confidence = detection.confidence;
+    let is_uncertain = detection.is_uncertain;
 
     is_uncertain = is_uncertain || confidence < UNCERTAIN_THRESHOLD;
 
-    const correct = extractCorrectAnswer(item.q);
-    const is_correct = marked !== null && marked === correct;
+    // PR 61: extractCorrectAnswers devuelve SIEMPRE array (incluso si
+    // q.correct es un solo número, lo wrappea como [letter]).
+    const correct = extractCorrectAnswers(item.q);
+
+    // PR 61: regla lenient — alumno acierta si todas sus marcas están
+    // en correct Y marcó al menos una.
+    const is_correct = marked.length > 0
+                      && marked.every(m => correct.includes(m));
 
     if (is_correct) score++;
 
     answers.push({
       question_id: item.q.id,
       qNum: item.qNum,
-      marked,
-      correct,
+      marked,        // array, ej: ["A"], ["A","B"], o []
+      correct,       // array, ej: ["A"] o ["A","B"]
       is_correct,
       confidence: Number(confidence.toFixed(2)),
       is_uncertain,
@@ -248,14 +236,39 @@ export async function sampleBubbles(imageUri, deck) {
   };
 }
 
+/**
+ * Helper for the Scanner.jsx UI: cuando el usuario manualmente
+ * confirma/cambia una respuesta uncertain.
+ *
+ * @param {Array} answers      lista actual de answers (de sampleBubbles)
+ * @param {string} questionId  qué pregunta cambiar
+ * @param {Array<string>|string|null} newMarked
+ *        Array de letras (ej ["A","B"]) o string single (ej "A") o null
+ *        (sin respuesta). Se normaliza a array.
+ */
 export function updateAnswer(answers, questionId, newMarked) {
+  // Normalizar newMarked a array
+  let normalized;
+  if (newMarked === null || newMarked === undefined) {
+    normalized = [];
+  } else if (Array.isArray(newMarked)) {
+    normalized = [...newMarked].sort();
+  } else {
+    normalized = [String(newMarked)];
+  }
+
   const updated = answers.map(a => {
     if (a.question_id !== questionId) return a;
+    // Regla lenient: alumno acierta si todas sus marcas están en correct
+    // Y marcó al menos una.
+    const correctArr = Array.isArray(a.correct) ? a.correct : (a.correct ? [a.correct] : []);
+    const is_correct = normalized.length > 0
+                      && normalized.every(m => correctArr.includes(m));
     return {
       ...a,
-      marked: newMarked,
-      is_correct: newMarked !== null && newMarked === a.correct,
-      confidence: 1.0,
+      marked: normalized,
+      is_correct,
+      confidence: 1.0,        // user confirmed = max confidence
       is_uncertain: false,
     };
   });
@@ -587,31 +600,151 @@ function sampleIntensity(gray, W, H, cxPx, cyPx, radiusPx) {
   return count > 0 ? sum / count : 255;
 }
 
-function extractCorrectAnswer(q) {
-  if (!q) return null;
+/**
+ * PR 61: extrae las respuestas correctas como ARRAY de letras ["A","B",...].
+ *
+ * Acepta los siguientes formatos de q.correct (backwards compat):
+ *   - number    → ej 0 → ["A"]                  (deck single-correct viejo)
+ *   - number[]  → ej [0,1] → ["A","B"]          (deck multi-correct)
+ *   - boolean   → para TF: true → ["A"], false → ["B"]
+ *   - undefined/null → []
+ */
+function extractCorrectAnswers(q) {
+  if (!q) return [];
   if (q.type === "mcq") {
-    if (typeof q.correct === "number") return "ABCD"[q.correct] || null;
-    // PR 60: si correct es array (multi-respuesta), tomar primera por ahora.
-    // PR 61 hará el manejo completo de respuestas múltiples.
-    if (Array.isArray(q.correct) && q.correct.length > 0) {
-      const v = q.correct[0];
-      if (typeof v === "number") return "ABCD"[v] || null;
-      if (typeof v === "string") return v.toUpperCase();
+    if (typeof q.correct === "number") {
+      const L = "ABCD"[q.correct];
+      return L ? [L] : [];
     }
-    return null;
+    if (Array.isArray(q.correct)) {
+      return q.correct
+        .map(v => {
+          if (typeof v === "number") return "ABCD"[v] || null;
+          if (typeof v === "string") return v.toUpperCase();
+          return null;
+        })
+        .filter(Boolean);
+    }
+    return [];
   }
   if (q.type === "tf") {
-    if (q.correct === true) return "A";   // T = A en el nuevo layout
-    if (q.correct === false) return "B";  // F = B
-    return null;
+    if (q.correct === true) return ["A"];   // T = A
+    if (q.correct === false) return ["B"];  // F = B
+    return [];
   }
-  return null;
+  return [];
+}
+
+/**
+ * PR 61: detecta cuáles burbujas están marcadas usando GAP DETECTION.
+ *
+ * Recibe samples = [{letter, intensity}, ...] (típicamente 2 o 4 burbujas).
+ *
+ * Algoritmo:
+ *   1. Ordenar por intensidad ascendente (más oscura primero).
+ *   2. Buscar el "salto" más grande entre intensidades consecutivas.
+ *   3. La regla:
+ *      - Si TODAS son blancas (intensity > THRESHOLD): nada marcado.
+ *      - Si la más oscura está bajo el umbral Y el gap más grande
+ *        supera GAP_MIN: las anteriores al salto están marcadas.
+ *      - Si la más oscura está bajo el umbral pero el gap es chico:
+ *        probablemente TODAS están marcadas (raro pero posible).
+ *      - Si hay valores en zona borderline: marcamos pero is_uncertain.
+ *
+ * Retorna: { marked: ["A","B"], confidence: 0..1, is_uncertain: bool }
+ */
+function detectMarkedBubbles(samples) {
+  if (!samples || samples.length === 0) {
+    return { marked: [], confidence: 1.0, is_uncertain: false };
+  }
+
+  const sorted = [...samples].sort((a, b) => a.intensity - b.intensity);
+  const darkest = sorted[0];
+  const lightest = sorted[sorted.length - 1];
+
+  // CASO 1: todas blancas. Nada marcado, confianza alta.
+  if (darkest.intensity >= BUBBLE_DARK_THRESHOLD + 30) {
+    return { marked: [], confidence: 0.95, is_uncertain: false };
+  }
+
+  // CASO 2: la más oscura está borderline (entre THRESHOLD y THRESHOLD+30).
+  // Probablemente marca débil. Marcamos pero baja confianza.
+  if (darkest.intensity >= BUBBLE_DARK_THRESHOLD) {
+    return {
+      marked: [darkest.letter],
+      confidence: 0.25,
+      is_uncertain: true,
+    };
+  }
+
+  // CASO 3: al menos la más oscura está claramente marcada.
+  // Buscar el gap más grande para detectar dónde termina el grupo "marcadas".
+
+  // Si solo hay UNA burbuja sample (ej. después del warp algo raro), retornarla.
+  if (sorted.length === 1) {
+    return {
+      marked: [darkest.letter],
+      confidence: 0.9,
+      is_uncertain: false,
+    };
+  }
+
+  let maxGap = 0;
+  let maxGapIdx = 0;
+  for (let i = 0; i < sorted.length - 1; i++) {
+    const gap = sorted[i + 1].intensity - sorted[i].intensity;
+    if (gap > maxGap) {
+      maxGap = gap;
+      maxGapIdx = i;
+    }
+  }
+
+  // Si el gap más grande es razonable, separamos marcadas vs no.
+  // GAP_MIN = BUBBLE_AMBIGUITY_MARGIN (15) — el mismo umbral que usábamos
+  // para la lógica single-answer.
+  if (maxGap >= BUBBLE_AMBIGUITY_MARGIN) {
+    // Las burbujas con índice <= maxGapIdx están marcadas
+    const markedSamples = sorted.slice(0, maxGapIdx + 1);
+
+    // Filtro adicional: las "marcadas" tienen que estar bajo el umbral
+    // oscuro. Si maxGapIdx puso burbujas que no están bajo threshold,
+    // las dropeamos.
+    const trulyMarked = markedSamples.filter(s => s.intensity < BUBBLE_DARK_THRESHOLD);
+    const marked = trulyMarked.map(s => s.letter).sort();  // sort alfabético
+
+    // Confidence basado en oscuridad de la más oscura + tamaño del gap
+    const darknessConf = Math.min(
+      1.0,
+      (BUBBLE_DARK_THRESHOLD - darkest.intensity) / HIGH_CONF_BUFFER
+    );
+    const gapConf = Math.min(1.0, maxGap / (BUBBLE_AMBIGUITY_MARGIN * 3));
+    const confidence = Math.min(darknessConf, gapConf);
+
+    return {
+      marked,
+      confidence,
+      is_uncertain: confidence < UNCERTAIN_THRESHOLD,
+    };
+  }
+
+  // CASO 4: el gap es chico, varias burbujas tienen intensidad similar y
+  // baja. Marcamos las que estén bajo el umbral pero is_uncertain=true.
+  const ambiguousMarked = sorted
+    .filter(s => s.intensity < BUBBLE_DARK_THRESHOLD)
+    .map(s => s.letter)
+    .sort();
+
+  return {
+    marked: ambiguousMarked,
+    confidence: 0.2,
+    is_uncertain: true,
+  };
 }
 
 // Re-export for convenience
 export { TEMPLATES, pickTemplate, PAGE_DIMS };
 
-// ─── Internal exports for testing (PR 60) ──────────────────────────────
+// ─── Internal exports for testing (PR 60, PR 61) ──────────────────────
 export const _internal = {
   findFiducials,
   findLargestDarkBlob,
@@ -620,6 +753,9 @@ export const _internal = {
   loadImageAsGrayscale,
   sampleIntensity,
   computeBubblePositions,
+  // PR 61:
+  extractCorrectAnswers,
+  detectMarkedBubbles,
   WARP_SCALE,
   WARP_W,
   WARP_H,

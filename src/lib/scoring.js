@@ -162,16 +162,40 @@ export function evaluateAnswer(q, type, raw) {
 
     case "mcq":
     default: {
-      // Multi-correct: q.correct is an array → require exact set match
-      // (no partial credit on multi-MCQ — pedagogically common).
-      if (Array.isArray(q.correct)) {
-        const got = Array.isArray(raw) ? raw : [raw];
-        const need = q.correct;
-        const ok = got.length === need.length && got.every(v => need.includes(v));
-        return { points: ok ? 1 : 0, maxPoints: 1, isCorrect: ok, stored: got, needsReview: false };
-      }
-      const ok = raw === q.correct;
-      return { points: ok ? 1 : 0, maxPoints: 1, isCorrect: ok, stored: raw, needsReview: false };
+      // PR 61 (multi-respuesta lenient): la regla unificada es:
+      //   - El alumno acierta si TODAS sus marcas están en el set correct
+      //     Y marcó al menos una.
+      //
+      // Casos:
+      //   correct=[A,B], alumno marca [A]    → ✅ (parcial cuenta como bien)
+      //   correct=[A,B], alumno marca [A,B]  → ✅
+      //   correct=[A,B], alumno marca [A,C]  → ❌ (C ∉ correct)
+      //   correct=[A,B], alumno marca []     → ❌ (sin respuesta)
+      //   correct=A,    alumno marca A      → ✅ (caso histórico single)
+      //   correct=A,    alumno marca [A,B]  → ❌ (B ∉ correct)
+      //
+      // Esto es más permisivo que el set-exacto anterior. Decisión del
+      // profe: si A y B son ambas correctas, vale 1 punto sin importar
+      // si el alumno marcó solo una o las dos.
+
+      // Normalizar a sets: correct → array de números, raw → array de números
+      const correctSet = Array.isArray(q.correct)
+        ? q.correct
+        : (q.correct != null ? [q.correct] : []);
+      const got = Array.isArray(raw)
+        ? raw
+        : (raw != null ? [raw] : []);
+
+      const ok = got.length > 0 && got.every(v => correctSet.includes(v));
+      return {
+        points: ok ? 1 : 0,
+        maxPoints: 1,
+        isCorrect: ok,
+        // Si llegó single value y el correct era multi, devolvemos array
+        // para que el formato sea consistente con render multi-respuesta.
+        stored: Array.isArray(q.correct) || Array.isArray(raw) ? got : raw,
+        needsReview: false,
+      };
     }
   }
 }

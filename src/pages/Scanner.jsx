@@ -634,6 +634,47 @@ function ReviewUncertainStage({ t, deck, answers, onConfirm, onDone }) {
     [answers]
   );
 
+  // PR 61: estado local de "selecciones pendientes" para multi-answer.
+  // Cada pregunta uncertain puede tener varias burbujas marcadas. El
+  // profe selecciona con toggle (tap A → seleccionada, tap A otra vez
+  // → deseleccionada) y aprieta "Confirmar" cuando termina.
+  //
+  // Inicializamos con lo que el scanner detectó (puede ser [] o
+  // ["A","B"]) para que el profe vea qué interpretó la cámara y solo
+  // tenga que ajustar lo que esté mal.
+  const [pendingSelections, setPendingSelections] = useState({});
+
+  useEffect(() => {
+    // Cuando entra una nueva pregunta uncertain, inicializar con lo detectado
+    setPendingSelections(prev => {
+      const next = { ...prev };
+      for (const ans of uncertain) {
+        if (!(ans.question_id in next)) {
+          next[ans.question_id] = Array.isArray(ans.marked)
+            ? [...ans.marked]
+            : (ans.marked ? [ans.marked] : []);
+        }
+      }
+      return next;
+    });
+  }, [uncertain]);
+
+  const togglePending = (questionId, letter) => {
+    setPendingSelections(prev => {
+      const current = prev[questionId] || [];
+      const next = current.includes(letter)
+        ? current.filter(l => l !== letter)
+        : [...current, letter].sort();
+      return { ...prev, [questionId]: next };
+    });
+  };
+
+  const confirmPending = (questionId) => {
+    const selections = pendingSelections[questionId] || [];
+    // onConfirm acepta array (PR 61: updateAnswer normaliza a array)
+    onConfirm(questionId, selections);
+  };
+
   // When user confirms one, it's no longer in `uncertain` (we re-derive
   // from `answers`), so this list auto-shrinks. When it hits 0, show
   // "all done" CTA.
@@ -653,7 +694,10 @@ function ReviewUncertainStage({ t, deck, answers, onConfirm, onDone }) {
       <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 24 }}>
         {uncertain.map(ans => {
           const q = deck.questions.find(dq => dq.id === ans.question_id);
-          const choices = q?.type === "tf" ? ["T", "F"] : ["A", "B", "C", "D"];
+          const choices = q?.type === "tf" ? ["A", "B"] : ["A", "B", "C", "D"];
+          const detected = Array.isArray(ans.marked) ? ans.marked.join(", ") : (ans.marked || "");
+          const pendingForThis = pendingSelections[ans.question_id] || [];
+
           return (
             <div
               key={ans.question_id}
@@ -663,34 +707,55 @@ function ReviewUncertainStage({ t, deck, answers, onConfirm, onDone }) {
               }}
             >
               <div style={{ fontSize: 13, color: C.textMuted, marginBottom: 6 }}>
-                {t.questionLabel(ans.qNum)} · {t.detectedAs}: <strong>{ans.marked || t.noAnswer}</strong>
+                {t.questionLabel(ans.qNum)} · {t.detectedAs}: <strong>{detected || t.noAnswer}</strong>
               </div>
               <div style={{ fontSize: 11, color: C.textMuted, marginBottom: 10 }}>
                 {t.chooseAnswer}:
               </div>
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                {choices.map(letter => (
-                  <button
-                    key={letter}
-                    onClick={() => onConfirm(ans.question_id, letter)}
-                    style={{
-                      flex: "1 1 60px",
-                      padding: "10px 12px", borderRadius: 8,
-                      background: C.bg, border: `2px solid ${C.border}`,
-                      fontFamily: "'Outfit',sans-serif",
-                      fontSize: 16, fontWeight: 600, color: C.text,
-                      cursor: "pointer",
-                    }}
-                    onMouseEnter={e => e.currentTarget.style.borderColor = C.accent}
-                    onMouseLeave={e => e.currentTarget.style.borderColor = C.border}
-                  >
-                    {letter}
-                  </button>
-                ))}
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
+                {choices.map(letter => {
+                  const isSelected = pendingForThis.includes(letter);
+                  return (
+                    <button
+                      key={letter}
+                      onClick={() => togglePending(ans.question_id, letter)}
+                      style={{
+                        flex: "1 1 60px",
+                        padding: "10px 12px", borderRadius: 8,
+                        background: isSelected ? C.accent : C.bg,
+                        border: `2px solid ${isSelected ? C.accent : C.border}`,
+                        fontFamily: "'Outfit',sans-serif",
+                        fontSize: 16, fontWeight: 600,
+                        color: isSelected ? "#fff" : C.text,
+                        cursor: "pointer",
+                      }}
+                      onMouseEnter={e => { if (!isSelected) e.currentTarget.style.borderColor = C.accent; }}
+                      onMouseLeave={e => { if (!isSelected) e.currentTarget.style.borderColor = C.border; }}
+                    >
+                      {letter}
+                    </button>
+                  );
+                })}
+              </div>
+              <div style={{ display: "flex", gap: 8 }}>
                 <button
-                  onClick={() => onConfirm(ans.question_id, null)}
+                  onClick={() => confirmPending(ans.question_id)}
                   style={{
-                    flex: "1 1 80px",
+                    flex: 1,
+                    padding: "10px 12px", borderRadius: 8,
+                    background: C.accent, color: "#fff",
+                    border: "none",
+                    fontFamily: "'Outfit',sans-serif",
+                    fontSize: 14, fontWeight: 600,
+                    cursor: "pointer",
+                  }}
+                >
+                  {t.reviewDone}
+                </button>
+                <button
+                  onClick={() => onConfirm(ans.question_id, [])}
+                  style={{
+                    flex: "0 0 100px",
                     padding: "10px 12px", borderRadius: 8,
                     background: C.bg, border: `2px solid ${C.border}`,
                     fontFamily: "'DM Sans',sans-serif",
@@ -790,9 +855,16 @@ function ResultStage({
           gap: 8,
         }}>
           {answers.map(ans => {
-            const bg = ans.is_correct ? "#22c55e22" : (ans.marked === null ? "#94a3b822" : "#ef444422");
-            const border = ans.is_correct ? "#22c55e" : (ans.marked === null ? "#94a3b8" : "#ef4444");
-            const color = ans.is_correct ? "#16a34a" : (ans.marked === null ? "#64748b" : "#dc2626");
+            // PR 61: marked es array, normalizar para display
+            const markedArr = Array.isArray(ans.marked) ? ans.marked : (ans.marked ? [ans.marked] : []);
+            const markedStr = markedArr.length > 0 ? markedArr.join(",") : "";
+            const isBlank = markedArr.length === 0;
+            const correctArr = Array.isArray(ans.correct) ? ans.correct : (ans.correct ? [ans.correct] : []);
+            const correctStr = correctArr.length > 0 ? correctArr.join(",") : "?";
+
+            const bg = ans.is_correct ? "#22c55e22" : (isBlank ? "#94a3b822" : "#ef444422");
+            const border = ans.is_correct ? "#22c55e" : (isBlank ? "#94a3b8" : "#ef4444");
+            const color = ans.is_correct ? "#16a34a" : (isBlank ? "#64748b" : "#dc2626");
             return (
               <div
                 key={ans.question_id}
@@ -801,13 +873,13 @@ function ResultStage({
                   background: bg, border: `1.5px solid ${border}`,
                   textAlign: "center", fontFamily: "'DM Sans',sans-serif",
                 }}
-                title={`Correct: ${ans.correct || "?"}, Marked: ${ans.marked || "blank"}`}
+                title={`Correct: ${correctStr}, Marked: ${markedStr || "blank"}`}
               >
                 <div style={{ fontSize: 11, color: C.textMuted, marginBottom: 2 }}>
                   {ans.qNum}
                 </div>
                 <div style={{ fontSize: 16, fontWeight: 700, color }}>
-                  {ans.marked || "—"}
+                  {markedStr || "—"}
                 </div>
               </div>
             );
