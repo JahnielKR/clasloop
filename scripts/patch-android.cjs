@@ -138,24 +138,26 @@ function patchDeepLink() {
 }
 
 /**
- * PR 53: configurar el Android 12+ Splash Screen API correctamente.
+ * PR 53: configurar el splash screen del launch activity.
  *
- * En Android 12+, el splash que muestra el sistema operativo NO es el
- * drawable/splash.png que generamos. Es construido por el OS usando 3
- * atributos del tema:
- *   - windowSplashScreenBackground: el color de fondo
- *   - windowSplashScreenAnimatedIcon: el ícono central
- *   - windowSplashScreenAnimationDuration: cuánto dura visible
+ * PR 65 (FIX opacidad/pixelado): antes usábamos Theme.SplashScreen
+ * (Android 12+ Splash Screen API). Ese theme IGNORA el drawable/splash.png
+ * que generamos y en su lugar renderiza:
+ *   - windowSplashScreenBackground (color sólido)
+ *   - windowSplashScreenAnimatedIcon = @mipmap/ic_launcher_foreground
+ *     que es máximo 432×432 px
  *
- * Si no configuramos estos atributos, Android default a:
- *   - background: color del status bar (gris claro por default) ← bug 1
- *   - icon: el app icon adaptive foreground SIN background ← bug 2
+ * Resultado: en tablets HD (Tab S9 = 1600×2560), el sistema estiraba el
+ * adaptive icon foreground de 432px a ~500-700px → pixelado visible
+ * ("opaco como un video 720p en pantalla 4K").
  *
- * Por eso veías un splash gris/blanco con el logomark contorneado de
- * negro (era el adaptive foreground sin su background grafito).
+ * Fix PR 65: volver al splash "legacy" — un theme simple que usa
+ * `android:windowBackground` = @drawable/splash. Como nuestro splash.png
+ * (PR 64) está a 1920×2560, no hay upscale → nitidez perfecta.
  *
- * Patch: sobrescribimos AppTheme.NoActionBarLaunch en styles.xml para
- * setear los 3 atributos a nuestros valores.
+ * Tradeoff: perdemos la animación moderna de Android 12+ (fade in/out
+ * suave), pero a cambio el splash respeta el PNG hi-res que generamos.
+ * Notion/Linear/Slack usan splash legacy también — es perfectamente válido.
  */
 function patchSplashTheme() {
   const filePath = path.join(
@@ -168,22 +170,20 @@ function patchSplashTheme() {
 
   let content = fs.readFileSync(filePath, "utf8");
 
-  // Si ya está aplicado, no hacer nada
-  if (content.includes("windowSplashScreenBackground")) {
-    console.log("○ Splash theme: ya está aplicado");
+  // El theme legacy correcto tiene esta línea distintiva (no Theme.SplashScreen).
+  // Si ya está aplicado el patch del PR 65, no hacer nada.
+  if (content.includes("PR 65: splash legacy")) {
+    console.log("○ Splash theme: ya está aplicado (PR 65 legacy)");
     return "skipped";
   }
 
-  // Reemplazar el <style name="AppTheme.NoActionBarLaunch"> existente.
-  // Capacitor lo genera con un solo item:
-  //   <item name="android:background">@drawable/splash</item>
-  // Lo reemplazamos con la config moderna del Splash Screen API.
-  const newStyle = `<style name="AppTheme.NoActionBarLaunch" parent="Theme.SplashScreen">
-        <item name="android:background">@drawable/splash</item>
-        <item name="windowSplashScreenBackground">@color/ic_launcher_background</item>
-        <item name="windowSplashScreenAnimatedIcon">@mipmap/ic_launcher_foreground</item>
-        <item name="windowSplashScreenAnimationDuration">200</item>
-        <item name="postSplashScreenTheme">@style/AppTheme.NoActionBar</item>
+  // Reemplazar el <style name="AppTheme.NoActionBarLaunch"> existente —
+  // tanto el default de Capacitor como el patch viejo (PR 53 con Theme.SplashScreen).
+  // El nuevo theme es simple: hereda de AppTheme.NoActionBar y solo setea
+  // android:windowBackground apuntando al splash.png hi-res del PR 64.
+  const newStyle = `<style name="AppTheme.NoActionBarLaunch" parent="AppTheme.NoActionBar">
+        <!-- PR 65: splash legacy — usa el splash.png hi-res directo (Android 12+ API rendereaba el adaptive icon 432px upscaleado y pixelaba en tablets HD) -->
+        <item name="android:windowBackground">@drawable/splash</item>
     </style>`;
 
   const oldStyleRegex =
@@ -196,6 +196,6 @@ function patchSplashTheme() {
 
   content = content.replace(oldStyleRegex, newStyle);
   fs.writeFileSync(filePath, content);
-  console.log("✓ Splash theme: configurado para Android 12+ Splash Screen API");
+  console.log("✓ Splash theme: legacy (windowBackground=@drawable/splash) — nítido en HD");
   return "applied";
 }
