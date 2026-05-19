@@ -12,6 +12,10 @@ import { LogoMark, TeacherInline, StudentInline, TeacherAvatar, StudentAvatar } 
 // causó (sin email ni datos sensibles — ver lib/sentry.js).
 import { SentryErrorBoundary, setSentryUser, clearSentryUser } from './lib/sentry';
 import ErrorFallback from './components/ErrorFallback';
+// PR 68: Toast notifications. ToastProvider va DENTRO del ErrorBoundary
+// (los toasts no deberían mantenerse si la app crashea) y ENVOLVIENDO
+// todo el árbol (cualquier componente puede llamar useToast()).
+import { ToastProvider } from './lib/toast';
 // PublicHome and AvatarOnboarding are eagerly imported because they paint
 // before the authed shell — making them lazy would just add a Suspense
 // fallback to the very first screen the user sees.
@@ -1337,6 +1341,7 @@ export default function App() {
         scope.setTag("route", location.pathname);
       }}
     >
+    <ToastProvider>
     <div style={{ display: "flex", minHeight: "100vh" }}>
       <style>{sidebarCSS}</style>
       {/* Backdrop — covers everything below the drawer, click-to-close */}
@@ -1537,6 +1542,7 @@ export default function App() {
         );
       })()}
     </div>
+    </ToastProvider>
     </SentryErrorBoundary>
   );
 }

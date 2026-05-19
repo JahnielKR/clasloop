@@ -18,6 +18,8 @@ import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
 import { C } from "./tokens";
 import { getAvatarById } from "./Avatars";
+// PR 68: toast notifications
+import { useToast } from "../lib/toast";
 
 const i18n = {
   en: {
@@ -119,6 +121,8 @@ export default function StudentsModal({
   onClose,
 }) {
   const t = i18n[lang] || i18n.en;
+  // PR 68: toast notifications
+  const toast = useToast();
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
   // PR 28.8: selection state for bulk remove. Set<string> of class_member.id.
@@ -235,11 +239,16 @@ export default function StudentsModal({
       .delete({ count: "exact" })
       .in("id", ids);
     if (error || count !== ids.length) {
+      const detail = error || `expected ${ids.length} rows deleted, got ${count}`;
       console.error(
         "[clasloop] remove student(s) failed:",
-        error || `expected ${ids.length} rows deleted, got ${count}`
+        detail
       );
-      alert(confirmRemove.kind === "bulk" ? t.bulkError : t.removeError);
+      // PR 68: toast con mensaje localizado + reporte a Sentry
+      toast.error(confirmRemove.kind === "bulk" ? t.bulkError : t.removeError, {
+        reportError: error || new Error(`remove students: expected ${ids.length} got ${count}`),
+        context: { action: "removeStudents", kind: confirmRemove.kind, ids },
+      });
       setRemoving(false);
       return;
     }

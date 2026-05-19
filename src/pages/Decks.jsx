@@ -35,6 +35,8 @@ import {
   sortableKeyboardCoordinates,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+// PR 68: toast notifications
+import { useToast } from "../lib/toast";
 
 const SUBJECTS = ["Math", "Science", "History", "Language", "Geography", "Art", "Music", "Other"];
 const GRADES = ["6th-7th", "7th-8th", "8th-9th", "9th-10th", "10th-11th", "11th-12th"];
@@ -46,9 +48,8 @@ const inp = { fontFamily: "'Outfit',sans-serif", background: C.bg, border: `1px 
 const sel = { ...inp, cursor: "pointer", appearance: "none", backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2 4l4 4 4-4' fill='none' stroke='%239B9B9B' stroke-width='1.5'/%3E%3C/svg%3E")`, backgroundRepeat: "no-repeat", backgroundPosition: "right 12px center", paddingRight: 32 };
 
 // PR 8: shared style for items inside the PDF download popover.
-// PR 63: el popover se eliminó (el modal ya tiene las opciones adentro).
-// La const queda definida por si en algún futuro se necesita un popover
-// similar — su definición es genérica y no estorba.
+// Two items only (Exam / Answer key), so styling them inline in the
+// popover would be repetitive; consts keep the JSX readable.
 const popoverItemStyle = {
   display: "block",
   width: "100%",
@@ -525,6 +526,8 @@ const LangBadge = ({ lang }) => {
 // ─── Live preview of a deck card while editing ──────────────────────────────
 export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onNavigateToSessions, onOpenMobileMenu, profile = null }) {
   const isMobile = useIsMobile();
+  // PR 68: toast notifications
+  const toast = useToast();
   const [lang, setLangLocal] = useState(pageLang);
   const setLang = pageSetLang || setLangLocal;
   const l = pageLang || lang;
@@ -748,14 +751,19 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
 
       if (origErr) {
         console.error("Failed to load original for derivation check:", origErr);
-        alert(t.publishBlockedLowEffort);
+        // PR 68: toast con mensaje localizado + reporte a Sentry
+        toast.error(t.publishBlockedLowEffort, {
+          reportError: new Error(`derivation check failed: ${origErr.message}`),
+          context: { action: "publishDeck.deriveCheck", deckId: deck.id, supabaseCode: origErr.code },
+        });
         return;
       }
 
       if (original) {
         const result = analyzeDerivation(original.questions, deck.questions);
         if (!result.canPublish) {
-          alert(
+          // PR 68: toast warning (info al user, sin Sentry — es validation esperada)
+          toast.warning(
             result.status === "identical"
               ? t.publishBlockedIdentical
               : t.publishBlockedLowEffort
@@ -797,25 +805,23 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
     }
   };
 
-  // PR 8: PDF download. Two flavors — exam (student-facing) and
-  // answer-key (teacher-only). The deck's class is needed for the
+  // PR 8: PDF download. Two flavors — exam (student-facing, well laid
+  // out, with name field, ready to print) and answer-key (teacher-only,
+  // bare-bones list of answers). The deck's class is needed for the
   // header ("Spanish 9th"), so we look it up from userClasses.
+  // Errors surface via alert; jsPDF doesn't have an in-band failure
+  // mode that's easy to recover from, and these failures are rare.
   //
-  // PR 29.1: PDF download flow uses a modal selector (instead of the
+  // PR 29.1: PDF download flow uses a modal selector now (instead of the
   // popover with two buttons). The teacher picks style + variant + sees
   // a preview before committing to the download. Sticky style choice
   // is kept in localStorage by the modal itself.
   //
-  // PR 63: el popover externo con dos opciones (Exam + AK) se eliminó
-  // porque era redundante con el modal — el modal ya tiene UI para
-  // elegir entre exam, exam+scan, answer_key. Ahora el click directo
-  // sobre el botón ↓ abre el modal en la variante por defecto.
-  //
-  // handleDownloadPdf solo abre el modal — el actual export happens
-  // inside the modal's "Download" button via exportPDF.
+  // handleDownloadPdf now just opens the modal — the actual export
+  // happens inside the modal's "Download" button via exportPDF.
   const [pdfModalState, setPdfModalState] = useState(null);
-  const handleDownloadPdf = (deck) => {
-    setPdfModalState({ deck });
+  const handleDownloadPdf = (deck, kind) => {
+    setPdfModalState({ deck, kind });
   };
   const closePdfModal = () => setPdfModalState(null);
 
@@ -1397,18 +1403,13 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
 
       {/* PR 29.1: PDF export modal — appears when handleDownloadPdf is
           called. Single instance, mounted at the root so it can overlay
-          any view (library, class decks, favorites).
-
-          PR 63: el modal se abre con la variante por defecto (Exam); el
-          profe elige adentro entre Exam / Exam+scan / Answer Key.
-          Antes había un popover externo con dos opciones (Exam + AK) que
-          se pasaba como `kind`, pero era redundante con el modal. */}
+          any view (library, class decks, favorites). */}
       {pdfModalState && (
         <PDFExportModal
           deck={pdfModalState.deck}
           classObj={userClasses.find(c => c.id === pdfModalState.deck.class_id) || null}
           lang={pdfModalState.deck.language || l}
-          initialVariant="exam"
+          initialVariant={pdfModalState.kind === "answers" ? "answers" : "exam"}
           onClose={closePdfModal}
           C={C}
         />
@@ -1845,11 +1846,24 @@ function DeckTile({ deck, t, lang, onEdit, onDelete, onTogglePublic, onDownloadP
   // Show as uppercase 2-letter code so it's compact (EN / ES / KO).
   // If null/missing, hide the chip entirely.
   const deckLang = deck.language ? deck.language.toUpperCase() : null;
-  // PR 8 → PR 63: el botón de descarga abre directo el modal de export
-  // (PDFExportModal), que adentro tiene UI para elegir exam / exam+scan /
-  // answer_key. Antes había un popover con dos opciones (exam + AK) entre
-  // el botón y el modal, lo cual era redundante con las opciones del modal.
-  // Eliminado en PR 63 — ahora un solo click abre el modal directo.
+  // PR 8: PDF download popover. Open state is local to each tile so
+  // multiple tiles' popovers don't collide. Only rendered when the
+  // tile is in a context that supplies onDownloadPdf (Library, not
+  // Favorites or the drag overlay).
+  const [pdfOpen, setPdfOpen] = useState(false);
+  // Close popover on outside click. We attach a single document-level
+  // listener while the popover is open and remove it on close.
+  useEffect(() => {
+    if (!pdfOpen) return;
+    const close = (e) => {
+      // Don't close if click is inside this tile's popover or button —
+      // we use a data-attr to identify them.
+      if (e.target.closest && e.target.closest("[data-pdf-popover]")) return;
+      setPdfOpen(false);
+    };
+    document.addEventListener("click", close);
+    return () => document.removeEventListener("click", close);
+  }, [pdfOpen]);
   return (
     <div style={{
       background: C.bg,
@@ -1871,14 +1885,10 @@ function DeckTile({ deck, t, lang, onEdit, onDelete, onTogglePublic, onDownloadP
           context (when onDownloadPdf prop is supplied). The button is
           positioned absolute over the tile content so it doesn't push
           the title or eat horizontal space. Title's right padding is
-          enough to keep text from underflowing the button.
-
-          PR 63: el popover con dos opciones (exam + AK) que estaba entre
-          el botón y el modal era redundante — el modal ya muestra todas
-          las variantes (exam, exam+scan, answer_key). Ahora un click
-          abre el modal directo. */}
+          enough to keep text from underflowing the button. */}
       {!isOverlay && onDownloadPdf && (
         <div
+          data-pdf-popover="true"
           style={{
             position: "absolute",
             top: 6,
@@ -1889,7 +1899,7 @@ function DeckTile({ deck, t, lang, onEdit, onDelete, onTogglePublic, onDownloadP
           <button
             onClick={(e) => {
               e.stopPropagation();
-              onDownloadPdf(deck);
+              setPdfOpen(v => !v);
             }}
             title={t.downloadPdf}
             aria-label={t.downloadPdf}
@@ -1897,9 +1907,9 @@ function DeckTile({ deck, t, lang, onEdit, onDelete, onTogglePublic, onDownloadP
               width: 26, height: 26,
               padding: 0,
               borderRadius: 5,
-              background: "transparent",
-              color: C.textSecondary,
-              border: `1px solid transparent`,
+              background: pdfOpen ? C.accentSoft : "transparent",
+              color: pdfOpen ? C.accent : C.textSecondary,
+              border: `1px solid ${pdfOpen ? C.accent : "transparent"}`,
               cursor: "pointer",
               display: "flex",
               alignItems: "center",
@@ -1908,12 +1918,16 @@ function DeckTile({ deck, t, lang, onEdit, onDelete, onTogglePublic, onDownloadP
               transition: "background .12s ease, color .12s ease, border-color .12s ease",
             }}
             onMouseEnter={e => {
-              e.currentTarget.style.background = C.bgSoft;
-              e.currentTarget.style.color = C.accent;
+              if (!pdfOpen) {
+                e.currentTarget.style.background = C.bgSoft;
+                e.currentTarget.style.color = C.accent;
+              }
             }}
             onMouseLeave={e => {
-              e.currentTarget.style.background = "transparent";
-              e.currentTarget.style.color = C.textMuted;
+              if (!pdfOpen) {
+                e.currentTarget.style.background = "transparent";
+                e.currentTarget.style.color = C.textMuted;
+              }
             }}
           >
             {/* Bold download arrow. The Unicode ↓ rendered too thin
@@ -1933,6 +1947,37 @@ function DeckTile({ deck, t, lang, onEdit, onDelete, onTogglePublic, onDownloadP
               <path d="M5 20h14" />
             </svg>
           </button>
+          {pdfOpen && (
+            <div style={{
+              position: "absolute",
+              top: 30,
+              right: 0,
+              minWidth: 140,
+              background: C.bg,
+              border: `1px solid ${C.border}`,
+              borderRadius: 7,
+              boxShadow: "0 6px 16px rgba(0,0,0,0.08)",
+              padding: 4,
+              zIndex: 10,
+            }}>
+              <button
+                onClick={() => { setPdfOpen(false); onDownloadPdf(deck, "exam"); }}
+                style={popoverItemStyle}
+                onMouseEnter={e => { e.currentTarget.style.background = C.bgSoft; }}
+                onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}
+              >
+                {t.pdfExam}
+              </button>
+              <button
+                onClick={() => { setPdfOpen(false); onDownloadPdf(deck, "answers"); }}
+                style={popoverItemStyle}
+                onMouseEnter={e => { e.currentTarget.style.background = C.bgSoft; }}
+                onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}
+              >
+                {t.pdfAnswerKey}
+              </button>
+            </div>
+          )}
         </div>
       )}
       {/* Drag handle area — title + description.

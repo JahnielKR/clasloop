@@ -27,6 +27,8 @@ import { MONO } from "../../components/tokens";
 import AIIcon from "../../components/AIIcon";
 import { C, css } from "./styles";
 import { SECTIONS, DEFAULT_SECTION, isValidSection, sectionLabels, resolveClassAccent, sectionToLessonContext } from "../../lib/class-hierarchy";
+// PR 68: toast notifications
+import { useToast } from "../../lib/toast";
 
 const SUBJECTS = ["Math", "Science", "History", "Language", "Geography", "Art", "Music", "Other"];
 
@@ -599,6 +601,8 @@ function AIGeneratePanel({
 
 function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existingDeck, prefilledClassId = null, prefilledSection = null, prefilledUnitId = null, prefilledPosition = null, profile = null }) {
   const isMobile = useIsMobile();
+  // PR 68: toast notifications
+  const toast = useToast();
   const [title, setTitle] = useState(existingDeck?.title || "");
   const [desc, setDesc] = useState(existingDeck?.description || "");
   // If we're creating fresh AND a class was pre-selected (came from "Add deck"
@@ -1422,7 +1426,8 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
     let finalPublic = makePublic;
     let finalAdapted = false;
     if (makePublic && derivation && !derivation.canPublish) {
-      alert(derivation.status === "identical" ? t.publishBlockedIdentical : t.publishBlockedLowEffort);
+      // PR 68: toast warning (no es bug — es info al user, sin Sentry)
+      toast.warning(derivation.status === "identical" ? t.publishBlockedIdentical : t.publishBlockedLowEffort);
       finalPublic = false;
     } else if (makePublic && derivation && derivation.showAdaptedBadge) {
       finalAdapted = true;

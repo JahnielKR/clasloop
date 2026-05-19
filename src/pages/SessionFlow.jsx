@@ -11,6 +11,8 @@ import SectionBadge, { sectionAccent } from "../components/SectionBadge";
 import { C, MONO } from "../components/tokens";
 import { estimateDeckSeconds, formatDeckDuration } from "../lib/time-limits";
 import { ROUTES, QUERY, buildRoute } from "../routes";
+// PR 68: toast notifications
+import { useToast } from "../lib/toast";
 
 // ─── Theme ─────────────────────────────────────────────────────────────────
 const SUBJECTS = ["Math", "Science", "History", "Language", "Geography", "Art", "Music", "Other"];
@@ -2211,6 +2213,9 @@ function ComingUpSidebar({ teacherId, t, lang = "en", onPickItem }) {
 // ─── Main Export ───────────────────────────────────────────────────────────
 export default function SessionFlow({ lang = "en", setLang, onNavigateToDecks, onOpenMobileMenu, notifyActiveSessionChanged }) {
   const t = i18n[lang] || i18n.en;
+  // PR 68: toast notifications. Lo nombramos toastApi porque ya existe
+  // un state local llamado `toast` (línea 2246 — banner "Class code: 123456").
+  const toastApi = useToast();
   const [user, setUser] = useState(null);
   const [classes, setClasses] = useState([]);
   // URL-bound subviews (Phase 3):
@@ -2477,7 +2482,8 @@ export default function SessionFlow({ lang = "en", setLang, onNavigateToDecks, o
     // decks made stand-alone (e.g. via /decks/new without a class
     // prefilled).
     if (!classId) {
-      alert(t.sessionNeedsClass || "This deck isn't linked to a class yet. Open the deck and add it to a class to start a session.");
+      // PR 68: toast en lugar de alert (caso esperado, sin Sentry)
+      toastApi.error(t.sessionNeedsClass || "This deck isn't linked to a class yet. Open the deck and add it to a class to start a session.");
       return false; // tell the child to reset its launching state
     }
 
@@ -2549,14 +2555,17 @@ export default function SessionFlow({ lang = "en", setLang, onNavigateToDecks, o
 
     if (error) {
       console.error("Failed to create session:", error);
-      // If the failure was a NOT NULL violation on class_id (somehow we
-      // got past the pre-flight), surface the same actionable message
-      // instead of a generic one. Other errors (network, RLS, etc.) get
-      // the existing generic alert.
       const isClassError = error.message && (error.message.includes("class_id") || error.code === "23502");
-      alert(isClassError
-        ? (t.sessionNeedsClass || "This deck isn't linked to a class yet. Open the deck and add it to a class to start a session.")
-        : (t.sessionCreateFailed || "Could not create session. Please try again."));
+      // PR 68: toast con mensaje localizado + Sentry report del error real
+      toastApi.error(
+        isClassError
+          ? (t.sessionNeedsClass || "This deck isn't linked to a class yet. Open the deck and add it to a class to start a session.")
+          : (t.sessionCreateFailed || "Could not create session. Please try again."),
+        {
+          reportError: new Error(`createSession failed: ${error.message || error.code}`),
+          context: { action: "createSession", deckId: deck?.id, classId, supabaseCode: error.code },
+        }
+      );
       return false; // tell the child to reset its launching state
     }
 

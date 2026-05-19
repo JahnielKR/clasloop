@@ -52,6 +52,8 @@ import DayDateModal from "./DayDateModal";
 import { unitStatusLabel, getDayDate } from "../lib/class-hierarchy";
 import { C, MONO } from "./tokens";
 import { buildRoute, ROUTES, QUERY } from "../routes";
+// PR 68: toast notifications
+import { useToast } from "../lib/toast";
 
 // ─── i18n ──────────────────────────────────────────────────────────────
 const i18n = {
@@ -1309,6 +1311,8 @@ export default function PlanView({
 }) {
   const t = i18n[lang] || i18n.en;
   const navigate = useNavigate();
+  // PR 68: toast notifications (reemplaza alert())
+  const toast = useToast();
 
   // Modal state — what slot the teacher is filling, if any
   const [modalSlot, setModalSlot] = useState(null);
@@ -1403,7 +1407,13 @@ export default function PlanView({
       .eq("id", deck.id);
     if (error) {
       console.error("[clasloop] removeDeck failed:", error);
-      alert(t.removeError);
+      // PR 68: toast con mensaje localizado para el user + report del error
+      // técnico a Sentry para diagnóstico. error es de Supabase, no Error
+      // nativo, así que lo wrapeamos con new Error para el reporte.
+      toast.error(t.removeError, {
+        reportError: new Error(`removeDeck failed: ${error.message}`),
+        context: { action: "removeDeck", deckId: deck.id, supabaseCode: error.code },
+      });
       return;
     }
     onRefresh && onRefresh();

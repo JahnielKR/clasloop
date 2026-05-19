@@ -43,6 +43,8 @@ import {
 // PR 66: PDF corregido
 import { createCorrectedScanPdf } from "../lib/pdf-styles/scanned-overlay";
 import { savePdfCrossPlatform } from "../lib/native-pdf";
+// PR 68: toast notifications
+import { useToast } from "../lib/toast";
 
 // ─── i18n ───────────────────────────────────────────────────────────────────
 const I18N = {
@@ -86,6 +88,7 @@ const I18N = {
     downloadCorrected: "Download corrected PDF",
     downloadingCorrected: "Generating PDF…",
     errDownloadFailed: "Could not generate the PDF. Please try again.",
+    errSaveScan: "Couldn't save the scan. Please try again.",
     // scanError
     errCancelled: "Scan cancelled.",
     errNoQR: "Could not read the QR code on this sheet.",
@@ -136,6 +139,7 @@ const I18N = {
     downloadCorrected: "Descargar PDF corregido",
     downloadingCorrected: "Generando PDF…",
     errDownloadFailed: "No se pudo generar el PDF. Probá de nuevo.",
+    errSaveScan: "No se pudo guardar el escaneo. Probá de nuevo.",
     errCancelled: "Escaneo cancelado.",
     errNoQR: "No pude leer el código QR de esta hoja.",
     errWrongDeck: "Esta hoja es de otro deck.",
@@ -184,6 +188,7 @@ const I18N = {
     downloadCorrected: "채점된 PDF 다운로드",
     downloadingCorrected: "PDF 생성 중…",
     errDownloadFailed: "PDF를 생성할 수 없습니다. 다시 시도해 주세요.",
+    errSaveScan: "스캔을 저장할 수 없습니다. 다시 시도해 주세요.",
     errCancelled: "스캔 취소됨.",
     errNoQR: "QR 코드를 읽을 수 없습니다.",
     errWrongDeck: "이 답안지는 다른 덱입니다.",
@@ -204,6 +209,8 @@ const I18N = {
 export default function Scanner({ lang = "en", profile, onOpenMobileMenu }) {
   const t = I18N[lang] || I18N.en;
   const isNative = Capacitor.isNativePlatform();
+  // PR 68: toast notifications
+  const toast = useToast();
 
   // Stage machine
   const [stage, setStage] = useState(() => isNative ? "pickDeck" : "webFallback");
@@ -362,7 +369,11 @@ export default function Scanner({ lang = "en", profile, onOpenMobileMenu }) {
 
       if (insertErr) {
         console.error("[scanner] insert failed:", insertErr);
-        alert("Error saving scan. " + insertErr.message);
+        // PR 68: toast con mensaje localizado + reporte del error real a Sentry
+        toast.error(t.errSaveScan, {
+          reportError: new Error(`scan insert failed: ${insertErr.message}`),
+          context: { action: "saveScan", deckId: selectedDeck?.id, supabaseCode: insertErr.code },
+        });
         setSaving(false);
         return;
       }
@@ -381,7 +392,11 @@ export default function Scanner({ lang = "en", profile, onOpenMobileMenu }) {
       }
     } catch (err) {
       console.error("[scanner] save error:", err);
-      alert("Error: " + err.message);
+      // PR 68: toast + reporte del Error real
+      toast.error(t.errSaveScan, {
+        reportError: err instanceof Error ? err : new Error(String(err)),
+        context: { action: "saveScan.catch", deckId: selectedDeck?.id },
+      });
     } finally {
       setSaving(false);
     }
@@ -415,7 +430,11 @@ export default function Scanner({ lang = "en", profile, onOpenMobileMenu }) {
       await savePdfCrossPlatform(doc, filename);
     } catch (err) {
       console.error("[scanner] download corrected failed:", err);
-      alert(t.errDownloadFailed || "Download failed.");
+      // PR 68: toast + reporte
+      toast.error(t.errDownloadFailed || "Download failed.", {
+        reportError: err instanceof Error ? err : new Error(String(err)),
+        context: { action: "downloadCorrected", deckId: selectedDeck?.id },
+      });
     } finally {
       setDownloadingPdf(false);
     }

@@ -46,6 +46,8 @@ import * as modern from "../lib/pdf-styles/modern";
 import * as editorial from "../lib/pdf-styles/editorial";
 import * as framed from "../lib/pdf-styles/framed";
 import { drawScanSheet } from "../lib/pdf-styles/scanner";
+// PR 68: toast notifications
+import { useToast } from "../lib/toast";
 
 // PR 46: scanner ya no es un "estilo" — es una página opcional que se
 // preempts al examen cuando variant === "exam_with_scan". El style
@@ -91,6 +93,8 @@ const I18N = {
     cancel: "Cancel",
     download: "Download PDF",
     close: "Close",
+    // PR 68
+    downloadFailed: "Couldn't generate the PDF. Please try again.",
   },
   es: {
     title: "Exportar PDF",
@@ -116,6 +120,8 @@ const I18N = {
     cancel: "Cancelar",
     download: "Descargar PDF",
     close: "Cerrar",
+    // PR 68
+    downloadFailed: "No se pudo generar el PDF. Probá de nuevo.",
   },
   ko: {
     title: "PDF 내보내기",
@@ -141,6 +147,8 @@ const I18N = {
     cancel: "취소",
     download: "PDF 다운로드",
     close: "닫기",
+    // PR 68
+    downloadFailed: "PDF를 생성할 수 없습니다. 다시 시도해 주세요.",
   },
 };
 
@@ -441,6 +449,8 @@ export default function PDFExportModal({
   C,
 }) {
   const t = I18N[lang] || I18N.en;
+  // PR 68: toast notifications
+  const toast = useToast();
 
   // Sticky style from localStorage. Default to classic if first run.
   const [style, setStyle] = useState(() => {
@@ -561,7 +571,11 @@ export default function PDFExportModal({
       onClose?.();
     } catch (err) {
       console.error("[pdf download] failed:", err);
-      alert("PDF download failed. Try again.");
+      // PR 68: toast con mensaje localizado + report del error real a Sentry.
+      toast.error(t.downloadFailed, {
+        reportError: err instanceof Error ? err : new Error(String(err)),
+        context: { action: "pdfDownload", deckId: deck?.id, style, variant },
+      });
     } finally {
       setDownloading(false);
     }
