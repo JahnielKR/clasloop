@@ -7,7 +7,25 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <!--
+      PR 71: cleanup de fonts. Antes cargábamos 5 familias con ~22 weights:
+        - Instrument Serif (italic+regular)  ← DEAD CODE, nadie lo usaba
+        - DM Sans (300, 400, 500, 600, 700)  ← solo 400/500/600/700 se usan
+        - JetBrains Mono (400, 500, 600, 700)
+        - Outfit (400, 500, 600, 700, 800)   ← 800 solo en 2 lugares
+        - Inter (400, 500, 600)               ← solo 600 se usa explícito
+      Ahora: 4 familias, ~10 weights total. Ahorro ~50% de font traffic
+      en el initial load (estimado -200-400KB).
+
+      Por qué cada cambio:
+        - Quitamos Instrument Serif: nadie lo importa (audit con grep).
+        - DM Sans: dropeamos 300 (light, sin usos). Mantenemos 700 porque
+          es el bold default del browser para <strong>/<b> (si no está,
+          el browser hace synthesized bold que se ve feo).
+        - Outfit: dropeamos 800 (solo 2 usos — caen a 700 que es igual de bold).
+        - Inter: solo 600 (único weight que se usa explícito en el código).
+    -->
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@400;500;600;700&family=Inter:wght@600&display=swap" rel="stylesheet">
   </head>
   <body>
     <div id="root"></div>
