@@ -313,25 +313,35 @@ export default function MyClasses({ lang: pageLang = "en", setLang: pageSetLang,
     setJoinError("");
 
     const code = joinCode.trim().toUpperCase();
-    const { data: cls, error: findErr } = await supabase
-      .from("classes")
-      .select("*")
-      .eq("class_code", code)
-      .single();
 
-    if (findErr || !cls) {
-      setJoinError(t.notFound);
+    // PR 72 (hotfix): usar el RPC join_class_by_code en lugar de leer
+    // classes + insertar class_members directo. El RPC valida server-side
+    // que el class_code matchea — antes cualquiera con un class_id podía
+    // saltarse el code haciendo POST directo a class_members.
+    //
+    // El RPC es idempotent: si el alumno ya es member, devuelve la row
+    // existente sin error. Manejamos ese caso mostrando "already joined".
+    const { data, error: rpcErr } = await supabase.rpc('join_class_by_code', {
+      p_class_code:   code,
+      p_student_name: profile.full_name,
+      p_student_id:   profile.id,
+    });
+
+    if (rpcErr) {
+      const msg = rpcErr.message || '';
+      if (msg.includes('class_not_found')) setJoinError(t.notFound);
+      else if (msg.includes('not_authenticated') || msg.includes('identity_mismatch')) {
+        setJoinError(t.notFound);  // generic — no exponer detalle de auth al user
+      } else {
+        setJoinError(msg);
+      }
       setJoining(false);
       return;
     }
 
-    const { error: joinErr } = await supabase
-      .from("class_members")
-      .insert({ class_id: cls.id, student_id: profile.id, student_name: profile.full_name });
-
-    if (joinErr) {
-      if (joinErr.code === "23505") setJoinError(t.alreadyJoined);
-      else setJoinError(joinErr.message);
+    const cls = data?.class;
+    if (!cls) {
+      setJoinError(t.notFound);
       setJoining(false);
       return;
     }
