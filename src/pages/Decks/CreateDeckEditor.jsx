@@ -29,6 +29,8 @@ import { C, css } from "./styles";
 import { SECTIONS, DEFAULT_SECTION, isValidSection, sectionLabels, resolveClassAccent, sectionToLessonContext } from "../../lib/class-hierarchy";
 // PR 68: toast notifications
 import { useToast } from "../../lib/toast";
+// PR 69: analytics
+import { trackEvent } from "../../lib/analytics";
 
 const SUBJECTS = ["Math", "Science", "History", "Language", "Geography", "Art", "Music", "Other"];
 
@@ -269,8 +271,33 @@ function AIGeneratePanel({
       // del panel AI escribe directamente con setDeckLanguage, así que no hay
       // que propagar nada — el editor padre ya está actualizado.
       onGenerated(cleaned, generationWarnings);
+
+      // PR 69: trackear AI generation exitoso. Properties que importan:
+      //   - question_count_requested vs received: bug rate del LLM
+      //   - activity_type: qué tipos de pregunta se usan más
+      //   - has_file: si vienen de archivo o solo topic
+      //   - subject: qué materias son más usadas
+      trackEvent("ai_generation_used", {
+        question_count_requested: numQuestions,
+        question_count_received: cleaned.length,
+        activity_type: aiActivityType,
+        has_file: !!file,
+        subject: deckSubject || null,
+        grade: deckGrade || null,
+        language: deckLanguage,
+      });
       // El padre cierra el panel y muestra las preguntas.
     } catch (err) {
+      // PR 69: trackear AI generation fallido con código de error.
+      // Esto nos permite ver "qué % de generaciones falla por cada motivo"
+      // — ej. ¿muchos hitting rate_limited? subir el rate. ¿muchos
+      // unsupported_file? agregar más formatos.
+      trackEvent("ai_generation_failed", {
+        reason: (err instanceof AIError) ? err.code : "unknown",
+        activity_type: aiActivityType,
+        has_file: !!file,
+      });
+
       // AIError viene con código; otros errores son network/parse genéricos.
       if (err instanceof AIError) {
         if (err.code === "rate_limited") setError(err.message || t.aiRateLimited);
@@ -1468,7 +1495,24 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
       onCreated({ ...existingDeck, ...payload });
     } else {
       const { data } = await supabase.from("decks").insert(payload).select().single();
-      if (data) onCreated(data);
+      if (data) {
+        // PR 69: trackear deck creado. Properties que importan:
+        //   - question_count: tamaño del deck
+        //   - source: "manual" o "ai" (ai_generation_used + deck_created es la
+        //              señal de "creó algo con AI"; deck_created solo = manual)
+        //   - has_class, has_unit: cuánto integran con el sistema de clases
+        //   - is_public: % de profes que comparten con la community
+        trackEvent("deck_created", {
+          question_count: payload.questions?.length || 0,
+          subject: payload.subject || null,
+          grade: payload.grade || null,
+          language: payload.language || null,
+          has_class: !!payload.class_id,
+          has_unit: !!payload.unit_id,
+          is_public: !!payload.is_public,
+        });
+        onCreated(data);
+      }
     }
     setSaving(false);
   };

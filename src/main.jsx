@@ -18,9 +18,16 @@ import { bootCapacitor } from './lib/capacitor-boot'
 // si no hay DSN definida o no es production, así que es seguro
 // llamarlo siempre.
 import { initSentry } from './lib/sentry'
+// PR 69: PostHog analytics. Inicializar después de Sentry — orden
+// importa solo conceptualmente (errores tienen prioridad sobre tracking).
+// initAnalytics es no-op si no hay key o no es production.
+import { initAnalytics } from './lib/analytics'
 
 // ── Sentry boot ──
 initSentry();
+
+// ── Analytics boot ──
+initAnalytics();
 
 // ── Theme boot ──
 // Inject the theme CSS variables and apply the persisted theme BEFORE

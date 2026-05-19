@@ -45,6 +45,8 @@ import { createCorrectedScanPdf } from "../lib/pdf-styles/scanned-overlay";
 import { savePdfCrossPlatform } from "../lib/native-pdf";
 // PR 68: toast notifications
 import { useToast } from "../lib/toast";
+// PR 69: analytics
+import { trackEvent } from "../lib/analytics";
 
 // ─── i18n ───────────────────────────────────────────────────────────────────
 const I18N = {
@@ -300,6 +302,20 @@ export default function Scanner({ lang = "en", profile, onOpenMobileMenu }) {
         total: result.total,
       });
 
+      // PR 69: trackear scan exitoso. Properties que importan:
+      //   - score/total: distribución de qué tan bien lo hace el alumno
+      //   - fiducials_detected: salud del CV (PR 60)
+      //   - uncertain_count: qué tan seguido necesitamos confirmar manualmente
+      //   - multi_answer: si la pregunta tenía respuesta múltiple (PR 61)
+      trackEvent("scan_completed", {
+        score: result.score,
+        total: result.total,
+        fiducials_detected: result.fiducialsDetected,
+        warp_applied: result.warpApplied,
+        uncertain_count: uncertain.length,
+        has_multi_answer: result.answers.some(a => Array.isArray(a.correct) && a.correct.length > 1),
+      });
+
       if (uncertain.length > 0) {
         setStage("reviewUncertain");
       } else {
@@ -313,6 +329,13 @@ export default function Scanner({ lang = "en", profile, onOpenMobileMenu }) {
       if (msg.toLowerCase().includes("cancel")) errKey = "errCancelled";
       else if (msg.toLowerCase().includes("unsupported")) errKey = "errUnsupported";
       else if (msg.includes("Too many scannable")) errKey = "errNoQuestions";
+
+      // PR 69: trackear scan fallido. Reason categorizado para poder
+      // ver "qué % de scans falla por cada motivo".
+      trackEvent("scan_failed", {
+        reason: errKey,
+      });
+
       setScanError({ key: errKey, raw: msg });
       setStage("scanError");
     }

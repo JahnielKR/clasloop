@@ -13,6 +13,8 @@ import { estimateDeckSeconds, formatDeckDuration } from "../lib/time-limits";
 import { ROUTES, QUERY, buildRoute } from "../routes";
 // PR 68: toast notifications
 import { useToast } from "../lib/toast";
+// PR 69: analytics
+import { trackEvent, hashId } from "../lib/analytics";
 
 // ─── Theme ─────────────────────────────────────────────────────────────────
 const SUBJECTS = ["Math", "Science", "History", "Language", "Geography", "Art", "Music", "Other"];
@@ -1209,6 +1211,16 @@ function LiveResultsThemed({ session, deck, t, lang, onEnd }) {
       status: "completed",
       completed_at: new Date().toISOString(),
     }).eq("id", session.id);
+
+    // PR 69: trackear sesión completada manualmente por el profe.
+    //   - participant_count: cuántos alumnos terminaron
+    //   - completed_via: "manual" (vs auto cuando todos terminan solos)
+    trackEvent("session_completed", {
+      participant_count: activeParticipants.length,
+      completed_via: "manual",
+      deck_id_hash: session.deck_id ? hashId(session.deck_id) : null,
+    });
+
     onEnd(session.id);
   };
 
@@ -1454,6 +1466,13 @@ function LiveResults({ session, t, onEnd }) {
       status: "completed",
       completed_at: new Date().toISOString(),
     }).eq("id", session.id);
+
+    // PR 69: trackear sesión completada vía auto-close (todos terminaron solos)
+    trackEvent("session_completed", {
+      completed_via: "auto",
+      deck_id_hash: session.deck_id ? hashId(session.deck_id) : null,
+    });
+
     // PR 13: pass the session id so the parent can navigate to the
     // recap page. The status update above triggers the Database Webhook
     // that fires the Edge Function to generate the AI insight in the
@@ -2595,6 +2614,17 @@ export default function SessionFlow({ lang = "en", setLang, onNavigateToDecks, o
     setSession(data);
     setStep("lobby");
     navigate(buildRoute.sessionsLobby(data.id));
+
+    // PR 69: trackear session creada exitosamente. Properties que importan:
+    //   - question_count: tamaño del quiz
+    //   - has_class: si tiene clase asociada (todas deberían, post PR de class_id)
+    //   - deck_id_hash: para contar decks distintos sin mandar UUIDs reales
+    trackEvent("session_started", {
+      question_count: deck?.questions?.length || 0,
+      has_class: !!classId,
+      deck_id_hash: deck?.id ? hashId(deck.id) : null,
+    });
+
     return true;
   };
 

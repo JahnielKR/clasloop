@@ -16,6 +16,9 @@ import ErrorFallback from './components/ErrorFallback';
 // (los toasts no deberían mantenerse si la app crashea) y ENVOLVIENDO
 // todo el árbol (cualquier componente puede llamar useToast()).
 import { ToastProvider } from './lib/toast';
+// PR 69: PostHog analytics. identifyUser sincroniza el user context
+// para que los eventos sean atribuidos al user correcto (sin email).
+import { identifyUser, resetAnalytics, trackEvent } from './lib/analytics';
 // PublicHome and AvatarOnboarding are eagerly imported because they paint
 // before the authed shell — making them lazy would just add a Suspense
 // fallback to the very first screen the user sees.
@@ -686,18 +689,22 @@ export default function App() {
   }, [isPreAppSurface]);
 
   // PR 67: sincronizar Sentry user context con el profile actual.
-  // Cuando login → setSentryUser con id+role+lang (sin email ni nombre)
-  // Cuando logout → clearSentryUser
-  // No tiene efecto en dev (initSentry es no-op sin DSN).
+  // PR 69: lo mismo para PostHog (analytics).
+  // Cuando login → setSentryUser + identifyUser con id+role+lang
+  // Cuando logout → clearSentryUser + resetAnalytics
+  // No tiene efecto en dev (los inits son no-op sin keys).
   useEffect(() => {
     if (profile?.id) {
-      setSentryUser({
+      const userInfo = {
         id: profile.id,
         role: profile.role || undefined,
         language: lang || undefined,
-      });
+      };
+      setSentryUser(userInfo);
+      identifyUser(userInfo);
     } else {
       clearSentryUser();
+      resetAnalytics();
     }
   }, [profile?.id, profile?.role, lang]);
 
