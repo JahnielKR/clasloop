@@ -12,6 +12,15 @@ import './styles/theme-overlays.css'
 import { ensureThemeCss, applyTheme, getStoredTheme } from './components/tokens'
 import { ROUTE_PATTERNS } from './routes'
 import { bootCapacitor } from './lib/capacitor-boot'
+// PR 67: Sentry initialization. Llamar lo más temprano posible —
+// antes de cualquier React rendering — para que errores durante el
+// montaje inicial también queden capturados. initSentry es no-op
+// si no hay DSN definida o no es production, así que es seguro
+// llamarlo siempre.
+import { initSentry } from './lib/sentry'
+
+// ── Sentry boot ──
+initSentry();
 
 // ── Theme boot ──
 // Inject the theme CSS variables and apply the persisted theme BEFORE

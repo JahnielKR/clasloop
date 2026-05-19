@@ -5,6 +5,13 @@ import { ROUTES, PAGE_TO_ROUTE, pathToPage, defaultRouteForRole, buildRoute, bui
 import { supabase } from './lib/supabase';
 import { googleOAuthNative } from './lib/native-oauth';
 import { LogoMark, TeacherInline, StudentInline, TeacherAvatar, StudentAvatar } from './components/Icons';
+// PR 67: Sentry — error tracking en producción.
+// SentryErrorBoundary envuelve toda la app y captura errors de render.
+// setSentryUser/clearSentryUser sincronizan el user context con el state
+// de auth para que cada error en el dashboard tenga "qué profile ID" lo
+// causó (sin email ni datos sensibles — ver lib/sentry.js).
+import { SentryErrorBoundary, setSentryUser, clearSentryUser } from './lib/sentry';
+import ErrorFallback from './components/ErrorFallback';
 // PublicHome and AvatarOnboarding are eagerly imported because they paint
 // before the authed shell — making them lazy would just add a Suspense
 // fallback to the very first screen the user sees.
@@ -674,6 +681,22 @@ export default function App() {
     return () => { html.setAttribute("data-theme", previous); };
   }, [isPreAppSurface]);
 
+  // PR 67: sincronizar Sentry user context con el profile actual.
+  // Cuando login → setSentryUser con id+role+lang (sin email ni nombre)
+  // Cuando logout → clearSentryUser
+  // No tiene efecto en dev (initSentry es no-op sin DSN).
+  useEffect(() => {
+    if (profile?.id) {
+      setSentryUser({
+        id: profile.id,
+        role: profile.role || undefined,
+        language: lang || undefined,
+      });
+    } else {
+      clearSentryUser();
+    }
+  }, [profile?.id, profile?.role, lang]);
+
   useEffect(() => {
     // PR 43: limpieza defensiva de localStorage residual de los PRs
     // 36-42. Si por algún motivo quedó "clasloop_pending_role" del
@@ -1298,7 +1321,22 @@ export default function App() {
   // it to "teacherProfile" so it counts as known.
   const isNotFound = !inPractice && pathToPage(location.pathname) === null && location.pathname !== "/";
 
+  // PR 67: el render principal va envuelto en SentryErrorBoundary.
+  // Cualquier crash en cualquier sub-componente (sidebar, pages, modals)
+  // es atrapado acá. ErrorFallback es la UI que se muestra en su lugar.
+  //
+  // showDialog={false} → Sentry NO muestra su propio feedback dialog
+  //   (preferimos nuestra UI ErrorFallback en lugar del dialog default).
+  // beforeCapture → oportunidad para enriquecer el evento antes de
+  //   mandarlo (acá agregamos el current page como contexto).
   return (
+    <SentryErrorBoundary
+      fallback={(props) => <ErrorFallback {...props} />}
+      beforeCapture={(scope) => {
+        scope.setTag("page", page || "unknown");
+        scope.setTag("route", location.pathname);
+      }}
+    >
     <div style={{ display: "flex", minHeight: "100vh" }}>
       <style>{sidebarCSS}</style>
       {/* Backdrop — covers everything below the drawer, click-to-close */}
@@ -1499,5 +1537,6 @@ export default function App() {
         );
       })()}
     </div>
+    </SentryErrorBoundary>
   );
 }
