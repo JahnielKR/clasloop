@@ -162,12 +162,14 @@ export function evaluateAnswer(q, type, raw) {
 
     case "mcq":
     default: {
-      // Multi-correct: q.correct is an array → require exact set match
-      // (no partial credit on multi-MCQ — pedagogically common).
+      // Multi-correct: q.correct is an array.
+      // PR 61 lenient rule: if the student marks ≥1 answer and every marked
+      // answer is in the correct set (no wrong picks), count as correct.
+      // Marking extra wrong options still fails.
       if (Array.isArray(q.correct)) {
         const got = Array.isArray(raw) ? raw : [raw];
         const need = q.correct;
-        const ok = got.length === need.length && got.every(v => need.includes(v));
+        const ok = got.length > 0 && got.every(v => need.includes(v));
         return { points: ok ? 1 : 0, maxPoints: 1, isCorrect: ok, stored: got, needsReview: false };
       }
       const ok = raw === q.correct;
