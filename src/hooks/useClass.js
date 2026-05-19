@@ -35,37 +35,47 @@ export async function getTeacherClasses(teacherId) {
 }
 
 // ─── Join a class (student) ─────────────────────────
+//
+// PR 72: ahora usa el RPC join_class_by_code en lugar de hacer INSERT
+// directo a class_members. El RPC valida server-side que el class_code
+// corresponde a una clase real — antes cualquiera con un class_id (UUID)
+// podía meterse a cualquier clase saltándose el código.
+//
+// El RPC es idempotent: si el alumno ya es member, devuelve la row
+// existente en vez de errorear (igual semántica que el código anterior
+// que detectaba duplicado por código 23505).
+//
+// Devuelve la misma shape que antes: { class, member } o { error }.
 export async function joinClass(classCode, studentName, studentId = null) {
-  // Find class by code
-  const { data: cls, error: findError } = await supabase
-    .from('classes')
-    .select('*')
-    .eq('class_code', classCode.toUpperCase())
-    .single();
-
-  if (findError || !cls) {
-    return { error: 'Class not found. Check the code and try again.' };
+  if (!studentId) {
+    return { error: 'You must be signed in to join a class.' };
   }
 
-  // Add member
-  const { data: member, error: joinError } = await supabase
-    .from('class_members')
-    .insert({
-      class_id: cls.id,
-      student_name: studentName,
-      student_id: studentId,
-    })
-    .select()
-    .single();
+  const { data, error } = await supabase.rpc('join_class_by_code', {
+    p_class_code:   classCode,
+    p_student_name: studentName,
+    p_student_id:   studentId,
+  });
 
-  if (joinError) {
-    if (joinError.code === '23505') {
-      return { class: cls, error: 'Already joined this class.' };
+  if (error) {
+    // El RPC tira excepciones con mensajes específicos (raise exception 'foo').
+    // Supabase las pasa como error.message. Las traducimos a los mismos
+    // mensajes que el código viejo devolvía, para no romper UI.
+    const msg = error.message || '';
+    if (msg.includes('class_not_found')) {
+      return { error: 'Class not found. Check the code and try again.' };
     }
-    return { error: joinError.message };
+    if (msg.includes('not_authenticated') || msg.includes('identity_mismatch')) {
+      return { error: 'You must be signed in to join a class.' };
+    }
+    if (msg.includes('invalid_class_code') || msg.includes('invalid_name')) {
+      return { error: 'Invalid input.' };
+    }
+    return { error: msg };
   }
 
-  return { class: cls, member };
+  // El RPC devuelve { class, member } como jsonb.
+  return { class: data?.class, member: data?.member };
 }
 
 // ─── Delete a class ─────────────────────────────────
