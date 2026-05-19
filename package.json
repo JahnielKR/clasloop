@@ -8,7 +8,10 @@
     "build": "vite build",
     "preview": "vite preview",
     "patch:android": "node scripts/patch-android.cjs",
-    "icons:generate": "node scripts/generate-android-assets.cjs"
+    "icons:generate": "node scripts/generate-android-assets.cjs",
+    "test": "vitest",
+    "test:run": "vitest run",
+    "test:ui": "vitest --ui"
   },
   "dependencies": {
     "@capacitor-mlkit/barcode-scanning": "^8.1.0",
@@ -40,8 +43,9 @@
   "devDependencies": {
     "@capacitor/cli": "^8.3.4",
     "@vitejs/plugin-react": "^4.2.1",
+    "@vitest/ui": "^3.0.0",
     "sharp": "^0.34.5",
-    "typescript": "^6.0.3",
-    "vite": "^5.2.0"
+    "vite": "^5.2.0",
+    "vitest": "^3.0.0"
   }
 }

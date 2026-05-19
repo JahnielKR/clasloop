@@ -1162,3 +1162,13 @@ export async function getUpcomingPlan(teacherId, days = 7) {
   });
   return result;
 }
+
+// ─── Internal exports for testing (PR 70) ──────────────────────────────
+// Funciones puras (sin async, sin side effects) que vale la pena testear.
+// No las exportamos como API pública porque son detalles de implementación,
+// pero los tests sí necesitan llamarlas directo.
+export const _internal = {
+  percentToQuality,
+  calculateSM2,
+  calculateRetention,
+};
