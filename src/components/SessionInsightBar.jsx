@@ -19,48 +19,15 @@ import { useEffect, useRef, useState } from "react";
 import { supabase } from "../lib/supabase";
 import { C } from "./tokens";
 import PctCircle from "./PctCircle";
+// PR 73: i18n centralizado — strings en src/i18n/{en,es,ko}.js
+// bajo el namespace "sessionInsightBar".
+import { useT } from "../i18n";
 
 const POLL_INTERVAL_MS = 1500;
 const POLL_TIMEOUT_MS = 15000;
 
-const i18n = {
-  en: {
-    labelOne: "Weak point",
-    labelTwo: "Weak points",
-    failed: "failed",
-    expand: "view students",
-    collapse: "hide",
-    dismiss: "hide",
-    analyzing: "Analyzing session…",
-    repeatedNote: (name) => `**${name}** appears in both points. They're struggling beyond a single topic.`,
-    failerSummary: (wrong, total) => `failed ${wrong}/${total}`,
-  },
-  es: {
-    labelOne: "Punto débil",
-    labelTwo: "Puntos débiles",
-    failed: "fallaron",
-    expand: "ver estudiantes",
-    collapse: "ocultar",
-    dismiss: "ocultar",
-    analyzing: "Analizando la sesión…",
-    repeatedNote: (name) => `**${name}** aparece en ambos puntos. Está en problemas más allá de un solo tema.`,
-    failerSummary: (wrong, total) => `falló ${wrong}/${total}`,
-  },
-  ko: {
-    labelOne: "약점",
-    labelTwo: "약점",
-    failed: "틀렸어요",
-    expand: "학생 보기",
-    collapse: "숨기기",
-    dismiss: "숨기기",
-    analyzing: "세션 분석 중…",
-    repeatedNote: (name) => `**${name}**님이 두 항목 모두에 나타납니다. 한 주제 이상에서 어려움을 겪고 있습니다.`,
-    failerSummary: (wrong, total) => `${wrong}/${total} 틀림`,
-  },
-};
-
 export default function SessionInsightBar({ sessionId, lang = "en" }) {
-  const t = i18n[lang] || i18n.en;
+  const t = useT("sessionInsightBar", lang);
   const [insight, setInsight] = useState(null);
   const [expanded, setExpanded] = useState(false);
   const [dismissed, setDismissed] = useState(false);

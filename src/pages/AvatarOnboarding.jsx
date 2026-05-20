@@ -3,33 +3,9 @@ import { supabase } from "../lib/supabase";
 import { LogoMark, CIcon } from "../components/Icons";
 import { Avatar as CatalogAvatar, AVATARS } from "../components/Avatars";
 import { C } from "../components/tokens";
-
-const i18n = {
-  en: {
-    welcome: "Welcome, {name}!",
-    pickOne: "Pick your avatar",
-    sub: "You can change it any time from Settings.",
-    selected: "Looking good!",
-    continue: "Continue",
-    saving: "Saving...",
-  },
-  es: {
-    welcome: "¡Bienvenido, {name}!",
-    pickOne: "Elige tu avatar",
-    sub: "Puedes cambiarlo cuando quieras desde Configuración.",
-    selected: "¡Te queda bien!",
-    continue: "Continuar",
-    saving: "Guardando...",
-  },
-  ko: {
-    welcome: "환영합니다, {name}님!",
-    pickOne: "아바타를 선택하세요",
-    sub: "설정에서 언제든지 변경할 수 있습니다.",
-    selected: "잘 어울려요!",
-    continue: "계속",
-    saving: "저장 중...",
-  },
-};
+// PR 73: i18n centralizado — las strings de este componente viven ahora en
+// src/i18n/{en,es,ko}.js bajo el namespace "avatarOnboarding".
+import { useT } from "../i18n";
 
 const css = `
   @keyframes ao-fade { from { opacity:0; transform:translateY(10px) } to { opacity:1; transform:translateY(0) } }
@@ -41,7 +17,7 @@ const css = `
 `;
 
 export default function AvatarOnboarding({ profile, lang = "en", onDone }) {
-  const t = i18n[lang] || i18n.en;
+  const t = useT("avatarOnboarding", lang);
   const [selected, setSelected] = useState(null);
   const [saving, setSaving] = useState(false);
 

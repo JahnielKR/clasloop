@@ -6,6 +6,9 @@ import { useIsMobile } from "../components/MobileMenuButton";
 import PageHeader from "../components/PageHeader";
 import SectionBadge from "../components/SectionBadge";
 import { C as BASE_C } from "../components/tokens";
+// PR 73: i18n centralizado — strings en src/i18n/{en,es,ko}.js
+// bajo el namespace "community".
+import { useT } from "../i18n";
 
 // Community-specific extension: yellow tints for highlighting popular/
 // featured community decks.
@@ -14,44 +17,8 @@ const C = BASE_C;
 const SUBJ_ICON = { Math: "math", Science: "science", History: "history", Language: "language", Geography: "geo", Art: "art", Music: "music", Other: "book" };
 const SUBJECTS = ["Math", "Science", "History", "Language", "Geography", "Art", "Music", "Other"];
 
-const i18n = {
-  en: {
-    pageTitle: "Community", subtitle: "Browse decks shared by teachers worldwide",
-    search: "Search topics...", allSubjects: "All subjects", allLanguages: "All languages",
-    mostUsed: "Most used", topRated: "Top rated", newest: "Newest",
-    questions: "questions", uses: "uses",
-    saveToMyDecks: "Save to my decks", saved: "Saved!", back: "Back",
-    by: "by", adaptedFrom: "Adapted from", noResults: "No decks found.",
-    favorite: "Favorite", favorited: "Favorited", favoriteAdd: "Add to favorites", favoriteRemove: "Remove from favorites",
-    addToWhich: "Add to which class?", noClass: "Save without class",
-    noClassesYet: "You don't have any classes yet. Create one in Sessions first.",
-    cancel: "Cancel", langs: ["English", "Spanish", "Korean"],
-  },
-  es: {
-    pageTitle: "Comunidad", subtitle: "Busca decks compartidos por profesores",
-    search: "Buscar temas...", allSubjects: "Todas las materias", allLanguages: "Todos los idiomas",
-    mostUsed: "Más usados", topRated: "Mejor valorados", newest: "Más recientes",
-    questions: "preguntas", uses: "usos",
-    saveToMyDecks: "Guardar en mis decks", saved: "¡Guardado!", back: "Volver",
-    by: "por", adaptedFrom: "Adaptado de", noResults: "No se encontraron decks.",
-    favorite: "Favorito", favorited: "En favoritos", favoriteAdd: "Agregar a favoritos", favoriteRemove: "Quitar de favoritos",
-    addToWhich: "¿A qué clase agregarlo?", noClass: "Guardar sin clase",
-    noClassesYet: "No tienes clases aún. Crea una en Sesiones primero.",
-    cancel: "Cancelar", langs: ["Inglés", "Español", "Coreano"],
-  },
-  ko: {
-    pageTitle: "커뮤니티", subtitle: "전 세계 교사들이 공유한 덱을 찾아보세요",
-    search: "주제 검색...", allSubjects: "모든 과목", allLanguages: "모든 언어",
-    mostUsed: "최다 사용", topRated: "최고 평점", newest: "최신순",
-    questions: "문제", uses: "사용",
-    saveToMyDecks: "내 덱에 저장", saved: "저장됨!", back: "뒤로",
-    by: "", adaptedFrom: "원작 각색:", noResults: "덱을 찾을 수 없습니다.",
-    favorite: "즐겨찾기", favorited: "즐겨찾기됨", favoriteAdd: "즐겨찾기에 추가", favoriteRemove: "즐겨찾기에서 제거",
-    addToWhich: "어느 수업에 추가하시겠습니까?", noClass: "수업 없이 저장",
-    noClassesYet: "아직 수업이 없습니다. 세션에서 먼저 만드세요.",
-    cancel: "취소", langs: ["영어", "스페인어", "한국어"],
-  },
-};
+// PR 73: el bloque i18n local fue movido a src/i18n/{en,es,ko}.js
+// bajo el namespace "community". Se accede vía useT() en el componente.
 
 const css = `
   .cm-card { transition: all .2s ease; cursor: pointer; }
@@ -100,7 +67,8 @@ export default function Community({ lang: pageLang = "en", setLang: pageSetLang,
   const [savingDeck, setSavingDeck] = useState(null); // deck being saved (for class picker)
   const [saved, setSaved] = useState({});
   const [loading, setLoading] = useState(true);
-  const t = i18n[l] || i18n.en;
+  // PR 73: i18n centralizado via useT
+  const t = useT("community", l);
   const isStudent = profile?.role === "student";
 
   useEffect(() => { loadData(); }, [profile?.id]);
