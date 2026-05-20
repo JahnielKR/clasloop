@@ -25,70 +25,12 @@ import { ROUTES, buildRoute } from "../routes";
 import PageHeader from "../components/PageHeader";
 import { fetchClassDecksSummary, groupRowsBySection, pctColor } from "../lib/class-insights";
 import { sectionLabels, resolveClassAccent } from "../lib/class-hierarchy";
+// PR 75: i18n centralizado
+import { useT } from "../i18n";
 
 // ─── i18n ────────────────────────────────────────────────────────────────
-const i18n = {
-  en: {
-    title: "Insights",
-    backToClass: "Back to class",
-    loading: "Loading insights…",
-    error: "Could not load insights.",
-    classNotFound: "Class not found.",
-    emptyTitle: "No data yet",
-    emptyHint: "Once students practice these decks, results will appear here.",
-    decksCount: "{n} decks",
-    deckCountOne: "1 deck",
-    responses: "{n} responses",
-    responsesOne: "1 response",
-    pendingLabel: "{n} pending",
-    pendingLabelOne: "1 pending",
-    noDataInSection: "—",
-    noUsageWarmup: "No warmups used yet.",
-    noUsageExit: "No exit tickets used yet.",
-    noUsageGeneral: "No general review decks used yet.",
-    noDecksInSection: "No decks in this section.",
-  },
-  es: {
-    title: "Insights",
-    backToClass: "Volver a la clase",
-    loading: "Cargando insights…",
-    error: "No se pudieron cargar los insights.",
-    classNotFound: "Clase no encontrada.",
-    emptyTitle: "Aún no hay datos",
-    emptyHint: "Cuando los estudiantes practiquen los decks, los resultados aparecerán acá.",
-    decksCount: "{n} decks",
-    deckCountOne: "1 deck",
-    responses: "{n} respuestas",
-    responsesOne: "1 respuesta",
-    pendingLabel: "{n} pendientes",
-    pendingLabelOne: "1 pendiente",
-    noDataInSection: "—",
-    noUsageWarmup: "Ningún warmup usado todavía.",
-    noUsageExit: "Ningún exit ticket usado todavía.",
-    noUsageGeneral: "Ningún deck de repaso usado todavía.",
-    noDecksInSection: "Ningún deck en esta sección.",
-  },
-  ko: {
-    title: "인사이트",
-    backToClass: "수업으로 돌아가기",
-    loading: "인사이트 불러오는 중…",
-    error: "인사이트를 불러올 수 없습니다.",
-    classNotFound: "수업을 찾을 수 없습니다.",
-    emptyTitle: "아직 데이터가 없습니다",
-    emptyHint: "학생들이 덱을 연습하면 결과가 여기에 표시됩니다.",
-    decksCount: "덱 {n}개",
-    deckCountOne: "덱 1개",
-    responses: "응답 {n}개",
-    responsesOne: "응답 1개",
-    pendingLabel: "대기 {n}개",
-    pendingLabelOne: "대기 1개",
-    noDataInSection: "—",
-    noUsageWarmup: "아직 사용된 워밍업이 없습니다.",
-    noUsageExit: "아직 사용된 출구 티켓이 없습니다.",
-    noUsageGeneral: "아직 사용된 복습 덱이 없습니다.",
-    noDecksInSection: "이 섹션에 덱이 없습니다.",
-  },
-};
+// PR 75: el bloque i18n local fue movido a src/i18n/{en,es,ko}.js
+// bajo el namespace "classInsights".
 
 export default function ClassInsights({ profile, lang = "en", setLang, onOpenMobileMenu }) {
   // Same trick as DeckResults / Review: useParams() doesn't work in this
@@ -100,7 +42,7 @@ export default function ClassInsights({ profile, lang = "en", setLang, onOpenMob
     return m ? decodeURIComponent(m[1]) : null;
   }, [location.pathname]);
   const navigate = useNavigate();
-  const t = i18n[lang] || i18n.en;
+  const t = useT("classInsights", lang);
   const sLabels = sectionLabels(lang);
 
   // ── State ─────────────────────────────────────────────────────────────

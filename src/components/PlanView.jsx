@@ -52,115 +52,12 @@ import DayDateModal from "./DayDateModal";
 import { unitStatusLabel, getDayDate } from "../lib/class-hierarchy";
 import { C, MONO } from "./tokens";
 import { buildRoute, ROUTES, QUERY } from "../routes";
-// PR 68: toast notifications
-import { useToast } from "../lib/toast";
+// PR 75: i18n centralizado
+import { useT } from "../i18n";
 
 // ─── i18n ──────────────────────────────────────────────────────────────
-const i18n = {
-  en: {
-    dayLabel: "Day {n}",
-    // PR 25.1: date scheduling
-    noDateAssigned: "No date · Assign",
-    changeDate: "Change",
-    addWarmup: "+ Add warmup",
-    addExit: "+ Add exit ticket",
-    addDay: "+ Add Day {n}",
-    launch: "Launch",
-    // PR 24.9: kebab menu actions on unused decks
-    kebabAria: "More options",
-    removeFromUnit: "Remove from unit",
-    editDeck: "Edit deck",
-    removeConfirm: "Remove \"{title}\" from this unit? The deck stays in this class — you can re-attach it to another unit later.",
-    removeError: "Could not remove the deck. Try again.",
-    questions: "questions",
-    statusActive: "Active",
-    statusPlanned: "Planned",
-    statusClosed: "Closed",
-    daysCount: "{n} days planned",
-    daysCountOne: "1 day planned",
-    daysCountZero: "No days planned yet",
-    emptyTitle: "This unit has no decks yet",
-    emptyHint: "Add a warmup or exit ticket to start building Day 1.",
-    prevUnit: "Previous unit",
-    nextUnit: "Next unit",
-    closeUnit: "Close unit",
-    reopen: "Reopen",
-    // Phase 6: general reviews live aside the unit plan
-    generalReviewsTitle: "General reviews",
-    generalReviewsHint: "Standalone content outside the daily plan — pre-exam recaps, monthly reviews.",
-    generalReviewsEmpty: "No general reviews yet. Use these for content that doesn't fit a warmup or exit ticket.",
-    addReview: "+ Add review",
-    // Phase 6: class-wide search
-    searchPlaceholder: "Search this class — warmups, exits, reviews…",
-    searchEmpty: "No matches in this class.",
-    searchOneResult: "1 match",
-    searchResults: "{n} matches",
-  },
-  es: {
-    dayLabel: "Día {n}",
-    noDateAssigned: "Sin fecha · Asignar",
-    changeDate: "Cambiar",
-    addWarmup: "+ Añadir warmup",
-    addExit: "+ Añadir exit ticket",
-    addDay: "+ Añadir Día {n}",
-    launch: "Lanzar",
-    kebabAria: "Más opciones",
-    removeFromUnit: "Quitar de la unidad",
-    editDeck: "Editar deck",
-    removeConfirm: "¿Quitar \"{title}\" de esta unidad? El deck queda en la clase — podés volver a adjuntarlo a otra unidad después.",
-    removeError: "No se pudo quitar el deck. Intenta de nuevo.",
-    questions: "preguntas",
-    daysCount: "{n} días planeados",
-    daysCountOne: "1 día planeado",
-    daysCountZero: "Aún no hay días planeados",
-    emptyTitle: "Esta unidad aún no tiene decks",
-    emptyHint: "Añade un warmup o exit ticket para empezar el Día 1.",
-    prevUnit: "Unidad anterior",
-    nextUnit: "Siguiente unidad",
-    closeUnit: "Cerrar unidad",
-    reopen: "Reabrir",
-    generalReviewsTitle: "Repasos generales",
-    generalReviewsHint: "Contenido aparte del plan diario — repasos previos a examen, repasos mensuales.",
-    generalReviewsEmpty: "Aún no hay repasos. Úsalos para contenido que no encaja como warmup o exit ticket.",
-    addReview: "+ Añadir repaso",
-    searchPlaceholder: "Buscar en esta clase — warmups, exits, repasos…",
-    searchEmpty: "Sin resultados en esta clase.",
-    searchOneResult: "1 resultado",
-    searchResults: "{n} resultados",
-  },
-  ko: {
-    dayLabel: "{n}일차",
-    noDateAssigned: "날짜 없음 · 지정하기",
-    changeDate: "변경",
-    addWarmup: "+ 워밍업 추가",
-    addExit: "+ 종료 티켓 추가",
-    addDay: "+ {n}일차 추가",
-    launch: "시작",
-    kebabAria: "더 보기",
-    removeFromUnit: "유닛에서 빼기",
-    editDeck: "덱 편집",
-    removeConfirm: "이 유닛에서 \"{title}\"을(를) 빼시겠습니까? 덱은 이 수업에 남아 있으며, 나중에 다른 유닛에 다시 연결할 수 있습니다.",
-    removeError: "덱을 뺄 수 없습니다. 다시 시도하세요.",
-    questions: "문제",
-    daysCount: "{n}일 계획됨",
-    daysCountOne: "1일 계획됨",
-    daysCountZero: "아직 계획된 날 없음",
-    emptyTitle: "이 단원에는 아직 덱이 없습니다",
-    emptyHint: "워밍업이나 종료 티켓을 추가하여 1일차를 시작하세요.",
-    prevUnit: "이전 단원",
-    nextUnit: "다음 단원",
-    closeUnit: "단원 종료",
-    reopen: "다시 열기",
-    generalReviewsTitle: "일반 복습",
-    generalReviewsHint: "일일 계획과 별도의 자료 — 시험 전 정리, 월간 복습 등.",
-    generalReviewsEmpty: "아직 일반 복습이 없습니다. 워밍업이나 종료 티켓에 맞지 않는 자료에 사용하세요.",
-    addReview: "+ 복습 추가",
-    searchPlaceholder: "이 수업 검색 — 워밍업, 종료, 복습…",
-    searchEmpty: "이 수업에서 일치 항목 없음.",
-    searchOneResult: "1개 일치",
-    searchResults: "{n}개 일치",
-  },
-};
+// PR 75: el bloque i18n local fue movido a src/i18n/{en,es,ko}.js
+// bajo el namespace "planView".
 
 // ─── Build the day-rows from a flat deck list ──────────────────────────
 //
@@ -1309,10 +1206,8 @@ export default function PlanView({
   onCloseUnit,         // called when the teacher clicks "Close unit"
   onReopenUnit,        // called when the teacher clicks "Reopen" on a closed unit
 }) {
-  const t = i18n[lang] || i18n.en;
+  const t = useT("planView", lang);
   const navigate = useNavigate();
-  // PR 68: toast notifications (reemplaza alert())
-  const toast = useToast();
 
   // Modal state — what slot the teacher is filling, if any
   const [modalSlot, setModalSlot] = useState(null);
@@ -1407,13 +1302,7 @@ export default function PlanView({
       .eq("id", deck.id);
     if (error) {
       console.error("[clasloop] removeDeck failed:", error);
-      // PR 68: toast con mensaje localizado para el user + report del error
-      // técnico a Sentry para diagnóstico. error es de Supabase, no Error
-      // nativo, así que lo wrapeamos con new Error para el reporte.
-      toast.error(t.removeError, {
-        reportError: new Error(`removeDeck failed: ${error.message}`),
-        context: { action: "removeDeck", deckId: deck.id, supabaseCode: error.code },
-      });
+      alert(t.removeError);
       return;
     }
     onRefresh && onRefresh();

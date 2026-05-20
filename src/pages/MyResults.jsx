@@ -22,67 +22,12 @@ import {
   describeCorrectAnswer,
   formatStudentAnswer,
 } from "../lib/scoring";
+// PR 75: i18n centralizado
+import { useT } from "../i18n";
 
 // ─── i18n ────────────────────────────────────────────────────────────────
-const i18n = {
-  en: {
-    title: "My results",
-    backToNotifs: "Back to notifications",
-    loading: "Loading…",
-    error: "Could not load results.",
-    sessionNotFound: "Session not found.",
-    noResponses: "You don't have any answers in this session yet.",
-    questionLabel: "Question {n}",
-    yourAnswer: "Your answer",
-    correctAnswer: "Correct answer",
-    noAnswer: "(no answer)",
-    teacherGrade: "Teacher grade",
-    teacherFeedback: "Teacher's feedback",
-    pendingReview: "Pending teacher review",
-    gradeCorrect: "Correct",
-    gradePartial: "Partial",
-    gradeIncorrect: "Incorrect",
-    pointsLabel: "{p} / {m}",
-  },
-  es: {
-    title: "Mis resultados",
-    backToNotifs: "Volver a notificaciones",
-    loading: "Cargando…",
-    error: "No se pudieron cargar los resultados.",
-    sessionNotFound: "Sesión no encontrada.",
-    noResponses: "Aún no tienes respuestas en esta sesión.",
-    questionLabel: "Pregunta {n}",
-    yourAnswer: "Tu respuesta",
-    correctAnswer: "Respuesta correcta",
-    noAnswer: "(sin respuesta)",
-    teacherGrade: "Calificación del profe",
-    teacherFeedback: "Feedback del profe",
-    pendingReview: "Pendiente de revisión",
-    gradeCorrect: "Correcta",
-    gradePartial: "Parcial",
-    gradeIncorrect: "Incorrecta",
-    pointsLabel: "{p} / {m}",
-  },
-  ko: {
-    title: "내 결과",
-    backToNotifs: "알림으로 돌아가기",
-    loading: "로딩 중…",
-    error: "결과를 불러올 수 없습니다.",
-    sessionNotFound: "세션을 찾을 수 없습니다.",
-    noResponses: "이 세션에 아직 답변이 없습니다.",
-    questionLabel: "{n}번 문제",
-    yourAnswer: "내 답변",
-    correctAnswer: "정답",
-    noAnswer: "(답변 없음)",
-    teacherGrade: "선생님 평가",
-    teacherFeedback: "선생님 피드백",
-    pendingReview: "검토 대기 중",
-    gradeCorrect: "정답",
-    gradePartial: "부분 정답",
-    gradeIncorrect: "오답",
-    pointsLabel: "{p} / {m}",
-  },
-};
+// PR 75: el bloque i18n local fue movido a src/i18n/{en,es,ko}.js
+// bajo el namespace "myResults".
 
 // Color a grade pill by its kind. Same palette as the rest of the app
 // (Review.jsx, DeckResults.jsx).
@@ -103,7 +48,7 @@ export default function MyResults({ profile, lang = "en", setLang, onOpenMobileM
     return m ? decodeURIComponent(m[1]) : null;
   }, [location.pathname]);
   const navigate = useNavigate();
-  const t = i18n[lang] || i18n.en;
+  const t = useT("myResults", lang);
 
   const [session, setSession] = useState(null);
   const [responses, setResponses] = useState([]);

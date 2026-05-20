@@ -18,86 +18,11 @@ import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
 import { C } from "./tokens";
 import { getAvatarById } from "./Avatars";
-// PR 68: toast notifications
-import { useToast } from "../lib/toast";
+// PR 75: i18n centralizado
+import { useT } from "../i18n";
 
-const i18n = {
-  en: {
-    title: "Students in this class",
-    subtitle: "{n} student",
-    subtitlePlural: "{n} students",
-    empty: "No students have joined yet. Share the class code so they can sign up.",
-    joinedOn: "Joined {date}",
-    remove: "Remove",
-    removeAria: "Remove student from class",
-    removeConfirmTitle: "Remove {name}?",
-    removeConfirmBody: "They'll lose access to this class. Their answer history stays in the database but won't be shown to them here. They can rejoin with the class code anytime.",
-    removeYes: "Remove",
-    removeNo: "Cancel",
-    removeError: "Could not remove the student. Try again.",
-    close: "Close",
-    loading: "Loading…",
-    // PR 28.8: bulk remove
-    selectAll: "Select all",
-    selectAria: "Select student",
-    selectedCount: "{n} selected",
-    bulkRemove: "Remove selected",
-    bulkCancel: "Clear",
-    bulkConfirmTitle: "Remove {n} students?",
-    bulkConfirmBody: "They'll lose access to this class. Their answer history stays in the database but won't be shown to them here. They can rejoin with the class code anytime.",
-    bulkError: "Could not remove the students. Try again.",
-  },
-  es: {
-    title: "Estudiantes en esta clase",
-    subtitle: "{n} estudiante",
-    subtitlePlural: "{n} estudiantes",
-    empty: "Ningún estudiante se ha unido aún. Compartí el código de clase para que se registren.",
-    joinedOn: "Se unió el {date}",
-    remove: "Remover",
-    removeAria: "Remover estudiante de la clase",
-    removeConfirmTitle: "¿Remover a {name}?",
-    removeConfirmBody: "Va a perder acceso a esta clase. Su historial de respuestas queda en la base de datos pero no se le muestra aquí. Puede volver a unirse con el código de clase cuando quiera.",
-    removeYes: "Remover",
-    removeNo: "Cancelar",
-    removeError: "No se pudo remover al estudiante. Intentá de nuevo.",
-    close: "Cerrar",
-    loading: "Cargando…",
-    // PR 28.8: bulk remove
-    selectAll: "Seleccionar todos",
-    selectAria: "Seleccionar estudiante",
-    selectedCount: "{n} seleccionados",
-    bulkRemove: "Remover seleccionados",
-    bulkCancel: "Limpiar",
-    bulkConfirmTitle: "¿Remover {n} estudiantes?",
-    bulkConfirmBody: "Van a perder acceso a esta clase. Su historial de respuestas queda en la base de datos pero no se les muestra aquí. Pueden volver a unirse con el código de clase cuando quieran.",
-    bulkError: "No se pudieron remover los estudiantes. Intentá de nuevo.",
-  },
-  ko: {
-    title: "이 수업의 학생들",
-    subtitle: "학생 {n}명",
-    subtitlePlural: "학생 {n}명",
-    empty: "아직 학생이 참여하지 않았습니다. 수업 코드를 공유하여 등록하도록 하세요.",
-    joinedOn: "{date} 참여",
-    remove: "삭제",
-    removeAria: "학생을 수업에서 제거",
-    removeConfirmTitle: "{name} 학생을 제거하시겠습니까?",
-    removeConfirmBody: "이 수업에 대한 접근 권한이 사라집니다. 답변 기록은 데이터베이스에 남지만 여기에 표시되지 않습니다. 언제든 수업 코드로 다시 참여할 수 있습니다.",
-    removeYes: "제거",
-    removeNo: "취소",
-    removeError: "학생을 제거할 수 없습니다. 다시 시도하세요.",
-    close: "닫기",
-    loading: "로딩 중…",
-    // PR 28.8: bulk remove
-    selectAll: "모두 선택",
-    selectAria: "학생 선택",
-    selectedCount: "{n}명 선택됨",
-    bulkRemove: "선택한 학생 제거",
-    bulkCancel: "선택 해제",
-    bulkConfirmTitle: "학생 {n}명을 제거하시겠습니까?",
-    bulkConfirmBody: "이 수업에 대한 접근 권한이 사라집니다. 답변 기록은 데이터베이스에 남지만 여기에 표시되지 않습니다. 언제든 수업 코드로 다시 참여할 수 있습니다.",
-    bulkError: "학생들을 제거할 수 없습니다. 다시 시도하세요.",
-  },
-};
+// PR 75: el bloque i18n local fue movido a src/i18n/{en,es,ko}.js
+// bajo el namespace "studentsModal".
 
 function formatJoinedDate(rawIso, lang) {
   if (!rawIso) return "";
@@ -120,9 +45,7 @@ export default function StudentsModal({
   lang = "en",
   onClose,
 }) {
-  const t = i18n[lang] || i18n.en;
-  // PR 68: toast notifications
-  const toast = useToast();
+  const t = useT("studentsModal", lang);
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
   // PR 28.8: selection state for bulk remove. Set<string> of class_member.id.
@@ -239,16 +162,11 @@ export default function StudentsModal({
       .delete({ count: "exact" })
       .in("id", ids);
     if (error || count !== ids.length) {
-      const detail = error || `expected ${ids.length} rows deleted, got ${count}`;
       console.error(
         "[clasloop] remove student(s) failed:",
-        detail
+        error || `expected ${ids.length} rows deleted, got ${count}`
       );
-      // PR 68: toast con mensaje localizado + reporte a Sentry
-      toast.error(confirmRemove.kind === "bulk" ? t.bulkError : t.removeError, {
-        reportError: error || new Error(`remove students: expected ${ids.length} got ${count}`),
-        context: { action: "removeStudents", kind: confirmRemove.kind, ids },
-      });
+      alert(confirmRemove.kind === "bulk" ? t.bulkError : t.removeError);
       setRemoving(false);
       return;
     }

@@ -1,6 +1,6 @@
 // ─── i18n/en.js ────────────────────────────────────────────────────────
 //
-// PR 73 + 74: traducciones en INGLÉS, agrupadas por namespace.
+// PR 73-75: traducciones en INGLÉS, agrupadas por namespace.
 //
 // Cada key corresponde a un archivo/componente de src/.
 //
@@ -10,7 +10,8 @@
 //   3. Usalas con `useT("namespace")` en el componente
 
 export default {
-  // ─── src/pages/AvatarOnboarding.jsx ──────────────────────────────────
+  // ─── PR 73 ───────────────────────────────────────────────────────────
+
   avatarOnboarding: {
     welcome: "Welcome, {name}!",
     pickOne: "Pick your avatar",
@@ -20,7 +21,6 @@ export default {
     saving: "Saving...",
   },
 
-  // ─── src/components/SessionInsightBar.jsx ────────────────────────────
   sessionInsightBar: {
     labelOne: "Weak point",
     labelTwo: "Weak points",
@@ -33,7 +33,6 @@ export default {
     failerSummary: (wrong, total) => `failed ${wrong}/${total}`,
   },
 
-  // ─── src/pages/Community.jsx ─────────────────────────────────────────
   community: {
     pageTitle: "Community",
     subtitle: "Browse decks shared by teachers worldwide",
@@ -62,7 +61,6 @@ export default {
     langs: ["English", "Spanish", "Korean"],
   },
 
-  // ─── src/components/DayDateModal.jsx ─────────────────────────────────
   dayDateModal: {
     titleAssign: "When is Day {n}?",
     titleEdit: "Change date for Day {n}",
@@ -77,9 +75,8 @@ export default {
     quickNextWeek: "Next week",
   },
 
-  // ─── PR 74: nuevos namespaces ────────────────────────────────────────
+  // ─── PR 74 ───────────────────────────────────────────────────────────
 
-  // ─── src/pages/SessionRecap.jsx ──────────────────────────────────────
   sessionRecap: {
     pageTitle: "Session results",
     summary: "{n} students · {q} questions",
@@ -93,7 +90,6 @@ export default {
     notAuthorized: "You don't own this session.",
   },
 
-  // ─── src/components/DeleteAccountModal.jsx ───────────────────────────
   deleteAccountModal: {
     title: "Delete your account",
     subtitle: "This is permanent and cannot be undone.",
@@ -108,7 +104,6 @@ export default {
     errorAuth: "Session expired. Sign in again before deleting.",
   },
 
-  // ─── src/components/LobbyThemeSelector.jsx ───────────────────────────
   lobbyThemeSelector: {
     title: "Theme",
     subtitle: "Pick how the quiz looks on your students' devices.",
@@ -123,7 +118,6 @@ export default {
     errorSaving: "Couldn't save the theme. Try again.",
   },
 
-  // ─── src/components/ClassCodeModal.jsx ───────────────────────────────
   classCodeModal: {
     title: "Join your class",
     subtitle: "Enter the class code your teacher gave you to get started.",
@@ -139,7 +133,6 @@ export default {
     helpHint: "Don't have a code? Ask your teacher.",
   },
 
-  // ─── src/pages/Director.jsx ──────────────────────────────────────────
   director: {
     pageTitle: "School Dashboard",
     subtitle: "Overview of your classes and student performance",
@@ -157,7 +150,6 @@ export default {
     loading: "Loading...",
   },
 
-  // ─── src/pages/Notifications.jsx ─────────────────────────────────────
   notifications: {
     pageTitle: "Notifications", all: "All", review: "Review", sessions: "Sessions", system: "System",
     noNotifications: "You're all caught up!", loading: "Loading...",
@@ -175,7 +167,6 @@ export default {
     markAllRead: "Mark all as read",
   },
 
-  // ─── src/components/AddToSlotModal.jsx ───────────────────────────────
   addToSlotModal: {
     titleWarmup: "Add a warmup to Day {n}",
     titleExit: "Add an exit ticket to Day {n}",
@@ -194,7 +185,6 @@ export default {
     addingError: "Could not add the deck. Try again.",
   },
 
-  // ─── src/pages/TeacherProfile.jsx ────────────────────────────────────
   teacherProfile: {
     pageTitle: "Profile", teacher: "Teacher",
     publicDecks: "Public decks", uses: "uses", deck: "deck", decks: "decks",
@@ -213,7 +203,6 @@ export default {
     noResults: "No decks match your filters.", clearFilters: "Clear filters",
   },
 
-  // ─── src/pages/RoleOnboarding.jsx ────────────────────────────────────
   roleOnboarding: {
     welcome: "Welcome to Clasloop",
     subtitle: "Which one are you?",
@@ -232,7 +221,6 @@ export default {
     confirmYes: "Yes, create my account",
   },
 
-  // ─── src/pages/GuestJoin.jsx ─────────────────────────────────────────
   guestJoin: {
     joinSession: "Join session",
     enterCode: "Enter the 6-digit code your teacher gave you",
@@ -250,5 +238,244 @@ export default {
     kickedTitle: "You were removed from this session",
     kickedHint: "Your teacher removed you from the lobby. You can rejoin with a different name if needed.",
     rejoin: "Rejoin",
+  },
+
+  // ─── PR 75 ───────────────────────────────────────────────────────────
+
+  myResults: {
+    title: "My results",
+    backToNotifs: "Back to notifications",
+    loading: "Loading…",
+    error: "Could not load results.",
+    sessionNotFound: "Session not found.",
+    noResponses: "You don't have any answers in this session yet.",
+    questionLabel: "Question {n}",
+    yourAnswer: "Your answer",
+    correctAnswer: "Correct answer",
+    noAnswer: "(no answer)",
+    teacherGrade: "Teacher grade",
+    teacherFeedback: "Teacher's feedback",
+    pendingReview: "Pending teacher review",
+    gradeCorrect: "Correct",
+    gradePartial: "Partial",
+    gradeIncorrect: "Incorrect",
+    pointsLabel: "{p} / {m}",
+  },
+
+  classInsights: {
+    title: "Insights",
+    backToClass: "Back to class",
+    loading: "Loading insights…",
+    error: "Could not load insights.",
+    classNotFound: "Class not found.",
+    emptyTitle: "No data yet",
+    emptyHint: "Once students practice these decks, results will appear here.",
+    decksCount: "{n} decks",
+    deckCountOne: "1 deck",
+    responses: "{n} responses",
+    responsesOne: "1 response",
+    pendingLabel: "{n} pending",
+    pendingLabelOne: "1 pending",
+    noDataInSection: "—",
+    noUsageWarmup: "No warmups used yet.",
+    noUsageExit: "No exit tickets used yet.",
+    noUsageGeneral: "No general review decks used yet.",
+    noDecksInSection: "No decks in this section.",
+  },
+
+  favorites: {
+    pageTitle: "Favorites",
+    back: "← Back",
+    searchPlaceholder: "Search your favorites…",
+    empty: "No favorites yet",
+    emptySub: "Star a deck from the community or your saved decks to see it here.",
+    noResults: "No favorites match that search.",
+    loading: "Loading...",
+    count: "{n} favorites",
+    countOne: "1 favorite",
+    favoriteRemove: "Remove from favorites",
+    favoriteAdd: "Add to favorites",
+    practice: "Practice",
+    unsave: "Unsave",
+    questionsCount: "questions",
+    savedFrom: "Saved from",
+    teacher: "Teacher",
+    practiceTimerOnTip: "Practice with timer (tap to study without time pressure)",
+    practiceTimerOffTip: "Practice untimed (tap to use the recommended timing)",
+  },
+
+  achievements: {
+    pageTitle: "Achievements",
+    subtitle: "Unlock new avatars by playing and learning",
+    all: "All", unlocked: "Unlocked", locked: "Locked",
+    total: "unlocked", common: "Common", rare: "Rare", legendary: "Legendary",
+    nextUnlock: "Closest to unlock",
+    close: "Close",
+    earned: "Earned!",
+    progressLabel: "Progress",
+    teacherNotice: "Achievements are designed for students.",
+    teacherNoticeHint: "Students earn avatars by playing live sessions, building streaks, and reaching retention goals.",
+    starter: "Starter avatar",
+    starterHint: "Available from day one.",
+    cond_sessions: "Complete {n} sessions",
+    cond_streak: "Reach a {n}-day streak",
+    cond_perfect: "Get 100% in {n} session(s)",
+    cond_answers: "Answer {n} questions correctly",
+    cond_topics: "Master {n} topics (≥70% retention)",
+    cond_comeback: "Return after {n} days away",
+    cond_retention: "Average retention ≥ {n}%",
+    loading: "Loading...",
+    noProgress: "Start a session to begin earning avatars",
+  },
+
+  pdfExportModal: {
+    title: "Export PDF",
+    subtitle: "Choose the style and the variant",
+    variantLabel: "Type",
+    variantExam: "Exam",
+    variantExamWithScan: "Exam + scan sheet",
+    variantKey: "AK",
+    variantKeyTooltip: "Answer key (for the teacher)",
+    styleLabel: "Style",
+    classicName: "Classic",
+    classicDesc: "Sober, professional",
+    modernName: "Modern",
+    modernDesc: "Colorful, friendly",
+    editorialName: "Editorial",
+    editorialDesc: "Premium, magazine",
+    framedName: "Framed",
+    framedDesc: "Formal, bordered",
+    paletteLabel: "Color",
+    previewLabel: "Preview",
+    previewLoading: "Generating preview…",
+    previewFailed: "Preview failed. You can still download.",
+    cancel: "Cancel",
+    download: "Download PDF",
+    close: "Close",
+  },
+
+  studentsModal: {
+    title: "Students in this class",
+    subtitle: "{n} student",
+    subtitlePlural: "{n} students",
+    empty: "No students have joined yet. Share the class code so they can sign up.",
+    joinedOn: "Joined {date}",
+    remove: "Remove",
+    removeAria: "Remove student from class",
+    removeConfirmTitle: "Remove {name}?",
+    removeConfirmBody: "They'll lose access to this class. Their answer history stays in the database but won't be shown to them here. They can rejoin with the class code anytime.",
+    removeYes: "Remove",
+    removeNo: "Cancel",
+    removeError: "Could not remove the student. Try again.",
+    close: "Close",
+    loading: "Loading…",
+    selectAll: "Select all",
+    selectAria: "Select student",
+    selectedCount: "{n} selected",
+    bulkRemove: "Remove selected",
+    bulkCancel: "Clear",
+    bulkConfirmTitle: "Remove {n} students?",
+    bulkConfirmBody: "They'll lose access to this class. Their answer history stays in the database but won't be shown to them here. They can rejoin with the class code anytime.",
+    bulkError: "Could not remove the students. Try again.",
+  },
+
+  deckResults: {
+    title: "Deck results",
+    backToDecks: "Back",
+    loading: "Loading results…",
+    error: "Could not load results.",
+    deckNotFound: "Deck not found.",
+    noResultsTitle: "No data yet",
+    noResultsHint: "Once students complete this deck, results will appear here.",
+    filterAllClasses: "All classes",
+    filterByClass: "Class",
+    questionLabel: "Question {n}",
+    totalResponses: "{n} responses",
+    avgTime: "Avg {t}",
+    correctLabel: "correct",
+    partialLabel: "partial",
+    incorrectLabel: "incorrect",
+    pendingLabel: "pending review",
+    pendingCta: "Go to To Review",
+    noResponsesYet: "No responses yet for this question.",
+    distributionTitle: "How students answered",
+    free: "Free response",
+    open: "Open response",
+    overviewTitle: "Overview",
+    overviewQuestions: "{n} questions with responses",
+    overviewSessions: "{n} total responses",
+  },
+
+  planView: {
+    dayLabel: "Day {n}",
+    noDateAssigned: "No date · Assign",
+    changeDate: "Change",
+    addWarmup: "+ Add warmup",
+    addExit: "+ Add exit ticket",
+    addDay: "+ Add Day {n}",
+    launch: "Launch",
+    kebabAria: "More options",
+    removeFromUnit: "Remove from unit",
+    editDeck: "Edit deck",
+    removeConfirm: "Remove \"{title}\" from this unit? The deck stays in this class — you can re-attach it to another unit later.",
+    removeError: "Could not remove the deck. Try again.",
+    questions: "questions",
+    statusActive: "Active",
+    statusPlanned: "Planned",
+    statusClosed: "Closed",
+    daysCount: "{n} days planned",
+    daysCountOne: "1 day planned",
+    daysCountZero: "No days planned yet",
+    emptyTitle: "This unit has no decks yet",
+    emptyHint: "Add a warmup or exit ticket to start building Day 1.",
+    prevUnit: "Previous unit",
+    nextUnit: "Next unit",
+    closeUnit: "Close unit",
+    reopen: "Reopen",
+    generalReviewsTitle: "General reviews",
+    generalReviewsHint: "Standalone content outside the daily plan — pre-exam recaps, monthly reviews.",
+    generalReviewsEmpty: "No general reviews yet. Use these for content that doesn't fit a warmup or exit ticket.",
+    addReview: "+ Add review",
+    searchPlaceholder: "Search this class — warmups, exits, reviews…",
+    searchEmpty: "No matches in this class.",
+    searchOneResult: "1 match",
+    searchResults: "{n} matches",
+  },
+
+  settings: {
+    pageTitle: "Settings",
+    profile: "Profile", appearance: "Appearance", account: "Account", notifications: "Notifications",
+    fullName: "Full name", email: "Email", role: "Role", school: "School", schoolPlaceholder: "Your school name",
+    saveChanges: "Save changes", saving: "Saving...", saved: "Saved!", teacher: "Teacher", student: "Student",
+    language: "Language", languageDesc: "Choose your preferred language",
+    theme: "Theme", themeDesc: "Choose your preferred appearance",
+    light: "Light", dark: "Dark", system: "System",
+    changePassword: "Change password", currentPassword: "Current password",
+    newPassword: "New password", confirmPassword: "Confirm password", updatePassword: "Update password",
+    updatingPassword: "Updating...", passwordUpdated: "Password updated!", passwordError: "Error updating password",
+    passwordMismatch: "Passwords don't match", passwordTooShort: "Password must be at least 6 characters",
+    dangerZone: "Danger zone", deleteAccount: "Delete account",
+    deleteAccountDesc: "Permanently delete your account and all data. Cannot be undone.",
+    deleteAccountBtn: "Delete my account", exportData: "Export data",
+    exportDataDesc: "Download all your data as JSON", exportBtn: "Export", exporting: "Exporting...",
+    emailNotifs: "Email notifications", emailNotifsDesc: "Receive weekly retention reports",
+    pushNotifs: "Review reminders", pushNotifsDesc: "Get reminded when topics need review",
+    weeklyReport: "Weekly report", weeklyReportDesc: "Receive a summary every Monday",
+    dailyGoal: "Daily goal", dailyGoalDesc: "Questions per day", questionsDay: "questions/day",
+    studyReminders: "Study reminders", studyRemindersDesc: "Remind me to practice weak topics",
+    streakReminder: "Streak reminder", streakReminderDesc: "Daily reminder to maintain streak",
+    profilePicture: "Profile picture",
+    avatarTabPhoto: "Upload photo", avatarTabAvatar: "Choose avatar",
+    avatarUploadHint: "JPG or PNG, max 5 MB. Square crops work best.",
+    avatarChoose: "Browse", avatarRemove: "Remove photo", avatarUploading: "Uploading...",
+    avatarSaved: "Avatar updated!",
+    avatarUseChosen: "Use this avatar",
+    avatarLockedHint: "Locked — keep practicing to unlock!",
+    defaultDeckVisibility: "Default deck privacy",
+    defaultDeckVisibilityDesc: "Applies to new decks you create. You can override per deck.",
+    visibilityPrivate: "Private",
+    visibilityPublic: "Public",
+    visibilityPrivateHint: "New decks start private. Share manually to publish.",
+    visibilityPublicHint: "New decks start public in the community. Make individual decks private if needed.",
   },
 };

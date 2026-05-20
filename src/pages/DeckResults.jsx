@@ -29,88 +29,12 @@ import {
   correctKeysForQuestion,
   formatAvgTime,
 } from "../lib/deck-stats";
+// PR 75: i18n centralizado
+import { useT } from "../i18n";
 
 // ─── i18n ────────────────────────────────────────────────────────────────
-const i18n = {
-  en: {
-    title: "Deck results",
-    backToDecks: "Back",
-    loading: "Loading results…",
-    error: "Could not load results.",
-    deckNotFound: "Deck not found.",
-    noResultsTitle: "No data yet",
-    noResultsHint: "Once students complete this deck, results will appear here.",
-    filterAllClasses: "All classes",
-    filterByClass: "Class",
-    questionLabel: "Question {n}",
-    totalResponses: "{n} responses",
-    avgTime: "Avg {t}",
-    correctLabel: "correct",
-    partialLabel: "partial",
-    incorrectLabel: "incorrect",
-    pendingLabel: "pending review",
-    pendingCta: "Go to To Review",
-    noResponsesYet: "No responses yet for this question.",
-    distributionTitle: "How students answered",
-    free: "Free response",
-    open: "Open response",
-    overviewTitle: "Overview",
-    overviewQuestions: "{n} questions with responses",
-    overviewSessions: "{n} total responses",
-  },
-  es: {
-    title: "Resultados del deck",
-    backToDecks: "Volver",
-    loading: "Cargando resultados…",
-    error: "No se pudieron cargar los resultados.",
-    deckNotFound: "Deck no encontrado.",
-    noResultsTitle: "Aún no hay datos",
-    noResultsHint: "Cuando los estudiantes completen este deck, los resultados aparecerán acá.",
-    filterAllClasses: "Todas las clases",
-    filterByClass: "Clase",
-    questionLabel: "Pregunta {n}",
-    totalResponses: "{n} respuestas",
-    avgTime: "Prom. {t}",
-    correctLabel: "correctas",
-    partialLabel: "parciales",
-    incorrectLabel: "incorrectas",
-    pendingLabel: "pendientes",
-    pendingCta: "Ir a Por revisar",
-    noResponsesYet: "Aún no hay respuestas para esta pregunta.",
-    distributionTitle: "Cómo respondieron",
-    free: "Respuesta libre",
-    open: "Respuesta abierta",
-    overviewTitle: "Resumen",
-    overviewQuestions: "{n} preguntas con respuestas",
-    overviewSessions: "{n} respuestas totales",
-  },
-  ko: {
-    title: "덱 결과",
-    backToDecks: "뒤로",
-    loading: "결과 불러오는 중…",
-    error: "결과를 불러올 수 없습니다.",
-    deckNotFound: "덱을 찾을 수 없습니다.",
-    noResultsTitle: "아직 데이터가 없습니다",
-    noResultsHint: "학생들이 이 덱을 완료하면 결과가 여기에 표시됩니다.",
-    filterAllClasses: "모든 수업",
-    filterByClass: "수업",
-    questionLabel: "{n}번 문제",
-    totalResponses: "{n}개 응답",
-    avgTime: "평균 {t}",
-    correctLabel: "정답",
-    partialLabel: "부분 정답",
-    incorrectLabel: "오답",
-    pendingLabel: "검토 대기",
-    pendingCta: "검토 페이지로",
-    noResponsesYet: "이 문제에 대한 응답이 아직 없습니다.",
-    distributionTitle: "응답 분포",
-    free: "자유 응답",
-    open: "개방형 응답",
-    overviewTitle: "개요",
-    overviewQuestions: "응답이 있는 문제 {n}개",
-    overviewSessions: "총 응답 {n}개",
-  },
-};
+// PR 75: el bloque i18n local fue movido a src/i18n/{en,es,ko}.js
+// bajo el namespace "deckResults".
 
 export default function DeckResults({ profile, lang = "en", setLang, onOpenMobileMenu }) {
   // App.jsx renders pages by mapping pathToPage(pathname) → component, but
@@ -124,7 +48,7 @@ export default function DeckResults({ profile, lang = "en", setLang, onOpenMobil
     return m ? decodeURIComponent(m[1]) : null;
   }, [location.pathname]);
   const navigate = useNavigate();
-  const t = i18n[lang] || i18n.en;
+  const t = useT("deckResults", lang);
 
   // ── State ─────────────────────────────────────────────────────────────
   const [deck, setDeck] = useState(null);
