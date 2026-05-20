@@ -1,4 +1,4 @@
-// src/components/LobbyThemeSelector.jsx
+﻿// src/components/LobbyThemeSelector.jsx
 //
 // PR 22: Modal for picking the visual theme of a class. The chosen
 // theme cascades to all sessions launched from that class, applying
@@ -6,19 +6,21 @@
 // teacher's projected screen too).
 //
 // Layout:
-//   ┌─ modal ────────────────────────────────────────────────────┐
-//   │ Header: title + close                                       │
-//   ├─ body ──────────────────────────────────────────────────────┤
-//   │ [theme grid 2×2]    [live preview of Question state]        │
-//   │  - Calm                                                     │
-//   │  - Ocean                                                    │
-//   │  - Pop                                                      │
-//   │  - Mono                                                     │
-//   ├─ footer ────────────────────────────────────────────────────┤
-//   │                                       [cancel]  [save]      │
-//   └─────────────────────────────────────────────────────────────┘
+//   â”Œâ”€ modal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+//   â”‚ Header: title + close                                       â”‚
+//   â”œâ”€ body â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¤
+//   â”‚ [theme grid 2Ã—2]    [live preview of Question state]        â”‚
+//   â”‚  - Calm                                                     â”‚
+//   â”‚  - Ocean                                                    â”‚
+//   â”‚  - Pop                                                      â”‚
+//   â”‚  - Mono                                                     â”‚
+//   â”œâ”€ footer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¤
+//   â”‚                                       [cancel]  [save]      â”‚
+//   â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
 //
-// Click a theme card → that theme becomes "selected" and the preview
+// PR 74: i18n centralizado
+import { useT } from "../i18n";
+// Click a theme card â†’ that theme becomes "selected" and the preview
 // on the right re-renders with its styles. Nothing persists until the
 // teacher clicks Save.
 
@@ -27,47 +29,8 @@ import { supabase } from "../lib/supabase";
 import { listThemes } from "../lib/themes";
 import { C } from "./tokens";
 
-const i18n = {
-  en: {
-    title: "Theme",
-    subtitle: "Pick how the quiz looks on your students' devices.",
-    cancel: "Cancel",
-    save: "Save",
-    saving: "Saving…",
-    previewLabel: "Preview — Question 4 of 8",
-    sampleQuestion: "Which of these conjugates the verb ser in present?",
-    sampleOptions: ["soy", "estoy", "tengo", "voy"],
-    sampleSection: "Warmup",
-    selected: "Selected",
-    errorSaving: "Couldn't save the theme. Try again.",
-  },
-  es: {
-    title: "Tema",
-    subtitle: "Elegí cómo se ve el quiz en los dispositivos de tus estudiantes.",
-    cancel: "Cancelar",
-    save: "Guardar",
-    saving: "Guardando…",
-    previewLabel: "Vista previa — Pregunta 4 de 8",
-    sampleQuestion: "¿Cuál de estas conjuga el verbo ser en presente?",
-    sampleOptions: ["soy", "estoy", "tengo", "voy"],
-    sampleSection: "Warmup",
-    selected: "Seleccionado",
-    errorSaving: "No se pudo guardar el tema. Intentá de nuevo.",
-  },
-  ko: {
-    title: "테마",
-    subtitle: "학생의 기기에서 퀴즈가 어떻게 보일지 선택하세요.",
-    cancel: "취소",
-    save: "저장",
-    saving: "저장 중…",
-    previewLabel: "미리보기 — 4 / 8",
-    sampleQuestion: "다음 중 동사 ser의 현재형은?",
-    sampleOptions: ["soy", "estoy", "tengo", "voy"],
-    sampleSection: "Warmup",
-    selected: "선택됨",
-    errorSaving: "테마를 저장할 수 없습니다. 다시 시도해 주세요.",
-  },
-};
+// PR 74: el bloque i18n local fue movido a src/i18n/{en,es,ko}.js
+// bajo el namespace "lobbyThemeSelector".
 
 export default function LobbyThemeSelector({
   classId,
@@ -77,7 +40,7 @@ export default function LobbyThemeSelector({
   onClose,
   onSaved,
 }) {
-  const t = i18n[lang] || i18n.en;
+  const t = useT("lobbyThemeSelector", lang);
   const themes = listThemes(); // [{ id, name, description, is_premium, ... }]
   const [selected, setSelected] = useState(currentTheme);
   const [saving, setSaving] = useState(false);
@@ -153,7 +116,7 @@ export default function LobbyThemeSelector({
               fontSize: 13,
               color: C.textSecondary,
             }}>
-              {className && <strong style={{ color: C.text }}>{className} · </strong>}
+              {className && <strong style={{ color: C.text }}>{className} Â· </strong>}
               {t.subtitle}
             </p>
           </div>
@@ -169,7 +132,7 @@ export default function LobbyThemeSelector({
               fontSize: 16,
               flexShrink: 0,
             }}
-          >×</button>
+          >Ã—</button>
         </div>
 
         {/* Body: grid + preview */}
@@ -209,7 +172,7 @@ export default function LobbyThemeSelector({
                     transition: "border-color .15s ease, background .15s ease",
                   }}
                 >
-                  {/* Mini swatch — small representation of the theme's background */}
+                  {/* Mini swatch â€” small representation of the theme's background */}
                   <div style={{
                     width: "100%",
                     height: 60,
@@ -242,14 +205,14 @@ export default function LobbyThemeSelector({
                       fontWeight: 700,
                       display: "grid",
                       placeItems: "center",
-                    }}>✓</div>
+                    }}>âœ“</div>
                   )}
                 </button>
               );
             })}
           </div>
 
-          {/* Live preview — embedded mini Question state */}
+          {/* Live preview â€” embedded mini Question state */}
           <ThemePreview themeId={selected} t={t} />
 
         </div>
@@ -303,7 +266,7 @@ export default function LobbyThemeSelector({
   );
 }
 
-// ─── Helpers ────────────────────────────────────────────────────────
+// â”€â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function themeSwatchBackground(id) {
   switch (id) {
@@ -315,8 +278,8 @@ function themeSwatchBackground(id) {
   }
 }
 
-// ─── Mini Question state preview ─────────────────────────────────────
-// Self-contained — reuses .stage CSS classes from themes.css. Wrapped
+// â”€â”€â”€ Mini Question state preview â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Self-contained â€” reuses .stage CSS classes from themes.css. Wrapped
 // in a scaled-down container so it fits the preview panel without
 // taking over the screen like the real student render does.
 function ThemePreview({ themeId, t }) {
@@ -331,7 +294,7 @@ function ThemePreview({ themeId, t }) {
       // Scale down: the real .stage CSS expects 100vw/vh, so we trick
       // it by making this container its own positioning context. The
       // CSS measurements (font sizes etc) are absolute, so this
-      // becomes a "mini" version — not a perfect 1:1 scaled mock, but
+      // becomes a "mini" version â€” not a perfect 1:1 scaled mock, but
       // close enough that the theme's feel comes through.
       contain: "layout style",
     }}>
@@ -346,7 +309,7 @@ function ThemePreview({ themeId, t }) {
           height: "100%",
         }}
       >
-        {/* Top strip (simplified — no exit button, no avatar) */}
+        {/* Top strip (simplified â€” no exit button, no avatar) */}
         <div className="top-strip" style={{ padding: "10px 14px 8px" }}>
           <div className="brand-area">
             <span className="brand-name" style={{ fontSize: 11 }}>Clasloop</span>
@@ -358,13 +321,13 @@ function ThemePreview({ themeId, t }) {
           </div>
           <div className="student-block">
             <div className="student-meta-text">
-              <div className="student-name-top" style={{ fontSize: 10 }}>María R.</div>
+              <div className="student-name-top" style={{ fontSize: 10 }}>MarÃ­a R.</div>
             </div>
             <div className="student-avatar" style={{ width: 22, height: 22, fontSize: 10 }}>M</div>
           </div>
         </div>
 
-        {/* Body — simplified Question state */}
+        {/* Body â€” simplified Question state */}
         <div className="content">
           <div
             className="question-state"

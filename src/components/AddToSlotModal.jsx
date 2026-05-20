@@ -1,27 +1,29 @@
-// ─── AddToSlotModal ─────────────────────────────────────────────────────
+﻿// â”€â”€â”€ AddToSlotModal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 //
 // When the teacher clicks an empty warmup or exit-ticket slot in PlanView,
 // this modal opens. It offers two paths:
 //
-//   1. Pick from library — search through decks the teacher already owns
+//   1. Pick from library â€” search through decks the teacher already owns
 //      that match this slot's section. Select one, it gets attached to
 //      the slot (unit_id + position UPDATE) and the modal closes.
 //
-//   2. Create a new one — opens the deck editor with section + unit + class
+//   2. Create a new one â€” opens the deck editor with section + unit + class
 //      pre-filled, the way ClassPage routed before this modal existed.
 //
 // The point of the modal: avoid the dead-end where every empty slot
 // dropped the teacher into a fresh editor. Most teachers already have
-// a deck that fits — they just need a way to slot it in.
+// a deck that fits â€” they just need a way to slot it in.
 //
 // What this component does NOT do:
-//   - Show decks from OTHER teachers (favorites, community) — those flow
+//   - Show decks from OTHER teachers (favorites, community) â€” those flow
 //     through "Customize favorite" elsewhere; here we keep it to the
 //     teacher's own library
-//   - Filter by class — we show all the teacher's decks of the matching
+// PR 74: i18n centralizado
+import { useT } from "../i18n";
+//   - Filter by class â€” we show all the teacher's decks of the matching
 //     section across classes, since the most common reuse case is
 //     adapting a warmup from "Spanish 9th A" to "Spanish 9th B"
-//   - Allow multi-select — one slot, one deck
+//   - Allow multi-select â€” one slot, one deck
 //
 // Schema interaction:
 //   Selecting an existing deck does:
@@ -36,59 +38,8 @@ import { supabase } from "../lib/supabase";
 import { C, MONO } from "./tokens";
 import SectionBadge, { sectionAccent } from "./SectionBadge";
 
-const i18n = {
-  en: {
-    titleWarmup: "Add a warmup to Day {n}",
-    titleExit: "Add an exit ticket to Day {n}",
-    tabLibrary: "Pick from library",
-    tabCreate: "Create a new one",
-    searchPlaceholder: "Search your decks…",
-    emptyLibrary: "No decks of this type yet. Create your first one.",
-    emptySearch: "No matches. Try a different search or create a new one.",
-    loadingDecks: "Loading your decks…",
-    fromClass: "from",
-    willCopy: "copy",
-    questions: "questions",
-    pick: "Add to slot",
-    createButton: "Create a new one",
-    cancel: "Cancel",
-    addingError: "Could not add the deck. Try again.",
-  },
-  es: {
-    titleWarmup: "Agregar un warmup al Día {n}",
-    titleExit: "Agregar un exit ticket al Día {n}",
-    tabLibrary: "Elegir de mi biblioteca",
-    tabCreate: "Crear uno nuevo",
-    searchPlaceholder: "Busca en tus decks…",
-    emptyLibrary: "Aún no tienes decks de este tipo. Crea el primero.",
-    emptySearch: "Sin resultados. Prueba otra búsqueda o crea uno nuevo.",
-    loadingDecks: "Cargando tus decks…",
-    fromClass: "de",
-    willCopy: "copia",
-    questions: "preguntas",
-    pick: "Agregar al slot",
-    createButton: "Crear uno nuevo",
-    cancel: "Cancelar",
-    addingError: "No se pudo agregar el deck. Intenta de nuevo.",
-  },
-  ko: {
-    titleWarmup: "{n}일차에 워밍업 추가",
-    titleExit: "{n}일차에 종료 티켓 추가",
-    tabLibrary: "라이브러리에서 선택",
-    tabCreate: "새로 만들기",
-    searchPlaceholder: "내 덱 검색…",
-    emptyLibrary: "이 유형의 덱이 아직 없습니다. 첫 번째 덱을 만들어보세요.",
-    emptySearch: "결과 없음. 다른 검색어를 시도하거나 새로 만드세요.",
-    loadingDecks: "덱 불러오는 중…",
-    fromClass: "—",
-    willCopy: "복사",
-    questions: "문제",
-    pick: "슬롯에 추가",
-    createButton: "새로 만들기",
-    cancel: "취소",
-    addingError: "덱을 추가할 수 없습니다. 다시 시도하세요.",
-  },
-};
+// PR 74: el bloque i18n local fue movido a src/i18n/{en,es,ko}.js
+// bajo el namespace "addToSlotModal".
 
 export default function AddToSlotModal({
   open,
@@ -99,12 +50,12 @@ export default function AddToSlotModal({
   dayNumber,
   slotKind,            // "warmup" | "exit"
   decks,               // already-fetched deck list (full list, we filter)
-  userId,              // for the library query — the teacher's own decks
+  userId,              // for the library query â€” the teacher's own decks
   lang = "en",
-  onPicked,            // callback(deck) — fired after successful UPDATE
-  onCreate,            // callback() — fires the original "go to editor" flow
+  onPicked,            // callback(deck) â€” fired after successful UPDATE
+  onCreate,            // callback() â€” fires the original "go to editor" flow
 }) {
-  const t = i18n[lang] || i18n.en;
+  const t = useT("addToSlotModal", lang);
   const section = slotKind === "warmup" ? "warmup" : "exit_ticket";
 
   const [tab, setTab] = useState("library"); // "library" | "create"
@@ -157,7 +108,7 @@ export default function AddToSlotModal({
   // EXCLUDING ones already in the active unit (already slotted).
   // PR 17: now spans ALL classes, not just the current one. The row
   // renders show "from {class.name}" so the teacher knows the origin.
-  // Sorted: most recently created first — fresh content is more likely
+  // Sorted: most recently created first â€” fresh content is more likely
   // what the teacher wants to grab.
   const libraryDecks = useMemo(() => {
     const source = allTeacherDecks || decks || [];
@@ -189,8 +140,8 @@ export default function AddToSlotModal({
   }, [allTeacherClasses, classes]);
 
   // Adding flow:
-  //   - Same class, different unit → UPDATE (move within the class).
-  //   - Different class           → INSERT a copy (preserve the original).
+  //   - Same class, different unit â†’ UPDATE (move within the class).
+  //   - Different class           â†’ INSERT a copy (preserve the original).
   //
   // The COPY path covers the most common case: teacher uses the same
   // material in Spanish 1A and Spanish 1B. Each class keeps its own
@@ -218,7 +169,7 @@ export default function AddToSlotModal({
     const isCrossClass = deck.class_id !== classId;
 
     if (isCrossClass) {
-      // ── COPY path: duplicate the deck into this class ─────────────
+      // â”€â”€ COPY path: duplicate the deck into this class â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       // Strip identity/stat fields so the new row starts fresh. The
       // questions array is the actual reusable payload.
       //
@@ -226,7 +177,7 @@ export default function AddToSlotModal({
       // (analyzeDerivation in src/lib/deck-derivation.js, called from
       // Decks.jsx) can detect the copy as a derivative of the original
       // when the teacher tries to publish it. Without this field set,
-      // both versions could be published independently — the gate is
+      // both versions could be published independently â€” the gate is
       // keyed on copied_from_id.
       const copy = {
         author_id: deck.author_id,
@@ -259,7 +210,7 @@ export default function AddToSlotModal({
       return;
     }
 
-    // ── MOVE path: same class, just relocate within units ──
+    // â”€â”€ MOVE path: same class, just relocate within units â”€â”€
     const updates = {
       unit_id: activeUnit.id,
       position: nextPos,
@@ -285,7 +236,7 @@ export default function AddToSlotModal({
   const stripeColor = sectionAccent(section);
 
   return (
-    // Backdrop — click outside closes (a teacher who opened by accident
+    // Backdrop â€” click outside closes (a teacher who opened by accident
     // shouldn't have to hunt for an X button)
     <div
       onClick={onClose}
@@ -343,7 +294,7 @@ export default function AddToSlotModal({
             }}
             aria-label={t.cancel}
           >
-            ×
+            Ã—
           </button>
         </div>
 
@@ -517,7 +468,7 @@ export default function AddToSlotModal({
               )}
             </>
           ) : (
-            // Create-new tab — minimal explainer + button
+            // Create-new tab â€” minimal explainer + button
             <div style={{
               padding: "24px 12px",
               textAlign: "center",
@@ -530,10 +481,10 @@ export default function AddToSlotModal({
               }}>
                 {slotKind === "warmup"
                   ? (lang === "es" ? "Crear un nuevo warmup"
-                     : lang === "ko" ? "새 워밍업 만들기"
+                     : lang === "ko" ? "ìƒˆ ì›Œë°ì—… ë§Œë“¤ê¸°"
                      : "Create a new warmup")
                   : (lang === "es" ? "Crear un nuevo exit ticket"
-                     : lang === "ko" ? "새 종료 티켓 만들기"
+                     : lang === "ko" ? "ìƒˆ ì¢…ë£Œ í‹°ì¼“ ë§Œë“¤ê¸°"
                      : "Create a new exit ticket")
                 }
               </div>
@@ -546,7 +497,7 @@ export default function AddToSlotModal({
                 {lang === "es"
                   ? "Te llevamos al editor con la clase, la unidad y el tipo ya elegidos."
                   : lang === "ko"
-                  ? "수업, 단원, 유형이 미리 선택된 편집기로 이동합니다."
+                  ? "ìˆ˜ì—…, ë‹¨ì›, ìœ í˜•ì´ ë¯¸ë¦¬ ì„ íƒëœ íŽ¸ì§‘ê¸°ë¡œ ì´ë™í•©ë‹ˆë‹¤."
                   : "We'll take you to the editor with class, unit, and session type already filled in."
                 }
               </div>
@@ -563,7 +514,7 @@ export default function AddToSlotModal({
                   cursor: "pointer",
                 }}
               >
-                {t.createButton} →
+                {t.createButton} â†’
               </button>
             </div>
           )}

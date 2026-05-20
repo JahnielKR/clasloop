@@ -6,57 +6,11 @@ import { loadDismissed, saveDismissed, fetchGradedSessionsForStudent } from "../
 import { CIcon } from "../components/Icons";
 import PageHeader from "../components/PageHeader";
 import { C } from "../components/tokens";
+// PR 74: i18n centralizado
+import { useT } from "../i18n";
 
-const i18n = {
-  en: {
-    pageTitle: "Notifications", all: "All", review: "Review", sessions: "Sessions", system: "System",
-    noNotifications: "You're all caught up!", loading: "Loading...",
-    topicsNeedReview: "topics need review", belowRetention: "below 50% retention",
-    sessionCompleted: "Session completed", avgScore: "Class average", students: "students participated",
-    streakReminder: "Don't lose your streak!", currentStreak: "Current streak", daysStreak: "days",
-    welcomeBack: "Welcome to Clasloop!", welcomeDesc: "Start by creating a class and running your first session.",
-    newSession: "New session available", joinNow: "Join now",
-    reviewNow: "Review now", viewResults: "View results",
-    feedbackTitle: "Feedback from your teacher",
-    feedbackDescOne: "1 answer was reviewed in {topic}",
-    feedbackDescMany: "{n} answers were reviewed in {topic}",
-    seeFeedback: "See feedback",
-    justNow: "Just now", minsAgo: "m ago", hoursAgo: "h ago", daysAgo: "d ago",
-    markAllRead: "Mark all as read",
-  },
-  es: {
-    pageTitle: "Notificaciones", all: "Todas", review: "Repaso", sessions: "Sesiones", system: "Sistema",
-    noNotifications: "¡Estás al día!", loading: "Cargando...",
-    topicsNeedReview: "temas necesitan repaso", belowRetention: "debajo del 50%",
-    sessionCompleted: "Sesión completada", avgScore: "Promedio de clase", students: "estudiantes participaron",
-    streakReminder: "¡No pierdas tu racha!", currentStreak: "Racha actual", daysStreak: "días",
-    welcomeBack: "¡Bienvenido a Clasloop!", welcomeDesc: "Empieza creando una clase y tu primera sesión.",
-    newSession: "Nueva sesión disponible", joinNow: "Unirse ahora",
-    reviewNow: "Repasar ahora", viewResults: "Ver resultados",
-    feedbackTitle: "Feedback de tu profe",
-    feedbackDescOne: "1 respuesta fue revisada en {topic}",
-    feedbackDescMany: "{n} respuestas fueron revisadas en {topic}",
-    seeFeedback: "Ver feedback",
-    justNow: "Ahora", minsAgo: "min", hoursAgo: "h", daysAgo: "d",
-    markAllRead: "Marcar todas como leídas",
-  },
-  ko: {
-    pageTitle: "알림", all: "전체", review: "복습", sessions: "세션", system: "시스템",
-    noNotifications: "모두 확인했습니다!", loading: "로딩...",
-    topicsNeedReview: "개 주제 복습 필요", belowRetention: "50% 미만",
-    sessionCompleted: "세션 완료", avgScore: "학급 평균", students: "명 참여",
-    streakReminder: "연속 기록을 잃지 마세요!", currentStreak: "현재 연속", daysStreak: "일",
-    welcomeBack: "Clasloop에 오신 것을 환영합니다!", welcomeDesc: "수업을 만들고 첫 세션을 시작하세요.",
-    newSession: "새 세션 가능", joinNow: "참여하기",
-    reviewNow: "복습 시작", viewResults: "결과 보기",
-    feedbackTitle: "선생님의 피드백",
-    feedbackDescOne: "{topic}에서 답변 1개가 검토되었습니다",
-    feedbackDescMany: "{topic}에서 답변 {n}개가 검토되었습니다",
-    seeFeedback: "피드백 보기",
-    justNow: "방금", minsAgo: "분 전", hoursAgo: "시간 전", daysAgo: "일 전",
-    markAllRead: "모두 읽음으로 표시",
-  },
-};
+// PR 74: el bloque i18n local fue movido a src/i18n/{en,es,ko}.js
+// bajo el namespace "notifications".
 
 // Persistent dismissed notifications: live in localStorage so dismissals
 // survive a refresh and stay in sync with App.jsx (which uses the same
@@ -98,7 +52,7 @@ export default function Notifications({ lang: pageLang = "en", setLang: pageSetL
   // Persistent across reloads — see DISMISSED_KEY above. We initialize from
   // localStorage on first render so dismiss survives a refresh.
   const [dismissed, setDismissed] = useState(() => loadDismissed());
-  const t = i18n[l] || i18n.en;
+  const t = useT("notifications", l);
 
   useEffect(() => { generateNotifications(); }, []);
 

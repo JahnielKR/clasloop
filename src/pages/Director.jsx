@@ -7,6 +7,8 @@ import { useIsMobile } from "../components/MobileMenuButton";
 import PageHeader from "../components/PageHeader";
 import { C as BASE_C, MONO } from "../components/tokens";
 import { ROUTES } from "../routes";
+// PR 74: i18n centralizado
+import { useT } from "../i18n";
 
 // Director adds a single yellow accent (used for warning-tier indicators
 // in the dashboard). No paired yellowSoft because Director uses bgSoft for
@@ -15,53 +17,8 @@ const C = BASE_C;
 
 const retCol = (v) => v >= 70 ? C.green : v >= 40 ? C.orange : C.red;
 
-const i18n = {
-  en: {
-    pageTitle: "School Dashboard", subtitle: "Overview of your classes and student performance",
-    backToMyClasses: "Back to My Classes",
-    overview: "Overview", byClass: "By Class", students: "Students", alerts: "Alerts",
-    avgRetention: "Avg retention", totalStudents: "Total students", totalSessions: "Total sessions", classesActive: "Classes active",
-    className: "Class", grade: "Grade", subject: "Subject", retention: "Retention", sessions: "Sessions", studentCount: "Students",
-    topPerformers: "Top performers", atRisk: "At-risk students", atRiskDesc: "Retention below 40% in 2+ topics",
-    lowTopics: "Low retention topics", lowTopicsDesc: "Topics below 50% that need review",
-    noClasses: "No classes yet. Create a class in My Classes to start tracking.",
-    noStudents: "No student data yet. Run a session first.",
-    noAlerts: "No alerts — everything looks good!",
-    strong: "Strong", needsReview: "Needs review", weak: "Weak",
-    lastSession: "Last session", noSessions: "No sessions",
-    loading: "Loading...",
-  },
-  es: {
-    pageTitle: "Panel Escolar", subtitle: "Vista general de tus clases y rendimiento estudiantil",
-    backToMyClasses: "Volver a Mis clases",
-    overview: "Resumen", byClass: "Por Clase", students: "Estudiantes", alerts: "Alertas",
-    avgRetention: "Retención prom.", totalStudents: "Total estudiantes", totalSessions: "Total sesiones", classesActive: "Clases activas",
-    className: "Clase", grade: "Grado", subject: "Materia", retention: "Retención", sessions: "Sesiones", studentCount: "Estudiantes",
-    topPerformers: "Mejores estudiantes", atRisk: "Estudiantes en riesgo", atRiskDesc: "Retención menor a 40% en 2+ temas",
-    lowTopics: "Temas con baja retención", lowTopicsDesc: "Temas debajo del 50% que necesitan repaso",
-    noClasses: "Sin clases aún. Crea una clase en Mis clases para empezar.",
-    noStudents: "Sin datos de estudiantes aún. Crea una sesión primero.",
-    noAlerts: "Sin alertas — ¡todo se ve bien!",
-    strong: "Fuerte", needsReview: "Necesita repaso", weak: "Débil",
-    lastSession: "Última sesión", noSessions: "Sin sesiones",
-    loading: "Cargando...",
-  },
-  ko: {
-    pageTitle: "학교 대시보드", subtitle: "수업과 학생 성과 현황",
-    backToMyClasses: "내 수업으로 돌아가기",
-    overview: "개요", byClass: "수업별", students: "학생", alerts: "알림",
-    avgRetention: "평균 기억률", totalStudents: "총 학생", totalSessions: "총 세션", classesActive: "활동 수업",
-    className: "수업", grade: "학년", subject: "과목", retention: "기억률", sessions: "세션", studentCount: "학생",
-    topPerformers: "우수 학생", atRisk: "위험 학생", atRiskDesc: "2개 이상 주제에서 40% 미만",
-    lowTopics: "낮은 기억률 주제", lowTopicsDesc: "50% 미만으로 복습 필요",
-    noClasses: "아직 수업이 없습니다. 내 수업에서 수업을 만드세요.",
-    noStudents: "아직 학생 데이터가 없습니다. 세션을 먼저 실행하세요.",
-    noAlerts: "알림 없음 — 모두 순조롭습니다!",
-    strong: "강함", needsReview: "복습 필요", weak: "약함",
-    lastSession: "마지막 세션", noSessions: "세션 없음",
-    loading: "로딩...",
-  },
-};
+// PR 74: el bloque i18n local fue movido a src/i18n/{en,es,ko}.js
+// bajo el namespace "director".
 
 const css = `
   .sd-tab { transition: all .15s ease; cursor: pointer; border: none; font-family: 'Outfit',sans-serif; }
@@ -101,7 +58,7 @@ export default function Director({ lang: pageLang = "en", setLang: pageSetLang, 
   const [studentData, setStudentData] = useState({});
   const [sessionCounts, setSessionCounts] = useState({});
   const [memberCounts, setMemberCounts] = useState({});
-  const t = i18n[l] || i18n.en;
+  const t = useT("director", l);
 
   useEffect(() => { loadData(); }, []);
 
