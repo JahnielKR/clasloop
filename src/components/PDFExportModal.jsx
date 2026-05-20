@@ -330,7 +330,23 @@ const STYLE_THUMBS = {
 async function generatePreviewBlobURL(deck, classObj, { style, variant, lang, paletteId }) {
   const renderer = STYLES[style] || STYLES.classic;
   const doc = new jsPDF({ unit: "mm", format: "a4" });
-  const useKorean = (deck.language || "").toLowerCase() === "ko";
+  // PR 81: detectar hangul en el contenido del deck, no solo en deck.language.
+  // Ver comentario equivalente en src/lib/pdf-export.js para detalles.
+  const HANGUL_RE = /[\uAC00-\uD7A3]/;
+  const hasKoreanContent = (() => {
+    try {
+      const stringified = JSON.stringify({
+        title: deck.title,
+        description: deck.description,
+        questions: deck.questions,
+      });
+      return HANGUL_RE.test(stringified);
+    } catch {
+      return false;
+    }
+  })();
+  const useKorean =
+    (deck.language || "").toLowerCase() === "ko" || hasKoreanContent;
   if (useKorean) {
     await ensureKoreanFont(doc);
   }
