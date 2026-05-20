@@ -731,7 +731,7 @@ export default function Review({ profile, lang = "en", onOpenMobileMenu }) {
       {/* PR 28.4 / 28.6: Level 1 — student list (no drilldown).
           One row per real student (collapsing across sessions thanks
           to studentKey). Shows session count below the name.
-          Click → ?student=<key> → Level 2. */}
+          Click {"\u2192"} ?student=<key> {"\u2192"} Level 2. */}
       {!loading && !error && !selectedStudentKey && globalPending > 0 && (
         <div>
           {studentGroups.map((g) => {
@@ -803,8 +803,8 @@ export default function Review({ profile, lang = "en", onOpenMobileMenu }) {
       )}
 
       {/* PR 28.6: Level 2 — session list for the selected student.
-          One row per test they have pending FRQs in. Click →
-          ?session=<id> → Level 3. */}
+          One row per test they have pending FRQs in. Click {"\u2192"}
+          ?session=<id> {"\u2192"} Level 3. */}
       {!loading && !error && selectedStudentKey && !selectedSessionId && sessionGroups.length > 0 && (
         <div>
           {sessionGroups.map((s) => {

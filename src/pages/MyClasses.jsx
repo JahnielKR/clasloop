@@ -417,7 +417,7 @@ export default function MyClasses({ lang: pageLang = "en", setLang: pageSetLang,
                 onMouseEnter={(e) => e.currentTarget.style.background = C.accentSoft}
                 onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
               >
-                {t.favoritesSeeAll} →
+                {t.favoritesSeeAll} {"\u2192"}
               </button>
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 12 }}>
@@ -544,7 +544,7 @@ export default function MyClasses({ lang: pageLang = "en", setLang: pageSetLang,
                           )}
                         </div>
                       </div>
-                      <span style={{ fontSize: 18, color: C.textMuted, flexShrink: 0, alignSelf: "center" }}>→</span>
+                      <span style={{ fontSize: 18, color: C.textMuted, flexShrink: 0, alignSelf: "center" }}>{"\u2192"}</span>
                     </div>
                   </Card>
                 </div>
@@ -876,7 +876,7 @@ function ClassDetail({ cls, profile, t, lang, onBack, onLaunchPractice }) {
                         <span style={{ fontSize: 13, fontWeight: 700, fontFamily: MONO, color: retCol(p.retention_score) }}>
                           {p.retention_score}%
                         </span>
-                        {matchingDeck && <span style={{ fontSize: 16, color: C.textMuted }}>→</span>}
+                        {matchingDeck && <span style={{ fontSize: 16, color: C.textMuted }}>{"\u2192"}</span>}
                       </Card>
                     );
                   })}

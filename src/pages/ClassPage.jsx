@@ -1452,7 +1452,7 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
       })()}
 
       {/* ─── TAB: Past units ───────────────────────────────────────────
-          Read-mostly list of closed units. Click on one → jump to it
+          Read-mostly list of closed units. Click on one {"\u2192"} jump to it
           in Current tab (the carrousel) so the teacher can review the
           plan that was. */}
       {topTab === "past" && (() => {
@@ -1517,7 +1517,7 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
                       )}
                     </div>
                   </div>
-                  <span style={{ color: C.textMuted, fontSize: 14 }}>→</span>
+                  <span style={{ color: C.textMuted, fontSize: 14 }}>{"\u2192"}</span>
                 </button>
               );
             })}
@@ -1587,7 +1587,7 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
                       {decksInUnit.length} {lang === "es" ? "decks" : lang === "ko" ? "덱" : "decks"}
                     </div>
                   </div>
-                  <span style={{ color: C.textMuted, fontSize: 14 }}>→</span>
+                  <span style={{ color: C.textMuted, fontSize: 14 }}>{"\u2192"}</span>
                 </button>
               );
             })}
@@ -1701,7 +1701,7 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
 
       {/* ─── TAB: Search ───────────────────────────────────────────────
           Active when the teacher typed something. Searches:
-          - Unit names (matched units → cards showing all their decks)
+          - Unit names (matched units {"\u2192"} cards showing all their decks)
           - Deck titles, tags, subject
           Results are grouped: matched units first, then individual decks. */}
       {topTab === "search" && (() => {

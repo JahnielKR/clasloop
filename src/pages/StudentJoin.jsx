@@ -396,7 +396,7 @@ function OrderPanel({
               <div className="order-card-num">{idx + 1}</div>
               <div className="order-card-text">{item}</div>
               {showResult && item !== correctItem && (
-                <div className="order-card-hint">→ {correctItem}</div>
+                <div className="order-card-hint">{"\u2192"} {correctItem}</div>
               )}
             </button>
           );
@@ -2472,7 +2472,7 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
                       </div>
 
                       {/* PR 24.1: branch render by question type.
-                          - MCQ: existing 2×2 tile grid (PR 20.2)
+                          - MCQ: existing 2{"\u00D7"}2 tile grid (PR 20.2)
                           - TF: two large side-by-side buttons
                           PR 28.11: branch on displayedQType so during
                           the slide-out animation the body matches the
@@ -2736,7 +2736,7 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
                               completo). Si el overlay viviera dentro de
                               .stage-next-text (que es del ancho del
                               texto), la animación se completaría más
-                              rápido que la barra → desfase visual. */}
+                              rápido que la barra {"\u2192"} desfase visual. */}
                           <span className="stage-next-text-base">
                             {current + 1 >= questions.length
                               ? (t.seeResults || "See results")
@@ -3262,7 +3262,7 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
                       }}>
                         <span style={{ width: 22, height: 22, borderRadius: 6, background: showResult ? (ok ? C.green : C.red) : C.accent, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, flexShrink: 0 }}>{j + 1}</span>
                         <span style={{ flex: 1 }}>{item}</span>
-                        {showResult && !ok && <span style={{ fontSize: 12, color: C.textMuted }}>→ {correctItem}</span>}
+                        {showResult && !ok && <span style={{ fontSize: 12, color: C.textMuted }}>{"\u2192"} {correctItem}</span>}
                       </div>
                     );
                   })}
@@ -3600,7 +3600,7 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
               {/* PR 28.10: walk the display order so each row's answer
                   (answers[i] follows display order — that's how it was
                   built) pairs with the right question. When shuffle is
-                  off, displayOrder is the identity → this matches the
+                  off, displayOrder is the identity {"\u2192"} this matches the
                   pre-28.10 behavior exactly. */}
               {displayOrder.map((origIdx, i) => {
                 const qq = questions[origIdx];

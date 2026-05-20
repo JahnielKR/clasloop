@@ -749,7 +749,7 @@ function Slot({ deck, slotKind, t, lang, onLaunch, onSlotClick, isUsed, onRemove
             flexShrink: 0,
           }}
         >
-          {t.launch} →
+          {t.launch} {"\u2192"}
         </button>
         {/* PR 24.9: kebab menu — only when the deck hasn't been used.
             Used decks lock in place because they have student responses
@@ -962,7 +962,7 @@ function GeneralReviewCard({ deck, t, lang, onLaunch }) {
           flexShrink: 0,
         }}
       >
-        {t.launch} →
+        {t.launch} {"\u2192"}
       </button>
     </div>
   );
@@ -1390,8 +1390,8 @@ export default function PlanView({
       {/* PR6 follow-up: keyframes for unit transition animations.
           Slide-out: current unit content slides toward one edge and fades.
           Slide-in: new unit content enters from the OPPOSITE edge.
-          Direction handshake: next-arrow → outgoing slides LEFT, incoming
-          enters from right; prev-arrow → outgoing slides RIGHT, incoming
+          Direction handshake: next-arrow {"\u2192"} outgoing slides LEFT, incoming
+          enters from right; prev-arrow {"\u2192"} outgoing slides RIGHT, incoming
           enters from left. The 200ms out + 240ms in window matches the
           setTimeout chain in the unit-change useEffect above. */}
       <style>{`
@@ -1443,7 +1443,7 @@ export default function PlanView({
       >
 
       {/* Unit header — flex row with three groups:
-          [← prev] [editable name + meta]                  [next →] [close unit]
+          [{"\u2190"} prev] [editable name + meta]                  [next {"\u2192"}] [close unit]
           Arrows let the teacher flip between units like pages. The
           activeUnit's name is editable inline (click to rename). The
           "Close unit" action lives at the far right — irreversible
@@ -1482,7 +1482,7 @@ export default function PlanView({
           onMouseEnter={e => { if (handlePrev && !animating) e.currentTarget.style.background = C.bgSoft; }}
           onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}
         >
-          ←
+          {"\u2190"}
         </button>
 
         {/* Name + meta. The close/reopen button now lives between this
@@ -1592,7 +1592,7 @@ export default function PlanView({
           onMouseEnter={e => { if (handleNext && !animating) e.currentTarget.style.background = C.bgSoft; }}
           onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}
         >
-          →
+          {"\u2192"}
         </button>
       </div>
 

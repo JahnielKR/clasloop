@@ -486,7 +486,7 @@ export default function Sidebar({
               flexShrink: 0,
             }}
           >
-            ×
+            {"\u00D7"}
           </button>
         )}
       </div>

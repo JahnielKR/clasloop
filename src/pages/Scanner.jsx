@@ -461,7 +461,7 @@ function PickDeckStage({ t, decks, onPickDeck }) {
                     {t.questionsLabel(scanCount)}
                   </div>
                 </div>
-                <span style={{ fontSize: 18, color: C.accent }}>→</span>
+                <span style={{ fontSize: 18, color: C.accent }}>{"\u2192"}</span>
               </button>
             );
           })}
