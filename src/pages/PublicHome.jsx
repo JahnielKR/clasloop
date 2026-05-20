@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { LogoMark, CIcon } from "../components/Icons";
 import { C, MONO } from "../components/tokens";
+// PR 77: i18n centralizado
+import { useT } from "../i18n";
 
 // ─── i18n ──────────────────────────────────────────────────
 // La landing es el primer punto de contacto del producto. El copy va alineado
@@ -8,200 +10,8 @@ import { C, MONO } from "../components/tokens";
 // usamos lenguaje vago ("active learning", "engaging", etc.) — todo es
 // concreto y específico. EN es prioridad, después ES y KO.
 
-const i18n = {
-  en: {
-    navFeatures: "Features",
-    navSchools: "For schools",
-    navPricing: "Pricing",
-    haveCode: "Got a code?",
-    signIn: "Sign in",
-    signUpFree: "Sign up free",
-
-    pill: "Your daily warmups & exit tickets",
-    taglinePart1: "From any file to a class warmup or exit ticket in",
-    taglineHighlight: "60 seconds.",
-    sub: "Any file or topic in. Verified, ready-to-use questions out. You review, launch, done.",
-    ctaPrimary: "Start free trial",
-    ctaSubtext: "7 days free, all features unlocked. No credit card needed.",
-
-    typeMcq: "Multiple choice",
-    typeTf: "True/False",
-    typeFill: "Fill blanks",
-    typeOrder: "Order steps",
-    typeMatch: "Match pairs",
-    typeOpen: "Open response",
-    typeSentence: "Sentence",
-    typeSlider: "Slider",
-    typePoll: "Poll",
-
-    howTitle: "Three steps. Five minutes. Done.",
-    howSub: "The same routine, every day. That's where the learning sticks.",
-    step1Title: "Drop your material",
-    step1Body: "PDF, PowerPoint, Word, image, or just type a topic. Whatever you already have for class.",
-    step2Title: "AI writes and verifies",
-    step2Body: "Questions get generated, then double-checked for quality before you see them. No hallucinations, no filler.",
-    step3Title: "Launch in class",
-    step3Body: "Five minutes at the start to warm up. Five at the end as exit ticket. Repeat tomorrow.",
-
-    whyTitle: "Built for the daily class routine",
-    whySub: "Most quiz apps are made for big events. Clasloop is made for what you do every day.",
-    why1Title: "Spaced repetition baked in",
-    why1Body: "Concepts students struggle with come back automatically. The stuff they got right rests longer.",
-    why2Title: "Reuse what you build",
-    why2Body: "Every warmup you generate stays in your library. Run the same one again next semester. Or remix it.",
-    why3Title: "Works in any subject",
-    why3Body: "Math, biology, English, history. If you can teach it, the AI can write the warmup for it.",
-
-    finalTitle: "Every class deserves a warmup.",
-    finalSub: "Every lesson, an exit.",
-
-    footerTagline: "Your daily warmups & exit tickets.",
-    footerPrivacy: "Privacy",
-    footerTerms: "Terms",
-    footerContact: "Contact",
-    footerCopyright: "© 2026 Clasloop. Built for teachers.",
-
-    codeDialogTitle: "Got a code?",
-    codeDialogHint: "Enter the 6-digit code from your teacher.",
-    codePlaceholder: "Code",
-    codeJoin: "Join",
-    codeCancel: "Cancel",
-
-    signUp: "Create account",
-    teacherSignup: "I'm a teacher",
-    studentSignup: "I'm a student",
-    haveAccount: "Already have an account?",
-    back: "← Back",
-  },
-  es: {
-    navFeatures: "Funcionalidades",
-    navSchools: "Para escuelas",
-    navPricing: "Precios",
-    haveCode: "¿Tienes un código?",
-    signIn: "Iniciar sesión",
-    signUpFree: "Registrarse gratis",
-
-    pill: "Tus warmups y exit tickets diarios",
-    taglinePart1: "De cualquier archivo a un warmup o exit ticket en",
-    taglineHighlight: "60 segundos.",
-    sub: "Cualquier archivo o tema entra. Preguntas verificadas y listas para usar salen. Tú revisas, lanzas, listo.",
-    ctaPrimary: "Empezar prueba gratis",
-    ctaSubtext: "7 días gratis, todas las funciones. Sin tarjeta de crédito.",
-
-    typeMcq: "Opción múltiple",
-    typeTf: "Verdadero/Falso",
-    typeFill: "Rellenar espacios",
-    typeOrder: "Ordenar pasos",
-    typeMatch: "Emparejar",
-    typeOpen: "Respuesta libre",
-    typeSentence: "Oración",
-    typeSlider: "Slider",
-    typePoll: "Encuesta",
-
-    howTitle: "Tres pasos. Cinco minutos. Listo.",
-    howSub: "La misma rutina, cada día. Ahí es donde el aprendizaje se queda.",
-    step1Title: "Sube tu material",
-    step1Body: "PDF, PowerPoint, Word, imagen, o simplemente escribe un tema. Lo que ya tienes para clase.",
-    step2Title: "La AI escribe y verifica",
-    step2Body: "Las preguntas se generan, luego se revisan por calidad antes de que las veas. Sin alucinaciones, sin relleno.",
-    step3Title: "Lanza en clase",
-    step3Body: "Cinco minutos al inicio para activar. Cinco al final como exit ticket. Mañana se repite.",
-
-    whyTitle: "Hecho para la rutina diaria de clase",
-    whySub: "Las apps de quiz están hechas para eventos grandes. Clasloop está hecho para lo que haces cada día.",
-    why1Title: "Repetición espaciada incorporada",
-    why1Body: "Los conceptos donde fallan los estudiantes vuelven automáticamente. Lo que dominaron descansa más tiempo.",
-    why2Title: "Reusa lo que construyes",
-    why2Body: "Cada warmup que generas se queda en tu biblioteca. Lánzalo de nuevo el próximo semestre. O remíxalo.",
-    why3Title: "Funciona en cualquier materia",
-    why3Body: "Matemáticas, biología, inglés, historia. Si lo enseñas, la AI te puede escribir el warmup.",
-
-    finalTitle: "Cada clase merece un warmup.",
-    finalSub: "Cada lección, un exit ticket.",
-
-    footerTagline: "Tus warmups y exit tickets diarios.",
-    footerPrivacy: "Privacidad",
-    footerTerms: "Términos",
-    footerContact: "Contacto",
-    footerCopyright: "© 2026 Clasloop. Hecho para profes.",
-
-    codeDialogTitle: "¿Tienes un código?",
-    codeDialogHint: "Ingresa el código de 6 dígitos de tu profe.",
-    codePlaceholder: "Código",
-    codeJoin: "Entrar",
-    codeCancel: "Cancelar",
-
-    signUp: "Crear cuenta",
-    teacherSignup: "Soy profe",
-    studentSignup: "Soy estudiante",
-    haveAccount: "¿Ya tienes cuenta?",
-    back: "← Atrás",
-  },
-  ko: {
-    navFeatures: "기능",
-    navSchools: "학교용",
-    navPricing: "가격",
-    haveCode: "코드가 있나요?",
-    signIn: "로그인",
-    signUpFree: "무료 가입",
-
-    pill: "매일의 워밍업과 종료 티켓",
-    taglinePart1: "어떤 파일이든 워밍업이나 종료 티켓으로",
-    taglineHighlight: "60초.",
-    sub: "어떤 파일이나 주제든 입력하세요. 검증된 사용 가능한 문제가 나옵니다. 검토하고, 시작하고, 완료.",
-    ctaPrimary: "무료 체험 시작",
-    ctaSubtext: "7일 무료, 모든 기능 잠금 해제. 신용카드 필요 없음.",
-
-    typeMcq: "객관식",
-    typeTf: "참/거짓",
-    typeFill: "빈칸 채우기",
-    typeOrder: "순서 정렬",
-    typeMatch: "짝 맞추기",
-    typeOpen: "주관식",
-    typeSentence: "문장",
-    typeSlider: "슬라이더",
-    typePoll: "투표",
-
-    howTitle: "세 단계. 5분. 완료.",
-    howSub: "매일 같은 루틴. 그곳에서 학습이 자리 잡습니다.",
-    step1Title: "자료를 올리세요",
-    step1Body: "PDF, PowerPoint, Word, 이미지, 또는 그냥 주제를 입력하세요. 이미 가지고 있는 수업 자료라면 무엇이든.",
-    step2Title: "AI가 작성하고 검증합니다",
-    step2Body: "문제가 생성된 후 품질을 다시 확인합니다. 환각도, 무의미한 내용도 없습니다.",
-    step3Title: "수업에서 시작하세요",
-    step3Body: "시작 5분 동안 워밍업. 끝 5분 동안 종료 티켓. 내일 다시.",
-
-    whyTitle: "매일의 수업 루틴을 위해 만들어졌습니다",
-    whySub: "대부분의 퀴즈 앱은 큰 이벤트용입니다. Clasloop은 매일 하는 것을 위한 것입니다.",
-    why1Title: "간격 반복 학습 내장",
-    why1Body: "학생들이 어려워하는 개념이 자동으로 다시 나타납니다. 잘 아는 것은 더 오래 쉬게 됩니다.",
-    why2Title: "만든 것을 재사용하세요",
-    why2Body: "생성한 모든 워밍업은 라이브러리에 저장됩니다. 다음 학기에 다시 사용하거나 리믹스할 수 있습니다.",
-    why3Title: "어떤 과목에서도 작동합니다",
-    why3Body: "수학, 생물, 영어, 역사. 가르칠 수 있다면 AI가 그 과목의 워밍업을 작성할 수 있습니다.",
-
-    finalTitle: "모든 수업은 워밍업이 필요합니다.",
-    finalSub: "모든 강의는 종료 티켓이 필요합니다.",
-
-    footerTagline: "매일의 워밍업과 종료 티켓.",
-    footerPrivacy: "개인정보",
-    footerTerms: "약관",
-    footerContact: "연락처",
-    footerCopyright: "© 2026 Clasloop. 선생님들을 위해.",
-
-    codeDialogTitle: "코드가 있나요?",
-    codeDialogHint: "선생님이 알려준 6자리 코드를 입력하세요.",
-    codePlaceholder: "코드",
-    codeJoin: "참여",
-    codeCancel: "취소",
-
-    signUp: "계정 만들기",
-    teacherSignup: "저는 선생님이에요",
-    studentSignup: "저는 학생이에요",
-    haveAccount: "이미 계정이 있나요?",
-    back: "← 뒤로",
-  },
-};
+// PR 77: el bloque i18n local fue movido a src/i18n/{en,es,ko}.js
+// bajo el namespace "publicHome".
 
 // ─── Floating doc card data ────────────────────────────────
 // 4 cards animan en el hero. Cada card representa un input típico (PDF,
@@ -421,7 +231,7 @@ export default function PublicHome({ onSignIn, onSignUp }) {
       window.localStorage?.setItem("clasloop_lang", newLang);
     }
   };
-  const t = i18n[lang] || i18n.en;
+  const t = useT("publicHome", lang);
 
   // ─── Modes y dialogs ─────────────────────────────────────
   // mode: "home" (landing principal) | "auth-select" (role picker)
