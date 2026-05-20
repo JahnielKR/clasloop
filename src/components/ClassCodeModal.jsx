@@ -1,4 +1,4 @@
-// ─── ClassCodeModal — gating modal for students without a class ──────────
+﻿// â”€â”€â”€ ClassCodeModal â€” gating modal for students without a class â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 //
 // Renders on top of the app shell (which is visible but dimmed) when a
 // student account has no class membership yet. The student MUST either:
@@ -9,7 +9,7 @@
 // Students arrive in Clasloop because a teacher told them to; without a
 // class code the app has nothing meaningful to show them.
 //
-// Used by App.jsx — see the interception block right after the avatar
+// Used by App.jsx â€” see the interception block right after the avatar
 // onboarding check. Renders BEFORE avatar onboarding (no class = no
 // point in customizing).
 
@@ -18,58 +18,18 @@ import { joinClass } from "../hooks/useClass";
 import { supabase } from "../lib/supabase";
 import { C } from "./tokens";
 
-const i18n = {
-  en: {
-    title: "Join your class",
-    subtitle: "Enter the class code your teacher gave you to get started.",
-    inputLabel: "Class code",
-    inputPlaceholder: "e.g. SPAN-9A",
-    joinBtn: "Join class",
-    joining: "Joining…",
-    signOut: "Sign out",
-    errorNotFound: "Class not found. Check the code and try again.",
-    errorAlreadyJoined: "You're already in this class.",
-    errorGeneric: "Could not join the class. Try again.",
-    errorMissingCode: "Enter a class code.",
-    helpHint: "Don't have a code? Ask your teacher.",
-  },
-  es: {
-    title: "Únete a tu clase",
-    subtitle: "Ingresá el código de clase que te dio tu profesor para empezar.",
-    inputLabel: "Código de clase",
-    inputPlaceholder: "ej. SPAN-9A",
-    joinBtn: "Unirme a la clase",
-    joining: "Uniéndote…",
-    signOut: "Cerrar sesión",
-    errorNotFound: "No se encontró la clase. Revisá el código y probá de nuevo.",
-    errorAlreadyJoined: "Ya estás en esta clase.",
-    errorGeneric: "No se pudo unir a la clase. Intentá de nuevo.",
-    errorMissingCode: "Ingresá un código de clase.",
-    helpHint: "¿No tenés código? Pedíselo a tu profe.",
-  },
-  ko: {
-    title: "수업에 참여하기",
-    subtitle: "선생님이 알려준 수업 코드를 입력하여 시작하세요.",
-    inputLabel: "수업 코드",
-    inputPlaceholder: "예: SPAN-9A",
-    joinBtn: "수업 참여",
-    joining: "참여 중…",
-    signOut: "로그아웃",
-    errorNotFound: "수업을 찾을 수 없습니다. 코드를 확인하고 다시 시도하세요.",
-    errorAlreadyJoined: "이미 이 수업에 참여하고 있습니다.",
-    errorGeneric: "수업에 참여할 수 없습니다. 다시 시도하세요.",
-    errorMissingCode: "수업 코드를 입력하세요.",
-    helpHint: "코드가 없나요? 선생님에게 물어보세요.",
-  },
-};
+// PR 74: i18n centralizado
+import { useT } from "../i18n";
+// PR 74: el bloque i18n local fue movido a src/i18n/{en,es,ko}.js
+// bajo el namespace "classCodeModal".
 
 export default function ClassCodeModal({ profile, lang = "en", onJoined }) {
-  const t = i18n[lang] || i18n.en;
+  const t = useT("classCodeModal", lang);
   const [code, setCode] = useState("");
   const [joining, setJoining] = useState(false);
   const [error, setError] = useState("");
 
-  // Lock body scroll while the modal is open — student shouldn't be
+  // Lock body scroll while the modal is open â€” student shouldn't be
   // able to scroll the dimmed shell behind.
   useEffect(() => {
     const prev = document.body.style.overflow;
@@ -78,7 +38,7 @@ export default function ClassCodeModal({ profile, lang = "en", onJoined }) {
   }, []);
 
   // NO escape handlers. The student can't dismiss this with Esc or
-  // by clicking outside — only by joining or signing out.
+  // by clicking outside â€” only by joining or signing out.
 
   const handleJoin = async () => {
     const trimmed = code.trim();
@@ -103,7 +63,7 @@ export default function ClassCodeModal({ profile, lang = "en", onJoined }) {
       setJoining(false);
       return;
     }
-    // "Already joined" with class returned is still a success path —
+    // "Already joined" with class returned is still a success path â€”
     // the row exists, the student is in. Close the modal and let the
     // app re-render with the new membership.
     setJoining(false);
@@ -151,7 +111,7 @@ export default function ClassCodeModal({ profile, lang = "en", onJoined }) {
           boxShadow: "0 24px 70px rgba(0, 0, 0, 0.35)",
         }}
       >
-        {/* Decorative icon — gives the modal a face beyond pure text */}
+        {/* Decorative icon â€” gives the modal a face beyond pure text */}
         <div style={{
           width: 56, height: 56,
           margin: "0 auto 18px",
@@ -286,7 +246,7 @@ export default function ClassCodeModal({ profile, lang = "en", onJoined }) {
           {t.helpHint}
         </p>
 
-        {/* Sign out — the only escape hatch. Subtle but visible. */}
+        {/* Sign out â€” the only escape hatch. Subtle but visible. */}
         <div style={{
           marginTop: 22,
           paddingTop: 18,

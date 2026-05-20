@@ -6,63 +6,11 @@ import StudentJoin from "./StudentJoin";
 import { C, MONO } from "../components/tokens";
 import { useIsMobile } from "../components/MobileMenuButton";
 import MobileBlockedScreen from "../components/MobileBlockedScreen";
+// PR 74: i18n centralizado
+import { useT } from "../i18n";
 
-const i18n = {
-  en: {
-    joinSession: "Join session",
-    enterCode: "Enter the 6-digit code your teacher gave you",
-    enterName: "What's your name?",
-    namePlaceholder: "Your name",
-    codePlaceholder: "Code",
-    join: "Join", joining: "Joining...",
-    notFound: "Session not found or guests not allowed",
-    nameInvalid: "Please choose an appropriate name",
-    nameTooShort: "Please enter your name",
-    nameTooLong: "Name is too long (max 30 chars)",
-    haveAccount: "Have an account?", signIn: "Sign in",
-    backHome: "Back to home",
-    reconnecting: "Reconnecting...",
-    kickedTitle: "You were removed from this session",
-    kickedHint: "Your teacher removed you from the lobby. You can rejoin with a different name if needed.",
-    rejoin: "Rejoin",
-  },
-  es: {
-    joinSession: "Unirse a la sesión",
-    enterCode: "Ingresa el código de 6 dígitos que te dio tu profe",
-    enterName: "¿Cómo te llamas?",
-    namePlaceholder: "Tu nombre",
-    codePlaceholder: "Código",
-    join: "Entrar", joining: "Entrando...",
-    notFound: "Sesión no encontrada o invitados no permitidos",
-    nameInvalid: "Elige un nombre apropiado",
-    nameTooShort: "Ingresa tu nombre",
-    nameTooLong: "Nombre muy largo (máx 30 caracteres)",
-    haveAccount: "¿Tienes cuenta?", signIn: "Inicia sesión",
-    backHome: "Volver al inicio",
-    reconnecting: "Reconectando...",
-    kickedTitle: "Fuiste retirado de esta sesión",
-    kickedHint: "Tu profe te sacó del lobby. Puedes volver a entrar con otro nombre si quieres.",
-    rejoin: "Volver a entrar",
-  },
-  ko: {
-    joinSession: "세션 참여",
-    enterCode: "선생님이 알려준 6자리 코드를 입력하세요",
-    enterName: "이름이 뭐예요?",
-    namePlaceholder: "이름",
-    codePlaceholder: "코드",
-    join: "참여", joining: "참여 중...",
-    notFound: "세션을 찾을 수 없거나 게스트가 허용되지 않습니다",
-    nameInvalid: "적절한 이름을 선택하세요",
-    nameTooShort: "이름을 입력하세요",
-    nameTooLong: "이름이 너무 깁니다 (최대 30자)",
-    haveAccount: "계정이 있나요?", signIn: "로그인",
-    backHome: "홈으로",
-    reconnecting: "다시 연결 중...",
-    kickedTitle: "이 세션에서 제외되었습니다",
-    kickedHint: "선생님이 로비에서 내보냈습니다. 다른 이름으로 다시 참여할 수 있습니다.",
-    rejoin: "다시 참여",
-  },
-};
+// PR 74: el bloque i18n local fue movido a src/i18n/{en,es,ko}.js
+// bajo el namespace "guestJoin".
 
 const inp = {
   fontFamily: "'Outfit',sans-serif",
@@ -88,7 +36,7 @@ export default function GuestJoin({ initialCode = "" }) {
   const initialLang = ["en", "es", "ko"].includes(urlLang) ? urlLang
     : ["en", "es", "ko"].includes(browserLang) ? browserLang : "en";
   const [lang, setLang] = useState(initialLang);
-  const t = i18n[lang] || i18n.en;
+  const t = useT("guestJoin", lang);
 
   // Read code from URL or prop
   const codeFromURL = urlParams.get("code") || initialCode;

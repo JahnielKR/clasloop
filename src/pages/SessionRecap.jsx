@@ -22,48 +22,14 @@ import { ROUTES, buildRoute } from "../routes";
 import PageHeader from "../components/PageHeader";
 import SectionBadge from "../components/SectionBadge";
 import SessionInsightBar from "../components/SessionInsightBar";
+// PR 74: i18n centralizado — strings en src/i18n/{en,es,ko}.js bajo "sessionRecap"
+import { useT } from "../i18n";
 
-const i18n = {
-  en: {
-    pageTitle: "Session results",
-    summary: "{n} students · {q} questions",
-    avgLabel: "average",
-    topPctLabel: "above 85%",
-    leaderboardTitle: "Results",
-    backToSessions: "Back to sessions",
-    viewDetails: "Per-question details",
-    loading: "Loading results…",
-    notFound: "Session not found.",
-    notAuthorized: "You don't own this session.",
-  },
-  es: {
-    pageTitle: "Resultados de la sesión",
-    summary: "{n} estudiantes · {q} preguntas",
-    avgLabel: "promedio",
-    topPctLabel: "sobre 85%",
-    leaderboardTitle: "Resultados",
-    backToSessions: "Volver a sesiones",
-    viewDetails: "Detalles por pregunta",
-    loading: "Cargando resultados…",
-    notFound: "Sesión no encontrada.",
-    notAuthorized: "No sos dueño de esta sesión.",
-  },
-  ko: {
-    pageTitle: "세션 결과",
-    summary: "{n}명 학생 · {q}문항",
-    avgLabel: "평균",
-    topPctLabel: "85% 이상",
-    leaderboardTitle: "결과",
-    backToSessions: "세션으로 돌아가기",
-    viewDetails: "문항별 세부정보",
-    loading: "결과 불러오는 중…",
-    notFound: "세션을 찾을 수 없습니다.",
-    notAuthorized: "이 세션의 소유자가 아닙니다.",
-  },
-};
+// PR 74: el bloque i18n local fue movido a src/i18n/{en,es,ko}.js
+// bajo el namespace "sessionRecap".
 
 export default function SessionRecap({ lang = "en", setLang, profile, onOpenMobileMenu }) {
-  const t = i18n[lang] || i18n.en;
+  const t = useT("sessionRecap", lang);
   const location = useLocation();
   const navigate = useNavigate();
 

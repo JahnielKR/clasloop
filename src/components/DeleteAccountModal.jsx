@@ -18,48 +18,11 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
 import { C } from "./tokens";
+// PR 74: i18n centralizado
+import { useT } from "../i18n";
 
-const i18n = {
-  en: {
-    title: "Delete your account",
-    subtitle: "This is permanent and cannot be undone.",
-    explainStudent: "Your profile, class memberships, answer history, achievements, and progress will be permanently deleted. You can sign up again later with the same email if you change your mind.",
-    explainTeacher: "Your profile and ALL classes you own, including their decks, sessions, and student responses, will be permanently deleted. Students currently in your classes will lose access. This cannot be undone.",
-    typeToConfirm: "Type DELETE to confirm",
-    typeHint: "Must match exactly",
-    cancel: "Cancel",
-    deleteBtn: "Delete account permanently",
-    deleting: "Deleting…",
-    error: "Could not delete the account. Try again.",
-    errorAuth: "Session expired. Sign in again before deleting.",
-  },
-  es: {
-    title: "Eliminar tu cuenta",
-    subtitle: "Esta acción es permanente y no se puede deshacer.",
-    explainStudent: "Tu perfil, membresías de clase, historial de respuestas, logros y progreso serán eliminados permanentemente. Podés volver a registrarte después con el mismo email si cambiás de opinión.",
-    explainTeacher: "Tu perfil y TODAS las clases que sos dueño, incluyendo sus decks, sesiones y respuestas de alumnos, serán eliminados permanentemente. Los alumnos actualmente en tus clases perderán acceso. Esto no se puede deshacer.",
-    typeToConfirm: "Escribí DELETE para confirmar",
-    typeHint: "Debe coincidir exactamente",
-    cancel: "Cancelar",
-    deleteBtn: "Eliminar cuenta permanentemente",
-    deleting: "Eliminando…",
-    error: "No se pudo eliminar la cuenta. Intentá de nuevo.",
-    errorAuth: "La sesión expiró. Iniciá sesión de nuevo antes de eliminar.",
-  },
-  ko: {
-    title: "계정 삭제",
-    subtitle: "이 작업은 영구적이며 되돌릴 수 없습니다.",
-    explainStudent: "프로필, 수업 참여 기록, 답변 기록, 업적 및 진행 상황이 영구적으로 삭제됩니다. 마음이 바뀌면 나중에 같은 이메일로 다시 가입할 수 있습니다.",
-    explainTeacher: "귀하의 프로필과 소유한 모든 수업(덱, 세션, 학생 응답 포함)이 영구적으로 삭제됩니다. 현재 수업에 있는 학생들은 접근 권한을 잃습니다. 이 작업은 되돌릴 수 없습니다.",
-    typeToConfirm: "확인하려면 DELETE를 입력하세요",
-    typeHint: "정확히 일치해야 합니다",
-    cancel: "취소",
-    deleteBtn: "계정 영구 삭제",
-    deleting: "삭제 중…",
-    error: "계정을 삭제할 수 없습니다. 다시 시도하세요.",
-    errorAuth: "세션이 만료되었습니다. 삭제하기 전에 다시 로그인하세요.",
-  },
-};
+// PR 74: el bloque i18n local fue movido a src/i18n/{en,es,ko}.js
+// bajo el namespace "deleteAccountModal".
 
 const CONFIRM_TOKEN = "DELETE";
 
@@ -69,7 +32,7 @@ export default function DeleteAccountModal({
   lang = "en",
   onClose,
 }) {
-  const t = i18n[lang] || i18n.en;
+  const t = useT("deleteAccountModal", lang);
   const [typed, setTyped] = useState("");
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState("");

@@ -7,61 +7,12 @@ import { useIsMobile } from "../components/MobileMenuButton";
 import PageHeader from "../components/PageHeader";
 import SectionBadge from "../components/SectionBadge";
 import { C } from "../components/tokens";
+// PR 74: i18n centralizado
+import { useT } from "../i18n";
 const MONO = "'JetBrains Mono', monospace";
 
-const i18n = {
-  en: {
-    pageTitle: "Profile", teacher: "Teacher",
-    publicDecks: "Public decks", uses: "uses", deck: "deck", decks: "decks",
-    noDecks: "This teacher hasn't published any decks yet.",
-    notAvailable: "This profile isn't public",
-    notAvailableHint: "The profile you're looking for is private or doesn't exist.",
-    backToCommunity: "Back to Community",
-    share: "Share", linkCopied: "Link copied!",
-    questions: "questions",
-    saveToFavorites: "Save to favorites", removeFromFavorites: "Remove from favorites",
-    saveToMyDecks: "Save to my decks",
-    addToWhich: "Add to which class?", noClass: "No class — keep as personal", saved: "Saved!",
-    cancel: "Cancel",
-    by: "by", back: "Back",
-    searchPlaceholder: "Search decks...", filterAllSubjects: "All subjects", filterAllGrades: "All grades", filterAllLanguages: "All languages",
-    noResults: "No decks match your filters.", clearFilters: "Clear filters",
-  },
-  es: {
-    pageTitle: "Perfil", teacher: "Profesor",
-    publicDecks: "Decks públicos", uses: "usos", deck: "deck", decks: "decks",
-    noDecks: "Este profe aún no ha publicado decks.",
-    notAvailable: "Este perfil no es público",
-    notAvailableHint: "El perfil que buscas es privado o no existe.",
-    backToCommunity: "Volver a Comunidad",
-    share: "Compartir", linkCopied: "¡Enlace copiado!",
-    questions: "preguntas",
-    saveToFavorites: "Guardar en favoritos", removeFromFavorites: "Quitar de favoritos",
-    saveToMyDecks: "Guardar en mis decks",
-    addToWhich: "¿A qué clase?", noClass: "Sin clase — mantener personal", saved: "¡Guardado!",
-    cancel: "Cancelar",
-    by: "por", back: "Volver",
-    searchPlaceholder: "Buscar decks...", filterAllSubjects: "Todas las materias", filterAllGrades: "Todos los grados", filterAllLanguages: "Todos los idiomas",
-    noResults: "Ningún deck coincide con los filtros.", clearFilters: "Limpiar filtros",
-  },
-  ko: {
-    pageTitle: "프로필", teacher: "교사",
-    publicDecks: "공개 덱", uses: "회 사용", deck: "덱", decks: "덱",
-    noDecks: "이 선생님은 아직 공개된 덱이 없습니다.",
-    notAvailable: "이 프로필은 공개되지 않았습니다",
-    notAvailableHint: "찾으시는 프로필은 비공개이거나 존재하지 않습니다.",
-    backToCommunity: "커뮤니티로 돌아가기",
-    share: "공유", linkCopied: "링크가 복사되었습니다!",
-    questions: "문제",
-    saveToFavorites: "즐겨찾기에 저장", removeFromFavorites: "즐겨찾기에서 제거",
-    saveToMyDecks: "내 덱에 저장",
-    addToWhich: "어느 수업에?", noClass: "수업 없음 — 개인용", saved: "저장됨!",
-    cancel: "취소",
-    by: "", back: "뒤로",
-    searchPlaceholder: "덱 검색...", filterAllSubjects: "모든 과목", filterAllGrades: "모든 학년", filterAllLanguages: "모든 언어",
-    noResults: "필터와 일치하는 덱이 없습니다.", clearFilters: "필터 지우기",
-  },
-};
+// PR 74: el bloque i18n local fue movido a src/i18n/{en,es,ko}.js
+// bajo el namespace "teacherProfile".
 
 const sel = {
   fontFamily: "'Outfit',sans-serif", background: C.bg, border: `1px solid ${C.border}`,
@@ -111,7 +62,7 @@ function ProfilePic({ url, avatarId, name, size = 88 }) {
 }
 
 export default function TeacherProfile({ teacherId, profile: viewerProfile, lang = "en", setLang, onNavigateToCommunity, onOpenMobileMenu }) {
-  const t = i18n[lang] || i18n.en;
+  const t = useT("teacherProfile", lang);
   const viewerId = viewerProfile?.id;
   const viewerRole = viewerProfile?.role; // "student" | "teacher"
 

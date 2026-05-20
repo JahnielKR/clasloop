@@ -1,93 +1,43 @@
-// ─── RoleOnboarding ──────────────────────────────────────────────────────
+﻿// â”€â”€â”€ RoleOnboarding â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 //
 // PR 43: Pantalla obligatoria post-signup/signin que aparece UNA SOLA VEZ
-// (cuando un user autenticado no tiene profile todavía). El user elige
-// si es profesor o estudiante. La elección crea el profile en la DB con
+// (cuando un user autenticado no tiene profile todavÃ­a). El user elige
+// si es profesor o estudiante. La elecciÃ³n crea el profile en la DB con
 // el rol seleccionado.
 //
-// Esta pantalla es la ÚNICA forma de crear un profile. El trigger SQL
-// que antes hacía esto automáticamente fue eliminado en el migration
+// Esta pantalla es la ÃšNICA forma de crear un profile. El trigger SQL
+// que antes hacÃ­a esto automÃ¡ticamente fue eliminado en el migration
 // pr43_drop_auto_profile_trigger.sql.
 //
 // Props:
 //   user      - el auth user (de supabase.auth.getUser())
-//   lang      - código de idioma (en/es/ko)
+//   lang      - cÃ³digo de idioma (en/es/ko)
 //   onCreated - callback(profile) cuando el user elige y el insert
-//               tiene éxito. El padre actualiza setProfile.
+//               tiene Ã©xito. El padre actualiza setProfile.
 //
-// La elección NO se puede cambiar después desde la UI — es una decisión
+// La elecciÃ³n NO se puede cambiar despuÃ©s desde la UI â€” es una decisiÃ³n
 // de producto: 1 cuenta = 1 rol. Si necesitan otro rol, usan otro email.
 
+// PR 74: i18n centralizado
+import { useT } from "../i18n";
 import { useState } from "react";
 import { supabase } from "../lib/supabase";
 import { LogoMark, TeacherInline, StudentInline } from "../components/Icons";
 import { C } from "../components/tokens";
 
-const I18N = {
-  en: {
-    welcome: "Welcome to Clasloop",
-    subtitle: "Which one are you?",
-    teacher: "I'm a Teacher",
-    teacherDesc: "Create classes, build decks, run quizzes for students",
-    student: "I'm a Student",
-    studentDesc: "Join your teacher's class and answer their quizzes",
-    warning: "This choice can't be changed later.",
-    creating: "Setting up your account…",
-    error: "Something went wrong. Try again.",
-    // Confirm step (PR 43.2)
-    confirmTitle: "Are you sure?",
-    confirmTeacher: "You're about to create a Teacher account.",
-    confirmStudent: "You're about to create a Student account.",
-    confirmDetail: "This can't be changed later. If you need the other role, you'll have to use a different email.",
-    confirmBack: "Go back",
-    confirmYes: "Yes, create my account",
-  },
-  es: {
-    welcome: "Bienvenido a Clasloop",
-    subtitle: "¿Cuál te describe mejor?",
-    teacher: "Soy Profesor",
-    teacherDesc: "Creá clases, armá decks y tomá quizzes a estudiantes",
-    student: "Soy Estudiante",
-    studentDesc: "Unite a la clase de tu profe y respondé sus quizzes",
-    warning: "Esta elección no se puede cambiar después.",
-    creating: "Configurando tu cuenta…",
-    error: "Algo salió mal. Intentá de nuevo.",
-    confirmTitle: "¿Estás seguro?",
-    confirmTeacher: "Estás por crear una cuenta de Profesor.",
-    confirmStudent: "Estás por crear una cuenta de Estudiante.",
-    confirmDetail: "Esto no se puede cambiar después. Si necesitás el otro rol, vas a tener que usar otro email.",
-    confirmBack: "Volver",
-    confirmYes: "Sí, crear mi cuenta",
-  },
-  ko: {
-    welcome: "Clasloop에 오신 것을 환영합니다",
-    subtitle: "어느 쪽이신가요?",
-    teacher: "교사입니다",
-    teacherDesc: "수업을 만들고 덱을 구성하며 학생들에게 퀴즈를 실시",
-    student: "학생입니다",
-    studentDesc: "선생님의 수업에 참여하고 퀴즈에 답하기",
-    warning: "이 선택은 나중에 변경할 수 없습니다.",
-    creating: "계정을 설정하는 중…",
-    error: "문제가 발생했습니다. 다시 시도해 주세요.",
-    confirmTitle: "확실합니까?",
-    confirmTeacher: "교사 계정을 만들려고 합니다.",
-    confirmStudent: "학생 계정을 만들려고 합니다.",
-    confirmDetail: "나중에 변경할 수 없습니다. 다른 역할이 필요하면 다른 이메일을 사용해야 합니다.",
-    confirmBack: "돌아가기",
-    confirmYes: "예, 계정 만들기",
-  },
-};
+// PR 74: el bloque i18n local fue movido a src/i18n/{en,es,ko}.js
+// bajo el namespace "roleOnboarding".
 
 export default function RoleOnboarding({ user, lang = "en", onCreated }) {
-  const t = I18N[lang] || I18N.en;
+  const t = useT("roleOnboarding", lang);
   const [step, setStep] = useState("select"); // "select" | "confirm"
   const [pickedRole, setPickedRole] = useState(null); // "teacher" | "student"
   const [submitting, setSubmitting] = useState(false);
   const [hoveredCard, setHoveredCard] = useState(null);
   const [error, setError] = useState("");
 
-  // Click en una card del select step: solo guardamos la elección y
-  // pasamos al confirm step. No tocamos la DB todavía.
+  // Click en una card del select step: solo guardamos la elecciÃ³n y
+  // pasamos al confirm step. No tocamos la DB todavÃ­a.
   const handlePickRole = (role) => {
     if (submitting) return;
     setPickedRole(role);
@@ -95,7 +45,7 @@ export default function RoleOnboarding({ user, lang = "en", onCreated }) {
     setError("");
   };
 
-  // Click "Atrás" en el confirm step: volvemos al select sin crear nada.
+  // Click "AtrÃ¡s" en el confirm step: volvemos al select sin crear nada.
   const handleBack = () => {
     if (submitting) return;
     setStep("select");
@@ -103,7 +53,7 @@ export default function RoleOnboarding({ user, lang = "en", onCreated }) {
     setError("");
   };
 
-  // Click "Sí, crear mi cuenta" en el confirm step: ESTO recién crea
+  // Click "SÃ­, crear mi cuenta" en el confirm step: ESTO reciÃ©n crea
   // el profile en la DB.
   const handleConfirm = async () => {
     if (submitting || !pickedRole) return;
@@ -124,8 +74,8 @@ export default function RoleOnboarding({ user, lang = "en", onCreated }) {
           id: user.id,
           full_name: fullName,
           role: pickedRole,
-          // Si Google nos pasó una avatar URL, la guardamos. Los students
-          // de todas formas eligen avatar después; los teachers pueden
+          // Si Google nos pasÃ³ una avatar URL, la guardamos. Los students
+          // de todas formas eligen avatar despuÃ©s; los teachers pueden
           // dejarla.
           avatar_url: avatarFromMetadata,
         })
@@ -146,7 +96,7 @@ export default function RoleOnboarding({ user, lang = "en", onCreated }) {
     }
   };
 
-  // ─── Card builder ──────────────────────────────────────────────────────
+  // â”€â”€â”€ Card builder â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const buildCard = (role, label, desc, Icon, accentColor) => {
     const isHovered = hoveredCard === role;
     return (
@@ -225,7 +175,7 @@ export default function RoleOnboarding({ user, lang = "en", onCreated }) {
     }}>
       <div style={{ maxWidth: step === "confirm" ? 460 : 720, width: "100%" }}>
 
-        {/* Step: SELECT — elegir rol entre 2 cards */}
+        {/* Step: SELECT â€” elegir rol entre 2 cards */}
         {step === "select" && (
           <>
             <div style={{ textAlign: "center", marginBottom: 40 }}>
@@ -279,7 +229,7 @@ export default function RoleOnboarding({ user, lang = "en", onCreated }) {
           </>
         )}
 
-        {/* Step: CONFIRM — confirmación con Atrás/Confirmar */}
+        {/* Step: CONFIRM â€” confirmaciÃ³n con AtrÃ¡s/Confirmar */}
         {step === "confirm" && (
           <div style={{
             background: C.bg,
@@ -367,7 +317,7 @@ export default function RoleOnboarding({ user, lang = "en", onCreated }) {
                   opacity: submitting ? 0.6 : 1,
                   fontFamily: "'Outfit', sans-serif",
                 }}
-              >← {t.confirmBack}</button>
+              >â† {t.confirmBack}</button>
             </div>
           </div>
         )}
