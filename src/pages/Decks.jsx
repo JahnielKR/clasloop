@@ -47,24 +47,6 @@ const GRADES = ["6th-7th", "7th-8th", "8th-9th", "9th-10th", "10th-11th", "11th-
 const inp = { fontFamily: "'Outfit',sans-serif", background: C.bg, border: `1px solid ${C.border}`, color: C.text, padding: "10px 14px", borderRadius: 8, fontSize: 14, width: "100%", outline: "none" };
 const sel = { ...inp, cursor: "pointer", appearance: "none", backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2 4l4 4 4-4' fill='none' stroke='%239B9B9B' stroke-width='1.5'/%3E%3C/svg%3E")`, backgroundRepeat: "no-repeat", backgroundPosition: "right 12px center", paddingRight: 32 };
 
-// PR 8: shared style for items inside the PDF download popover.
-// Two items only (Exam / Answer key), so styling them inline in the
-// popover would be repetitive; consts keep the JSX readable.
-const popoverItemStyle = {
-  display: "block",
-  width: "100%",
-  padding: "8px 12px",
-  borderRadius: 5,
-  background: "transparent",
-  color: C.text,
-  border: "none",
-  fontSize: 12.5,
-  fontWeight: 500,
-  cursor: "pointer",
-  fontFamily: "'Outfit', sans-serif",
-  textAlign: "left",
-  transition: "background .12s ease",
-};
 
 // PR 79: el bloque i18n local fue movido a src/i18n/{en,es,ko}.js
 // bajo el namespace "decks".
@@ -1393,24 +1375,12 @@ function DeckTile({ deck, t, lang, onEdit, onDelete, onTogglePublic, onDownloadP
   // Show as uppercase 2-letter code so it's compact (EN / ES / KO).
   // If null/missing, hide the chip entirely.
   const deckLang = deck.language ? deck.language.toUpperCase() : null;
-  // PR 8: PDF download popover. Open state is local to each tile so
-  // multiple tiles' popovers don't collide. Only rendered when the
-  // tile is in a context that supplies onDownloadPdf (Library, not
-  // Favorites or the drag overlay).
-  const [pdfOpen, setPdfOpen] = useState(false);
-  // Close popover on outside click. We attach a single document-level
-  // listener while the popover is open and remove it on close.
-  useEffect(() => {
-    if (!pdfOpen) return;
-    const close = (e) => {
-      // Don't close if click is inside this tile's popover or button —
-      // we use a data-attr to identify them.
-      if (e.target.closest && e.target.closest("[data-pdf-popover]")) return;
-      setPdfOpen(false);
-    };
-    document.addEventListener("click", close);
-    return () => document.removeEventListener("click", close);
-  }, [pdfOpen]);
+  // PR 86: el botón ↓ ahora abre directamente el PDFExportModal con
+  // variant "exam" por default. El usuario cambia a "answers" desde
+  // adentro del modal (el modal ya tiene un selector de variant).
+  // Antes había un popover con dos botones (Exam / Answer key) que era
+  // redundante con la UI del modal.
+
   return (
     <div style={{
       background: C.bg,
@@ -1427,15 +1397,14 @@ function DeckTile({ deck, t, lang, onEdit, onDelete, onTogglePublic, onDownloadP
       gap: 8,
     }}>
       {/* PR 8: PDF download — small ↓ button, top-right of the tile.
-          Click opens a popover with two options: Exam (student-facing)
-          and Answer key (teacher-only). Only rendered in Library
-          context (when onDownloadPdf prop is supplied). The button is
-          positioned absolute over the tile content so it doesn't push
-          the title or eat horizontal space. Title's right padding is
-          enough to keep text from underflowing the button. */}
+          PR 86: ahora abre directamente el modal con variant "exam" por
+          default. El modal tiene su propio selector exam/answers, así
+          que el popover viejo era redundante.
+          Only rendered in Library context (when onDownloadPdf prop is
+          supplied). The button is positioned absolute over the tile
+          content so it doesn't push the title or eat horizontal space. */}
       {!isOverlay && onDownloadPdf && (
         <div
-          data-pdf-popover="true"
           style={{
             position: "absolute",
             top: 6,
@@ -1446,7 +1415,7 @@ function DeckTile({ deck, t, lang, onEdit, onDelete, onTogglePublic, onDownloadP
           <button
             onClick={(e) => {
               e.stopPropagation();
-              setPdfOpen(v => !v);
+              onDownloadPdf(deck, "exam");
             }}
             title={t.downloadPdf}
             aria-label={t.downloadPdf}
@@ -1454,9 +1423,9 @@ function DeckTile({ deck, t, lang, onEdit, onDelete, onTogglePublic, onDownloadP
               width: 26, height: 26,
               padding: 0,
               borderRadius: 5,
-              background: pdfOpen ? C.accentSoft : "transparent",
-              color: pdfOpen ? C.accent : C.textSecondary,
-              border: `1px solid ${pdfOpen ? C.accent : "transparent"}`,
+              background: "transparent",
+              color: C.textSecondary,
+              border: "1px solid transparent",
               cursor: "pointer",
               display: "flex",
               alignItems: "center",
@@ -1465,16 +1434,12 @@ function DeckTile({ deck, t, lang, onEdit, onDelete, onTogglePublic, onDownloadP
               transition: "background .12s ease, color .12s ease, border-color .12s ease",
             }}
             onMouseEnter={e => {
-              if (!pdfOpen) {
-                e.currentTarget.style.background = C.bgSoft;
-                e.currentTarget.style.color = C.accent;
-              }
+              e.currentTarget.style.background = C.bgSoft;
+              e.currentTarget.style.color = C.accent;
             }}
             onMouseLeave={e => {
-              if (!pdfOpen) {
-                e.currentTarget.style.background = "transparent";
-                e.currentTarget.style.color = C.textMuted;
-              }
+              e.currentTarget.style.background = "transparent";
+              e.currentTarget.style.color = C.textMuted;
             }}
           >
             {/* Bold download arrow. The Unicode ↓ rendered too thin
@@ -1494,37 +1459,6 @@ function DeckTile({ deck, t, lang, onEdit, onDelete, onTogglePublic, onDownloadP
               <path d="M5 20h14" />
             </svg>
           </button>
-          {pdfOpen && (
-            <div style={{
-              position: "absolute",
-              top: 30,
-              right: 0,
-              minWidth: 140,
-              background: C.bg,
-              border: `1px solid ${C.border}`,
-              borderRadius: 7,
-              boxShadow: "0 6px 16px rgba(0,0,0,0.08)",
-              padding: 4,
-              zIndex: 10,
-            }}>
-              <button
-                onClick={() => { setPdfOpen(false); onDownloadPdf(deck, "exam"); }}
-                style={popoverItemStyle}
-                onMouseEnter={e => { e.currentTarget.style.background = C.bgSoft; }}
-                onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}
-              >
-                {t.pdfExam}
-              </button>
-              <button
-                onClick={() => { setPdfOpen(false); onDownloadPdf(deck, "answers"); }}
-                style={popoverItemStyle}
-                onMouseEnter={e => { e.currentTarget.style.background = C.bgSoft; }}
-                onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}
-              >
-                {t.pdfAnswerKey}
-              </button>
-            </div>
-          )}
         </div>
       )}
       {/* Drag handle area — title + description.
