@@ -15,53 +15,16 @@
 // unit already have dates, the picker defaults to "latest existing
 // date + 1, skipping weekends". Falls back to today otherwise.
 //
-// i18n: en/es/ko inline (matches the rest of the codebase pattern).
+// i18n: PR 73 movió las strings a src/i18n/ (namespace "dayDateModal").
 
 import { useEffect, useState, useMemo } from "react";
 import { C } from "./tokens";
 import { setDayDate, getDayDate, suggestNextDayDate } from "../lib/class-hierarchy";
+// PR 73: i18n centralizado
+import { useT } from "../i18n";
 
-const i18n = {
-  en: {
-    titleAssign: "When is Day {n}?",
-    titleEdit: "Change date for Day {n}",
-    bodyAssign: "Pick the date you'll teach this day. Decks scheduled for today appear in Today; future dates appear in Coming up.",
-    bodyEdit: "Update the date for this day. Today shows decks based on this date.",
-    save: "Save",
-    cancel: "Cancel",
-    saving: "Saving…",
-    errorGeneric: "Could not save the date. Try again.",
-    quickToday: "Today",
-    quickTomorrow: "Tomorrow",
-    quickNextWeek: "Next week",
-  },
-  es: {
-    titleAssign: "¿Cuándo es el Day {n}?",
-    titleEdit: "Cambiar fecha del Day {n}",
-    bodyAssign: "Elegí la fecha en que vas a dar este día. Los decks de hoy aparecen en Today; las fechas futuras en Próximos días.",
-    bodyEdit: "Actualizá la fecha de este día. Today muestra decks según esta fecha.",
-    save: "Guardar",
-    cancel: "Cancelar",
-    saving: "Guardando…",
-    errorGeneric: "No se pudo guardar la fecha. Intentá de nuevo.",
-    quickToday: "Hoy",
-    quickTomorrow: "Mañana",
-    quickNextWeek: "Próxima semana",
-  },
-  ko: {
-    titleAssign: "Day {n}은(는) 언제인가요?",
-    titleEdit: "Day {n} 날짜 변경",
-    bodyAssign: "이 날짜를 가르칠 날을 선택하세요. 오늘 예정된 덱은 Today에 표시되고, 미래 날짜는 다가오는 날에 표시됩니다.",
-    bodyEdit: "이 날의 날짜를 업데이트하세요. Today는 이 날짜를 기준으로 덱을 표시합니다.",
-    save: "저장",
-    cancel: "취소",
-    saving: "저장 중…",
-    errorGeneric: "날짜를 저장할 수 없습니다. 다시 시도하세요.",
-    quickToday: "오늘",
-    quickTomorrow: "내일",
-    quickNextWeek: "다음 주",
-  },
-};
+// PR 73: el bloque i18n local fue movido a src/i18n/{en,es,ko}.js
+// bajo el namespace "dayDateModal". Se accede vía useT() en el componente.
 
 // Convert a Date to "YYYY-MM-DD" string in local TZ (NOT UTC).
 // The native <input type="date"> expects this exact format.
@@ -92,7 +55,7 @@ export default function DayDateModal({
   onClose,
   onSaved,      // called after save with the new Date
 }) {
-  const t = i18n[lang] || i18n.en;
+  const t = useT("dayDateModal", lang);
 
   // Determine current date + suggested default
   const existingDate = useMemo(() => {
