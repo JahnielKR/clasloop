@@ -1,8 +1,11 @@
-// ─── lib/scanner-mlkit.js ──────────────────────────────────────────────
+// ─── lib/scanner-mlkit.ts ──────────────────────────────────────────────
 //
 // PR 60 (FIX REAL del bug de respuestas alucinadas): el scanner ahora
 // detecta las 8 fiduciales del PDF (PR 59) y corrige las posiciones de
 // las burbujas usando esos puntos de referencia.
+//
+// PR 85: migrado a TypeScript. Lógica intacta — solo agregamos tipos.
+// Incluye PR 61 (multi-answer + gap detection) y PR 66 (bubble overlay).
 //
 // Pipeline:
 //   1. DocumentScanner.scanDocument() → ML Kit abre cámara nativa,
@@ -10,14 +13,15 @@
 //      Retorna URI a JPEG ya rectificado a tamaño A4.
 //   2. BarcodeScanner.readBarcodesFromImage(uri) → lee QR para validar
 //      deck_id.
-//   3. NUEVO (PR 60): findFiducials(grayData) → busca las 8 fiduciales
-//      negras del PDF en posiciones esperadas. Devuelve los centros
-//      detectados.
-//   4. NUEVO (PR 60): para cada burbuja, calcular su posición REAL en
-//      la imagen usando interpolación bilineal entre las fiduciales
-//      vecinas (compensa margen de impresora, curvatura del papel,
-//      inclinación residual).
-//   5. sampleBubbles(...) → samplea pixels en las posiciones corregidas.
+//   3. PR 60: findFiducials(grayData) → busca las 8 fiduciales negras
+//      del PDF en posiciones esperadas. Devuelve los centros detectados.
+//   4. PR 60: para cada burbuja, calcular su posición REAL en la imagen
+//      usando interpolación bilineal entre las fiduciales vecinas
+//      (compensa margen de impresora, curvatura del papel, inclinación
+//      residual).
+//   5. PR 61: detección por GAP entre intensidades para detectar multi-
+//      respuesta (0, 1, 2, 3, 4 burbujas marcadas en la misma pregunta).
+//   6. sampleBubbles(...) → samplea pixels en las posiciones corregidas.
 //
 // Por qué interpolación bilineal y no homografía/perspective warp:
 //   - ML Kit ya rectificó el papel (eliminó perspective)
@@ -40,7 +44,131 @@ import {
 } from "./pdf-styles/scanner";
 import { groupQuestionsBySection } from "./pdf-styles/shared";
 
+// ─── Types ─────────────────────────────────────────────────────────────
+
+/** A single (x, y) point in image pixels or page millimeters. */
+interface Point2D {
+  x: number;
+  y: number;
+}
+
+/** Result of finding a dark blob in a window. */
+interface DetectedBlob {
+  x: number;
+  y: number;
+  area: number;
+}
+
+/** One of the 8 fiducial markers, with its expected and found positions. */
+interface FiducialResult {
+  expected: Point2D;
+  found: DetectedBlob | null;
+}
+
+/** Map of fiducial name → result. Keys come from FIDUCIAL_CENTERS. */
+type FiducialMap = Record<string, FiducialResult>;
+
+/** A bubble's intensity sample taken from a single position. */
+interface BubbleSample {
+  letter: string;
+  intensity: number;
+}
+
+/** Question shape used by the scanner — only the fields it reads. */
+interface ScannableQuestion {
+  id: string;
+  type: "mcq" | "tf" | string;
+  /**
+   * MCQ: index (number) or array of indices/letters. TF: boolean.
+   * extractCorrectAnswers handles all variants.
+   */
+  correct?: number | boolean | unknown[] | null;
+}
+
+/** One bubble row to sample for a given question. */
+interface BubblePosition {
+  q: ScannableQuestion;
+  qNum: number;
+  cxMm: number;
+  cyMm: number;
+  choices: string[];
+}
+
+/** PDF template for the bubble layout. Comes from pdf-styles/scanner. */
+interface ScannerTemplate {
+  rowHeight: number;
+  bubbleGap: number;
+  cols: number;
+  colXBase: number[];
+  yStart: number;
+  cols2?: number;
+  colXBase2?: number[];
+  yStart2?: number;
+}
+
+/**
+ * PR 66: position of one bubble within a row, both in mm (relative to
+ * the page) and px (relative to the warped image). Used by the overlay
+ * renderer to draw circles on top of the scanned image.
+ */
+export interface BubbleOverlayPosition {
+  letter: string;
+  xMm: number;
+  yMm: number;
+  xPx: number;
+  yPx: number;
+}
+
+/** Result of detecting marked bubbles in a single question's samples. */
+interface DetectionResult {
+  marked: string[];
+  confidence: number;
+  is_uncertain: boolean;
+}
+
+/** Result of sampling a single question's bubbles. */
+export interface ScannedAnswer {
+  question_id: string;
+  qNum: number;
+  /** PR 61: array of letters (multi-answer). [] means nothing marked. */
+  marked: string[];
+  /** PR 61: correct answers as array of letters. */
+  correct: string[];
+  is_correct: boolean;
+  confidence: number;
+  is_uncertain: boolean;
+  /** PR 66: positions used to draw the overlay on the scanned image. */
+  bubblePositions: BubbleOverlayPosition[];
+  /** PR 66: y-position of the row in original (un-warped) mm. */
+  rowYMm: number;
+}
+
+/** Full result returned by sampleBubbles. */
+export interface SampleBubblesResult {
+  answers: ScannedAnswer[];
+  score: number;
+  total: number;
+  fiducialsDetected: number;
+  warpApplied: boolean;
+  /** PR 66: returned for the overlay renderer. */
+  imageUri?: string;
+  templateName?: "T10" | "T20" | "T30" | "T50";
+}
+
+/** Result returned by updateAnswer (no fiducial fields — only on initial scan). */
+export interface UpdateAnswerResult {
+  answers: ScannedAnswer[];
+  score: number;
+  total: number;
+}
+
+/** Deck shape needed by sampleBubbles. */
+interface ScannerDeck {
+  questions?: ScannableQuestion[];
+}
+
 // ─── Constants ─────────────────────────────────────────────────────────
+
 const WARP_SCALE = 5;
 const WARP_W = PAGE_DIMS.width * WARP_SCALE;
 const WARP_H = PAGE_DIMS.height * WARP_SCALE;
@@ -60,14 +188,17 @@ const UNCERTAIN_THRESHOLD = 0.3;
 
 // ─── Public API ────────────────────────────────────────────────────────
 
-export async function scanDocument() {
+export async function scanDocument(): Promise<string> {
   if (!Capacitor.isNativePlatform()) {
     throw new Error("scanDocument() requires native platform (Capacitor)");
   }
 
-  const { DocumentScanner } = await import("@capacitor-mlkit/document-scanner");
+  const { DocumentScanner } = await import(
+    "@capacitor-mlkit/document-scanner"
+  );
 
-  const { available } = await DocumentScanner.isGoogleDocumentScannerModuleAvailable();
+  const { available } =
+    await DocumentScanner.isGoogleDocumentScannerModuleAvailable();
   if (!available) {
     await DocumentScanner.installGoogleDocumentScannerModule();
   }
@@ -86,21 +217,26 @@ export async function scanDocument() {
   return result.scannedImages[0];
 }
 
-export async function readQRFromImage(imageUri) {
+export async function readQRFromImage(
+  imageUri: string,
+): Promise<string | null> {
   if (!Capacitor.isNativePlatform()) {
     throw new Error("readQRFromImage() requires native platform");
   }
 
-  const { BarcodeScanner } = await import("@capacitor-mlkit/barcode-scanning");
+  const { BarcodeScanner, BarcodeFormat } = await import(
+    "@capacitor-mlkit/barcode-scanning"
+  );
 
-  const { available } = await BarcodeScanner.isGoogleBarcodeScannerModuleAvailable();
+  const { available } =
+    await BarcodeScanner.isGoogleBarcodeScannerModuleAvailable();
   if (!available) {
     await BarcodeScanner.installGoogleBarcodeScannerModule();
   }
 
   const result = await BarcodeScanner.readBarcodesFromImage({
     path: imageUri,
-    formats: ["QR_CODE"],
+    formats: [BarcodeFormat.QrCode],
   });
 
   if (!result.barcodes || result.barcodes.length === 0) {
@@ -118,22 +254,21 @@ export async function readQRFromImage(imageUri) {
 /**
  * Samples all bubbles in the scanned image and returns marked answers.
  *
- * PR 60: ahora usa detección de fiduciales + interpolación bilineal
- * para corregir las posiciones de las burbujas. Si las fiduciales no
- * se detectan, fallback a coords crudas (comportamiento viejo).
- *
- * @returns {Promise<{
- *   answers: Array<{...}>,
- *   score: number,
- *   total: number,
- *   fiducialsDetected: number,   // 0-8
- *   warpApplied: boolean,
- * }>}
+ * PR 60: detección de fiduciales + interpolación bilineal para corregir
+ *        las posiciones de las burbujas. Fallback a coords crudas si
+ *        las fiduciales no se detectan.
+ * PR 61: gap detection para multi-answer.
+ * PR 66: devuelve posiciones de burbujas para overlay PDF.
  */
-export async function sampleBubbles(imageUri, deck) {
+export async function sampleBubbles(
+  imageUri: string,
+  deck: ScannerDeck,
+): Promise<SampleBubblesResult> {
   const grouped = groupQuestionsBySection(deck.questions || []);
-  const scannable = [
-    ...(grouped.selection || []).filter(q => q.type === "mcq" || q.type === "tf"),
+  const scannable: ScannableQuestion[] = [
+    ...((grouped.selection as ScannableQuestion[]) || []).filter(
+      (q) => q.type === "mcq" || q.type === "tf",
+    ),
   ];
 
   scannable.sort((a, b) => {
@@ -142,24 +277,36 @@ export async function sampleBubbles(imageUri, deck) {
   });
 
   if (scannable.length === 0) {
-    return { answers: [], score: 0, total: 0, fiducialsDetected: 0, warpApplied: false };
+    return {
+      answers: [],
+      score: 0,
+      total: 0,
+      fiducialsDetected: 0,
+      warpApplied: false,
+    };
   }
   if (scannable.length > 50) {
-    throw new Error(`Too many scannable questions (${scannable.length} > 50)`);
+    throw new Error(
+      `Too many scannable questions (${scannable.length} > 50)`,
+    );
   }
 
-  const template = pickTemplate(scannable.length);
+  const template = pickTemplate(scannable.length) as ScannerTemplate;
   const grayData = await loadImageAsGrayscale(imageUri, WARP_W, WARP_H);
 
   // PR 60: detectar fiduciales
   const fiducials = findFiducials(grayData, WARP_W, WARP_H);
-  const detectedCount = Object.values(fiducials).filter(f => f.found).length;
-  const warpApplied = detectedCount >= 6;  // necesitamos al menos 6 de 8
+  const detectedCount = Object.values(fiducials).filter((f) => f.found).length;
+  const warpApplied = detectedCount >= 6; // necesitamos al menos 6 de 8
 
   if (warpApplied) {
-    console.log(`[scanner-mlkit] Fiduciales detectadas: ${detectedCount}/8. Warp bilineal aplicado.`);
+    console.log(
+      `[scanner-mlkit] Fiduciales detectadas: ${detectedCount}/8. Warp bilineal aplicado.`,
+    );
   } else {
-    console.warn(`[scanner-mlkit] Solo ${detectedCount}/8 fiduciales detectadas. Usando coords crudas (degraded mode).`);
+    console.warn(
+      `[scanner-mlkit] Solo ${detectedCount}/8 fiduciales detectadas. Usando coords crudas (degraded mode).`,
+    );
   }
 
   const virtualCenter = computeVirtualCenter(fiducials);
@@ -167,15 +314,15 @@ export async function sampleBubbles(imageUri, deck) {
   const positions = computeBubblePositions(scannable, template);
   const sampleRadiusPx = Math.round(SAMPLE_RADIUS_MM * WARP_SCALE);
 
-  const answers = [];
+  const answers: ScannedAnswer[] = [];
   let score = 0;
 
   for (const item of positions) {
     // PR 66: trackear posiciones (mm originales + warped en px) de cada
     // burbuja para poder dibujar overlay corregido en PDF.
-    const bubblePositions = [];
+    const bubblePositions: BubbleOverlayPosition[] = [];
 
-    const samples = item.choices.map((letter, i) => {
+    const samples: BubbleSample[] = item.choices.map((letter, i) => {
       const xMm = item.cxMm + i * template.bubbleGap;
       const yMm = item.cyMm;
 
@@ -186,7 +333,14 @@ export async function sampleBubbles(imageUri, deck) {
 
       const xPx = Math.round(correctedX * WARP_SCALE);
       const yPx = Math.round(correctedY * WARP_SCALE);
-      const intensity = sampleIntensity(grayData, WARP_W, WARP_H, xPx, yPx, sampleRadiusPx);
+      const intensity = sampleIntensity(
+        grayData,
+        WARP_W,
+        WARP_H,
+        xPx,
+        yPx,
+        sampleRadiusPx,
+      );
 
       // PR 66: guardar posición de cada burbuja (en mm warped) para
       // poder dibujarlas después. xMm/yMm son originales, correctedX/Y
@@ -215,7 +369,7 @@ export async function sampleBubbles(imageUri, deck) {
     // Esto permite detectar 0, 1, 2, 3 o 4 burbujas marcadas en la misma
     // pregunta sin un umbral fijo absoluto (más robusto a luz variable).
     const detection = detectMarkedBubbles(samples);
-    const marked = detection.marked;        // array de letras, puede ser []
+    const marked = detection.marked; // array de letras, puede ser []
     const confidence = detection.confidence;
     let is_uncertain = detection.is_uncertain;
 
@@ -227,24 +381,35 @@ export async function sampleBubbles(imageUri, deck) {
 
     // PR 61: regla lenient — alumno acierta si todas sus marcas están
     // en correct Y marcó al menos una.
-    const is_correct = marked.length > 0
-                      && marked.every(m => correct.includes(m));
+    const is_correct =
+      marked.length > 0 && marked.every((m) => correct.includes(m));
 
     if (is_correct) score++;
 
     answers.push({
       question_id: item.q.id,
       qNum: item.qNum,
-      marked,        // array, ej: ["A"], ["A","B"], o []
-      correct,       // array, ej: ["A"] o ["A","B"]
+      marked, // array, ej: ["A"], ["A","B"], o []
+      correct, // array, ej: ["A"] o ["A","B"]
       is_correct,
       confidence: Number(confidence.toFixed(2)),
       is_uncertain,
       // PR 66: posiciones para overlay
       bubblePositions,
-      rowYMm: item.cyMm,  // posición Y de la fila (mm originales)
+      rowYMm: item.cyMm, // posición Y de la fila (mm originales)
     });
   }
+
+  // PR 66: identificar template para overlay
+  const T = TEMPLATES as Record<string, ScannerTemplate>;
+  const templateName: SampleBubblesResult["templateName"] =
+    template === T.T10
+      ? "T10"
+      : template === T.T20
+        ? "T20"
+        : template === T.T30
+          ? "T30"
+          : "T50";
 
   return {
     answers,
@@ -254,10 +419,7 @@ export async function sampleBubbles(imageUri, deck) {
     warpApplied,
     // PR 66: extras para overlay PDF
     imageUri,
-    templateName: template === TEMPLATES.T10 ? "T10"
-                : template === TEMPLATES.T20 ? "T20"
-                : template === TEMPLATES.T30 ? "T30"
-                : "T50",
+    templateName,
   };
 }
 
@@ -265,15 +427,16 @@ export async function sampleBubbles(imageUri, deck) {
  * Helper for the Scanner.jsx UI: cuando el usuario manualmente
  * confirma/cambia una respuesta uncertain.
  *
- * @param {Array} answers      lista actual de answers (de sampleBubbles)
- * @param {string} questionId  qué pregunta cambiar
- * @param {Array<string>|string|null} newMarked
- *        Array de letras (ej ["A","B"]) o string single (ej "A") o null
- *        (sin respuesta). Se normaliza a array.
+ * @param newMarked Array de letras (ej ["A","B"]) o string single (ej "A")
+ *                  o null (sin respuesta). Se normaliza a array.
  */
-export function updateAnswer(answers, questionId, newMarked) {
+export function updateAnswer(
+  answers: ScannedAnswer[],
+  questionId: string,
+  newMarked: string[] | string | null | undefined,
+): UpdateAnswerResult {
   // Normalizar newMarked a array
-  let normalized;
+  let normalized: string[];
   if (newMarked === null || newMarked === undefined) {
     normalized = [];
   } else if (Array.isArray(newMarked)) {
@@ -282,22 +445,27 @@ export function updateAnswer(answers, questionId, newMarked) {
     normalized = [String(newMarked)];
   }
 
-  const updated = answers.map(a => {
+  const updated = answers.map((a) => {
     if (a.question_id !== questionId) return a;
     // Regla lenient: alumno acierta si todas sus marcas están en correct
     // Y marcó al menos una.
-    const correctArr = Array.isArray(a.correct) ? a.correct : (a.correct ? [a.correct] : []);
-    const is_correct = normalized.length > 0
-                      && normalized.every(m => correctArr.includes(m));
+    const correctArr = Array.isArray(a.correct)
+      ? a.correct
+      : a.correct
+        ? [a.correct]
+        : [];
+    const is_correct =
+      normalized.length > 0 &&
+      normalized.every((m) => correctArr.includes(m));
     return {
       ...a,
       marked: normalized,
       is_correct,
-      confidence: 1.0,        // user confirmed = max confidence
+      confidence: 1.0, // user confirmed = max confidence
       is_uncertain: false,
     };
   });
-  const score = updated.filter(a => a.is_correct).length;
+  const score = updated.filter((a) => a.is_correct).length;
   return { answers: updated, score, total: answers.length };
 }
 
@@ -310,12 +478,18 @@ export function updateAnswer(answers, questionId, newMarked) {
  * dentro de esa ventana cuyo área esté en el rango esperado, y calcula
  * su centroide.
  */
-function findFiducials(gray, W, H) {
+function findFiducials(
+  gray: Uint8Array,
+  W: number,
+  H: number,
+): FiducialMap {
   const searchRadiusPx = Math.round(FIDUCIAL_SEARCH_RADIUS_MM * WARP_SCALE);
-  const result = {};
+  const result: FiducialMap = {};
 
-  for (const [name, expectedMm] of Object.entries(FIDUCIAL_CENTERS)) {
-    const expectedPx = {
+  for (const [name, expectedMm] of Object.entries(
+    FIDUCIAL_CENTERS as Record<string, Point2D>,
+  )) {
+    const expectedPx: Point2D = {
       x: expectedMm.x * WARP_SCALE,
       y: expectedMm.y * WARP_SCALE,
     };
@@ -325,7 +499,17 @@ function findFiducials(gray, W, H) {
     const x1 = Math.min(W - 1, Math.round(expectedPx.x + searchRadiusPx));
     const y1 = Math.min(H - 1, Math.round(expectedPx.y + searchRadiusPx));
 
-    const blob = findLargestDarkBlob(gray, W, H, x0, y0, x1, y1, expectedPx.x, expectedPx.y);
+    const blob = findLargestDarkBlob(
+      gray,
+      W,
+      H,
+      x0,
+      y0,
+      x1,
+      y1,
+      expectedPx.x,
+      expectedPx.y,
+    );
 
     result[name] = {
       expected: expectedPx,
@@ -347,12 +531,22 @@ function findFiducials(gray, W, H) {
  *
  * BFS de componentes conexos (4-connectivity).
  */
-function findLargestDarkBlob(gray, W, H, x0, y0, x1, y1, expectedCenterX, expectedCenterY) {
+function findLargestDarkBlob(
+  gray: Uint8Array,
+  W: number,
+  H: number,
+  x0: number,
+  y0: number,
+  x1: number,
+  y1: number,
+  expectedCenterX: number,
+  expectedCenterY: number,
+): DetectedBlob | null {
   const winW = x1 - x0 + 1;
   const winH = y1 - y0 + 1;
   const visited = new Uint8Array(winW * winH);
 
-  let bestBlob = null;
+  let bestBlob: DetectedBlob | null = null;
   let bestDist = Infinity;
 
   for (let y = y0; y <= y1; y++) {
@@ -364,9 +558,23 @@ function findLargestDarkBlob(gray, W, H, x0, y0, x1, y1, expectedCenterX, expect
         continue;
       }
 
-      const blob = floodFillBlob(gray, W, H, visited, x, y, x0, y0, winW, winH);
+      const blob = floodFillBlob(
+        gray,
+        W,
+        H,
+        visited,
+        x,
+        y,
+        x0,
+        y0,
+        winW,
+        winH,
+      );
 
-      if (blob.area >= FIDUCIAL_MIN_AREA_PX && blob.area <= FIDUCIAL_MAX_AREA_PX) {
+      if (
+        blob.area >= FIDUCIAL_MIN_AREA_PX &&
+        blob.area <= FIDUCIAL_MAX_AREA_PX
+      ) {
         const dx = blob.x - expectedCenterX;
         const dy = blob.y - expectedCenterY;
         const dist = Math.sqrt(dx * dx + dy * dy);
@@ -385,13 +593,26 @@ function findLargestDarkBlob(gray, W, H, x0, y0, x1, y1, expectedCenterX, expect
  * BFS flood fill desde un pixel oscuro. Stack-based para evitar
  * stack overflow en blobs grandes.
  */
-function floodFillBlob(gray, W, H, visited, startX, startY, winX0, winY0, winW, winH) {
-  const stack = [startX, startY];
-  let sumX = 0, sumY = 0, count = 0;
+function floodFillBlob(
+  gray: Uint8Array,
+  W: number,
+  H: number,
+  visited: Uint8Array,
+  startX: number,
+  startY: number,
+  winX0: number,
+  winY0: number,
+  winW: number,
+  winH: number,
+): DetectedBlob {
+  const stack: number[] = [startX, startY];
+  let sumX = 0;
+  let sumY = 0;
+  let count = 0;
 
   while (stack.length > 0) {
-    const y = stack.pop();
-    const x = stack.pop();
+    const y = stack.pop()!;
+    const x = stack.pop()!;
 
     const winIdx = (y - winY0) * winW + (x - winX0);
     if (visited[winIdx]) continue;
@@ -426,11 +647,13 @@ function floodFillBlob(gray, W, H, visited, startX, startY, winX0, winY0, winW, 
  * las 4 fiduciales medio (TC, BC, ML, MR). Si alguna no se detectó,
  * fallback al centro geométrico esperado.
  */
-function computeVirtualCenter(fiducials) {
+function computeVirtualCenter(fiducials: FiducialMap): Point2D {
   const midNames = ["topCenter", "bottomCenter", "midLeft", "midRight"];
   const found = midNames
-    .map(n => fiducials[n])
-    .filter(f => f && f.found);
+    .map((n) => fiducials[n])
+    .filter((f): f is FiducialResult & { found: DetectedBlob } =>
+      Boolean(f && f.found),
+    );
 
   if (found.length === 4) {
     const sumX = found.reduce((s, f) => s + f.found.x, 0);
@@ -454,7 +677,12 @@ function computeVirtualCenter(fiducials) {
  *
  * Fórmula bilineal: P = (1-u)(1-v)·V1 + u(1-v)·V2 + (1-u)v·V3 + uv·V4
  */
-function warpPosition(xMm, yMm, fiducials, virtualCenter) {
+function warpPosition(
+  xMm: number,
+  yMm: number,
+  fiducials: FiducialMap,
+  virtualCenter: Point2D,
+): Point2D {
   const xPx = xMm * WARP_SCALE;
   const yPx = yMm * WARP_SCALE;
 
@@ -465,31 +693,38 @@ function warpPosition(xMm, yMm, fiducials, virtualCenter) {
   const isTop = yPx < expectedCenterY;
 
   // Helper: obtener posición real (found) o esperada (fallback)
-  const getPos = (name) => {
+  const getPos = (name: string): Point2D => {
     if (name === "_virtual") return virtualCenter;
     const f = fiducials[name];
-    return (f && f.found) ? f.found : f.expected;
+    return f && f.found ? f.found : f.expected;
   };
 
   // Identificar V1, V2, V3, V4 según cuadrante
-  // Cada cuadrante: V1=top-left, V2=top-right, V3=bottom-left, V4=bottom-right
-  let v1Name, v2Name, v3Name, v4Name;
+  let v1Name: string, v2Name: string, v3Name: string, v4Name: string;
   if (isTop && isLeft) {
     // Cuadrante TL: vertices son TL, TC, ML, virtualCenter
-    v1Name = "topLeft"; v2Name = "topCenter";
-    v3Name = "midLeft"; v4Name = "_virtual";
+    v1Name = "topLeft";
+    v2Name = "topCenter";
+    v3Name = "midLeft";
+    v4Name = "_virtual";
   } else if (isTop && !isLeft) {
     // Cuadrante TR: TC, TR, virtualCenter, MR
-    v1Name = "topCenter"; v2Name = "topRight";
-    v3Name = "_virtual"; v4Name = "midRight";
+    v1Name = "topCenter";
+    v2Name = "topRight";
+    v3Name = "_virtual";
+    v4Name = "midRight";
   } else if (!isTop && isLeft) {
     // Cuadrante BL: ML, virtualCenter, BL, BC
-    v1Name = "midLeft"; v2Name = "_virtual";
-    v3Name = "bottomLeft"; v4Name = "bottomCenter";
+    v1Name = "midLeft";
+    v2Name = "_virtual";
+    v3Name = "bottomLeft";
+    v4Name = "bottomCenter";
   } else {
     // Cuadrante BR: virtualCenter, MR, BC, BR
-    v1Name = "_virtual"; v2Name = "midRight";
-    v3Name = "bottomCenter"; v4Name = "bottomRight";
+    v1Name = "_virtual";
+    v2Name = "midRight";
+    v3Name = "bottomCenter";
+    v4Name = "bottomRight";
   }
 
   const v1 = getPos(v1Name);
@@ -498,11 +733,11 @@ function warpPosition(xMm, yMm, fiducials, virtualCenter) {
   const v4 = getPos(v4Name);
 
   // Posiciones ESPERADAS de los 4 vertices del cuadrante (para calcular u, v)
-  const getExpected = (name) => {
+  const getExpected = (name: string): Point2D => {
     if (name === "_virtual") {
       return { x: expectedCenterX, y: expectedCenterY };
     }
-    const f = FIDUCIAL_CENTERS[name];
+    const f = (FIDUCIAL_CENTERS as Record<string, Point2D>)[name];
     return { x: f.x * WARP_SCALE, y: f.y * WARP_SCALE };
   };
 
@@ -512,7 +747,6 @@ function warpPosition(xMm, yMm, fiducials, virtualCenter) {
   // expV4 no se usa para u,v (asumimos cuadrante esperado rectangular)
 
   // u, v normalizados en [0,1] dentro del cuadrante (basado en expected)
-  // expV1 es top-left, expV2 es top-right, expV3 es bottom-left
   const dxQuadrant = expV2.x - expV1.x;
   const dyQuadrant = expV3.y - expV1.y;
 
@@ -523,17 +757,27 @@ function warpPosition(xMm, yMm, fiducials, virtualCenter) {
   const vc = Math.max(0, Math.min(1, v));
 
   // Interpolación bilineal usando posiciones REALES
-  const newX = (1 - uc) * (1 - vc) * v1.x + uc * (1 - vc) * v2.x
-             + (1 - uc) * vc * v3.x + uc * vc * v4.x;
-  const newY = (1 - uc) * (1 - vc) * v1.y + uc * (1 - vc) * v2.y
-             + (1 - uc) * vc * v3.y + uc * vc * v4.y;
+  const newX =
+    (1 - uc) * (1 - vc) * v1.x +
+    uc * (1 - vc) * v2.x +
+    (1 - uc) * vc * v3.x +
+    uc * vc * v4.x;
+  const newY =
+    (1 - uc) * (1 - vc) * v1.y +
+    uc * (1 - vc) * v2.y +
+    (1 - uc) * vc * v3.y +
+    uc * vc * v4.y;
 
   return { x: newX / WARP_SCALE, y: newY / WARP_SCALE };
 }
 
 // ─── Image loading ─────────────────────────────────────────────────────
 
-async function loadImageAsGrayscale(imageUri, w, h) {
+async function loadImageAsGrayscale(
+  imageUri: string,
+  w: number,
+  h: number,
+): Promise<Uint8Array> {
   let url = imageUri;
   if (imageUri.startsWith("file://") || imageUri.startsWith("/")) {
     url = Capacitor.convertFileSrc(imageUri);
@@ -563,30 +807,44 @@ async function loadImageAsGrayscale(imageUri, w, h) {
   return gray;
 }
 
-function loadImage(src) {
+function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.crossOrigin = "anonymous";
     img.onload = () => resolve(img);
-    img.onerror = (e) => reject(new Error("Failed to load image: " + src));
+    img.onerror = () => reject(new Error("Failed to load image: " + src));
     img.src = src;
   });
 }
 
 // ─── Bubble positions + intensity sampling ────────────────────────────
 
-function computeBubblePositions(scannable, t) {
-  const positions = [];
-  const addColumn = (qsInCol, startQNum, colBaseX, yStart) => {
+function computeBubblePositions(
+  scannable: ScannableQuestion[],
+  t: ScannerTemplate,
+): BubblePosition[] {
+  const positions: BubblePosition[] = [];
+  const addColumn = (
+    qsInCol: ScannableQuestion[],
+    startQNum: number,
+    colBaseX: number,
+    yStart: number,
+  ): void => {
     qsInCol.forEach((q, idx) => {
       const cyMm = yStart + idx * t.rowHeight;
       // PR 60: TF usa A=T y B=F (consistente con el PDF nuevo)
       const choices = q.type === "tf" ? ["A", "B"] : ["A", "B", "C", "D"];
-      positions.push({ q, qNum: startQNum + idx, cxMm: colBaseX, cyMm, choices });
+      positions.push({
+        q,
+        qNum: startQNum + idx,
+        cxMm: colBaseX,
+        cyMm,
+        choices,
+      });
     });
   };
 
-  if (t === TEMPLATES.T50) {
+  if (t === (TEMPLATES as Record<string, ScannerTemplate>).T50) {
     const upper = scannable.slice(0, 30);
     for (let c = 0; c < t.cols; c++) {
       const colQs = upper.slice(c * 10, (c + 1) * 10);
@@ -594,10 +852,13 @@ function computeBubblePositions(scannable, t) {
       addColumn(colQs, c * 10 + 1, t.colXBase[c], t.yStart);
     }
     const lower = scannable.slice(30, 50);
-    for (let c = 0; c < t.cols2; c++) {
+    const cols2 = t.cols2 ?? 0;
+    const colXBase2 = t.colXBase2 ?? [];
+    const yStart2 = t.yStart2 ?? 0;
+    for (let c = 0; c < cols2; c++) {
       const colQs = lower.slice(c * 10, (c + 1) * 10);
       if (colQs.length === 0) break;
-      addColumn(colQs, 30 + c * 10 + 1, t.colXBase2[c], t.yStart2);
+      addColumn(colQs, 30 + c * 10 + 1, colXBase2[c], yStart2);
     }
   } else {
     for (let c = 0; c < t.cols; c++) {
@@ -609,9 +870,17 @@ function computeBubblePositions(scannable, t) {
   return positions;
 }
 
-function sampleIntensity(gray, W, H, cxPx, cyPx, radiusPx) {
+function sampleIntensity(
+  gray: Uint8Array,
+  W: number,
+  H: number,
+  cxPx: number,
+  cyPx: number,
+  radiusPx: number,
+): number {
   const r2 = radiusPx * radiusPx;
-  let sum = 0, count = 0;
+  let sum = 0;
+  let count = 0;
   for (let dy = -radiusPx; dy <= radiusPx; dy++) {
     for (let dx = -radiusPx; dx <= radiusPx; dx++) {
       if (dx * dx + dy * dy > r2) continue;
@@ -634,7 +903,9 @@ function sampleIntensity(gray, W, H, cxPx, cyPx, radiusPx) {
  *   - boolean   → para TF: true → ["A"], false → ["B"]
  *   - undefined/null → []
  */
-function extractCorrectAnswers(q) {
+function extractCorrectAnswers(
+  q: ScannableQuestion | null | undefined,
+): string[] {
   if (!q) return [];
   if (q.type === "mcq") {
     if (typeof q.correct === "number") {
@@ -643,18 +914,18 @@ function extractCorrectAnswers(q) {
     }
     if (Array.isArray(q.correct)) {
       return q.correct
-        .map(v => {
+        .map((v) => {
           if (typeof v === "number") return "ABCD"[v] || null;
           if (typeof v === "string") return v.toUpperCase();
           return null;
         })
-        .filter(Boolean);
+        .filter((s): s is string => Boolean(s));
     }
     return [];
   }
   if (q.type === "tf") {
-    if (q.correct === true) return ["A"];   // T = A
-    if (q.correct === false) return ["B"];  // F = B
+    if (q.correct === true) return ["A"]; // T = A
+    if (q.correct === false) return ["B"]; // F = B
     return [];
   }
   return [];
@@ -678,14 +949,15 @@ function extractCorrectAnswers(q) {
  *
  * Retorna: { marked: ["A","B"], confidence: 0..1, is_uncertain: bool }
  */
-function detectMarkedBubbles(samples) {
+function detectMarkedBubbles(
+  samples: BubbleSample[] | null | undefined,
+): DetectionResult {
   if (!samples || samples.length === 0) {
     return { marked: [], confidence: 1.0, is_uncertain: false };
   }
 
   const sorted = [...samples].sort((a, b) => a.intensity - b.intensity);
   const darkest = sorted[0];
-  const lightest = sorted[sorted.length - 1];
 
   // CASO 1: todas blancas. Nada marcado, confianza alta.
   if (darkest.intensity >= BUBBLE_DARK_THRESHOLD + 30) {
@@ -734,13 +1006,15 @@ function detectMarkedBubbles(samples) {
     // Filtro adicional: las "marcadas" tienen que estar bajo el umbral
     // oscuro. Si maxGapIdx puso burbujas que no están bajo threshold,
     // las dropeamos.
-    const trulyMarked = markedSamples.filter(s => s.intensity < BUBBLE_DARK_THRESHOLD);
-    const marked = trulyMarked.map(s => s.letter).sort();  // sort alfabético
+    const trulyMarked = markedSamples.filter(
+      (s) => s.intensity < BUBBLE_DARK_THRESHOLD,
+    );
+    const marked = trulyMarked.map((s) => s.letter).sort(); // sort alfabético
 
     // Confidence basado en oscuridad de la más oscura + tamaño del gap
     const darknessConf = Math.min(
       1.0,
-      (BUBBLE_DARK_THRESHOLD - darkest.intensity) / HIGH_CONF_BUFFER
+      (BUBBLE_DARK_THRESHOLD - darkest.intensity) / HIGH_CONF_BUFFER,
     );
     const gapConf = Math.min(1.0, maxGap / (BUBBLE_AMBIGUITY_MARGIN * 3));
     const confidence = Math.min(darknessConf, gapConf);
@@ -755,8 +1029,8 @@ function detectMarkedBubbles(samples) {
   // CASO 4: el gap es chico, varias burbujas tienen intensidad similar y
   // baja. Marcamos las que estén bajo el umbral pero is_uncertain=true.
   const ambiguousMarked = sorted
-    .filter(s => s.intensity < BUBBLE_DARK_THRESHOLD)
-    .map(s => s.letter)
+    .filter((s) => s.intensity < BUBBLE_DARK_THRESHOLD)
+    .map((s) => s.letter)
     .sort();
 
   return {
