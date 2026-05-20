@@ -8,121 +8,11 @@ import PageHeader from "../components/PageHeader";
 import { C } from "../components/tokens";
 import DeleteAccountModal from "../components/DeleteAccountModal";
 import useTheme from "../hooks/useTheme";
+// PR 75: i18n centralizado
+import { useT } from "../i18n";
 
-const i18n = {
-  en: {
-    pageTitle: "Settings",
-    profile: "Profile", appearance: "Appearance", account: "Account", notifications: "Notifications",
-    fullName: "Full name", email: "Email", role: "Role", school: "School", schoolPlaceholder: "Your school name",
-    saveChanges: "Save changes", saving: "Saving...", saved: "Saved!", teacher: "Teacher", student: "Student",
-    language: "Language", languageDesc: "Choose your preferred language",
-    theme: "Theme", themeDesc: "Choose your preferred appearance",
-    light: "Light", dark: "Dark", system: "System",
-    changePassword: "Change password", currentPassword: "Current password",
-    newPassword: "New password", confirmPassword: "Confirm password", updatePassword: "Update password",
-    updatingPassword: "Updating...", passwordUpdated: "Password updated!", passwordError: "Error updating password",
-    passwordMismatch: "Passwords don't match", passwordTooShort: "Password must be at least 6 characters",
-    dangerZone: "Danger zone", deleteAccount: "Delete account",
-    deleteAccountDesc: "Permanently delete your account and all data. Cannot be undone.",
-    deleteAccountBtn: "Delete my account", exportData: "Export data",
-    exportDataDesc: "Download all your data as JSON", exportBtn: "Export", exporting: "Exporting...",
-    emailNotifs: "Email notifications", emailNotifsDesc: "Receive weekly retention reports",
-    pushNotifs: "Review reminders", pushNotifsDesc: "Get reminded when topics need review",
-    weeklyReport: "Weekly report", weeklyReportDesc: "Receive a summary every Monday",
-    // Student-specific
-    dailyGoal: "Daily goal", dailyGoalDesc: "Questions per day", questionsDay: "questions/day",
-    studyReminders: "Study reminders", studyRemindersDesc: "Remind me to practice weak topics",
-    streakReminder: "Streak reminder", streakReminderDesc: "Daily reminder to maintain streak",
-    profilePicture: "Profile picture",
-    avatarTabPhoto: "Upload photo", avatarTabAvatar: "Choose avatar",
-    avatarUploadHint: "JPG or PNG, max 5 MB. Square crops work best.",
-    avatarChoose: "Browse", avatarRemove: "Remove photo", avatarUploading: "Uploading...",
-    avatarSaved: "Avatar updated!",
-    avatarUseChosen: "Use this avatar",
-    avatarLockedHint: "Locked — keep practicing to unlock!",
-    // PR 28.9: default deck privacy (teacher-only)
-    defaultDeckVisibility: "Default deck privacy",
-    defaultDeckVisibilityDesc: "Applies to new decks you create. You can override per deck.",
-    visibilityPrivate: "Private",
-    visibilityPublic: "Public",
-    visibilityPrivateHint: "New decks start private. Share manually to publish.",
-    visibilityPublicHint: "New decks start public in the community. Make individual decks private if needed.",
-  },
-  es: {
-    pageTitle: "Ajustes",
-    profile: "Perfil", appearance: "Apariencia", account: "Cuenta", notifications: "Notificaciones",
-    fullName: "Nombre completo", email: "Correo", role: "Rol", school: "Escuela", schoolPlaceholder: "Nombre de tu escuela",
-    saveChanges: "Guardar", saving: "Guardando...", saved: "¡Guardado!", teacher: "Profesor", student: "Estudiante",
-    language: "Idioma", languageDesc: "Elige tu idioma preferido",
-    theme: "Tema", themeDesc: "Elige tu apariencia preferida",
-    light: "Claro", dark: "Oscuro", system: "Sistema",
-    changePassword: "Cambiar contraseña", currentPassword: "Contraseña actual",
-    newPassword: "Nueva contraseña", confirmPassword: "Confirmar contraseña", updatePassword: "Actualizar",
-    updatingPassword: "Actualizando...", passwordUpdated: "¡Contraseña actualizada!", passwordError: "Error al actualizar",
-    passwordMismatch: "Las contraseñas no coinciden", passwordTooShort: "Mínimo 6 caracteres",
-    dangerZone: "Zona de peligro", deleteAccount: "Eliminar cuenta",
-    deleteAccountDesc: "Elimina tu cuenta y datos permanentemente.",
-    deleteAccountBtn: "Eliminar mi cuenta", exportData: "Exportar datos",
-    exportDataDesc: "Descarga tus datos como JSON", exportBtn: "Exportar", exporting: "Exportando...",
-    emailNotifs: "Notificaciones email", emailNotifsDesc: "Recibe reportes semanales",
-    pushNotifs: "Recordatorios de repaso", pushNotifsDesc: "Recordatorios cuando hay temas que repasar",
-    weeklyReport: "Reporte semanal", weeklyReportDesc: "Resumen cada lunes",
-    dailyGoal: "Meta diaria", dailyGoalDesc: "Preguntas por día", questionsDay: "preguntas/día",
-    studyReminders: "Recordatorios", studyRemindersDesc: "Recordar practicar temas débiles",
-    streakReminder: "Recordatorio de racha", streakReminderDesc: "Recordatorio diario de racha",
-    profilePicture: "Foto de perfil",
-    avatarTabPhoto: "Subir foto", avatarTabAvatar: "Elegir avatar",
-    avatarUploadHint: "JPG o PNG, máx 5 MB. Las imágenes cuadradas se ven mejor.",
-    avatarChoose: "Explorar", avatarRemove: "Quitar foto", avatarUploading: "Subiendo...",
-    avatarSaved: "¡Avatar actualizado!",
-    avatarUseChosen: "Usar este avatar",
-    avatarLockedHint: "Bloqueado — ¡sigue practicando para desbloquear!",
-    // PR 28.9: default deck privacy (teacher-only)
-    defaultDeckVisibility: "Privacidad de decks por defecto",
-    defaultDeckVisibilityDesc: "Se aplica a los nuevos decks que crees. Podés cambiarlo deck por deck.",
-    visibilityPrivate: "Privado",
-    visibilityPublic: "Público",
-    visibilityPrivateHint: "Los nuevos decks arrancan privados. Compartilos manualmente para publicar.",
-    visibilityPublicHint: "Los nuevos decks arrancan públicos en la comunidad. Hacé privados los específicos que no quieras compartir.",
-  },
-  ko: {
-    pageTitle: "설정",
-    profile: "프로필", appearance: "외관", account: "계정", notifications: "알림",
-    fullName: "이름", email: "이메일", role: "역할", school: "학교", schoolPlaceholder: "학교 이름",
-    saveChanges: "저장", saving: "저장 중...", saved: "저장됨!", teacher: "교사", student: "학생",
-    language: "언어", languageDesc: "선호 언어를 선택하세요",
-    theme: "테마", themeDesc: "선호 외관을 선택하세요",
-    light: "라이트", dark: "다크", system: "시스템",
-    changePassword: "비밀번호 변경", currentPassword: "현재 비밀번호",
-    newPassword: "새 비밀번호", confirmPassword: "비밀번호 확인", updatePassword: "업데이트",
-    updatingPassword: "업데이트 중...", passwordUpdated: "비밀번호 업데이트됨!", passwordError: "업데이트 오류",
-    passwordMismatch: "비밀번호가 일치하지 않습니다", passwordTooShort: "최소 6자",
-    dangerZone: "위험 구역", deleteAccount: "계정 삭제",
-    deleteAccountDesc: "계정과 데이터를 영구 삭제합니다.",
-    deleteAccountBtn: "내 계정 삭제", exportData: "데이터 내보내기",
-    exportDataDesc: "데이터를 JSON으로 다운로드", exportBtn: "내보내기", exporting: "내보내는 중...",
-    emailNotifs: "이메일 알림", emailNotifsDesc: "주간 보고서 받기",
-    pushNotifs: "복습 알림", pushNotifsDesc: "복습 필요시 알림",
-    weeklyReport: "주간 보고서", weeklyReportDesc: "매주 월요일 요약",
-    dailyGoal: "일일 목표", dailyGoalDesc: "하루 문제 수", questionsDay: "문제/일",
-    studyReminders: "학습 알림", studyRemindersDesc: "약한 주제 연습 알림",
-    streakReminder: "연속 알림", streakReminderDesc: "매일 연속 기록 알림",
-    profilePicture: "프로필 사진",
-    avatarTabPhoto: "사진 업로드", avatarTabAvatar: "아바타 선택",
-    avatarUploadHint: "JPG 또는 PNG, 최대 5 MB. 정사각형 이미지가 가장 잘 보입니다.",
-    avatarChoose: "찾아보기", avatarRemove: "사진 제거", avatarUploading: "업로드 중...",
-    avatarSaved: "아바타가 업데이트되었습니다!",
-    avatarUseChosen: "이 아바타 사용",
-    avatarLockedHint: "잠김 — 계속 연습하여 잠금을 해제하세요!",
-    // PR 28.9: default deck privacy (teacher-only)
-    defaultDeckVisibility: "기본 덱 공개 설정",
-    defaultDeckVisibilityDesc: "새로 만드는 덱에 적용됩니다. 덱별로 개별 변경할 수 있습니다.",
-    visibilityPrivate: "비공개",
-    visibilityPublic: "공개",
-    visibilityPrivateHint: "새 덱은 비공개로 시작합니다. 공유하려면 수동으로 게시하세요.",
-    visibilityPublicHint: "새 덱은 커뮤니티에 공개됩니다. 개별 덱은 비공개로 설정할 수 있습니다.",
-  },
-};
+// PR 75: el bloque i18n local fue movido a src/i18n/{en,es,ko}.js
+// bajo el namespace "settings".
 
 const css = `
   .st-tab { transition: all .15s ease; cursor: pointer; border: none; font-family: 'Outfit',sans-serif; }
@@ -214,7 +104,7 @@ export default function Settings({ lang: pageLang = "en", setLang: pageSetLang, 
   // actual write happens in setVisibilityValue below.
   const [defaultDeckVisibility, setDefaultDeckVisibility] = useState("private");
 
-  const t = i18n[l] || i18n.en;
+  const t = useT("settings", l);
   const isTeacher = profile?.role === "teacher";
 
   useEffect(() => { loadProfile(); }, []);

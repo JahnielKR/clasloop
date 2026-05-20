@@ -46,8 +46,8 @@ import * as modern from "../lib/pdf-styles/modern";
 import * as editorial from "../lib/pdf-styles/editorial";
 import * as framed from "../lib/pdf-styles/framed";
 import { drawScanSheet } from "../lib/pdf-styles/scanner";
-// PR 68: toast notifications
-import { useToast } from "../lib/toast";
+// PR 75: i18n centralizado
+import { useT } from "../i18n";
 
 // PR 46: scanner ya no es un "estilo" — es una página opcional que se
 // preempts al examen cuando variant === "exam_with_scan". El style
@@ -68,89 +68,8 @@ const VISIBLE_STYLES = 3;
 
 // i18n strings for the modal — kept local since this is the only place
 // they're used. EN / ES / KO follow the same key set.
-const I18N = {
-  en: {
-    title: "Export PDF",
-    subtitle: "Choose the style and the variant",
-    variantLabel: "Type",
-    variantExam: "Exam",
-    variantExamWithScan: "Exam + scan sheet",
-    variantKey: "AK",
-    variantKeyTooltip: "Answer key (for the teacher)",
-    styleLabel: "Style",
-    classicName: "Classic",
-    classicDesc: "Sober, professional",
-    modernName: "Modern",
-    modernDesc: "Colorful, friendly",
-    editorialName: "Editorial",
-    editorialDesc: "Premium, magazine",
-    framedName: "Framed",
-    framedDesc: "Formal, bordered",
-    paletteLabel: "Color",
-    previewLabel: "Preview",
-    previewLoading: "Generating preview…",
-    previewFailed: "Preview failed. You can still download.",
-    cancel: "Cancel",
-    download: "Download PDF",
-    close: "Close",
-    // PR 68
-    downloadFailed: "Couldn't generate the PDF. Please try again.",
-  },
-  es: {
-    title: "Exportar PDF",
-    subtitle: "Elegí el estilo y el tipo",
-    variantLabel: "Tipo",
-    variantExam: "Examen",
-    variantExamWithScan: "Examen + hoja escaneable",
-    variantKey: "CR",
-    variantKeyTooltip: "Clave de respuestas (para el profe)",
-    styleLabel: "Estilo",
-    classicName: "Clásico",
-    classicDesc: "Sobrio, profesional",
-    modernName: "Moderno",
-    modernDesc: "Colorido, juvenil",
-    editorialName: "Editorial",
-    editorialDesc: "Premium, revista",
-    framedName: "Marco",
-    framedDesc: "Formal, con borde",
-    paletteLabel: "Color",
-    previewLabel: "Vista previa",
-    previewLoading: "Generando vista previa…",
-    previewFailed: "No se pudo generar vista previa. Igual podés descargar.",
-    cancel: "Cancelar",
-    download: "Descargar PDF",
-    close: "Cerrar",
-    // PR 68
-    downloadFailed: "No se pudo generar el PDF. Probá de nuevo.",
-  },
-  ko: {
-    title: "PDF 내보내기",
-    subtitle: "스타일과 종류를 선택하세요",
-    variantLabel: "종류",
-    variantExam: "시험지",
-    variantExamWithScan: "시험지 + 스캔 시트",
-    variantKey: "정답",
-    variantKeyTooltip: "정답 (교사용)",
-    styleLabel: "스타일",
-    classicName: "클래식",
-    classicDesc: "차분하고 전문적",
-    modernName: "모던",
-    modernDesc: "다채롭고 친근함",
-    editorialName: "에디토리얼",
-    editorialDesc: "프리미엄 매거진",
-    framedName: "프레임",
-    framedDesc: "정식, 테두리",
-    paletteLabel: "색상",
-    previewLabel: "미리보기",
-    previewLoading: "미리보기 생성 중…",
-    previewFailed: "미리보기를 생성할 수 없습니다. 다운로드는 가능합니다.",
-    cancel: "취소",
-    download: "PDF 다운로드",
-    close: "닫기",
-    // PR 68
-    downloadFailed: "PDF를 생성할 수 없습니다. 다시 시도해 주세요.",
-  },
-};
+// PR 75: el bloque i18n local fue movido a src/i18n/{en,es,ko}.js
+// bajo el namespace "pdfExportModal".
 
 // ─── Thumbnail SVGs ──────────────────────────────────────────────────────
 // Tiny representations of each style, rendered as inline SVG so they
@@ -448,9 +367,7 @@ export default function PDFExportModal({
   // Theme tokens for consistency with the rest of the app
   C,
 }) {
-  const t = I18N[lang] || I18N.en;
-  // PR 68: toast notifications
-  const toast = useToast();
+  const t = useT("pdfExportModal", lang);
 
   // Sticky style from localStorage. Default to classic if first run.
   const [style, setStyle] = useState(() => {
@@ -571,11 +488,7 @@ export default function PDFExportModal({
       onClose?.();
     } catch (err) {
       console.error("[pdf download] failed:", err);
-      // PR 68: toast con mensaje localizado + report del error real a Sentry.
-      toast.error(t.downloadFailed, {
-        reportError: err instanceof Error ? err : new Error(String(err)),
-        context: { action: "pdfDownload", deckId: deck?.id, style, variant },
-      });
+      alert("PDF download failed. Try again.");
     } finally {
       setDownloading(false);
     }

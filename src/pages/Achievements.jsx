@@ -6,6 +6,8 @@ import { getStudentStats } from "../lib/unlock-checker";
 import { useIsMobile } from "../components/MobileMenuButton";
 import PageHeader from "../components/PageHeader";
 import { C as BASE_C, MONO } from "../components/tokens";
+// PR 75: i18n centralizado
+import { useT } from "../i18n";
 
 // Achievements adds two domain-specific colors (pink for "rare" tier
 // avatars) on top of the shared palette.
@@ -17,78 +19,8 @@ const RARITY = {
   legendary: { bg: C.orangeSoft, border: C.orange + "44", text: C.orange,        label: { en: "Legendary", es: "Legendario", ko: "전설"   } },
 };
 
-const i18n = {
-  en: {
-    pageTitle: "Achievements",
-    subtitle: "Unlock new avatars by playing and learning",
-    all: "All", unlocked: "Unlocked", locked: "Locked",
-    total: "unlocked", common: "Common", rare: "Rare", legendary: "Legendary",
-    nextUnlock: "Closest to unlock",
-    close: "Close",
-    earned: "Earned!",
-    progressLabel: "Progress",
-    teacherNotice: "Achievements are designed for students.",
-    teacherNoticeHint: "Students earn avatars by playing live sessions, building streaks, and reaching retention goals.",
-    starter: "Starter avatar",
-    starterHint: "Available from day one.",
-    // Unlock condition descriptions
-    cond_sessions: "Complete {n} sessions",
-    cond_streak: "Reach a {n}-day streak",
-    cond_perfect: "Get 100% in {n} session(s)",
-    cond_answers: "Answer {n} questions correctly",
-    cond_topics: "Master {n} topics (≥70% retention)",
-    cond_comeback: "Return after {n} days away",
-    cond_retention: "Average retention ≥ {n}%",
-    loading: "Loading...",
-    noProgress: "Start a session to begin earning avatars",
-  },
-  es: {
-    pageTitle: "Logros",
-    subtitle: "Desbloquea nuevos avatares jugando y aprendiendo",
-    all: "Todos", unlocked: "Desbloqueados", locked: "Bloqueados",
-    total: "desbloqueados", common: "Común", rare: "Raro", legendary: "Legendario",
-    nextUnlock: "Más cerca de desbloquear",
-    close: "Cerrar",
-    earned: "¡Obtenido!",
-    progressLabel: "Progreso",
-    teacherNotice: "Los logros están diseñados para estudiantes.",
-    teacherNoticeHint: "Los estudiantes ganan avatares jugando sesiones en vivo, construyendo rachas y alcanzando metas de retención.",
-    starter: "Avatar inicial",
-    starterHint: "Disponible desde el primer día.",
-    cond_sessions: "Completa {n} sesiones",
-    cond_streak: "Logra una racha de {n} días",
-    cond_perfect: "Obtén 100% en {n} sesión(es)",
-    cond_answers: "Responde {n} preguntas correctamente",
-    cond_topics: "Domina {n} temas (≥70% retención)",
-    cond_comeback: "Regresa después de {n} días",
-    cond_retention: "Retención promedio ≥ {n}%",
-    loading: "Cargando...",
-    noProgress: "Empieza una sesión para empezar a ganar avatares",
-  },
-  ko: {
-    pageTitle: "업적",
-    subtitle: "플레이하고 배우면서 새로운 아바타를 잠금 해제하세요",
-    all: "전체", unlocked: "잠금 해제됨", locked: "잠김",
-    total: "개 잠금 해제", common: "일반", rare: "레어", legendary: "전설",
-    nextUnlock: "잠금 해제 직전",
-    close: "닫기",
-    earned: "획득!",
-    progressLabel: "진행도",
-    teacherNotice: "업적은 학생을 위해 설계되었습니다.",
-    teacherNoticeHint: "학생은 라이브 세션을 플레이하고, 연속 기록을 쌓고, 보존율 목표를 달성하여 아바타를 얻습니다.",
-    starter: "시작 아바타",
-    starterHint: "처음부터 사용 가능합니다.",
-    cond_sessions: "{n}개 세션 완료",
-    cond_streak: "{n}일 연속 달성",
-    cond_perfect: "{n}개 세션에서 100% 달성",
-    cond_answers: "{n}개 문제 정답",
-    cond_topics: "{n}개 주제 마스터 (≥70% 보존)",
-    cond_comeback: "{n}일 후 복귀",
-    cond_retention: "평균 보존율 ≥ {n}%",
-    loading: "로딩 중...",
-    noProgress: "세션을 시작하여 아바타 획득을 시작하세요",
-  },
-};
+// PR 75: el bloque i18n local fue movido a src/i18n/{en,es,ko}.js
+// bajo el namespace "achievements".
 
 const css = `
   .ach-card { transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease; cursor: pointer; }
@@ -303,7 +235,7 @@ function AchModal({ avatar, unlocked, progress, lang, t, onClose }) {
 // ─── Main ─────────────────────────────────────────────────────────────────
 export default function Achievements({ lang = "en", setLang, profile = null, onOpenMobileMenu }) {
   const isMobile = useIsMobile();
-  const t = i18n[lang] || i18n.en;
+  const t = useT("achievements", lang);
   const [filter, setFilter] = useState("all"); // all | unlocked | locked
   const [rarityFilter, setRarityFilter] = useState("all"); // all | common | rare | legendary
   const [selected, setSelected] = useState(null);

@@ -22,69 +22,11 @@ import PageHeader from "../components/PageHeader";
 import { C, MONO } from "../components/tokens";
 import { ROUTES } from "../routes";
 import { SavedDeckCard } from "./MyClasses";
+// PR 75: i18n centralizado
+import { useT } from "../i18n";
 
-const i18n = {
-  en: {
-    pageTitle: "Favorites",
-    back: "← Back",
-    searchPlaceholder: "Search your favorites…",
-    empty: "No favorites yet",
-    emptySub: "Star a deck from the community or your saved decks to see it here.",
-    noResults: "No favorites match that search.",
-    loading: "Loading...",
-    count: "{n} favorites",
-    countOne: "1 favorite",
-    favoriteRemove: "Remove from favorites",
-    favoriteAdd: "Add to favorites",
-    practice: "Practice",
-    unsave: "Unsave",
-    questionsCount: "questions",
-    savedFrom: "Saved from",
-    teacher: "Teacher",
-    practiceTimerOnTip: "Practice with timer (tap to study without time pressure)",
-    practiceTimerOffTip: "Practice untimed (tap to use the recommended timing)",
-  },
-  es: {
-    pageTitle: "Favoritos",
-    back: "← Volver",
-    searchPlaceholder: "Busca en tus favoritos…",
-    empty: "Aún no tienes favoritos",
-    emptySub: "Marca un deck con la estrella en la comunidad o en tus guardados para verlo aquí.",
-    noResults: "Ningún favorito coincide con esa búsqueda.",
-    loading: "Cargando...",
-    count: "{n} favoritos",
-    countOne: "1 favorito",
-    favoriteRemove: "Quitar de favoritos",
-    favoriteAdd: "Añadir a favoritos",
-    practice: "Practicar",
-    unsave: "Quitar",
-    questionsCount: "preguntas",
-    savedFrom: "Guardado de",
-    teacher: "Profesor/a",
-    practiceTimerOnTip: "Practicar con timer (toca para estudiar sin presión)",
-    practiceTimerOffTip: "Practicar sin timer (toca para usar el tiempo recomendado)",
-  },
-  ko: {
-    pageTitle: "즐겨찾기",
-    back: "← 뒤로",
-    searchPlaceholder: "즐겨찾기에서 검색…",
-    empty: "아직 즐겨찾기가 없습니다",
-    emptySub: "커뮤니티나 저장된 덱에서 별표를 누르면 여기에 표시됩니다.",
-    noResults: "검색 결과가 없습니다.",
-    loading: "로딩 중...",
-    count: "즐겨찾기 {n}개",
-    countOne: "즐겨찾기 1개",
-    favoriteRemove: "즐겨찾기 제거",
-    favoriteAdd: "즐겨찾기 추가",
-    practice: "학습",
-    unsave: "저장 취소",
-    questionsCount: "문제",
-    savedFrom: "저장 출처",
-    teacher: "교사",
-    practiceTimerOnTip: "타이머와 함께 학습 (탭하여 시간 압박 없이 학습)",
-    practiceTimerOffTip: "타이머 없이 학습 (탭하여 권장 시간 사용)",
-  },
-};
+// PR 75: el bloque i18n local fue movido a src/i18n/{en,es,ko}.js
+// bajo el namespace "favorites".
 
 export default function Favorites({
   lang: pageLang = "en",
@@ -94,7 +36,7 @@ export default function Favorites({
   onOpenMobileMenu,
 }) {
   const l = pageLang || "en";
-  const t = i18n[l] || i18n.en;
+  const t = useT("favorites", l);
   const setLang = pageSetLang || (() => {});
   const navigate = useNavigate();
 
