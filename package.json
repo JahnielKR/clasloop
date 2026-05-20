@@ -9,6 +9,7 @@
     "preview": "vite preview",
     "patch:android": "node scripts/patch-android.cjs",
     "icons:generate": "node scripts/generate-android-assets.cjs",
+    "prepare-fonts": "node scripts/prepare-fonts.cjs",
     "test": "vitest",
     "test:run": "vitest run",
     "test:ui": "vitest --ui"
@@ -28,12 +29,10 @@
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
-    "@sentry/react": "^10.0.0",
     "@supabase/supabase-js": "^2.43.0",
     "jspdf": "^2.5.1",
     "jszip": "^3.10.1",
     "mammoth": "^1.12.0",
-    "posthog-js": "^1.374.0",
     "qrcode": "^1.5.4",
     "qrcode.react": "^4.2.0",
     "react": "^18.2.0",
@@ -43,10 +42,7 @@
   "devDependencies": {
     "@capacitor/cli": "^8.3.4",
     "@vitejs/plugin-react": "^4.2.1",
-    "@vitest/ui": "^3.2.4",
     "sharp": "^0.34.5",
-    "typescript": "^6.0.3",
-    "vite": "^5.2.0",
-    "vitest": "^3.0.0"
+    "vite": "^5.2.0"
   }
 }
