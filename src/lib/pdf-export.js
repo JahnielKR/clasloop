@@ -63,7 +63,32 @@ export async function exportPDF(deck, classObj, opts = {}) {
   const doc = new jsPDF({ unit: "mm", format: "a4" });
 
   // Korean decks need a CJK-capable font registered before any draw call.
-  const useKorean = (deck.language || "").toLowerCase() === "ko";
+  // PR 81: el check no es solo deck.language === "ko". La AI a veces genera
+  // contenido en coreano pero el deck queda con language en otro idioma
+  // (porque el user seleccionó otro en el dropdown del panel AI, o porque
+  // el field language quedó vacío al guardar). Detectamos hangul en el
+  // contenido también — si está presente, cargamos NotoSansKR aunque el
+  // language field diga otra cosa.
+  //
+  // Rango hangul U+AC00 a U+D7A3 cubre las sílabas pre-compuestas
+  // completas; cubre el 99.99% del coreano moderno. Si vale la pena en
+  // el futuro, extender a Hangul Jamo (U+1100-U+11FF) o Compatibility
+  // Jamo (U+3130-U+318F).
+  const HANGUL_RE = /[\uAC00-\uD7A3]/;
+  const hasKoreanContent = (() => {
+    try {
+      const stringified = JSON.stringify({
+        title: deck.title,
+        description: deck.description,
+        questions: deck.questions,
+      });
+      return HANGUL_RE.test(stringified);
+    } catch {
+      return false;
+    }
+  })();
+  const useKorean =
+    (deck.language || "").toLowerCase() === "ko" || hasKoreanContent;
   if (useKorean) {
     await ensureKoreanFont(doc);
   }
