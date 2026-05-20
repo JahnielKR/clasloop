@@ -40,164 +40,15 @@ import {
   saveReviewDeck,
   findExistingReviewDeck,
 } from "../lib/close-unit-ai";
+// PR 76: i18n centralizado
+import { useT } from "../i18n";
 
-const i18n = {
-  en: {
-    confirmTitle: "Close this unit?",
-    confirmBody: "We'll show you a summary of how the class did, suggest a closing review based on the weakest topics, and let you start the next unit.",
-    confirmBody2: "Decks from this unit don't disappear — they stay in your library and may resurface as review suggestions weeks later.",
-    notYet: "Not yet",
-    continueToSummary: "Continue with the summary →",
-
-    // Mockup-style summary header & meta
-    youreClosing: "You're closing",
-    daysUnit: "days",
-    warmupsLaunched: "warmups launched",
-    exitsLaunched: "exit tickets launched",
-    studentResponses: "student responses",
-    // Inline stats
-    avgRetentionShort: "avg retention",
-    strongTopics: "strong topics",
-    weakTopics: "weak topics",
-    launches: "launches",
-    // Reserved blocks (filled in PR 7 with AI generation)
-    aiInsightsLabel: "What worked / What didn't",
-    aiInsightsHint: "AI-generated insights from this unit's data — coming soon.",
-    closingReviewLabel: "Suggested closing review",
-    closingReviewHint: "A review deck targeting this unit's weakest topics.",
-    // PR 12: AI states
-    whatWorkedLabel: "What worked",
-    whatDidntLabel: "What didn't",
-    aiGenerating: "Reading the unit's data…",
-    aiError: "Couldn't generate insights right now.",
-    aiRetry: "Try again",
-    aiNotEnoughData: "Not enough data to summarize this unit yet.",
-    reviewGenerate: "Generate review deck",
-    reviewGenerating: "Building a 20-question deck (15–25 seconds)…",
-    reviewSuccess: "Review deck created — added to your library",
-    reviewError: "Couldn't create the review deck.",
-    reviewView: "Open in library",
-    // Optional teacher note
-    noteLabel: "Optional · What did you want them to learn?",
-    notePlaceholder: "In 1-2 sentences, what you hoped they'd learn.",
-    // Legacy keys still referenced by the no-data fallback (kept for safety)
-    noDataYet: "No data yet — this unit was closed before any session ran.",
-
-    back: "← Back",
-    closeUnit: "Close unit",
-    closing: "Closing…",
-    closeError: "Could not close the unit. Try again.",
-
-    // Reopen flow (lighter, single-step)
-    reopenLabel: "Reopen",
-    reopenConfirm: "Reopen {unit}?",
-    reopenBody: "It will go back to 'Planned'. Your closing summary stays available.",
-    reopenAction: "Reopen unit",
-    reopening: "Reopening…",
-    reopenError: "Could not reopen. Try again.",
-    cancel: "Cancel",
-  },
-  es: {
-    confirmTitle: "¿Cerrar esta unidad?",
-    confirmBody: "Te mostraremos un resumen de cómo le fue a la clase, sugeriremos un repaso de cierre basado en los temas más débiles, y te dejamos empezar la siguiente unidad.",
-    confirmBody2: "Los decks de esta unidad no desaparecen — quedan en tu biblioteca y pueden volver como sugerencias de repaso semanas después.",
-    notYet: "Todavía no",
-    continueToSummary: "Continuar al resumen →",
-
-    youreClosing: "Estás cerrando",
-    daysUnit: "días",
-    warmupsLaunched: "warmups lanzados",
-    exitsLaunched: "exit tickets lanzados",
-    studentResponses: "respuestas de alumnos",
-    avgRetentionShort: "retención promedio",
-    strongTopics: "temas fuertes",
-    weakTopics: "temas débiles",
-    launches: "lanzamientos",
-    aiInsightsLabel: "Qué funcionó / Qué no",
-    aiInsightsHint: "Insights generados por IA a partir de los datos de esta unidad — próximamente.",
-    closingReviewLabel: "Repaso de cierre sugerido",
-    closingReviewHint: "Un deck con los temas más débiles de esta unidad.",
-    whatWorkedLabel: "Qué funcionó",
-    whatDidntLabel: "Qué no",
-    aiGenerating: "Leyendo los datos de la unidad…",
-    aiError: "No pudimos generar los insights ahora.",
-    aiRetry: "Reintentar",
-    aiNotEnoughData: "Todavía no hay suficientes datos para resumir esta unidad.",
-    reviewGenerate: "Generar deck de repaso",
-    reviewGenerating: "Generando un deck de 20 preguntas (15–25 segundos)…",
-    reviewSuccess: "Deck de repaso creado — agregado a tu library",
-    reviewError: "No pudimos crear el deck de repaso.",
-    reviewView: "Abrir en library",
-    noteLabel: "Opcional · ¿Qué querías que aprendieran?",
-    notePlaceholder: "En 1-2 frases, lo que esperabas que aprendieran.",
-    noDataYet: "Sin datos — esta unidad se cerró sin sesiones lanzadas.",
-
-    back: "← Volver",
-    closeUnit: "Cerrar unidad",
-    closing: "Cerrando…",
-    closeError: "No se pudo cerrar. Intenta de nuevo.",
-
-    reopenLabel: "Reabrir",
-    reopenConfirm: "¿Reabrir {unit}?",
-    reopenBody: "Volverá a estado 'Planeada'. Tu resumen de cierre se mantiene.",
-    reopenAction: "Reabrir unidad",
-    reopening: "Reabriendo…",
-    reopenError: "No se pudo reabrir. Intenta de nuevo.",
-    cancel: "Cancelar",
-  },
-  ko: {
-    confirmTitle: "이 단원을 종료할까요?",
-    confirmBody: "수업이 어떻게 진행되었는지 요약을 보여드리고, 가장 약한 주제를 기반으로 마무리 복습을 제안하며, 다음 단원을 시작할 수 있게 해드립니다.",
-    confirmBody2: "이 단원의 덱은 사라지지 않습니다 — 라이브러리에 남아있으며 몇 주 후 복습 제안으로 다시 나타날 수 있습니다.",
-    notYet: "아직",
-    continueToSummary: "요약 보기 →",
-
-    youreClosing: "종료 중",
-    daysUnit: "일",
-    warmupsLaunched: "워밍업 실행됨",
-    exitsLaunched: "종료 티켓 실행됨",
-    studentResponses: "학생 응답",
-    avgRetentionShort: "평균 보존율",
-    strongTopics: "강한 주제",
-    weakTopics: "약한 주제",
-    launches: "실행",
-    aiInsightsLabel: "잘된 점 / 개선할 점",
-    aiInsightsHint: "이 단원 데이터에서 AI가 생성한 인사이트 — 곧 제공됩니다.",
-    closingReviewLabel: "추천 마무리 복습",
-    closingReviewHint: "이 단원의 약한 주제를 다루는 복습 덱.",
-    whatWorkedLabel: "잘된 점",
-    whatDidntLabel: "개선할 점",
-    aiGenerating: "단원 데이터 분석 중…",
-    aiError: "지금은 인사이트를 생성할 수 없습니다.",
-    aiRetry: "다시 시도",
-    aiNotEnoughData: "이 단원을 요약할 데이터가 아직 충분하지 않습니다.",
-    reviewGenerate: "복습 덱 생성",
-    reviewGenerating: "20문항 복습 덱 만드는 중 (15–25초)…",
-    reviewSuccess: "복습 덱이 만들어졌습니다 — 라이브러리에 추가됨",
-    reviewError: "복습 덱을 만들 수 없습니다.",
-    reviewView: "라이브러리에서 열기",
-    noteLabel: "선택 · 학생들이 무엇을 배우길 원하셨나요?",
-    notePlaceholder: "1-2문장으로, 학생들이 배우길 바랐던 내용.",
-    noDataYet: "데이터 없음 — 세션 실행 없이 종료되었습니다.",
-
-    back: "← 뒤로",
-    closeUnit: "단원 종료",
-    closing: "종료 중…",
-    closeError: "종료할 수 없습니다. 다시 시도하세요.",
-
-    reopenLabel: "다시 열기",
-    reopenConfirm: "{unit}을(를) 다시 열까요?",
-    reopenBody: "'예정' 상태로 돌아갑니다. 종료 요약은 유지됩니다.",
-    reopenAction: "단원 다시 열기",
-    reopening: "다시 여는 중…",
-    reopenError: "다시 열 수 없습니다.",
-    cancel: "취소",
-  },
-};
+// PR 76: el bloque i18n local fue movido a src/i18n/{en,es,ko}.js
+// bajo el namespace "closeUnitFlow".
 
 // ─── Step 1: confirmation modal ─────────────────────────────────────────
 export function CloseUnitConfirmModal({ open, unit, onCancel, onContinue, lang = "en" }) {
-  const t = i18n[lang] || i18n.en;
+  const t = useT("closeUnitFlow", lang);
   if (!open || !unit) return null;
   return (
     <div
@@ -297,7 +148,7 @@ export function CloseUnitConfirmModal({ open, unit, onCancel, onContinue, lang =
 // a modal) — the closing of a unit deserves space, not a small dialog.
 // ClassPage swaps PlanView for this when closingUnit is set.
 export function CloseUnitSummary({ unit, classObj, userId, lang = "en", onBack, onConfirm }) {
-  const t = i18n[lang] || i18n.en;
+  const t = useT("closeUnitFlow", lang);
   const navigate = useNavigate();
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -997,7 +848,7 @@ function InlineStat({ value, label, accent }) {
 // Lighter than close — reopening is reversible (you can close again),
 // so a single-step modal is enough.
 export function ReopenUnitModal({ open, unit, onCancel, onConfirm, lang = "en" }) {
-  const t = i18n[lang] || i18n.en;
+  const t = useT("closeUnitFlow", lang);
   const [busy, setBusy] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 

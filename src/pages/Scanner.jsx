@@ -40,179 +40,18 @@ import {
   sampleBubbles,
   updateAnswer,
 } from "../lib/scanner-mlkit";
-// PR 66: PDF corregido
-import { createCorrectedScanPdf } from "../lib/pdf-styles/scanned-overlay";
-import { savePdfCrossPlatform } from "../lib/native-pdf";
-// PR 68: toast notifications
-import { useToast } from "../lib/toast";
-// PR 69: analytics
-import { trackEvent } from "../lib/analytics";
+// PR 76: i18n centralizado
+import { useT } from "../i18n";
 
 // ─── i18n ───────────────────────────────────────────────────────────────────
-const I18N = {
-  en: {
-    pageTitle: "Scanner",
-    pageSubtitle: "Scan student answer sheets and see the score instantly.",
-    // pickDeck
-    pickDeckLabel: "Choose a deck",
-    pickDeckHelp: "Pick the deck whose answer sheet you'll be scanning.",
-    pickDeckLoading: "Loading your decks…",
-    pickDeckEmpty: "You don't have any decks yet.",
-    searchPlaceholder: "Search your decks…",
-    emptySearch: "No matches. Try a different search.",
-    startBtn: "Start scanning",
-    questionsLabel: (n) => `${n} ${n === 1 ? "question" : "questions"}`,
-    // webFallback
-    webTitle: "Scanner runs on the app",
-    webSubtitle: "Download the Clasloop app on your phone or tablet to scan answer sheets.",
-    webAndroid: "Get it on Android",
-    webIos: "Coming soon on iOS",
-    // scanning
-    scanningLabel: "Open camera…",
-    samplingLabel: "Reading answers…",
-    // reviewUncertain
-    reviewTitle: "Quick review",
-    reviewSubtitle: (n) => `I'm unsure about ${n} ${n === 1 ? "bubble" : "bubbles"}. Tap to confirm.`,
-    reviewSkip: "Skip review",
-    reviewDone: "Continue",
-    questionLabel: (n) => `Question ${n}`,
-    detectedAs: "Detected as",
-    chooseAnswer: "Choose answer",
-    noAnswer: "(blank)",
-    // result
-    resultScore: (n, total) => `${n} / ${total}`,
-    resultDetailLabel: "Per-question detail",
-    saveAndNext: "Save and scan next",
-    saveAndFinish: "Save and finish",
-    finishNoSave: "Finish without saving",
-    saving: "Saving…",
-    // PR 66: corrected PDF
-    downloadCorrected: "Download corrected PDF",
-    downloadingCorrected: "Generating PDF…",
-    errDownloadFailed: "Could not generate the PDF. Please try again.",
-    errSaveScan: "Couldn't save the scan. Please try again.",
-    // scanError
-    errCancelled: "Scan cancelled.",
-    errNoQR: "Could not read the QR code on this sheet.",
-    errWrongDeck: "This sheet belongs to a different deck.",
-    errNotNative: "Scanner only works on the mobile app.",
-    errNoQuestions: "This deck has no MCQ or T/F questions to scan.",
-    errUnsupported: "Document scanner isn't supported on this device. Try on a phone or tablet with Google Play Services.",
-    errUnexpected: "Something went wrong. Try again.",
-    retryBtn: "Try again",
-    backBtn: "Back",
-    cancelBtn: "Cancel",
-    // Misc
-    summary: (n) => `You scanned ${n} ${n === 1 ? "sheet" : "sheets"}.`,
-    backToStart: "Back to start",
-  },
-  es: {
-    pageTitle: "Escáner",
-    pageSubtitle: "Escaneá las hojas de respuestas y mirá el puntaje al instante.",
-    pickDeckLabel: "Elegí un deck",
-    pickDeckHelp: "Seleccioná el deck cuya hoja vas a escanear.",
-    pickDeckLoading: "Cargando tus decks…",
-    pickDeckEmpty: "Todavía no tenés ningún deck.",
-    searchPlaceholder: "Buscá en tus decks…",
-    emptySearch: "Sin resultados. Probá con otra búsqueda.",
-    startBtn: "Empezar a escanear",
-    questionsLabel: (n) => `${n} ${n === 1 ? "pregunta" : "preguntas"}`,
-    webTitle: "El escáner corre en la app",
-    webSubtitle: "Descargá la app de Clasloop en tu celular o tablet para escanear hojas.",
-    webAndroid: "Conseguilo en Android",
-    webIos: "Pronto en iOS",
-    scanningLabel: "Abriendo cámara…",
-    samplingLabel: "Leyendo respuestas…",
-    reviewTitle: "Revisión rápida",
-    reviewSubtitle: (n) => `Tengo dudas con ${n} ${n === 1 ? "burbuja" : "burbujas"}. Tocá para confirmar.`,
-    reviewSkip: "Saltear revisión",
-    reviewDone: "Continuar",
-    questionLabel: (n) => `Pregunta ${n}`,
-    detectedAs: "Detecté",
-    chooseAnswer: "Elegí respuesta",
-    noAnswer: "(en blanco)",
-    resultScore: (n, total) => `${n} / ${total}`,
-    resultDetailLabel: "Detalle por pregunta",
-    saveAndNext: "Guardar y escanear otra",
-    saveAndFinish: "Guardar y terminar",
-    finishNoSave: "Terminar sin guardar",
-    saving: "Guardando…",
-    // PR 66: PDF corregido
-    downloadCorrected: "Descargar PDF corregido",
-    downloadingCorrected: "Generando PDF…",
-    errDownloadFailed: "No se pudo generar el PDF. Probá de nuevo.",
-    errSaveScan: "No se pudo guardar el escaneo. Probá de nuevo.",
-    errCancelled: "Escaneo cancelado.",
-    errNoQR: "No pude leer el código QR de esta hoja.",
-    errWrongDeck: "Esta hoja es de otro deck.",
-    errNotNative: "El escáner solo funciona en la app móvil.",
-    errNoQuestions: "Este deck no tiene preguntas MCQ ni V/F para escanear.",
-    errUnsupported: "El escáner de documentos no es compatible con este dispositivo. Probá en un celular o tablet con Google Play Services.",
-    errUnexpected: "Algo salió mal. Intentá de nuevo.",
-    retryBtn: "Reintentar",
-    backBtn: "Volver",
-    cancelBtn: "Cancelar",
-    summary: (n) => `Escaneaste ${n} ${n === 1 ? "hoja" : "hojas"}.`,
-    backToStart: "Volver al inicio",
-  },
-  ko: {
-    pageTitle: "스캐너",
-    pageSubtitle: "답안지를 스캔하고 즉시 점수를 확인하세요.",
-    pickDeckLabel: "덱 선택",
-    pickDeckHelp: "스캔할 답안지의 덱을 선택하세요.",
-    pickDeckLoading: "덱 불러오는 중…",
-    pickDeckEmpty: "아직 덱이 없습니다.",
-    searchPlaceholder: "덱 검색…",
-    emptySearch: "결과 없음. 다른 검색어를 시도하세요.",
-    startBtn: "스캔 시작",
-    questionsLabel: (n) => `${n}문제`,
-    webTitle: "스캐너는 앱에서 실행됩니다",
-    webSubtitle: "답안지를 스캔하려면 폰이나 태블릿에 Clasloop 앱을 다운로드하세요.",
-    webAndroid: "Android에서 받기",
-    webIos: "iOS 출시 예정",
-    scanningLabel: "카메라 여는 중…",
-    samplingLabel: "답안 읽는 중…",
-    reviewTitle: "빠른 검토",
-    reviewSubtitle: (n) => `${n}개의 답안이 불확실합니다. 탭하여 확인하세요.`,
-    reviewSkip: "건너뛰기",
-    reviewDone: "계속",
-    questionLabel: (n) => `문제 ${n}`,
-    detectedAs: "감지됨",
-    chooseAnswer: "답안 선택",
-    noAnswer: "(비어있음)",
-    resultScore: (n, total) => `${n} / ${total}`,
-    resultDetailLabel: "문제별 상세",
-    saveAndNext: "저장하고 다음",
-    saveAndFinish: "저장하고 종료",
-    finishNoSave: "저장하지 않고 종료",
-    saving: "저장 중…",
-    // PR 66: 채점된 PDF
-    downloadCorrected: "채점된 PDF 다운로드",
-    downloadingCorrected: "PDF 생성 중…",
-    errDownloadFailed: "PDF를 생성할 수 없습니다. 다시 시도해 주세요.",
-    errSaveScan: "스캔을 저장할 수 없습니다. 다시 시도해 주세요.",
-    errCancelled: "스캔 취소됨.",
-    errNoQR: "QR 코드를 읽을 수 없습니다.",
-    errWrongDeck: "이 답안지는 다른 덱입니다.",
-    errNotNative: "스캐너는 모바일 앱에서만 작동합니다.",
-    errNoQuestions: "이 덱에는 스캔할 MCQ나 O/X 문제가 없습니다.",
-    errUnsupported: "이 기기에서는 문서 스캐너가 지원되지 않습니다. Google Play 서비스가 설치된 폰이나 태블릿에서 시도하세요.",
-    errUnexpected: "문제가 발생했습니다. 다시 시도하세요.",
-    retryBtn: "다시 시도",
-    backBtn: "뒤로",
-    cancelBtn: "취소",
-    summary: (n) => `${n}장을 스캔했습니다.`,
-    backToStart: "처음으로",
-  },
-};
+// PR 76: el bloque I18N local fue movido a src/i18n/{en,es,ko}.js
+// bajo el namespace "scanner".
 
 // ─── Component ──────────────────────────────────────────────────────────────
 
 export default function Scanner({ lang = "en", profile, onOpenMobileMenu }) {
-  const t = I18N[lang] || I18N.en;
+  const t = useT("scanner", lang);
   const isNative = Capacitor.isNativePlatform();
-  // PR 68: toast notifications
-  const toast = useToast();
 
   // Stage machine
   const [stage, setStage] = useState(() => isNative ? "pickDeck" : "webFallback");
@@ -231,8 +70,6 @@ export default function Scanner({ lang = "en", profile, onOpenMobileMenu }) {
   const [scanningSubState, setScanningSubState] = useState("scanning");
   //   = "scanning" | "sampling"
   const [saving, setSaving] = useState(false);
-  // PR 66: estado para descarga del PDF corregido
-  const [downloadingPdf, setDownloadingPdf] = useState(false);
 
   // ─── Load decks for the teacher ────────────────────────────────────────
   useEffect(() => {
@@ -302,20 +139,6 @@ export default function Scanner({ lang = "en", profile, onOpenMobileMenu }) {
         total: result.total,
       });
 
-      // PR 69: trackear scan exitoso. Properties que importan:
-      //   - score/total: distribución de qué tan bien lo hace el alumno
-      //   - fiducials_detected: salud del CV (PR 60)
-      //   - uncertain_count: qué tan seguido necesitamos confirmar manualmente
-      //   - multi_answer: si la pregunta tenía respuesta múltiple (PR 61)
-      trackEvent("scan_completed", {
-        score: result.score,
-        total: result.total,
-        fiducials_detected: result.fiducialsDetected,
-        warp_applied: result.warpApplied,
-        uncertain_count: uncertain.length,
-        has_multi_answer: result.answers.some(a => Array.isArray(a.correct) && a.correct.length > 1),
-      });
-
       if (uncertain.length > 0) {
         setStage("reviewUncertain");
       } else {
@@ -329,13 +152,6 @@ export default function Scanner({ lang = "en", profile, onOpenMobileMenu }) {
       if (msg.toLowerCase().includes("cancel")) errKey = "errCancelled";
       else if (msg.toLowerCase().includes("unsupported")) errKey = "errUnsupported";
       else if (msg.includes("Too many scannable")) errKey = "errNoQuestions";
-
-      // PR 69: trackear scan fallido. Reason categorizado para poder
-      // ver "qué % de scans falla por cada motivo".
-      trackEvent("scan_failed", {
-        reason: errKey,
-      });
-
       setScanError({ key: errKey, raw: msg });
       setStage("scanError");
     }
@@ -392,11 +208,7 @@ export default function Scanner({ lang = "en", profile, onOpenMobileMenu }) {
 
       if (insertErr) {
         console.error("[scanner] insert failed:", insertErr);
-        // PR 68: toast con mensaje localizado + reporte del error real a Sentry
-        toast.error(t.errSaveScan, {
-          reportError: new Error(`scan insert failed: ${insertErr.message}`),
-          context: { action: "saveScan", deckId: selectedDeck?.id, supabaseCode: insertErr.code },
-        });
+        alert("Error saving scan. " + insertErr.message);
         setSaving(false);
         return;
       }
@@ -415,11 +227,7 @@ export default function Scanner({ lang = "en", profile, onOpenMobileMenu }) {
       }
     } catch (err) {
       console.error("[scanner] save error:", err);
-      // PR 68: toast + reporte del Error real
-      toast.error(t.errSaveScan, {
-        reportError: err instanceof Error ? err : new Error(String(err)),
-        context: { action: "saveScan.catch", deckId: selectedDeck?.id },
-      });
+      alert("Error: " + err.message);
     } finally {
       setSaving(false);
     }
@@ -429,38 +237,6 @@ export default function Scanner({ lang = "en", profile, onOpenMobileMenu }) {
     setCurrentScan(null);
     setStage("pickDeck");
     setSelectedDeck(null);
-  };
-
-  // ─── Action: download corrected PDF (PR 66) ────────────────────────────
-  //
-  // Genera un PDF "corregido" tomando la foto escaneada como base y
-  // dibujando overlay vectorial (✓ verde / ✗ rojo / ○ punteado verde
-  // en la correcta). El PDF se entrega vía share sheet (Android) o
-  // doc.save (web), usando el mismo wrapper savePdfCrossPlatform que el
-  // resto del proyecto.
-  //
-  // El nombre del archivo incluye el título del deck para que sea
-  // identificable cuando el profe lo guarde/comparta.
-  const handleDownloadCorrected = async () => {
-    if (!currentScan || !selectedDeck) return;
-    setDownloadingPdf(true);
-    try {
-      const doc = await createCorrectedScanPdf(currentScan, selectedDeck);
-      const safeTitle = (selectedDeck.title || "deck")
-        .replace(/[^a-z0-9_-]+/gi, "_")
-        .slice(0, 40);
-      const filename = `${safeTitle}_corrected.pdf`;
-      await savePdfCrossPlatform(doc, filename);
-    } catch (err) {
-      console.error("[scanner] download corrected failed:", err);
-      // PR 68: toast + reporte
-      toast.error(t.errDownloadFailed || "Download failed.", {
-        reportError: err instanceof Error ? err : new Error(String(err)),
-        context: { action: "downloadCorrected", deckId: selectedDeck?.id },
-      });
-    } finally {
-      setDownloadingPdf(false);
-    }
   };
 
   // ─── Render ────────────────────────────────────────────────────────────
@@ -520,9 +296,6 @@ export default function Scanner({ lang = "en", profile, onOpenMobileMenu }) {
           onSaveAndNext={() => handleSave({ andContinue: true })}
           onSaveAndFinish={() => handleSave({ andContinue: false })}
           onFinishNoSave={handleFinishNoSave}
-          // PR 66: download corrected PDF
-          onDownloadCorrected={handleDownloadCorrected}
-          downloadingPdf={downloadingPdf}
         />
       )}
 
@@ -724,47 +497,6 @@ function ReviewUncertainStage({ t, deck, answers, onConfirm, onDone }) {
     [answers]
   );
 
-  // PR 61: estado local de "selecciones pendientes" para multi-answer.
-  // Cada pregunta uncertain puede tener varias burbujas marcadas. El
-  // profe selecciona con toggle (tap A → seleccionada, tap A otra vez
-  // → deseleccionada) y aprieta "Confirmar" cuando termina.
-  //
-  // Inicializamos con lo que el scanner detectó (puede ser [] o
-  // ["A","B"]) para que el profe vea qué interpretó la cámara y solo
-  // tenga que ajustar lo que esté mal.
-  const [pendingSelections, setPendingSelections] = useState({});
-
-  useEffect(() => {
-    // Cuando entra una nueva pregunta uncertain, inicializar con lo detectado
-    setPendingSelections(prev => {
-      const next = { ...prev };
-      for (const ans of uncertain) {
-        if (!(ans.question_id in next)) {
-          next[ans.question_id] = Array.isArray(ans.marked)
-            ? [...ans.marked]
-            : (ans.marked ? [ans.marked] : []);
-        }
-      }
-      return next;
-    });
-  }, [uncertain]);
-
-  const togglePending = (questionId, letter) => {
-    setPendingSelections(prev => {
-      const current = prev[questionId] || [];
-      const next = current.includes(letter)
-        ? current.filter(l => l !== letter)
-        : [...current, letter].sort();
-      return { ...prev, [questionId]: next };
-    });
-  };
-
-  const confirmPending = (questionId) => {
-    const selections = pendingSelections[questionId] || [];
-    // onConfirm acepta array (PR 61: updateAnswer normaliza a array)
-    onConfirm(questionId, selections);
-  };
-
   // When user confirms one, it's no longer in `uncertain` (we re-derive
   // from `answers`), so this list auto-shrinks. When it hits 0, show
   // "all done" CTA.
@@ -784,10 +516,7 @@ function ReviewUncertainStage({ t, deck, answers, onConfirm, onDone }) {
       <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 24 }}>
         {uncertain.map(ans => {
           const q = deck.questions.find(dq => dq.id === ans.question_id);
-          const choices = q?.type === "tf" ? ["A", "B"] : ["A", "B", "C", "D"];
-          const detected = Array.isArray(ans.marked) ? ans.marked.join(", ") : (ans.marked || "");
-          const pendingForThis = pendingSelections[ans.question_id] || [];
-
+          const choices = q?.type === "tf" ? ["T", "F"] : ["A", "B", "C", "D"];
           return (
             <div
               key={ans.question_id}
@@ -797,55 +526,34 @@ function ReviewUncertainStage({ t, deck, answers, onConfirm, onDone }) {
               }}
             >
               <div style={{ fontSize: 13, color: C.textMuted, marginBottom: 6 }}>
-                {t.questionLabel(ans.qNum)} · {t.detectedAs}: <strong>{detected || t.noAnswer}</strong>
+                {t.questionLabel(ans.qNum)} · {t.detectedAs}: <strong>{ans.marked || t.noAnswer}</strong>
               </div>
               <div style={{ fontSize: 11, color: C.textMuted, marginBottom: 10 }}>
                 {t.chooseAnswer}:
               </div>
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
-                {choices.map(letter => {
-                  const isSelected = pendingForThis.includes(letter);
-                  return (
-                    <button
-                      key={letter}
-                      onClick={() => togglePending(ans.question_id, letter)}
-                      style={{
-                        flex: "1 1 60px",
-                        padding: "10px 12px", borderRadius: 8,
-                        background: isSelected ? C.accent : C.bg,
-                        border: `2px solid ${isSelected ? C.accent : C.border}`,
-                        fontFamily: "'Outfit',sans-serif",
-                        fontSize: 16, fontWeight: 600,
-                        color: isSelected ? "#fff" : C.text,
-                        cursor: "pointer",
-                      }}
-                      onMouseEnter={e => { if (!isSelected) e.currentTarget.style.borderColor = C.accent; }}
-                      onMouseLeave={e => { if (!isSelected) e.currentTarget.style.borderColor = C.border; }}
-                    >
-                      {letter}
-                    </button>
-                  );
-                })}
-              </div>
-              <div style={{ display: "flex", gap: 8 }}>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                {choices.map(letter => (
+                  <button
+                    key={letter}
+                    onClick={() => onConfirm(ans.question_id, letter)}
+                    style={{
+                      flex: "1 1 60px",
+                      padding: "10px 12px", borderRadius: 8,
+                      background: C.bg, border: `2px solid ${C.border}`,
+                      fontFamily: "'Outfit',sans-serif",
+                      fontSize: 16, fontWeight: 600, color: C.text,
+                      cursor: "pointer",
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.borderColor = C.accent}
+                    onMouseLeave={e => e.currentTarget.style.borderColor = C.border}
+                  >
+                    {letter}
+                  </button>
+                ))}
                 <button
-                  onClick={() => confirmPending(ans.question_id)}
+                  onClick={() => onConfirm(ans.question_id, null)}
                   style={{
-                    flex: 1,
-                    padding: "10px 12px", borderRadius: 8,
-                    background: C.accent, color: "#fff",
-                    border: "none",
-                    fontFamily: "'Outfit',sans-serif",
-                    fontSize: 14, fontWeight: 600,
-                    cursor: "pointer",
-                  }}
-                >
-                  {t.reviewDone}
-                </button>
-                <button
-                  onClick={() => onConfirm(ans.question_id, [])}
-                  style={{
-                    flex: "0 0 100px",
+                    flex: "1 1 80px",
                     padding: "10px 12px", borderRadius: 8,
                     background: C.bg, border: `2px solid ${C.border}`,
                     fontFamily: "'DM Sans',sans-serif",
@@ -882,8 +590,6 @@ function ReviewUncertainStage({ t, deck, answers, onConfirm, onDone }) {
 function ResultStage({
   t, deck, imageUri, answers, score, total,
   saving, onSaveAndNext, onSaveAndFinish, onFinishNoSave,
-  // PR 66: download del PDF corregido
-  onDownloadCorrected, downloadingPdf,
 }) {
   // Convert the file:// URI to a webview-displayable URL
   const imgSrc = useMemo(() => {
@@ -947,16 +653,9 @@ function ResultStage({
           gap: 8,
         }}>
           {answers.map(ans => {
-            // PR 61: marked es array, normalizar para display
-            const markedArr = Array.isArray(ans.marked) ? ans.marked : (ans.marked ? [ans.marked] : []);
-            const markedStr = markedArr.length > 0 ? markedArr.join(",") : "";
-            const isBlank = markedArr.length === 0;
-            const correctArr = Array.isArray(ans.correct) ? ans.correct : (ans.correct ? [ans.correct] : []);
-            const correctStr = correctArr.length > 0 ? correctArr.join(",") : "?";
-
-            const bg = ans.is_correct ? "#22c55e22" : (isBlank ? "#94a3b822" : "#ef444422");
-            const border = ans.is_correct ? "#22c55e" : (isBlank ? "#94a3b8" : "#ef4444");
-            const color = ans.is_correct ? "#16a34a" : (isBlank ? "#64748b" : "#dc2626");
+            const bg = ans.is_correct ? "#22c55e22" : (ans.marked === null ? "#94a3b822" : "#ef444422");
+            const border = ans.is_correct ? "#22c55e" : (ans.marked === null ? "#94a3b8" : "#ef4444");
+            const color = ans.is_correct ? "#16a34a" : (ans.marked === null ? "#64748b" : "#dc2626");
             return (
               <div
                 key={ans.question_id}
@@ -965,13 +664,13 @@ function ResultStage({
                   background: bg, border: `1.5px solid ${border}`,
                   textAlign: "center", fontFamily: "'DM Sans',sans-serif",
                 }}
-                title={`Correct: ${correctStr}, Marked: ${markedStr || "blank"}`}
+                title={`Correct: ${ans.correct || "?"}, Marked: ${ans.marked || "blank"}`}
               >
                 <div style={{ fontSize: 11, color: C.textMuted, marginBottom: 2 }}>
                   {ans.qNum}
                 </div>
                 <div style={{ fontSize: 16, fontWeight: 700, color }}>
-                  {markedStr || "—"}
+                  {ans.marked || "—"}
                 </div>
               </div>
             );
@@ -1008,33 +707,6 @@ function ResultStage({
           }}
         >
           {t.saveAndFinish}
-        </button>
-
-        {/* PR 66: download corrected PDF — usa la foto escaneada como base
-            y dibuja overlay vectorial con ✓ verde / ✗ rojo / ○ punteado
-            verde en la(s) correcta(s) cuando el alumno se equivocó.
-            Botón secundario porque es opcional y suma a la acción primaria
-            de guardar. Si saving=true se desactiva para evitar doble work. */}
-        <button
-          onClick={onDownloadCorrected}
-          disabled={saving || downloadingPdf}
-          style={{
-            padding: 12, borderRadius: 10,
-            fontFamily: "'DM Sans',sans-serif",
-            fontSize: 13, fontWeight: 500,
-            background: "transparent", color: C.text,
-            border: `1px solid ${C.border}`,
-            cursor: (saving || downloadingPdf) ? "default" : "pointer",
-            display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-          }}
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-               strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M12 4v12"/>
-            <path d="M6 12l6 6 6-6"/>
-            <path d="M5 20h14"/>
-          </svg>
-          {downloadingPdf ? t.downloadingCorrected : t.downloadCorrected}
         </button>
         <button
           onClick={onFinishNoSave}
