@@ -346,7 +346,7 @@ export default function Notifications({ lang: pageLang = "en", setLang: pageSetL
                           }}
                           style={{ width: 18, height: 18, borderRadius: 4, background: "transparent", border: "none", cursor: "pointer", color: C.textMuted, fontSize: 12, display: "flex", alignItems: "center", justifyContent: "center" }}
                           title="Dismiss"
-                        >×</button>
+                        >{"\u00D7"}</button>
                       </div>
                     </div>
                     <p style={{ fontSize: 13, color: C.textSecondary, lineHeight: 1.45 }}>{n.desc}</p>

@@ -211,9 +211,9 @@ export default function ClassInsights({ profile, lang = "en", setLang, onOpenMob
 
       {/* Sections — always render all 3 in canonical order so the visual
           structure is stable. Each section's body has 3 modes:
-            (a) decksWithData.length > 0 → list of deck rows
-            (b) totalDecksInSection > 0, no usage yet → "No X used yet"
-            (c) totalDecksInSection === 0 → "No decks in this section"
+            (a) decksWithData.length > 0 {"\u2192"} list of deck rows
+            (b) totalDecksInSection > 0, no usage yet {"\u2192"} "No X used yet"
+            (c) totalDecksInSection === 0 {"\u2192"} "No decks in this section"
           (b) and (c) sit inside the expanded body; the header is always
           clickable so the teacher can peek inside without surprises. */}
       {hasAnyDeckInClass && grouped.map(({ sectionId, decksWithData, totalDecksInSection }) => {

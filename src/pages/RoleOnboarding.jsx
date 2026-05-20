@@ -317,7 +317,7 @@ export default function RoleOnboarding({ user, lang = "en", onCreated }) {
                   opacity: submitting ? 0.6 : 1,
                   fontFamily: "'Outfit', sans-serif",
                 }}
-              >â† {t.confirmBack}</button>
+              >{"\u2190"} {t.confirmBack}</button>
             </div>
           </div>
         )}

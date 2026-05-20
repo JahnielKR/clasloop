@@ -5,20 +5,6 @@ import { ROUTES, PAGE_TO_ROUTE, pathToPage, defaultRouteForRole, buildRoute, bui
 import { supabase } from './lib/supabase';
 import { googleOAuthNative } from './lib/native-oauth';
 import { LogoMark, TeacherInline, StudentInline, TeacherAvatar, StudentAvatar } from './components/Icons';
-// PR 67: Sentry — error tracking en producción.
-// SentryErrorBoundary envuelve toda la app y captura errors de render.
-// setSentryUser/clearSentryUser sincronizan el user context con el state
-// de auth para que cada error en el dashboard tenga "qué profile ID" lo
-// causó (sin email ni datos sensibles — ver lib/sentry.js).
-import { SentryErrorBoundary, setSentryUser, clearSentryUser } from './lib/sentry';
-import ErrorFallback from './components/ErrorFallback';
-// PR 68: Toast notifications. ToastProvider va DENTRO del ErrorBoundary
-// (los toasts no deberían mantenerse si la app crashea) y ENVOLVIENDO
-// todo el árbol (cualquier componente puede llamar useToast()).
-import { ToastProvider } from './lib/toast';
-// PR 69: PostHog analytics. identifyUser sincroniza el user context
-// para que los eventos sean atribuidos al user correcto (sin email).
-import { identifyUser, resetAnalytics, trackEvent } from './lib/analytics';
 // PublicHome and AvatarOnboarding are eagerly imported because they paint
 // before the authed shell — making them lazy would just add a Suspense
 // fallback to the very first screen the user sees.
@@ -300,7 +286,7 @@ function AuthScreen({ initialMode = "signup", onBack, lang = "en" }) {
               marginBottom: 16,
               fontFamily: "'Outfit'",
             }}
-          >← {t.back}</button>
+          >{"\u2190"} {t.back}</button>
         )}
         <div style={{ background: C.bg, borderRadius: 14, border: `1px solid ${C.border}`, padding: 28 }}>
           <div style={{ display: "flex", justifyContent: "center", marginBottom: 14 }}>
@@ -687,26 +673,6 @@ export default function App() {
     html.setAttribute("data-theme", "light");
     return () => { html.setAttribute("data-theme", previous); };
   }, [isPreAppSurface]);
-
-  // PR 67: sincronizar Sentry user context con el profile actual.
-  // PR 69: lo mismo para PostHog (analytics).
-  // Cuando login → setSentryUser + identifyUser con id+role+lang
-  // Cuando logout → clearSentryUser + resetAnalytics
-  // No tiene efecto en dev (los inits son no-op sin keys).
-  useEffect(() => {
-    if (profile?.id) {
-      const userInfo = {
-        id: profile.id,
-        role: profile.role || undefined,
-        language: lang || undefined,
-      };
-      setSentryUser(userInfo);
-      identifyUser(userInfo);
-    } else {
-      clearSentryUser();
-      resetAnalytics();
-    }
-  }, [profile?.id, profile?.role, lang]);
 
   useEffect(() => {
     // PR 43: limpieza defensiva de localStorage residual de los PRs
@@ -1332,23 +1298,7 @@ export default function App() {
   // it to "teacherProfile" so it counts as known.
   const isNotFound = !inPractice && pathToPage(location.pathname) === null && location.pathname !== "/";
 
-  // PR 67: el render principal va envuelto en SentryErrorBoundary.
-  // Cualquier crash en cualquier sub-componente (sidebar, pages, modals)
-  // es atrapado acá. ErrorFallback es la UI que se muestra en su lugar.
-  //
-  // showDialog={false} → Sentry NO muestra su propio feedback dialog
-  //   (preferimos nuestra UI ErrorFallback en lugar del dialog default).
-  // beforeCapture → oportunidad para enriquecer el evento antes de
-  //   mandarlo (acá agregamos el current page como contexto).
   return (
-    <SentryErrorBoundary
-      fallback={(props) => <ErrorFallback {...props} />}
-      beforeCapture={(scope) => {
-        scope.setTag("page", page || "unknown");
-        scope.setTag("route", location.pathname);
-      }}
-    >
-    <ToastProvider>
     <div style={{ display: "flex", minHeight: "100vh" }}>
       <style>{sidebarCSS}</style>
       {/* Backdrop — covers everything below the drawer, click-to-close */}
@@ -1549,7 +1499,5 @@ export default function App() {
         );
       })()}
     </div>
-    </ToastProvider>
-    </SentryErrorBoundary>
   );
 }

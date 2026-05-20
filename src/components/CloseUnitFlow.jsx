@@ -469,9 +469,9 @@ export function CloseUnitSummary({ unit, classObj, userId, lang = "en", onBack, 
 
       {/* PR 12: AI-generated narrative (What worked / What didn't).
           Three states:
-            1. narrativeLoading → soft skeleton
-            2. narrativeError → error card with retry
-            3. narrative present → render the two paragraphs
+            1. narrativeLoading {"\u2192"} soft skeleton
+            2. narrativeError {"\u2192"} error card with retry
+            3. narrative present {"\u2192"} render the two paragraphs
           The narrative auto-generates when summary lands (see effect
           above). Cached on units.closing_narrative so re-visiting the
           summary doesn't re-bill the API. */}
@@ -590,9 +590,9 @@ export function CloseUnitSummary({ unit, classObj, userId, lang = "en", onBack, 
       {/* PR 12: Suggested closing review — generates a 7-question recap
           deck targeting the unit's weakest topics. Only shown when the
           unit has weak topics worth reviewing. Three states:
-            1. idle (no deck yet) → "Generate review deck" button
-            2. reviewLoading → "Building..." with spinner
-            3. reviewDeckId → success with "View deck" link
+            1. idle (no deck yet) {"\u2192"} "Generate review deck" button
+            2. reviewLoading {"\u2192"} "Building..." with spinner
+            3. reviewDeckId {"\u2192"} success with "View deck" link
           Errors render inline with the button so retry is one click. */}
       {summary.weakTopics > 0 && (
         <div style={{ marginBottom: 22 }}>

@@ -294,7 +294,7 @@ export default function AddToSlotModal({
             }}
             aria-label={t.cancel}
           >
-            Ã—
+            {"\u00D7"}
           </button>
         </div>
 
@@ -514,7 +514,7 @@ export default function AddToSlotModal({
                   cursor: "pointer",
                 }}
               >
-                {t.createButton} â†’
+                {t.createButton} {"\u2192"}
               </button>
             </div>
           )}

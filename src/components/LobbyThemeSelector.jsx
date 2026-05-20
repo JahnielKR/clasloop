@@ -132,7 +132,7 @@ export default function LobbyThemeSelector({
               fontSize: 16,
               flexShrink: 0,
             }}
-          >Ã—</button>
+          >{"\u00D7"}</button>
         </div>
 
         {/* Body: grid + preview */}

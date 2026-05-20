@@ -2,6 +2,11 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <!-- PR 80: http-equiv refuerza el charset para WebViews Android que
+         ignoran <meta charset> cuando los archivos se sirven via file://
+         o capacitor:// (sucede en Android 8-11). Sin esto, chars Unicode
+         multibyte como ×, →, — pueden renderizarse como Ã, â†', etc. -->
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Clasloop — Your daily warmups & exit tickets</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />

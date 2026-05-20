@@ -539,7 +539,7 @@ export default function PDFExportModal({
                 fontSize: 20, color: C.textMuted, padding: 4,
                 lineHeight: 1,
               }}
-            >×</button>
+            >{"\u00D7"}</button>
           </div>
         </div>
 
