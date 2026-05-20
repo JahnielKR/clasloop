@@ -11,285 +11,15 @@ import SectionBadge, { sectionAccent } from "../components/SectionBadge";
 import { C, MONO } from "../components/tokens";
 import { estimateDeckSeconds, formatDeckDuration } from "../lib/time-limits";
 import { ROUTES, QUERY, buildRoute } from "../routes";
-// PR 68: toast notifications
-import { useToast } from "../lib/toast";
-// PR 69: analytics
-import { trackEvent, hashId } from "../lib/analytics";
+// PR 79: i18n centralizado
+import { useT } from "../i18n";
 
 // ─── Theme ─────────────────────────────────────────────────────────────────
 const SUBJECTS = ["Math", "Science", "History", "Language", "Geography", "Art", "Music", "Other"];
 
 // ─── i18n ──────────────────────────────────────────────────────────────────
-const i18n = {
-  en: {
-    pageTitle: "Today", subtitle: "Your plan for today and what's worth reviewing",
-    yourPlanTitle: "Your plan for today",
-    yourPlanHint: "What you set up to teach. One click to launch.",
-    yourPlanEmpty: "Nothing planned for today.",
-    yourPlanEmptyHint: "Open a class to set up warmups and exit tickets, or browse Decks.",
-    yourPlanItemCount: "{n} items",
-    yourPlanItemCountOne: "1 item",
-    // PR 25.2: sidebar
-    // PR 28.3: dropped todoTitle/todoEmpty (the "To do today" section)
-    comingUpTitle: "Next 7 days",
-    comingUpEmpty: "Nothing scheduled in the next week.",
-    relativeTomorrow: "Tomorrow",
-    doneToday: "Done today",
-    worthReviewingTitle: "Worth reviewing today",
-    worthReviewingHint: "Spotted by the retention algorithm — your students could use a refresh.",
-    worthReviewingEmpty: "All caught up. Nothing urgent to review.",
-    suggestedToday: "Suggested for today", suggestedHint: "Decks your students should review now",
-    suggestedNone: "All your classes are up to date. Nothing urgent to launch — nice work.",
-    recentlyLaunched: "Recently launched",
-    recentlyLaunchedHint: "The last decks you ran. Tap to launch again.",
-    quickLinkToClasses: "Looking for a specific deck? Open it from your classes.",
-    quickLinkToClassesBtn: "Go to my classes",
-    retentionLabel: "retention", overdueDays: "{n} days overdue", overdueDay: "1 day overdue",
-    launchNow: "Launch", customize: "Customize",
-    newClass: "+ New class",
-    createClass: "Create class", className: "Class name", classNamePlaceholder: "e.g. Math 6th Grade",
-    classSubject: "Subject", classGrade: "Grade", classGradePlaceholder: "e.g. 6th, 7th–9th, Mixed",
-    classCode: "Class code (auto-generated)", classCreate: "Create class", creating: "Creating...",
-    classCreated: "Class created!",
-    noClassesYet: "You don't have any classes yet.",
-    noClassesHint: "Create a class first to start launching sessions.",
-    goToClasses: "Go to my classes",
-    sessionOptions: "Session options",
-    classLabel: "Class", classNoneAvailable: "No classes yet",
-    classPickPrompt: "Pick a class…",
-    classHelp: "Sessions are tied to a class so progress and retention can be tracked",
-    classBoundHelp: "This deck belongs to this class. Sessions launched from it report to the class.",
-    timeLimit: "Time per question", timeLimitNone: "No limit", seconds: "s",
-    timerLabel: "Timer",
-    timerModePerQuestion: "Per question",
-    timerModeTotal: "Total time",
-    timerPerQuestionHelp: "Each question has its own time, picked by AI based on its complexity.",
-    timerTotalHelp: "When the timer runs out, the session closes automatically.",
-    minutesShort: "min",
-    competitiveMode: "Show leaderboard during quiz",
-    showAnswers: "Show correct answer after each question",
-    allowGuests: "Allow students to join without account",
-    allowGuestsHelp: "Guests join with just their name. Their progress won't be tracked.",
-    // PR 28.10: shuffle question order per student
-    shuffleQuestions: "Shuffle question order per student",
-    shuffleQuestionsHelp: "Each student sees the questions in a different order. Helps against copying.",
-    backToDecks: "Back to deck selection",
-    launchSession: "Launch session", starting: "Starting...",
-    // PR 56 fix 1: mobile block modal
-    mobileBlockTitle: "Live sessions from a bigger screen",
-    mobileBlockMessage: "Live sessions are only handled from tablets, laptops, or desktops. Open clasloop.com from one of those to launch any test.",
-    mobileBlockOK: "Got it",
-    lobbyTitle: "Waiting for students",
-    sharePin: "Share this code with your students",
-    joinAt: "Join at",
-    studentsJoined: "students joined", oneStudentJoined: "1 student joined", noStudentsYet: "No students yet",
-    startQuiz: "Start quiz", cancel: "Cancel",
-    // PR 21.1: themed teacher lobby
-    joinWithCode: "Join with the code",
-    studentInRoom: "student in the room", studentsInRoom: "students in the room",
-    studentJoinedShort: "joined", studentsJoinedShort: "joined",
-    cancelLobbyConfirm: "Cancel this session? Students who joined will be sent back.",
-    sectionWarmup: "Warmup", sectionExit: "Exit Ticket", sectionReview: "Review", sectionPractice: "Practice",
-    kick: "Remove", kickConfirm: "Remove this student from the lobby?", guest: "guest", studentDone: "done",
-    clickEnlarge: "Click to enlarge", clickClose: "Click anywhere to close",
-    liveResults: "Live results", endSession: "End session",
-    students: "students", average: "average", waitingResponses: "Waiting for responses...",
-    // PR 21.2: themed teacher live dashboard
-    liveAverage: "average", liveDone: "completed",
-    liveProgressEyebrow: "Class progress", liveOfTotal: "of", liveAnswers: "answers",
-    liveNoOneYet: "Waiting for students to join…",
-    joinPinLabel: "PIN", endSessionConfirm: "End this session now?",
-    // PR 21.3: themed teacher confirm modal
-    cancelLobbyTitle: "Cancel this session?",
-    cancelLobbyBody: "Students who joined will be sent back to the join screen.",
-    keepLobby: "Keep waiting",
-    confirmCancelLobby: "Cancel session",
-    endSessionTitle: "End the session?",
-    endSessionBody: "This closes the quiz for everyone. Students will see their results.",
-    keepLive: "Keep going",
-    confirmEndSession: "End now",
-    sessionNeedsClass: "This deck isn't linked to a class yet. Open the deck and add it to a class to start a session.",
-    sessionCreateFailed: "Could not create session. Please try again.",
-  },
-  es: {
-    pageTitle: "Hoy", subtitle: "Tu plan para hoy y lo que vale la pena repasar",
-    yourPlanTitle: "Tu plan para hoy",
-    yourPlanHint: "Lo que preparaste para enseñar. Un click para lanzar.",
-    yourPlanEmpty: "Nada planificado para hoy.",
-    yourPlanEmptyHint: "Abre una clase para preparar warmups y exit tickets, o explora Decks.",
-    yourPlanItemCount: "{n} items",
-    yourPlanItemCountOne: "1 item",
-    // PR 28.3: dropped todoTitle/todoEmpty
-    comingUpTitle: "Próximos 7 días",
-    comingUpEmpty: "Nada programado esta semana.",
-    relativeTomorrow: "Mañana",
-    doneToday: "Hecho hoy",
-    worthReviewingTitle: "Vale la pena repasar hoy",
-    worthReviewingHint: "Detectado por el algoritmo de retención — a tus estudiantes les vendría bien un repaso.",
-    worthReviewingEmpty: "Todo al día. Nada urgente que repasar.",
-    suggestedToday: "Sugerencias para hoy", suggestedHint: "Decks que tus estudiantes deberían revisar ahora",
-    suggestedNone: "Todas tus clases están al día. Nada urgente que lanzar — buen trabajo.",
-    recentlyLaunched: "Lanzados recientemente",
-    recentlyLaunchedHint: "Los últimos decks que lanzaste. Tócalos para volver a lanzar.",
-    quickLinkToClasses: "¿Buscas un deck específico? Ábrelo desde tus clases.",
-    quickLinkToClassesBtn: "Ir a mis clases",
-    retentionLabel: "retención", overdueDays: "{n} días atrasado", overdueDay: "1 día atrasado",
-    launchNow: "Lanzar", customize: "Personalizar",
-    newClass: "+ Nueva clase",
-    createClass: "Crear clase", className: "Nombre de la clase", classNamePlaceholder: "ej. Matemáticas 6to",
-    classSubject: "Materia", classGrade: "Grado", classGradePlaceholder: "ej. 6to, 7mo–9no, Mixto",
-    classCode: "Código de clase (autogenerado)", classCreate: "Crear clase", creating: "Creando...",
-    classCreated: "¡Clase creada!",
-    noClassesYet: "Aún no tienes clases.",
-    noClassesHint: "Crea una clase primero para empezar a lanzar sesiones.",
-    goToClasses: "Ir a mis clases",
-    sessionOptions: "Opciones de la sesión",
-    classLabel: "Clase", classNoneAvailable: "Aún no tienes clases",
-    classPickPrompt: "Elige una clase…",
-    classHelp: "Las sesiones se asocian a una clase para rastrear progreso y retención",
-    classBoundHelp: "Este deck pertenece a esta clase. Las sesiones lanzadas desde él reportan a la clase.",
-    timeLimit: "Tiempo por pregunta", timeLimitNone: "Sin límite", seconds: "s",
-    timerLabel: "Tiempo",
-    timerModePerQuestion: "Por pregunta",
-    timerModeTotal: "Tiempo total",
-    timerPerQuestionHelp: "Cada pregunta tiene su propio tiempo, elegido por la AI según su complejidad.",
-    timerTotalHelp: "Cuando se acaba el tiempo, la sesión se cierra automáticamente.",
-    minutesShort: "min",
-    competitiveMode: "Mostrar clasificación durante el quiz",
-    showAnswers: "Mostrar respuesta correcta después de cada pregunta",
-    allowGuests: "Permitir entrar sin cuenta",
-    allowGuestsHelp: "Los invitados entran solo con su nombre. Su progreso no se guardará.",
-    // PR 28.10: shuffle question order per student
-    shuffleQuestions: "Mezclar el orden de preguntas por estudiante",
-    shuffleQuestionsHelp: "Cada estudiante ve las preguntas en distinto orden. Ayuda contra la copia.",
-    backToDecks: "Volver a selección",
-    launchSession: "Lanzar sesión", starting: "Iniciando...",
-    // PR 56 fix 1: mobile block modal
-    mobileBlockTitle: "Las sesiones en vivo desde una pantalla más grande",
-    mobileBlockMessage: "Por el momento las sesiones en vivo solo se manejan desde tablets, laptops o PC. Abrí clasloop.com desde uno de esos para lanzar cualquier test.",
-    mobileBlockOK: "Entendido",
-    lobbyTitle: "Esperando estudiantes",
-    sharePin: "Comparte este código con tus estudiantes",
-    joinAt: "Únete en",
-    studentsJoined: "estudiantes se unieron", oneStudentJoined: "1 estudiante se unió", noStudentsYet: "Aún no se ha unido nadie",
-    startQuiz: "Iniciar quiz", cancel: "Cancelar",
-    // PR 21.1: themed teacher lobby
-    joinWithCode: "Únanse con el código",
-    studentInRoom: "estudiante en sala", studentsInRoom: "estudiantes en sala",
-    studentJoinedShort: "inscrito", studentsJoinedShort: "inscritos",
-    cancelLobbyConfirm: "¿Cancelar esta sesión? Los estudiantes que entraron serán expulsados.",
-    sectionWarmup: "Warmup", sectionExit: "Exit Ticket", sectionReview: "Repaso", sectionPractice: "Práctica",
-    kick: "Sacar", kickConfirm: "¿Sacar a este estudiante del lobby?", guest: "invitado", studentDone: "listo",
-    clickEnlarge: "Click para ampliar", clickClose: "Click en cualquier lugar para cerrar",
-    liveResults: "Resultados en vivo", endSession: "Terminar sesión",
-    students: "estudiantes", average: "promedio", waitingResponses: "Esperando respuestas...",
-    // PR 21.2: themed teacher live dashboard
-    liveAverage: "promedio", liveDone: "completados",
-    liveProgressEyebrow: "Progreso de la clase", liveOfTotal: "de", liveAnswers: "respuestas",
-    liveNoOneYet: "Esperando que entren estudiantes…",
-    joinPinLabel: "PIN", endSessionConfirm: "¿Terminar esta sesión ahora?",
-    // PR 21.3: themed teacher confirm modal
-    cancelLobbyTitle: "¿Cancelar esta sesión?",
-    cancelLobbyBody: "Los estudiantes que entraron volverán a la pantalla de entrada.",
-    keepLobby: "Seguir esperando",
-    confirmCancelLobby: "Cancelar sesión",
-    endSessionTitle: "¿Terminar la sesión?",
-    endSessionBody: "Esto cierra el quiz para todos. Los estudiantes verán sus resultados.",
-    keepLive: "Seguir",
-    confirmEndSession: "Terminar",
-    sessionNeedsClass: "Este deck todavía no está asignado a una clase. Abrí el deck y agregalo a una clase para iniciar una sesión.",
-    sessionCreateFailed: "No se pudo crear la sesión. Probá de nuevo.",
-  },
-  ko: {
-    pageTitle: "오늘", subtitle: "오늘의 계획과 복습할 만한 항목",
-    yourPlanTitle: "오늘의 계획",
-    yourPlanHint: "준비한 수업 자료. 클릭 한 번으로 시작.",
-    yourPlanEmpty: "오늘 계획된 항목이 없습니다.",
-    yourPlanEmptyHint: "수업을 열어 워밍업과 종료 티켓을 준비하거나 덱을 살펴보세요.",
-    yourPlanItemCount: "{n}개 항목",
-    yourPlanItemCountOne: "1개 항목",
-    // PR 28.3: dropped todoTitle/todoEmpty
-    comingUpTitle: "다음 7일",
-    comingUpEmpty: "다음 주에 예정된 항목 없음.",
-    relativeTomorrow: "내일",
-    doneToday: "오늘 완료",
-    worthReviewingTitle: "오늘 복습할 만한 것",
-    worthReviewingHint: "보존율 알고리즘이 감지함 — 학생들에게 복습이 필요할 수 있습니다.",
-    worthReviewingEmpty: "모두 최신 상태. 시급히 복습할 것 없음.",
-    suggestedToday: "오늘의 추천", suggestedHint: "지금 학생들이 복습해야 할 덱",
-    suggestedNone: "모든 수업이 최신 상태입니다. 시급한 항목 없음 — 잘 하셨어요.",
-    recentlyLaunched: "최근 실행한 덱",
-    recentlyLaunchedHint: "마지막에 실행한 덱입니다. 다시 실행하려면 탭하세요.",
-    quickLinkToClasses: "특정 덱을 찾고 계신가요? 수업에서 열어보세요.",
-    quickLinkToClassesBtn: "내 수업으로 이동",
-    retentionLabel: "보존율", overdueDays: "{n}일 지연", overdueDay: "1일 지연",
-    launchNow: "시작", customize: "맞춤설정",
-    newClass: "+ 새 수업",
-    createClass: "수업 만들기", className: "수업 이름", classNamePlaceholder: "예: 수학 6학년",
-    classSubject: "과목", classGrade: "학년", classGradePlaceholder: "예: 6학년, 7-9학년, 혼합",
-    classCode: "수업 코드 (자동 생성)", classCreate: "수업 만들기", creating: "만드는 중...",
-    classCreated: "수업이 생성되었습니다!",
-    noClassesYet: "아직 수업이 없습니다.",
-    noClassesHint: "세션을 시작하려면 먼저 수업을 만드세요.",
-    goToClasses: "내 수업으로 이동",
-    sessionOptions: "세션 옵션",
-    classLabel: "수업", classNoneAvailable: "아직 수업이 없습니다",
-    classPickPrompt: "수업을 선택하세요…",
-    classHelp: "세션은 수업에 연결되어 학생 진행도와 보존을 추적합니다",
-    classBoundHelp: "이 덱은 이 수업에 속해 있습니다. 시작된 세션은 이 수업에 기록됩니다.",
-    timeLimit: "문제당 시간", timeLimitNone: "제한 없음", seconds: "초",
-    timerLabel: "타이머",
-    timerModePerQuestion: "문제별",
-    timerModeTotal: "총 시간",
-    timerPerQuestionHelp: "각 문제는 AI가 복잡도에 따라 정한 자체 시간을 가집니다.",
-    timerTotalHelp: "시간이 다 되면 세션이 자동으로 종료됩니다.",
-    minutesShort: "분",
-    competitiveMode: "퀴즈 중 순위표 표시",
-    showAnswers: "각 문제 후 정답 표시",
-    allowGuests: "계정 없이 참여 허용",
-    allowGuestsHelp: "게스트는 이름만으로 참여합니다. 진행도는 저장되지 않습니다.",
-    // PR 28.10: shuffle question order per student
-    shuffleQuestions: "학생마다 문제 순서 섞기",
-    shuffleQuestionsHelp: "학생마다 문제가 다른 순서로 나타납니다. 베끼기 방지에 도움이 됩니다.",
-    backToDecks: "덱 선택으로",
-    launchSession: "세션 시작", starting: "시작 중...",
-    // PR 56 fix 1: mobile block modal
-    mobileBlockTitle: "라이브 세션은 큰 화면에서",
-    mobileBlockMessage: "라이브 세션은 태블릿, 노트북 또는 PC에서만 진행됩니다. 시험을 시작하려면 그 중 하나에서 clasloop.com을 열어주세요.",
-    mobileBlockOK: "확인",
-    lobbyTitle: "학생 기다리는 중",
-    sharePin: "학생들과 이 코드를 공유하세요",
-    joinAt: "참여 주소",
-    studentsJoined: "명 참여", oneStudentJoined: "1명 참여", noStudentsYet: "아직 참여자 없음",
-    startQuiz: "퀴즈 시작", cancel: "취소",
-    // PR 21.1: themed teacher lobby
-    joinWithCode: "이 코드로 입장하세요",
-    studentInRoom: "명 입장 중", studentsInRoom: "명 입장 중",
-    studentJoinedShort: "명", studentsJoinedShort: "명",
-    cancelLobbyConfirm: "이 세션을 취소하시겠어요? 입장한 학생들은 나가게 됩니다.",
-    sectionWarmup: "Warmup", sectionExit: "Exit Ticket", sectionReview: "복습", sectionPractice: "연습",
-    kick: "내보내기", kickConfirm: "이 학생을 로비에서 내보내시겠습니까?", guest: "게스트", studentDone: "완료",
-    clickEnlarge: "클릭하여 확대", clickClose: "아무곳이나 클릭하여 닫기",
-    liveResults: "실시간 결과", endSession: "세션 종료",
-    students: "학생", average: "평균", waitingResponses: "응답 기다리는 중...",
-    // PR 21.2: themed teacher live dashboard
-    liveAverage: "평균", liveDone: "완료",
-    liveProgressEyebrow: "수업 진행도", liveOfTotal: "/", liveAnswers: "응답",
-    liveNoOneYet: "학생 입장 대기 중…",
-    joinPinLabel: "PIN", endSessionConfirm: "지금 세션을 종료할까요?",
-    // PR 21.3: themed teacher confirm modal
-    cancelLobbyTitle: "이 세션을 취소하시겠어요?",
-    cancelLobbyBody: "입장한 학생들은 입장 화면으로 돌아갑니다.",
-    keepLobby: "계속 대기",
-    confirmCancelLobby: "세션 취소",
-    endSessionTitle: "세션을 종료하시겠어요?",
-    endSessionBody: "모두에게 퀴즈가 닫힙니다. 학생들은 결과를 보게 됩니다.",
-    keepLive: "계속하기",
-    confirmEndSession: "종료",
-    sessionNeedsClass: "이 덱은 아직 수업에 연결되지 않았습니다. 덱을 열고 수업에 추가한 후 세션을 시작하세요.",
-    sessionCreateFailed: "세션을 만들 수 없습니다. 다시 시도하세요.",
-  },
-};
+// PR 79: el bloque i18n local fue movido a src/i18n/{en,es,ko}.js
+// bajo el namespace "sessionFlow".
 
 // ─── Styles ────────────────────────────────────────────────────────────────
 const inp = { fontFamily: "'Outfit',sans-serif", background: C.bg, border: `1px solid ${C.border}`, color: C.text, padding: "10px 14px", borderRadius: 8, fontSize: 14, width: "100%", outline: "none" };
@@ -1211,16 +941,6 @@ function LiveResultsThemed({ session, deck, t, lang, onEnd }) {
       status: "completed",
       completed_at: new Date().toISOString(),
     }).eq("id", session.id);
-
-    // PR 69: trackear sesión completada manualmente por el profe.
-    //   - participant_count: cuántos alumnos terminaron
-    //   - completed_via: "manual" (vs auto cuando todos terminan solos)
-    trackEvent("session_completed", {
-      participant_count: activeParticipants.length,
-      completed_via: "manual",
-      deck_id_hash: session.deck_id ? hashId(session.deck_id) : null,
-    });
-
     onEnd(session.id);
   };
 
@@ -1466,13 +1186,6 @@ function LiveResults({ session, t, onEnd }) {
       status: "completed",
       completed_at: new Date().toISOString(),
     }).eq("id", session.id);
-
-    // PR 69: trackear sesión completada vía auto-close (todos terminaron solos)
-    trackEvent("session_completed", {
-      completed_via: "auto",
-      deck_id_hash: session.deck_id ? hashId(session.deck_id) : null,
-    });
-
     // PR 13: pass the session id so the parent can navigate to the
     // recap page. The status update above triggers the Database Webhook
     // that fires the Edge Function to generate the AI insight in the
@@ -2231,10 +1944,7 @@ function ComingUpSidebar({ teacherId, t, lang = "en", onPickItem }) {
 
 // ─── Main Export ───────────────────────────────────────────────────────────
 export default function SessionFlow({ lang = "en", setLang, onNavigateToDecks, onOpenMobileMenu, notifyActiveSessionChanged }) {
-  const t = i18n[lang] || i18n.en;
-  // PR 68: toast notifications. Lo nombramos toastApi porque ya existe
-  // un state local llamado `toast` (línea 2246 — banner "Class code: 123456").
-  const toastApi = useToast();
+  const t = useT("sessionFlow", lang);
   const [user, setUser] = useState(null);
   const [classes, setClasses] = useState([]);
   // URL-bound subviews (Phase 3):
@@ -2501,8 +2211,7 @@ export default function SessionFlow({ lang = "en", setLang, onNavigateToDecks, o
     // decks made stand-alone (e.g. via /decks/new without a class
     // prefilled).
     if (!classId) {
-      // PR 68: toast en lugar de alert (caso esperado, sin Sentry)
-      toastApi.error(t.sessionNeedsClass || "This deck isn't linked to a class yet. Open the deck and add it to a class to start a session.");
+      alert(t.sessionNeedsClass || "This deck isn't linked to a class yet. Open the deck and add it to a class to start a session.");
       return false; // tell the child to reset its launching state
     }
 
@@ -2574,17 +2283,14 @@ export default function SessionFlow({ lang = "en", setLang, onNavigateToDecks, o
 
     if (error) {
       console.error("Failed to create session:", error);
+      // If the failure was a NOT NULL violation on class_id (somehow we
+      // got past the pre-flight), surface the same actionable message
+      // instead of a generic one. Other errors (network, RLS, etc.) get
+      // the existing generic alert.
       const isClassError = error.message && (error.message.includes("class_id") || error.code === "23502");
-      // PR 68: toast con mensaje localizado + Sentry report del error real
-      toastApi.error(
-        isClassError
-          ? (t.sessionNeedsClass || "This deck isn't linked to a class yet. Open the deck and add it to a class to start a session.")
-          : (t.sessionCreateFailed || "Could not create session. Please try again."),
-        {
-          reportError: new Error(`createSession failed: ${error.message || error.code}`),
-          context: { action: "createSession", deckId: deck?.id, classId, supabaseCode: error.code },
-        }
-      );
+      alert(isClassError
+        ? (t.sessionNeedsClass || "This deck isn't linked to a class yet. Open the deck and add it to a class to start a session.")
+        : (t.sessionCreateFailed || "Could not create session. Please try again."));
       return false; // tell the child to reset its launching state
     }
 
@@ -2614,17 +2320,6 @@ export default function SessionFlow({ lang = "en", setLang, onNavigateToDecks, o
     setSession(data);
     setStep("lobby");
     navigate(buildRoute.sessionsLobby(data.id));
-
-    // PR 69: trackear session creada exitosamente. Properties que importan:
-    //   - question_count: tamaño del quiz
-    //   - has_class: si tiene clase asociada (todas deberían, post PR de class_id)
-    //   - deck_id_hash: para contar decks distintos sin mandar UUIDs reales
-    trackEvent("session_started", {
-      question_count: deck?.questions?.length || 0,
-      has_class: !!classId,
-      deck_id_hash: deck?.id ? hashId(deck.id) : null,
-    });
-
     return true;
   };
 
