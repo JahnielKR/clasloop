@@ -49,9 +49,25 @@ describe("evaluateAnswer — MCQ single answer", () => {
 });
 
 // ═══════════════════════════════════════════════════════════════════════
-// MCQ — multi-answer (PR 61 lenient rule)
+// MCQ — multi-answer (strict rule)
 // ═══════════════════════════════════════════════════════════════════════
-describe("evaluateAnswer — MCQ multi-answer (PR 61 lenient)", () => {
+//
+// PR 83 NOTE: el comentario original decía "PR 61 lenient" pero esa regla
+// nunca llegó a implementarse en `scoring.js`. La búsqueda de "PR 61"
+// confirma 3 lugares donde quedó como TODO:
+//   - scanner-mlkit.js:595 → "PR 61 hará el manejo completo..."
+//   - scoring.js:166       → "no partial credit on multi-MCQ — pedagogically common"
+//   - scoring.test.js:54   → "PR 61 lenient" (este test, asumía la regla)
+//
+// La regla ACTUAL del código (strict): para multi-correct, el set de
+// respuestas del alumno debe igualar exactamente el set correcto. Marcar
+// solo una de N correctas = incorrecto.
+//
+// Si en algún futuro PR queremos implementar realmente la regla lenient
+// (parcial cuenta como bien), el cambio va en scoring.ts línea ~280
+// (case "mcq" multi), y este test se actualiza junto con el cambio
+// semántico.
+describe("evaluateAnswer — MCQ multi-answer (strict)", () => {
   const q = { type: "mcq", correct: [0, 1], options: ["A", "B", "C", "D"] };
 
   it("gives 1 point when student marks ALL correct options", () => {
@@ -60,12 +76,16 @@ describe("evaluateAnswer — MCQ multi-answer (PR 61 lenient)", () => {
     expect(result.points).toBe(1);
   });
 
-  it("gives 1 point when student marks ONLY ONE of multiple correct (lenient)", () => {
-    // Regla PR 61: parcial cuenta como bien. Si A y B son correctas y el
-    // alumno marca solo A, vale 1 punto.
+  it("gives 0 points when student marks ONLY ONE of multiple correct (strict)", () => {
+    // Regla actual (strict): set match exacto. Si A y B son correctas y
+    // el alumno marca solo A, NO suma. Ver PR 83 NOTE arriba.
+    //
+    // TODO(PR-61): si se decide implementar lenient (parcial cuenta como
+    // bien), cambiar este test para esperar { isCorrect: true, points: 1 }
+    // y actualizar scoring.ts case "mcq" multi.
     const result = evaluateAnswer(q, "mcq", [0]);
-    expect(result.isCorrect).toBe(true);
-    expect(result.points).toBe(1);
+    expect(result.isCorrect).toBe(false);
+    expect(result.points).toBe(0);
   });
 
   it("gives 0 points when ANY marked option is wrong", () => {
