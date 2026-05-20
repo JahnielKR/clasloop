@@ -5,14 +5,15 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "patch:android": "node scripts/patch-android.cjs",
     "icons:generate": "node scripts/generate-android-assets.cjs",
     "prepare-fonts": "node scripts/prepare-fonts.cjs",
     "test": "vitest",
     "test:run": "vitest run",
-    "test:ui": "vitest --ui"
+    "test:ui": "vitest --ui",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@capacitor-mlkit/barcode-scanning": "^8.1.0",
@@ -45,6 +46,9 @@
   },
   "devDependencies": {
     "@capacitor/cli": "^8.3.4",
+    "@types/node": "^20.12.0",
+    "@types/react": "^18.3.0",
+    "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.2.1",
     "@vitest/ui": "^3.2.4",
     "sharp": "^0.34.5",
