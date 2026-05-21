@@ -1186,7 +1186,6 @@ function ClassSearch({ decks, t, lang, onLaunch }) {
 
 // ─── Main export ───────────────────────────────────────────────────────
 export default function PlanView({
-  const toast = useToast();
   classId,
   classes = [],
   decks,
@@ -1208,6 +1207,7 @@ export default function PlanView({
   onCloseUnit,         // called when the teacher clicks "Close unit"
   onReopenUnit,        // called when the teacher clicks "Reopen" on a closed unit
 }) {
+  const toast = useToast();
   const t = useT("planView", lang);
   const navigate = useNavigate();
 

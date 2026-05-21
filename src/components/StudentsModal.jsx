@@ -40,13 +40,13 @@ function formatJoinedDate(rawIso, lang) {
 }
 
 export default function StudentsModal({
-  const toast = useToast();
   open,
   classId,
   className,
   lang = "en",
   onClose,
 }) {
+  const toast = useToast();
   const t = useT("studentsModal", lang);
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);

@@ -376,7 +376,6 @@ async function generatePreviewBlobURL(deck, classObj, { style, variant, lang, pa
 
 // ─── Component ───────────────────────────────────────────────────────────
 export default function PDFExportModal({
-  const toast = useToast();
   deck,
   classObj,
   lang = "en",
@@ -385,6 +384,7 @@ export default function PDFExportModal({
   // Theme tokens for consistency with the rest of the app
   C,
 }) {
+  const toast = useToast();
   const t = useT("pdfExportModal", lang);
 
   // Sticky style from localStorage. Default to classic if first run.
