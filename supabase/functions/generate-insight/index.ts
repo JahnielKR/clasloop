@@ -17,8 +17,10 @@
 // nothing if status is already 'ready' or 'empty').
 //
 // Auth: this function bypasses RLS via SUPABASE_SERVICE_ROLE_KEY.
-// The webhook itself must be authenticated (configured in the
-// Database Webhook UI with a header).
+// The webhook itself MUST be authenticated. The Database Webhook UI
+// must be configured to send `Authorization: Bearer <WEBHOOK_SECRET>`
+// where WEBHOOK_SECRET matches the env var of the same name set on
+// this function (see PR 90).
 
 // deno-lint-ignore-file no-explicit-any
 
@@ -50,6 +52,25 @@ Deno.serve(async (req: Request) => {
   // Only POST allowed (webhooks are always POST)
   if (req.method !== "POST") {
     return jsonResponse({ error: "method_not_allowed" }, 405);
+  }
+
+  // ── 0. Webhook authentication (PR 90) ─────────────────────────────
+  // The Supabase Database Webhook is configured to send:
+  //   Authorization: Bearer <WEBHOOK_SECRET>
+  // where WEBHOOK_SECRET is a random string we set via
+  //   supabase secrets set WEBHOOK_SECRET=<value>
+  // If the header is missing or doesn't match, reject — no payload
+  // parsing, no DB writes, no Anthropic calls.
+  const WEBHOOK_SECRET = Deno.env.get("WEBHOOK_SECRET");
+  if (!WEBHOOK_SECRET) {
+    console.error("[generate-insight] WEBHOOK_SECRET not configured");
+    return jsonResponse({ error: "server_misconfigured" }, 500);
+  }
+  const authHeader = req.headers.get("authorization") || "";
+  const expectedAuth = `Bearer ${WEBHOOK_SECRET}`;
+  if (authHeader !== expectedAuth) {
+    console.error("[generate-insight] unauthorized webhook call");
+    return jsonResponse({ error: "unauthorized" }, 401);
   }
 
   // Parse webhook payload
@@ -298,42 +319,4 @@ async function markFailed(
 }
 
 /**
- * Extract a readable "correct answer" from a question object. Question
- * shape varies by type; we normalize to a string the prompt can show.
- */
-function extractCorrectAnswer(q: any): string | null {
-  if (q == null) return null;
-
-  // MCQ: q.correct is the index (or array of indices for multi)
-  if (q.type === "mcq" && Array.isArray(q.options)) {
-    if (Array.isArray(q.correct)) {
-      return q.correct
-        .map((i: number) => (q.options[i]?.text || q.options[i] || ""))
-        .filter(Boolean)
-        .join(", ");
-    }
-    if (typeof q.correct === "number") {
-      return q.options[q.correct]?.text || q.options[q.correct] || null;
-    }
-  }
-
-  // True/False
-  if (q.type === "tf") {
-    return q.correct === true ? "true" : q.correct === false ? "false" : null;
-  }
-
-  // Fill-in-the-blank
-  if (q.type === "fill" && typeof q.answer === "string") {
-    return q.answer;
-  }
-
-  // Free-text / open: no canonical answer
-  if (q.type === "free" || q.type === "open") {
-    return null;
-  }
-
-  // Match / Order / Sentence: stringify the answer struct
-  if (q.answer != null) return JSON.stringify(q.answer).slice(0, 200);
-
-  return null;
-}
+ * Extract a readable "correct answer" from a question 
