@@ -6,11 +6,25 @@
 // SECTIONS is the authoritative list — new code that switches on section
 // should iterate this array, not hard-code the strings, so future additions
 // (e.g. "homework") only need a one-line edit here.
+//
+// PR 127: migrated from .js to .ts. Added discriminated unions for section
+// ids, unit statuses, and language codes so typos get caught at compile time.
 
-import { C } from "../components/tokens";
 import { supabase } from "./supabase";
 
-export const SECTIONS = [
+// ─── Language ─────────────────────────────────────────────────────────────
+export type Lang = "en" | "es" | "ko";
+
+// ─── Section ──────────────────────────────────────────────────────────────
+export type SectionId = "warmup" | "exit_ticket" | "general_review";
+
+export interface SectionSpec {
+  id: SectionId;
+  icon: string;
+  iconFallback: string;
+}
+
+export const SECTIONS: ReadonlyArray<SectionSpec> = [
   {
     id: "warmup",
     icon: "rocket",          // 5-min energizer at start of class
@@ -28,13 +42,16 @@ export const SECTIONS = [
   },
 ];
 
-export const SECTION_IDS = SECTIONS.map(s => s.id);
+export const SECTION_IDS: ReadonlyArray<SectionId> = SECTIONS.map((s) => s.id);
 
-export const DEFAULT_SECTION = "general_review";
+export const DEFAULT_SECTION: SectionId = "general_review";
 
-export function isValidSection(id) {
-  return SECTION_IDS.includes(id);
+export function isValidSection(id: unknown): id is SectionId {
+  return typeof id === "string" && (SECTION_IDS as ReadonlyArray<string>).includes(id);
 }
+
+// LessonContext is the camelCase form the AI generator expects.
+export type LessonContext = "warmup" | "exitTicket" | "general";
 
 // Convert a section id (DB form: snake_case) to the lessonContext value
 // the AI generator expects (camelCase). They mean the same thing — section
@@ -42,16 +59,24 @@ export function isValidSection(id) {
 // hint passed into generateQuestions(). Keeping them in sync via this
 // helper means the deck's tab placement and the AI's prompt flavor can
 // never drift.
-export function sectionToLessonContext(section) {
+export function sectionToLessonContext(section: string): LessonContext {
   if (section === "warmup") return "warmup";
   if (section === "exit_ticket") return "exitTicket";
   return "general"; // general_review or anything unknown
 }
 
+export interface SectionLabel {
+  name: string;
+  singular: string;
+  empty: string;
+  newOne: string;
+}
+export type SectionLabels = Record<SectionId, SectionLabel>;
+
 // i18n labels per section. The hosting page passes its lang and we return
 // the right strings — co-locating means new sections only need a label
 // here, not in every page.
-export function sectionLabels(lang = "en") {
+export function sectionLabels(lang: string = "en"): SectionLabels {
   if (lang === "es") return {
     warmup: { name: "Warmups", singular: "Warmup", empty: "Aún no hay warmups en esta clase.", newOne: "Nuevo warmup" },
     exit_ticket: { name: "Exit tickets", singular: "Exit ticket", empty: "Aún no hay exit tickets en esta clase.", newOne: "Nuevo exit ticket" },
@@ -78,7 +103,13 @@ export function sectionLabels(lang = "en") {
 // system. Resolved here (not via CSS vars) because we need hex+alpha
 // suffixes (color + "10") for soft tints on cards.
 
-export const CLASS_COLORS = [
+export interface ClassColor {
+  id: string;
+  hex: string | null;
+  autoLabel?: boolean;
+}
+
+export const CLASS_COLORS: ReadonlyArray<ClassColor> = [
   { id: "auto",   hex: null,       autoLabel: true },
   { id: "blue",   hex: "#2383E2" },
   { id: "purple", hex: "#6940A5" },
@@ -92,26 +123,34 @@ export const CLASS_COLORS = [
 
 // Subject → color id map. Mirrors the one in MyClassesTeacher / Decks; kept
 // here so resolveClassAccent() stays self-contained.
-const SUBJ_COLOR = {
+const SUBJ_COLOR: Record<string, string> = {
   Math: "blue", Science: "green", History: "orange",
   Language: "purple", Art: "pink", Music: "yellow",
   PE: "green", Geography: "green", Other: "gray",
 };
 
-const HEX_BY_ID = Object.fromEntries(
-  CLASS_COLORS.filter(c => c.hex).map(c => [c.id, c.hex])
+const HEX_BY_ID: Record<string, string> = Object.fromEntries(
+  CLASS_COLORS.filter((c): c is ClassColor & { hex: string } => c.hex != null)
+    .map((c) => [c.id, c.hex])
 );
+
+// Minimal shape resolveClassAccent reads. The real class row has many more
+// fields; we only need these two.
+export interface ClassAccentInput {
+  color_id?: string | null;
+  subject?: string | null;
+}
 
 // Returns the accent hex for a class. Honors color_id if set; falls back
 // to the subject-derived color if it's 'auto' or missing. This is the ONE
 // function any UI component should call to figure out what color a class
 // should show — keeps the 'auto' fallback logic in one place.
-export function resolveClassAccent(cls) {
+export function resolveClassAccent(cls: ClassAccentInput | null | undefined): string {
   if (!cls) return HEX_BY_ID.blue;
   const id = cls.color_id;
   if (id && id !== "auto" && HEX_BY_ID[id]) return HEX_BY_ID[id];
   // Auto / unset → derive from subject
-  const subjId = SUBJ_COLOR[cls.subject] || "blue";
+  const subjId = (cls.subject && SUBJ_COLOR[cls.subject]) || "blue";
   return HEX_BY_ID[subjId] || HEX_BY_ID.blue;
 }
 
@@ -143,31 +182,44 @@ export function resolveClassAccent(cls) {
 // (sessions-activity-based). Once Phase 5 is deployed everywhere this
 // helper is the canonical answer.
 
-export const UNIT_STATUSES = ["planned", "active", "closed"];
+export type UnitStatus = "planned" | "active" | "closed";
 
-export function isValidUnitStatus(status) {
-  return UNIT_STATUSES.includes(status);
+export const UNIT_STATUSES: ReadonlyArray<UnitStatus> = ["planned", "active", "closed"];
+
+export function isValidUnitStatus(status: unknown): status is UnitStatus {
+  return typeof status === "string" && (UNIT_STATUSES as ReadonlyArray<string>).includes(status);
 }
 
-export function pickActiveUnit(units) {
+// Minimal shape pickActiveUnit / day-date helpers read off a unit row.
+// No index signature on purpose: pickActiveUnit is generic (<T extends
+// UnitLike>) so concrete row types like UnitRow (which have many more
+// fields but no index signature) remain assignable.
+export interface UnitLike {
+  status?: string | null;
+  position?: number | null;
+  created_at?: string | null;
+  day_dates?: Array<string | Date | null> | null;
+}
+
+export function pickActiveUnit<T extends UnitLike>(units: T[]): T | null {
   if (!Array.isArray(units) || units.length === 0) return null;
 
-  const active = units.filter(u => u.status === "active");
+  const active = units.filter((u) => u.status === "active");
   if (active.length === 1) return active[0];
   if (active.length > 1) {
     // Highest position wins. Tie-break by most-recently-created.
     return [...active].sort((a, b) => {
       const pos = (b.position || 0) - (a.position || 0);
       if (pos !== 0) return pos;
-      return new Date(b.created_at || 0) - new Date(a.created_at || 0);
+      return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
     })[0];
   }
 
-  const planned = units.filter(u => u.status === "planned");
+  const planned = units.filter((u) => u.status === "planned");
   if (planned.length > 0) {
     // Most-recently-created planned. The teacher's next thing.
     return [...planned].sort(
-      (a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0)
+      (a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()
     )[0];
   }
 
@@ -177,8 +229,8 @@ export function pickActiveUnit(units) {
 // ─── Unit status labels (i18n) ───────────────────────────────────────────
 // Short readable labels per status, matching the visual chips used in
 // ClassPage Plan view header.
-export function unitStatusLabel(status, lang = "en") {
-  const labels = {
+export function unitStatusLabel(status: string, lang: string = "en"): string {
+  const labels: Record<string, Record<string, string>> = {
     en: { planned: "Planned", active: "Active", closed: "Closed" },
     es: { planned: "Planeada", active: "Activa", closed: "Cerrada" },
     ko: { planned: "예정", active: "진행 중", closed: "종료됨" },
@@ -210,12 +262,14 @@ export function unitStatusLabel(status, lang = "en") {
 //     this would be an array with a NULL element; in JS we treat
 //     null/undefined the same.
 
+export type DateLike = Date | string | null | undefined;
+
 // Returns the date assigned to dayNumber in this unit, or null if
 // unassigned. dayNumber is 1-based (Day 1 → index 0).
 //
 // Returns a JS Date object (not a string) for easier comparison;
 // callers comparing against "today" should use Date.prototype methods.
-export function getDayDate(unit, dayNumber) {
+export function getDayDate(unit: UnitLike | null | undefined, dayNumber: number): Date | null {
   if (!unit || typeof dayNumber !== "number" || dayNumber < 1) return null;
   const arr = Array.isArray(unit.day_dates) ? unit.day_dates : [];
   const raw = arr[dayNumber - 1];
@@ -225,6 +279,8 @@ export function getDayDate(unit, dayNumber) {
   const d = raw instanceof Date ? raw : new Date(raw);
   return Number.isNaN(d.getTime()) ? null : d;
 }
+
+export type SetDayDateResult = { error: unknown } | { unit: unknown };
 
 // Writes a date for one specific day in a unit. Reads the current
 // array, expands it (filling missing slots with null) if dayNumber
@@ -236,13 +292,17 @@ export function getDayDate(unit, dayNumber) {
 //   - null/undefined (to clear a previously-set date)
 //
 // Returns { error } on failure, { unit } on success.
-export async function setDayDate(unitId, dayNumber, date) {
+export async function setDayDate(
+  unitId: string,
+  dayNumber: number,
+  date: DateLike
+): Promise<SetDayDateResult> {
   if (!unitId || typeof dayNumber !== "number" || dayNumber < 1) {
     return { error: "invalid args" };
   }
 
   // Normalize date to YYYY-MM-DD or null
-  let dateStr = null;
+  let dateStr: string | null = null;
   if (date instanceof Date) {
     if (!Number.isNaN(date.getTime())) {
       const yyyy = date.getFullYear();
@@ -263,7 +323,7 @@ export async function setDayDate(unitId, dayNumber, date) {
   if (readErr || !cur) return { error: readErr || "unit not found" };
 
   // Expand or shrink as needed
-  const arr = Array.isArray(cur.day_dates) ? [...cur.day_dates] : [];
+  const arr: Array<string | null> = Array.isArray(cur.day_dates) ? [...cur.day_dates] : [];
   while (arr.length < dayNumber) arr.push(null);
   arr[dayNumber - 1] = dateStr;
 
@@ -281,7 +341,7 @@ export async function setDayDate(unitId, dayNumber, date) {
 // Returns true if `date` (Date or YYYY-MM-DD string) equals "today"
 // in the user's local timezone. Centralized so all callers agree on
 // what "today" means (no UTC/local mismatches).
-export function isToday(date) {
+export function isToday(date: DateLike): boolean {
   if (!date) return false;
   const d = date instanceof Date ? date : new Date(date);
   if (Number.isNaN(d.getTime())) return false;
@@ -295,7 +355,7 @@ export function isToday(date) {
 
 // Returns true if `date` is strictly in the future (any day after
 // today). Used by the "Coming up" sidebar.
-export function isFuture(date) {
+export function isFuture(date: DateLike): boolean {
   if (!date) return false;
   const d = date instanceof Date ? date : new Date(date);
   if (Number.isNaN(d.getTime())) return false;
@@ -310,7 +370,7 @@ export function isFuture(date) {
 // inclusive of `days`). E.g. daysAhead(date, 7) returns true if date
 // is today through 7 days from now. Used to cap "Coming up" to a
 // 7-day horizon.
-export function isWithinDays(date, days) {
+export function isWithinDays(date: DateLike, days: number): boolean {
   if (!date) return false;
   const d = date instanceof Date ? date : new Date(date);
   if (Number.isNaN(d.getTime())) return false;
@@ -330,11 +390,11 @@ export function isWithinDays(date, days) {
 // the day after the latest existing day_date, skipping weekends.
 // Returns a Date or null if no existing dates to anchor on (caller
 // should default to today in that case).
-export function suggestNextDayDate(unit) {
+export function suggestNextDayDate(unit: UnitLike | null | undefined): Date | null {
   if (!unit) return null;
   const arr = Array.isArray(unit.day_dates) ? unit.day_dates : [];
   // Find the latest non-null date
-  let latest = null;
+  let latest: Date | null = null;
   for (const raw of arr) {
     if (!raw) continue;
     const d = raw instanceof Date ? raw : new Date(raw);
