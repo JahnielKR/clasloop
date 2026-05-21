@@ -42,6 +42,7 @@ import {
 } from "../lib/scanner-mlkit";
 // PR 76: i18n centralizado
 import { useT } from "../i18n";
+import { useToast } from "../lib/toast";
 
 // ─── i18n ───────────────────────────────────────────────────────────────────
 // PR 76: el bloque I18N local fue movido a src/i18n/{en,es,ko}.js
@@ -50,6 +51,7 @@ import { useT } from "../i18n";
 // ─── Component ──────────────────────────────────────────────────────────────
 
 export default function Scanner({ lang = "en", profile, onOpenMobileMenu }) {
+  const toast = useToast();
   const t = useT("scanner", lang);
   const isNative = Capacitor.isNativePlatform();
 
@@ -208,7 +210,7 @@ export default function Scanner({ lang = "en", profile, onOpenMobileMenu }) {
 
       if (insertErr) {
         console.error("[scanner] insert failed:", insertErr);
-        alert("Error saving scan. " + insertErr.message);
+        toast.error("Error saving scan. Try again.", { reportError: insertErr, context: { source: "Scanner.save", phase: "insert" } });
         setSaving(false);
         return;
       }
@@ -227,7 +229,7 @@ export default function Scanner({ lang = "en", profile, onOpenMobileMenu }) {
       }
     } catch (err) {
       console.error("[scanner] save error:", err);
-      alert("Error: " + err.message);
+      toast.error("Error saving scan. Try again.", { reportError: err, context: { source: "Scanner.save", phase: "exception" } });
     } finally {
       setSaving(false);
     }

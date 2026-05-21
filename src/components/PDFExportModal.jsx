@@ -48,6 +48,7 @@ import * as framed from "../lib/pdf-styles/framed";
 import { drawScanSheet } from "../lib/pdf-styles/scanner";
 // PR 75: i18n centralizado
 import { useT } from "../i18n";
+import { useToast } from "../lib/toast";
 
 // PR 46: scanner ya no es un "estilo" — es una página opcional que se
 // preempts al examen cuando variant === "exam_with_scan". El style
@@ -375,6 +376,7 @@ async function generatePreviewBlobURL(deck, classObj, { style, variant, lang, pa
 
 // ─── Component ───────────────────────────────────────────────────────────
 export default function PDFExportModal({
+  const toast = useToast();
   deck,
   classObj,
   lang = "en",
@@ -504,7 +506,7 @@ export default function PDFExportModal({
       onClose?.();
     } catch (err) {
       console.error("[pdf download] failed:", err);
-      alert("PDF download failed. Try again.");
+      toast.error("PDF download failed. Try again.", { reportError: err, context: { source: "PDFExportModal.download" } });
     } finally {
       setDownloading(false);
     }

@@ -44,6 +44,7 @@ import {
   sortableKeyboardCoordinates,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { useToast } from "../lib/toast";
 
 const SUBJECTS = ["Math", "Science", "History", "Language", "Geography", "Art", "Music", "Other"];
 const GRADES = ["6th-7th", "7th-8th", "8th-9th", "9th-10th", "10th-11th", "11th-12th"];
@@ -68,6 +69,7 @@ const LangBadge = ({ lang }) => {
 // ─── Create Deck Editor ─────────────────────────────
 // ─── Live preview of a deck card while editing ──────────────────────────────
 export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onNavigateToSessions, onOpenMobileMenu, profile = null }) {
+  const toast = useToast();
   const isMobile = useIsMobile();
   const [lang, setLangLocal] = useState(pageLang);
   const setLang = pageSetLang || setLangLocal;
@@ -292,14 +294,14 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
 
       if (origErr) {
         console.error("Failed to load original for derivation check:", origErr);
-        alert(t.publishBlockedLowEffort);
+        toast.error(t.publishBlockedLowEffort, { reportError: origErr, context: { source: "Decks.publish.derivation" } });
         return;
       }
 
       if (original) {
         const result = analyzeDerivation(original.questions, deck.questions);
         if (!result.canPublish) {
-          alert(
+          toast.error(
             result.status === "identical"
               ? t.publishBlockedIdentical
               : t.publishBlockedLowEffort

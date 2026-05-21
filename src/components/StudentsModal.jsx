@@ -20,6 +20,7 @@ import { C } from "./tokens";
 import { getAvatarById } from "./Avatars";
 // PR 75: i18n centralizado
 import { useT } from "../i18n";
+import { useToast } from "../lib/toast";
 
 // PR 75: el bloque i18n local fue movido a src/i18n/{en,es,ko}.js
 // bajo el namespace "studentsModal".
@@ -39,6 +40,7 @@ function formatJoinedDate(rawIso, lang) {
 }
 
 export default function StudentsModal({
+  const toast = useToast();
   open,
   classId,
   className,
@@ -166,7 +168,7 @@ export default function StudentsModal({
         "[clasloop] remove student(s) failed:",
         error || `expected ${ids.length} rows deleted, got ${count}`
       );
-      alert(confirmRemove.kind === "bulk" ? t.bulkError : t.removeError);
+      toast.error(confirmRemove.kind === "bulk" ? t.bulkError : t.removeError, { reportError: error || new Error(`expected ${ids.length} rows deleted, got ${count}`), context: { source: "StudentsModal.remove" } });
       setRemoving(false);
       return;
     }

@@ -27,6 +27,7 @@ import { MONO } from "../../components/tokens";
 import AIIcon from "../../components/AIIcon";
 import { C, css } from "./styles";
 import { SECTIONS, DEFAULT_SECTION, isValidSection, sectionLabels, resolveClassAccent, sectionToLessonContext } from "../../lib/class-hierarchy";
+import { useToast } from "../../lib/toast";
 
 const SUBJECTS = ["Math", "Science", "History", "Language", "Geography", "Art", "Music", "Other"];
 
@@ -598,6 +599,7 @@ function AIGeneratePanel({
 }
 
 function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existingDeck, prefilledClassId = null, prefilledSection = null, prefilledUnitId = null, prefilledPosition = null, profile = null }) {
+  const toast = useToast();
   const isMobile = useIsMobile();
   const [title, setTitle] = useState(existingDeck?.title || "");
   const [desc, setDesc] = useState(existingDeck?.description || "");
@@ -1422,7 +1424,7 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
     let finalPublic = makePublic;
     let finalAdapted = false;
     if (makePublic && derivation && !derivation.canPublish) {
-      alert(derivation.status === "identical" ? t.publishBlockedIdentical : t.publishBlockedLowEffort);
+      toast.error(derivation.status === "identical" ? t.publishBlockedIdentical : t.publishBlockedLowEffort);
       finalPublic = false;
     } else if (makePublic && derivation && derivation.showAdaptedBadge) {
       finalAdapted = true;

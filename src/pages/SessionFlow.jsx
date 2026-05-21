@@ -13,6 +13,7 @@ import { estimateDeckSeconds, formatDeckDuration } from "../lib/time-limits";
 import { ROUTES, QUERY, buildRoute } from "../routes";
 // PR 79: i18n centralizado
 import { useT } from "../i18n";
+import { useToast } from "../lib/toast";
 
 // ─── Theme ─────────────────────────────────────────────────────────────────
 const SUBJECTS = ["Math", "Science", "History", "Language", "Geography", "Art", "Music", "Other"];
@@ -1944,6 +1945,7 @@ function ComingUpSidebar({ teacherId, t, lang = "en", onPickItem }) {
 
 // ─── Main Export ───────────────────────────────────────────────────────────
 export default function SessionFlow({ lang = "en", setLang, onNavigateToDecks, onOpenMobileMenu, notifyActiveSessionChanged }) {
+  const toast = useToast();
   const t = useT("sessionFlow", lang);
   const [user, setUser] = useState(null);
   const [classes, setClasses] = useState([]);
@@ -2211,7 +2213,7 @@ export default function SessionFlow({ lang = "en", setLang, onNavigateToDecks, o
     // decks made stand-alone (e.g. via /decks/new without a class
     // prefilled).
     if (!classId) {
-      alert(t.sessionNeedsClass || "This deck isn't linked to a class yet. Open the deck and add it to a class to start a session.");
+      toast.error(t.sessionNeedsClass || "This deck isn't linked to a class yet. Open the deck and add it to a class to start a session.");
       return false; // tell the child to reset its launching state
     }
 
@@ -2288,9 +2290,10 @@ export default function SessionFlow({ lang = "en", setLang, onNavigateToDecks, o
       // instead of a generic one. Other errors (network, RLS, etc.) get
       // the existing generic alert.
       const isClassError = error.message && (error.message.includes("class_id") || error.code === "23502");
-      alert(isClassError
+      toast.error(isClassError
         ? (t.sessionNeedsClass || "This deck isn't linked to a class yet. Open the deck and add it to a class to start a session.")
-        : (t.sessionCreateFailed || "Could not create session. Please try again."));
+        : (t.sessionCreateFailed || "Could not create session. Please try again."),
+        { reportError: error, context: { source: "SessionFlow.createSession", isClassError } });
       return false; // tell the child to reset its launching state
     }
 
