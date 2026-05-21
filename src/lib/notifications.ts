@@ -6,21 +6,26 @@
 import { supabase } from "./supabase";
 import { getReviewSuggestions } from "./spaced-repetition";
 
+// PR 129: migrated from .js to .ts. Mixes localStorage + supabase reads.
+
 const DISMISSED_KEY = "clasloop_notifs_dismissed";
 
-export function loadDismissed() {
+// Map of notification-id → truthy when dismissed. Stored in localStorage.
+export type DismissedMap = Record<string, boolean | number>;
+
+export function loadDismissed(): DismissedMap {
   try {
     const raw = localStorage.getItem(DISMISSED_KEY);
     if (!raw) return {};
     const parsed = JSON.parse(raw);
-    return parsed && typeof parsed === "object" ? parsed : {};
-  } catch (_) {
+    return parsed && typeof parsed === "object" ? (parsed as DismissedMap) : {};
+  } catch {
     return {};
   }
 }
 
-export function saveDismissed(map) {
-  try { localStorage.setItem(DISMISSED_KEY, JSON.stringify(map)); } catch (_) {}
+export function saveDismissed(map: DismissedMap): void {
+  try { localStorage.setItem(DISMISSED_KEY, JSON.stringify(map)); } catch { /* ignore quota / privacy-mode errors */ }
 }
 
 // Count of free-text responses pending teacher review across all sessions
@@ -30,7 +35,9 @@ export function saveDismissed(map) {
 // what responses the teacher can see so the COUNT here is naturally scoped.
 // We use a HEAD-style count(*) via the supabase-js exact head pattern so
 // no rows travel — just the total.
-export async function countPendingReviewsForTeacher(teacherId) {
+export async function countPendingReviewsForTeacher(
+  teacherId: string | null | undefined
+): Promise<number> {
   if (!teacherId) return 0;
   try {
     // First fetch session ids of this teacher. Without that scoping the
@@ -54,7 +61,7 @@ export async function countPendingReviewsForTeacher(teacherId) {
 
     if (error) return 0;
     return count || 0;
-  } catch (_) {
+  } catch {
     return 0;
   }
 }
@@ -73,7 +80,20 @@ export async function countPendingReviewsForTeacher(teacherId) {
 //
 // We keep this in lib (not Notifications.jsx) so the same shape can be
 // reused later by other pages (e.g. /sessions/:id/my-results).
-export async function fetchGradedSessionsForStudent(studentId) {
+// One per session where the teacher has graded at least one of the
+// student's free-text answers.
+export interface GradedSession {
+  sessionId: string;
+  sessionTopic: string;
+  classId: string | null;
+  className: string;
+  gradedCount: number;
+  latestGradedAt: string | null;
+}
+
+export async function fetchGradedSessionsForStudent(
+  studentId: string | null | undefined
+): Promise<GradedSession[]> {
   if (!studentId) return [];
   try {
     const { data, error } = await supabase
@@ -91,8 +111,10 @@ export async function fetchGradedSessionsForStudent(studentId) {
     if (error || !data) return [];
 
     // Group by session_id, take latest graded_at and count rows.
-    const bySession = new Map();
-    for (const row of data) {
+    // supabase-js has no generated schema types here, so each row is
+    // loosely typed; we read the joined fields defensively.
+    const bySession = new Map<string, GradedSession>();
+    for (const row of data as any[]) {
       const sid = row.session_id;
       if (!sid) continue;
       const existing = bySession.get(sid);
@@ -112,7 +134,7 @@ export async function fetchGradedSessionsForStudent(studentId) {
       }
     }
     return Array.from(bySession.values());
-  } catch (_) {
+  } catch {
     return [];
   }
 }
@@ -122,10 +144,19 @@ export async function fetchGradedSessionsForStudent(studentId) {
 // itself does the full enrichment for rendering. Returns the visible
 // (non-dismissed) ids, so callers can `.length` for a badge or use the set
 // for cross-checks.
-export async function countVisibleNotifications(profile) {
+// Minimal profile shape this function reads.
+export interface NotifProfile {
+  id: string;
+  role?: string | null;
+  streak?: number | null;
+}
+
+export async function countVisibleNotifications(
+  profile: NotifProfile | null | undefined
+): Promise<number> {
   if (!profile) return 0;
   const dismissed = loadDismissed();
-  const ids = [];
+  const ids: string[] = [];
 
   if (profile.role === "teacher") {
     const { data: classes } = await supabase
