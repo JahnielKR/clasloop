@@ -30,10 +30,10 @@ export default function AvatarOnboarding({ profile, lang = "en", onDone }) {
   const handleConfirm = async () => {
     if (!selected || !profile?.id) return;
     setSaving(true);
-    const { error } = await supabase
-      .from("profiles")
-      .update({ avatar_id: selected })
-      .eq("id", profile.id);
+    // PR 92: via RPC update_my_profile, no update directo.
+    const { error } = await supabase.rpc("update_my_profile", {
+      p_updates: { avatar_id: selected },
+    });
     setSaving(false);
     if (error) {
       console.error("Failed to save avatar:", error);
@@ -117,8 +117,4 @@ export default function AvatarOnboarding({ profile, lang = "en", onDone }) {
           }}
         >
           {saving ? t.saving : t.continue}
-        </button>
-      </div>
-    </div>
-  );
-}
+    

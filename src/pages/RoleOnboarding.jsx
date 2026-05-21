@@ -68,22 +68,18 @@ export default function RoleOnboarding({ user, lang = "en", onCreated }) {
     const avatarFromMetadata = user?.user_metadata?.avatar_url || null;
 
     try {
-      const { data, error: insertErr } = await supabase
-        .from("profiles")
-        .insert({
-          id: user.id,
-          full_name: fullName,
-          role: pickedRole,
-          // Si Google nos pasÃ³ una avatar URL, la guardamos. Los students
-          // de todas formas eligen avatar despuÃ©s; los teachers pueden
-          // dejarla.
-          avatar_url: avatarFromMetadata,
-        })
-        .select()
-        .single();
+      // PR 92: usamos la RPC create_my_profile en vez del insert directo.
+      // El insert directo está revocado en RLS — los profiles nuevos se
+      // crean exclusivamente por esta función SECURITY DEFINER que fuerza
+      // is_admin=false y valida role ∈ {teacher,student} server-side.
+      const { data, error: insertErr } = await supabase.rpc("create_my_profile", {
+        p_role: pickedRole,
+        p_full_name: fullName,
+        p_avatar_url: avatarFromMetadata,
+      });
 
       if (insertErr) {
-        console.error("[clasloop] RoleOnboarding profile insert failed:", insertErr);
+        console.error("[clasloop] RoleOnboarding create_my_profile failed:", insertErr);
         setError(t.error);
         setSubmitting(false);
         return;
@@ -319,10 +315,4 @@ export default function RoleOnboarding({ user, lang = "en", onCreated }) {
                 }}
               >{"\u2190"} {t.confirmBack}</button>
             </div>
-          </div>
-        )}
-
-      </div>
-    </div>
-  );
-}
+          
