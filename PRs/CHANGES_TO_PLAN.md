@@ -8,6 +8,28 @@ Entries are appended chronologically. Most recent at the top.
 
 ---
 
+## 2026-05-21 — PR 134 done conservatively (no Database generic)
+
+**Status:** ✅ migrated, but **without** the `createClient<Database>()` the
+README proposed.
+
+**Reason:** there is no generated `Database` schema type in the repo
+(`db-types.ts` exports row interfaces but not the `Database` shape the
+supabase-js generic expects). Adding `createClient<Database>()` would
+type **every** supabase query across all `.ts` files at once. With no
+accurate generated type that's a guaranteed cascade of type errors, and
+generating one properly (via `supabase gen types typescript`) is its own
+task — not a mechanical file migration.
+
+**Done:** `supabase.js` → `supabase.ts`, untyped client preserved. All
+consumers (including the already-migrated `.ts` libs) keep working.
+
+**Follow-up:** run `supabase gen types typescript --linked > src/lib/database.types.ts`,
+then change `createClient` → `createClient<Database>` and fix the query
+sites that surface real mismatches. Worthwhile but should be its own PR.
+
+---
+
 ## 2026-05-21 — PR 113 partial — DeckTiles only
 
 **Status:** ⚠️ partial — 1 cohesive extraction done.
