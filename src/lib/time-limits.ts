@@ -15,7 +15,20 @@
 //
 // Si en el futuro queremos cambiar valores, este es el ÚNICO lugar.
 
-export const TIME_LIMITS = {
+// PR 132: migrated from .js to .ts.
+
+export interface TimeLimitConfig {
+  allowed: number[];
+  default: number | null;
+}
+
+// Loosely-typed question shape these helpers read.
+export interface TimedQuestion {
+  type?: string;
+  time_limit?: unknown;
+}
+
+export const TIME_LIMITS: Record<string, TimeLimitConfig> = {
   mcq:      { allowed: [15, 30, 45], default: 30 },
   tf:       { allowed: [10, 15, 20], default: 15 },
   fill:     { allowed: [20, 30, 45], default: 30 },
@@ -32,8 +45,9 @@ export const TIME_LIMITS = {
 // Si la pregunta tiene time_limit y está en el set permitido, lo usa.
 // Si no está o está fuera de rango, cae al default del tipo.
 // Si el tipo es poll → null (sin timer).
-export function resolveTimeLimit(q) {
+export function resolveTimeLimit(q: TimedQuestion | null | undefined): number | null {
   if (!q || typeof q !== "object") return null;
+  if (typeof q.type !== "string") return null;
   const config = TIME_LIMITS[q.type];
   if (!config) return null;
   if (config.default === null) return null;
@@ -46,7 +60,7 @@ export function resolveTimeLimit(q) {
 
 // Suma el tiempo total estimado de un deck en segundos.
 // Pasa por cada pregunta y aplica resolveTimeLimit. Polls suman 0 (sin timer).
-export function estimateDeckSeconds(questions) {
+export function estimateDeckSeconds(questions: unknown): number {
   if (!Array.isArray(questions)) return 0;
   let total = 0;
   for (const q of questions) {
@@ -59,7 +73,7 @@ export function estimateDeckSeconds(questions) {
 // Formatea segundos a string "X min" o "X min Y s" para mostrar al profe.
 // Redondea hacia arriba al minuto más cercano cuando los segundos sobrantes
 // son ≥ 30, ya que en práctica un minuto extra siempre es buen cushion.
-export function formatDeckDuration(totalSeconds, lang = "en") {
+export function formatDeckDuration(totalSeconds: number, lang: string = "en"): string {
   if (totalSeconds <= 0) {
     return lang === "es" ? "—" : (lang === "ko" ? "—" : "—");
   }
