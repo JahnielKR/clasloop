@@ -45,11 +45,11 @@ export default function MobileBlockedScreen({ lang = "en", onBack }) {
 
   return (
     <div style={{
-      // PR 88: era `minHeight: "100vh", minHeight: "100dvh"` (key
-      // duplicada — la segunda ganaba y JS/esbuild tiraban warning).
-      // Usamos 100dvh directo: es la dynamic viewport height, que en
-      // mobile excluye la barra del browser (mejor que 100vh). Soporte
-      // universal desde 2023.
+      // Was `minHeight: "100vh", minHeight: "100dvh"` (duplicate key — the
+      // second silently won and esbuild warned every build). 100dvh is the
+      // dynamic viewport height, which on mobile excludes the browser chrome
+      // (better than 100vh). Browsers without dvh support (Safari < 15.4)
+      // fall back to natural sizing, fine for this blocking screen.
       minHeight: "100dvh",
       display: "flex", flexDirection: "column",
       alignItems: "center", justifyContent: "center",
