@@ -242,4 +242,13 @@ create trigger profiles_block_sensitive_update_trg
 --
 -- 4) Test de update legítimo:
 --      const r = await supabase.rpc('update_my_profile', { p_updates: { language: 'es' } });
---      console.log(r);  // → data:
+--      console.log(r);  // → data: { ...profile, language: 'es' }
+--
+-- 5) Test de clear (avatar_url: null):
+--      const r = await supabase.rpc('update_my_profile', { p_updates: { avatar_url: null } });
+--      // → profile.avatar_url ahora null
+--
+-- 6) Test de key inválida (silenciosamente ignorada):
+--      const r = await supabase.rpc('update_my_profile', { p_updates: { is_admin: true, xp: 99999 } });
+--      // → data ok, pero profile.is_admin sigue false y xp sin cambios
+-- ============================================
