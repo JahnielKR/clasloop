@@ -45,7 +45,12 @@ export default function MobileBlockedScreen({ lang = "en", onBack }) {
 
   return (
     <div style={{
-      minHeight: "100vh", minHeight: "100dvh",
+      // PR 88: era `minHeight: "100vh", minHeight: "100dvh"` (key
+      // duplicada — la segunda ganaba y JS/esbuild tiraban warning).
+      // Usamos 100dvh directo: es la dynamic viewport height, que en
+      // mobile excluye la barra del browser (mejor que 100vh). Soporte
+      // universal desde 2023.
+      minHeight: "100dvh",
       display: "flex", flexDirection: "column",
       alignItems: "center", justifyContent: "center",
       padding: "32px 24px",
