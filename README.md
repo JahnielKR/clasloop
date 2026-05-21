@@ -60,7 +60,9 @@ Clasloop is in active development. See [`PRs/INDICE_PENDIENTES.md`](./PRs/INDICE
 
 ## License
 
-MIT — see [`LICENSE`](./LICENSE).
+Proprietary — all rights reserved. See [`LICENSE`](./LICENSE).
+
+The code is public for transparency and to enable issue reports / pull requests, but no license to use, copy, or redistribute is granted. Contact the author for licensing inquiries.
 
 ## Author
 

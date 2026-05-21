@@ -2,6 +2,16 @@
 
 Thanks for the interest. Clasloop is built primarily by [@JahnielKR](https://github.com/JahnielKR) but issues and PRs are welcome.
 
+## License & contribution terms
+
+Clasloop is published under an **all-rights-reserved** license (see [`LICENSE`](./LICENSE)). By opening a pull request you confirm that:
+
+1. You own the copyright to the code you contribute, OR you have permission to contribute it.
+2. You agree to **assign the copyright** of your contribution to the project owner, who may then license it as part of Clasloop under any terms they choose.
+3. Your contribution does not include third-party code unless properly attributed and license-compatible.
+
+If you'd rather retain copyright, do not open the PR — open an issue first to discuss alternative arrangements.
+
 ## Ground rules
 
 - **One PR, one concern.** If your PR touches both a UI bug and a DB migration, split into two.
