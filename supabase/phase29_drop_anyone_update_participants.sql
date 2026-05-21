@@ -1,0 +1,44 @@
+-- ============================================
+-- PHASE 29 — Drop redundant "Anyone can update participants" RLS policy
+--
+-- BUG (encontrado en auditoría 2026-05-21):
+--   phase15_completed_at.sql:32-46 creó la policy
+--     "Anyone can update participants" on session_participants
+--     for update using (true)
+--   pretendiendo que era temporal mientras se ajustaba el flujo de
+--   guests.
+--
+--   PR 33 (pr33_rls_security_fix.sql:92-105) más tarde creó una policy
+--   nueva estricta:
+--     "Session teacher updates participants, student updates own row"
+--   …pero NO dropeó la anterior.
+--
+--   En RLS, múltiples policies del mismo (table, cmd) se ORean.
+--   Resultado: la `using (true)` siempre matchea → cualquier client
+--   (incluso anon) puede UPDATE cualquier fila. PR 33 quedó muerto.
+--
+-- FIX:
+--   `drop policy if exists` la vieja. La de PR 33 queda como única
+--   política UPDATE, restringiendo correctamente a:
+--     1. El teacher de la sesión (session_id IN teacher's sessions)
+--     2. El propio estudiante (student_id = auth.uid())
+--     3. Guest (con caveat: ver PR 93 — el branch guest sigue siendo
+--        demasiado permisivo y se ataja en otra capa).
+--
+-- IDEMPOTENCIA: `drop policy if exists` no falla si la policy no existe.
+-- ============================================
+
+drop policy if exists "Anyone can update participants" on public.session_participants;
+
+-- ============================================
+-- VERIFICACIÓN
+--
+-- Confirmar que solo queda la policy de PR 33:
+--
+--   select policyname, cmd, qual
+--   from pg_policies
+--   where tablename = 'session_participants' and cmd = 'UPDATE';
+--
+-- Debería devolver UNA sola fila:
+--   "Session teacher updates participants, student updates own row"
+-- ============================================
