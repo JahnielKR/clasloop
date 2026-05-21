@@ -13,6 +13,7 @@ import { QUERY } from "../routes";
 import { getSectionTheme, getSectionLabel, SectionIconSVG } from "../lib/section-theme";
 // PR 78: i18n centralizado
 import { useT } from "../i18n";
+import { captureError } from "../lib/sentry";
 
 // Quiz option colors — kahoot-style fixed palette. NOT theme-aware on purpose:
 // students need to see the same colors the teacher launches the session with.
@@ -1502,6 +1503,7 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
         // are visible. The UI state (showResult, answers) is already
         // updated above, so swallowing the error here is still safe —
         // the student's UI keeps flowing even if the DB write fails.
+        captureError(err, { source: "StudentJoin.responseUpsert" });
         console.error("[clasloop] response upsert failed:", err);
       }
     }

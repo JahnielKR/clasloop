@@ -6,6 +6,7 @@ import { C } from "../components/tokens";
 // PR 73: i18n centralizado — las strings de este componente viven ahora en
 // src/i18n/{en,es,ko}.js bajo el namespace "avatarOnboarding".
 import { useT } from "../i18n";
+import { captureError } from "../lib/sentry";
 
 const css = `
   @keyframes ao-fade { from { opacity:0; transform:translateY(10px) } to { opacity:1; transform:translateY(0) } }
@@ -36,6 +37,7 @@ export default function AvatarOnboarding({ profile, lang = "en", onDone }) {
     });
     setSaving(false);
     if (error) {
+      captureError(error, { source: "AvatarOnboarding.save" });
       console.error("Failed to save avatar:", error);
       return;
     }
