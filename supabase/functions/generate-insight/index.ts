@@ -17,8 +17,10 @@
 // nothing if status is already 'ready' or 'empty').
 //
 // Auth: this function bypasses RLS via SUPABASE_SERVICE_ROLE_KEY.
-// The webhook itself must be authenticated (configured in the
-// Database Webhook UI with a header).
+// The webhook itself MUST be authenticated. The Database Webhook UI
+// must be configured to send `Authorization: Bearer <WEBHOOK_SECRET>`
+// where WEBHOOK_SECRET matches the env var of the same name set on
+// this function (see PR 90).
 
 // deno-lint-ignore-file no-explicit-any
 
@@ -50,6 +52,25 @@ Deno.serve(async (req: Request) => {
   // Only POST allowed (webhooks are always POST)
   if (req.method !== "POST") {
     return jsonResponse({ error: "method_not_allowed" }, 405);
+  }
+
+  // ── 0. Webhook authentication (PR 90) ─────────────────────────────
+  // The Supabase Database Webhook is configured to send:
+  //   Authorization: Bearer <WEBHOOK_SECRET>
+  // where WEBHOOK_SECRET is a random string we set via
+  //   supabase secrets set WEBHOOK_SECRET=<value>
+  // If the header is missing or doesn't match, reject — no payload
+  // parsing, no DB writes, no Anthropic calls.
+  const WEBHOOK_SECRET = Deno.env.get("WEBHOOK_SECRET");
+  if (!WEBHOOK_SECRET) {
+    console.error("[generate-insight] WEBHOOK_SECRET not configured");
+    return jsonResponse({ error: "server_misconfigured" }, 500);
+  }
+  const authHeader = req.headers.get("authorization") || "";
+  const expectedAuth = `Bearer ${WEBHOOK_SECRET}`;
+  if (authHeader !== expectedAuth) {
+    console.error("[generate-insight] unauthorized webhook call");
+    return jsonResponse({ error: "unauthorized" }, 401);
   }
 
   // Parse webhook payload

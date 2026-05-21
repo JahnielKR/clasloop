@@ -42,6 +42,7 @@ import {
 } from "../lib/close-unit-ai";
 // PR 76: i18n centralizado
 import { useT } from "../i18n";
+import { captureError } from "../lib/sentry";
 
 // PR 76: el bloque i18n local fue movido a src/i18n/{en,es,ko}.js
 // bajo el namespace "closeUnitFlow".
@@ -351,6 +352,7 @@ export function CloseUnitSummary({ unit, classObj, userId, lang = "en", onBack, 
 
       onConfirm && onConfirm({ promotedId: next?.id || null });
     } catch (e) {
+      captureError(e, { source: "CloseUnitFlow.closeUnit" });
       console.error("Close unit failed:", e);
       setErrorMsg(t.closeError);
     } finally {

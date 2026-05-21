@@ -3,6 +3,19 @@
 // PR 51 (FASE 2 Capacitor): Google OAuth flow para Capacitor con deep
 // linking + PKCE.
 //
+// PR 96 (auditoría 2026-05-21): cerramos dos huecos:
+//   - El `state` que Supabase ponía en el outbound URL nunca se
+//     extraía ni validaba en el callback. PKCE protege contra code
+//     substitution, pero `state` es lo que defiende contra que el OS
+//     entregue un code viejo/replayed/cross-flow. Sin validarlo, un
+//     attacker que registre el mismo scheme podría racear el callback.
+//   - El fallback "implicit-flow" (hash tokens en el URL) era código
+//     muerto bajo PKCE pero un attacker con un appUrlOpen craftado
+//     (`com.clasloop.app://auth-callback#access_token=...&refresh_token=...`)
+//     podía plantar una sesión de su account en el device de la víctima
+//     (session fixation). Borrado por completo — PKCE NUNCA devuelve
+//     tokens en el hash.
+//
 // Flujo:
 //
 //   1. Llamar supabase.auth.signInWithOAuth con:
@@ -14,33 +27,28 @@
 //      → Supabase devuelve { data: { url: '...' } } donde url es el
 //        endpoint de Google con el code_verifier de PKCE ya armado.
 //
-//   2. Abrir ese URL con @capacitor/browser:
-//        Browser.open({ url }).
-//      Esto abre Chrome Custom Tabs en Android (browser nativo, no
-//      WebView de la app). El usuario completa el flow de Google ahí.
+//   2. ANTES de abrir el browser: extraemos el `state` param del
+//      `data.url` y lo guardamos en una variable de scope. Cuando
+//      vuelva el callback, comparamos.
 //
-//   3. Cuando Google termina, redirige a 'com.clasloop.app://auth-callback'
-//      con tokens en el URL. El OS de Android, gracias al deep link
-//      configurado en AndroidManifest.xml, abre nuestra app pasándole
-//      ese URL via el evento 'appUrlOpen' de @capacitor/app.
+//   3. Abrir ese URL con @capacitor/browser. Chrome Custom Tabs en
+//      Android (browser nativo, no WebView). El user completa Google.
 //
-//   4. Recibimos el evento, extraemos los tokens del URL, y los pasamos
-//      a supabase.auth.exchangeCodeForSession para crear la sesión.
+//   4. Cuando Google termina, redirige a 'com.clasloop.app://auth-callback'
+//      con `?code=...&state=...`. El OS abre nuestra app via deep link.
 //
-//   5. Cerramos Chrome Custom Tabs con Browser.close().
+//   5. Recibimos el evento, validamos `state`, canjeamos el `code` por
+//      sesión con supabase.auth.exchangeCodeForSession.
 //
-// Resultado: profile.id existe, App.jsx detecta SIGNED_IN, fetchProfile
-// corre, y la UI navega a la home como en web.
+//   6. Cerramos Chrome Custom Tabs.
 //
-// IMPORTANTE: la URL custom 'com.clasloop.app://auth-callback' tiene que
-// estar registrada en TRES lugares:
+// La URL custom 'com.clasloop.app://auth-callback' tiene que estar
+// registrada en TRES lugares:
 //   1. Supabase Dashboard → Authentication → URL Configuration →
-//      Redirect URLs (Jota lo agregó manualmente en FASE 2)
+//      Redirect URLs
 //   2. android/app/src/main/AndroidManifest.xml → intent-filter para
 //      el scheme com.clasloop.app
 //   3. Acá abajo, en REDIRECT_URI
-//
-// Si alguno de los 3 no coincide, el flow falla silenciosamente.
 
 import { App as CapApp } from "@capacitor/app";
 import { Browser } from "@capacitor/browser";
@@ -58,24 +66,25 @@ let inFlightListener = null; // limpieza del listener entre intentos
  *
  * Throws:
  *   - Error si Supabase no devuelve el URL para iniciar
+ *   - Error si no hay `state` en el URL outbound (Supabase config rota)
  *   - Error si el deep link callback no llega en 5 minutos
+ *   - Error si el `state` del callback no coincide con el outbound
  *   - Error si el exchange falla
  */
 export async function googleOAuthNative() {
-  // 1. Limpiar cualquier listener previo (por si el usuario canceló
-  // antes y se reintenta).
+  // 1. Limpiar cualquier listener previo (por si el user canceló antes
+  // y se reintenta).
   if (inFlightListener) {
     inFlightListener.remove();
     inFlightListener = null;
   }
 
-  // 2. Pedirle a Supabase el URL del flow, sin redirigir
+  // 2. Pedirle a Supabase el URL del flow, sin redirigir.
   //
   // PR 58 fix bug 2: prompt='select_account' fuerza a Google a mostrar
   // siempre el selector de cuenta, en lugar de loguear automáticamente
-  // la última cuenta usada en el browser/sistema. Sin esto, una vez que
-  // un usuario se logueó, es imposible loguearse con otra cuenta en el
-  // mismo dispositivo sin abrir modo incógnito.
+  // la última cuenta usada. Sin esto, una vez logueado, es imposible
+  // cambiar de cuenta sin modo incógnito.
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: "google",
     options: {
@@ -93,19 +102,34 @@ export async function googleOAuthNative() {
     );
   }
 
-  // 3. Registrar listener para el deep link callback ANTES de abrir el
+  // 3. PR 96: extraer el `state` del outbound URL. Supabase lo pone en
+  // el query string del URL que nos devuelve para que Google nos lo
+  // refleje en el callback.
+  let expectedState = null;
+  try {
+    expectedState = new URL(data.url).searchParams.get("state");
+  } catch {
+    // URL parsing failed — Supabase devolvió algo raro, abortar.
+    throw new Error("OAuth URL malformed (could not parse state)");
+  }
+  if (!expectedState) {
+    // Sin `state` no hay defensa contra replay del callback. Abortar
+    // ahora en lugar de continuar con un flow vulnerable.
+    throw new Error("OAuth URL missing state parameter");
+  }
+
+  // 4. Registrar listener para el deep link callback ANTES de abrir el
   // browser, así no perdemos el evento si el flow es muy rápido.
   const callbackPromise = waitForDeepLinkCallback();
 
-  // 4. Abrir el URL en Chrome Custom Tabs (Android) / SFSafariViewController
-  // (iOS cuando se agregue). Browser plugin maneja la diferencia.
+  // 5. Abrir el URL en Chrome Custom Tabs (Android) / SFSafariViewController
+  // (iOS cuando se agregue).
   await Browser.open({
     url: data.url,
     presentationStyle: "popover", // iOS: presentación modal
   });
 
-  // 5. Esperar el deep link. Timeout 5 minutos por si el usuario se
-  // queda colgado y nunca completa el flow.
+  // 6. Esperar el deep link. Timeout 5 minutos.
   let callbackUrl;
   try {
     callbackUrl = await Promise.race([
@@ -115,18 +139,15 @@ export async function googleOAuthNative() {
       ),
     ]);
   } finally {
-    // Cerrar el browser sí o sí — éxito o error.
     try { await Browser.close(); } catch {}
   }
 
-  // 6. Parsear el URL del callback. Supabase puede devolverlo de dos
-  // formas según el flow:
-  //   - PKCE: ?code=...&state=...  → hay que llamar exchangeCodeForSession
-  //   - Implicit (fallback raro): #access_token=...&refresh_token=...
-  //
-  // Para PKCE, el "code" del query string es lo que canjeamos.
+  // 7. Parsear el URL del callback. Bajo PKCE Supabase devuelve
+  // `?code=...&state=...`. Cualquier otra forma (hash tokens) es
+  // considerada inválida y rechazada — defensa contra session fixation.
   const url = new URL(callbackUrl);
   const code = url.searchParams.get("code");
+  const callbackState = url.searchParams.get("state");
   const errorParam = url.searchParams.get("error");
   const errorDescription = url.searchParams.get("error_description");
 
@@ -134,24 +155,21 @@ export async function googleOAuthNative() {
     throw new Error(`Google OAuth declined: ${errorDescription || errorParam}`);
   }
 
-  if (!code) {
-    // Tal vez vino en el hash (implicit flow fallback)
-    const hash = url.hash.startsWith("#") ? url.hash.slice(1) : url.hash;
-    const hashParams = new URLSearchParams(hash);
-    const accessToken = hashParams.get("access_token");
-    const refreshToken = hashParams.get("refresh_token");
-    if (accessToken && refreshToken) {
-      const { error: setErr } = await supabase.auth.setSession({
-        access_token: accessToken,
-        refresh_token: refreshToken,
-      });
-      if (setErr) throw new Error(`setSession failed: ${setErr.message}`);
-      return;
-    }
-    throw new Error("No code or tokens in OAuth callback URL");
+  // 8. PR 96: validar state. Defensa contra replay y contra cross-flow
+  // delivery (otro app que registre el scheme y devuelva un code de
+  // OTRO flow OAuth). Comparación estricta de strings.
+  if (!callbackState || callbackState !== expectedState) {
+    throw new Error("OAuth state mismatch — possible replay or wrong flow");
   }
 
-  // 7. PKCE exchange: code → session
+  if (!code) {
+    // Bajo PKCE el code es obligatorio. Si falta, NO caemos en el
+    // fallback implicit (era código muerto y vector de session
+    // fixation — ver PR 96).
+    throw new Error("OAuth callback missing code parameter");
+  }
+
+  // 9. PKCE exchange: code → session.
   const { error: exchErr } = await supabase.auth.exchangeCodeForSession(code);
   if (exchErr) {
     throw new Error(`exchangeCodeForSession failed: ${exchErr.message}`);
@@ -162,13 +180,18 @@ export async function googleOAuthNative() {
  * Devuelve una promesa que resuelve con el URL completo cuando llega un
  * evento appUrlOpen que matchea nuestro REDIRECT_URI.
  *
+ * PR 96: tightened el matching — exigimos que después del REDIRECT_URI
+ * venga "?" (query string), no cualquier cosa. Esto evita que un URL
+ * tipo "com.clasloop.app://auth-callbackBOGUS" matchee y dispare el
+ * handler con un payload arbitrario.
+ *
  * El listener se auto-limpia al disparar.
  */
 function waitForDeepLinkCallback() {
   return new Promise((resolve) => {
     inFlightListener = CapApp.addListener("appUrlOpen", (event) => {
       // event.url es algo como "com.clasloop.app://auth-callback?code=..."
-      if (event.url && event.url.startsWith(REDIRECT_URI)) {
+      if (event.url && event.url.startsWith(REDIRECT_URI + "?")) {
         if (inFlightListener) {
           inFlightListener.remove();
           inFlightListener = null;

@@ -54,6 +54,7 @@ import { C, MONO } from "./tokens";
 import { buildRoute, ROUTES, QUERY } from "../routes";
 // PR 75: i18n centralizado
 import { useT } from "../i18n";
+import { useToast } from "../lib/toast";
 
 // ─── i18n ──────────────────────────────────────────────────────────────
 // PR 75: el bloque i18n local fue movido a src/i18n/{en,es,ko}.js
@@ -1206,6 +1207,7 @@ export default function PlanView({
   onCloseUnit,         // called when the teacher clicks "Close unit"
   onReopenUnit,        // called when the teacher clicks "Reopen" on a closed unit
 }) {
+  const toast = useToast();
   const t = useT("planView", lang);
   const navigate = useNavigate();
 
@@ -1302,7 +1304,7 @@ export default function PlanView({
       .eq("id", deck.id);
     if (error) {
       console.error("[clasloop] removeDeck failed:", error);
-      alert(t.removeError);
+      toast.error(t.removeError, { reportError: error, context: { source: "PlanView.removeDeck" } });
       return;
     }
     onRefresh && onRefresh();

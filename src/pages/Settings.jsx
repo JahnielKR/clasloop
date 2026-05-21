@@ -152,11 +152,12 @@ export default function Settings({ lang: pageLang = "en", setLang: pageSetLang, 
       setAvatarUploading(false);
       return;
     }
-    // Save to DB and clear avatar_id (photo takes priority)
+    // Save to DB and clear avatar_id (photo takes priority).
+    // PR 92: via RPC update_my_profile, no update directo.
     const oldUrl = avatarUrl;
-    const { error } = await supabase.from("profiles")
-      .update({ avatar_url: result.url, avatar_id: null })
-      .eq("id", profile.id);
+    const { error } = await supabase.rpc("update_my_profile", {
+      p_updates: { avatar_url: result.url, avatar_id: null },
+    });
     if (!error) {
       setAvatarUrl(result.url);
       setAvatarId(null);
@@ -174,10 +175,11 @@ export default function Settings({ lang: pageLang = "en", setLang: pageSetLang, 
 
   const handleAvatarPhotoRemove = async () => {
     if (!profile) return;
+    // PR 92: via RPC update_my_profile, no update directo.
     const oldUrl = avatarUrl;
-    const { error } = await supabase.from("profiles")
-      .update({ avatar_url: null })
-      .eq("id", profile.id);
+    const { error } = await supabase.rpc("update_my_profile", {
+      p_updates: { avatar_url: null },
+    });
     if (!error) {
       setAvatarUrl(null);
       setAvatarTab("avatar");
@@ -188,9 +190,10 @@ export default function Settings({ lang: pageLang = "en", setLang: pageSetLang, 
 
   const handleAvatarSelect = async (id) => {
     if (!profile) return;
-    const { error } = await supabase.from("profiles")
-      .update({ avatar_id: id, avatar_url: null })
-      .eq("id", profile.id);
+    // PR 92: via RPC update_my_profile, no update directo.
+    const { error } = await supabase.rpc("update_my_profile", {
+      p_updates: { avatar_id: id, avatar_url: null },
+    });
     if (!error) {
       const oldUrl = avatarUrl;
       setAvatarId(id);
@@ -205,9 +208,16 @@ export default function Settings({ lang: pageLang = "en", setLang: pageSetLang, 
   const saveProfile = async () => {
     if (!profile) return;
     setProfileStatus("saving");
-    const { error } = await supabase.from("profiles").update({
-      full_name: name.trim(), school: school.trim(), language: l,
-    }).eq("id", profile.id);
+    // PR 92: update directo a `profiles` está revocado. La RPC
+    // SECURITY DEFINER acepta un objeto p_updates con solo las keys
+    // no-sensibles (no toca is_admin ni role).
+    const { error } = await supabase.rpc("update_my_profile", {
+      p_updates: {
+        full_name: name.trim(),
+        school: school.trim(),
+        language: l,
+      },
+    });
     setProfileStatus(error ? null : "saved");
     if (!error) {
       if (refreshProfile) refreshProfile();
@@ -217,9 +227,9 @@ export default function Settings({ lang: pageLang = "en", setLang: pageSetLang, 
 
   const changeLanguage = (newLang) => {
     setLang(newLang);
-    // Persist language preference
+    // Persist language preference. PR 92: via RPC, no update directo.
     if (profile) {
-      supabase.from("profiles").update({ language: newLang }).eq("id", profile.id)
+      supabase.rpc("update_my_profile", { p_updates: { language: newLang } })
         .then(() => { if (refreshProfile) refreshProfile(); });
     }
   };
@@ -232,10 +242,10 @@ export default function Settings({ lang: pageLang = "en", setLang: pageSetLang, 
     if (value !== "private" && value !== "public") return;
     const prev = defaultDeckVisibility;
     setDefaultDeckVisibility(value);
-    const { error } = await supabase
-      .from("profiles")
-      .update({ default_deck_visibility: value })
-      .eq("id", profile.id);
+    // PR 92: via RPC update_my_profile, no update directo.
+    const { error } = await supabase.rpc("update_my_profile", {
+      p_updates: { default_deck_visibility: value },
+    });
     if (error) {
       console.warn("[clasloop] default_deck_visibility update failed:", error);
       // Revert local state so the UI stays truthful.

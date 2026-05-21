@@ -17,11 +17,15 @@ import { bootCapacitor } from './lib/capacitor-boot'
 // montaje inicial también queden capturados. initSentry es no-op
 // si no hay DSN definida o no es production, así que es seguro
 // llamarlo siempre.
-import { initSentry } from './lib/sentry'
+import { initSentry, SentryErrorBoundary } from './lib/sentry'
 // PR 69: PostHog analytics. Inicializar después de Sentry — orden
 // importa solo conceptualmente (errores tienen prioridad sobre tracking).
 // initAnalytics es no-op si no hay key o no es production.
 import { initAnalytics } from './lib/analytics'
+// PR 91: montaje del ErrorBoundary + ToastProvider que ya existían
+// pero nunca habían sido conectados al árbol React.
+import ErrorFallback from './components/ErrorFallback'
+import { ToastProvider } from './lib/toast'
 
 // ── Sentry boot ──
 initSentry();
@@ -78,9 +82,25 @@ function Root() {
   );
 }
 
+// ── React mount ──
+// PR 91: árbol con ErrorBoundary (afuera) + ToastProvider (adentro) + Root.
+// Orden importa:
+//   - ErrorBoundary afuera: captura crashes del subtree completo, incluyendo
+//     un crash hipotético del provider de Toast.
+//   - ToastProvider adentro del boundary: si el boundary se activa, ErrorFallback
+//     no necesita useToast (renderiza fuera del flujo normal).
+//   - Root adentro de ambos: cualquier page puede usar useToast() y está
+//     protegida por el boundary.
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <Root />
+    <SentryErrorBoundary
+      fallback={(props) => <ErrorFallback {...props} />}
+      showDialog={false}
+    >
+      <ToastProvider>
+        <Root />
+      </ToastProvider>
+    </SentryErrorBoundary>
   </React.StrictMode>,
 )
 

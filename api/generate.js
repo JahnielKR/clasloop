@@ -122,7 +122,10 @@ export default async function handler(req, res) {
     const {
       messages,
       system,
-      model = DEFAULT_MODEL_KEY,
+      // PR 94: el cliente NO controla qué model se usa. Hardcodeamos
+      // el primary server-side. Si en el futuro hace falta exponer
+      // más, hacerlo con un allowlist explícito (no echo del input).
+      // model = DEFAULT_MODEL_KEY,  // ← ignored from req.body
       max_tokens = 2000,
       // Bloque 4: si validate=true y el modelo es "primary", corremos un
       // segundo call a Haiku para filtrar.
@@ -146,11 +149,27 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'messages array is required' });
     }
 
-    const modelString = MODELS[model] || MODELS[DEFAULT_MODEL_KEY];
+    // PR 94: hardening defensivo del input.
+    // - model: ignoramos lo que mande el cliente, siempre primary.
+    // - max_tokens: cap server-side (cliente no puede pedir 64000).
+    // - system: cap de tamaño para evitar puffs anormales.
+    const modelString = MODELS[DEFAULT_MODEL_KEY];
+
+    const MAX_TOKENS_CAP = 8000;
+    const requestedTokens = parseInt(max_tokens, 10);
+    const safeMaxTokens = Math.min(
+      Math.max(Number.isFinite(requestedTokens) ? requestedTokens : 2000, 1),
+      MAX_TOKENS_CAP
+    );
+
+    const MAX_SYSTEM_CHARS = 8000;
+    if (typeof system === 'string' && system.length > MAX_SYSTEM_CHARS) {
+      return res.status(400).json({ error: 'system_prompt_too_long' });
+    }
 
     const anthropicBody = {
       model: modelString,
-      max_tokens,
+      max_tokens: safeMaxTokens,
       messages,
     };
     if (typeof system === 'string' && system.trim()) {
@@ -168,8 +187,14 @@ export default async function handler(req, res) {
     });
 
     if (!anthropicResp.ok) {
+      // PR 94: no echo del error crudo de Anthropic — puede tener
+      // detalles internos. Loguear server-side, devolver genérico.
       const errText = await anthropicResp.text();
-      return res.status(anthropicResp.status).json({ error: errText });
+      console.error(`[generate] Anthropic ${anthropicResp.status}: ${errText.slice(0, 500)}`);
+      return res.status(anthropicResp.status).json({
+        error: 'upstream_error',
+        status: anthropicResp.status,
+      });
     }
 
     const data = await anthropicResp.json();
@@ -209,9 +234,9 @@ export default async function handler(req, res) {
           const total = outputRaw.length;
           console.log(`[validator-shadow] ${dropped.length}/${total} would be dropped (subject=${subject || 'n/a'} grade=${grade || 'n/a'} ctx=${lesson_context || 'n/a'} type=${activity_type})`);
           for (const dr of dropped) {
-            const q = outputRaw[dr.i];
-            const promptText = (q?.q || q?.prompt || '').toString().slice(0, 120);
-            console.log(`[validator-shadow]   #${dr.i} reason="${dr.reason}" q="${promptText}"`);
+            // PR 94: no logueamos el contenido de la pregunta — puede tener
+            // PII pegada por el profe. Solo el índice + razón.
+            console.log(`[validator-shadow]   #${dr.i} reason="${dr.reason}"`);
           }
         }
       } catch (err) {

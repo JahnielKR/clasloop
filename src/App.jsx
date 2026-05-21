@@ -74,6 +74,7 @@ import { C } from './components/tokens';
 import Sidebar from './components/Sidebar';
 import ClassCodeModal from './components/ClassCodeModal';
 import MobileBlockedScreen from './components/MobileBlockedScreen';
+import { captureError } from "./lib/sentry";
 
 // MyClasses wrapper — /classes is shared between roles and now has a
 // nested route for class detail:
@@ -158,6 +159,7 @@ function AuthScreen({ initialMode = "signup", onBack, lang = "en" }) {
       setInfoMessage(t.checkEmail);
       setLoading(false);
     } catch (err) {
+      captureError(err, { source: "App.AuthScreen.signUp" });
       console.error("[clasloop] signUp exception:", err);
       setError(err.message || t.errorGeneric);
       setLoading(false);
@@ -181,6 +183,7 @@ function AuthScreen({ initialMode = "signup", onBack, lang = "en" }) {
       }
       // Éxito: onAuthStateChange dispara, no tocamos loading.
     } catch (err) {
+      captureError(err, { source: "App.AuthScreen.signIn" });
       console.error("[clasloop] signIn exception:", err);
       setError(err.message || t.errorGeneric);
       setLoading(false);
@@ -206,6 +209,7 @@ function AuthScreen({ initialMode = "signup", onBack, lang = "en" }) {
         // dispara fetchProfile automáticamente. No hace falta hacer
         // nada más acá.
       } catch (err) {
+        captureError(err, { source: "App.AuthScreen.googleOAuthNative" });
         console.error("[clasloop] Google OAuth (native) exception:", err);
         setError(err.message || t.errorGeneric);
       }
@@ -229,6 +233,7 @@ function AuthScreen({ initialMode = "signup", onBack, lang = "en" }) {
         },
       });
     } catch (err) {
+      captureError(err, { source: "App.AuthScreen.googleOAuth" });
       console.error("[clasloop] Google OAuth exception:", err);
       setError(err.message || t.errorGeneric);
     }
@@ -1138,6 +1143,7 @@ export default function App() {
 
       if (error) {
         // Error inesperado en el SELECT — log y fail silencioso.
+        captureError(error, { source: "App.fetchProfile.dbError" });
         console.error("[clasloop auth] profile fetch error:", error);
         setLoading(false);
         return;
@@ -1167,6 +1173,7 @@ export default function App() {
         }
       }
     } catch (err) {
+      captureError(err, { source: "App.fetchProfile" });
       console.error("fetchProfile error:", err);
     } finally {
       fetchProfileInFlightRef.current = false;

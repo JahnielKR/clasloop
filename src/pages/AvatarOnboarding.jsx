@@ -6,6 +6,7 @@ import { C } from "../components/tokens";
 // PR 73: i18n centralizado — las strings de este componente viven ahora en
 // src/i18n/{en,es,ko}.js bajo el namespace "avatarOnboarding".
 import { useT } from "../i18n";
+import { captureError } from "../lib/sentry";
 
 const css = `
   @keyframes ao-fade { from { opacity:0; transform:translateY(10px) } to { opacity:1; transform:translateY(0) } }
@@ -30,12 +31,13 @@ export default function AvatarOnboarding({ profile, lang = "en", onDone }) {
   const handleConfirm = async () => {
     if (!selected || !profile?.id) return;
     setSaving(true);
-    const { error } = await supabase
-      .from("profiles")
-      .update({ avatar_id: selected })
-      .eq("id", profile.id);
+    // PR 92: via RPC update_my_profile, no update directo.
+    const { error } = await supabase.rpc("update_my_profile", {
+      p_updates: { avatar_id: selected },
+    });
     setSaving(false);
     if (error) {
+      captureError(error, { source: "AvatarOnboarding.save" });
       console.error("Failed to save avatar:", error);
       return;
     }
@@ -122,3 +124,4 @@ export default function AvatarOnboarding({ profile, lang = "en", onDone }) {
     </div>
   );
 }
+    

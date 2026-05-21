@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, lazy, Suspense } from "react";
 import { useSearchParams, useNavigate, useMatch } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { CIcon } from "../components/Icons";
@@ -11,8 +11,15 @@ import { MONO } from "../components/tokens";
 import { C, css } from "./Decks/styles";
 import CreateDeckEditor from "./Decks/CreateDeckEditor";
 import { ROUTES, QUERY, buildRoute } from "../routes";
-import { exportExamPDF, exportAnswerKeyPDF, exportPDF } from "../lib/pdf-export";
-import PDFExportModal from "../components/PDFExportModal";
+// PR 98: lazy-load PDFExportModal. El modal solo se renderiza cuando el
+// teacher clickea "Download PDF" en una tarjeta — antes el chunk de
+// Decks arrastraba jsPDF + 4 archivos pdf-styles + qrcode + (a través de
+// dynamic import interno) la fuente coreana. Ahora el chunk Decks queda
+// puro UI + supabase, y el stack PDF se baja on-demand.
+//
+// Los 3 imports legacy (exportExamPDF, exportAnswerKeyPDF, exportPDF)
+// eran dead imports — nunca se llamaron en este archivo. Removidos.
+const PDFExportModal = lazy(() => import("../components/PDFExportModal"));
 // PR 79: i18n centralizado
 import { useT } from "../i18n";
 // PR 7: drag-to-reorder decks within a unit. Same dnd-kit setup as the
@@ -37,6 +44,7 @@ import {
   sortableKeyboardCoordinates,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { useToast } from "../lib/toast";
 
 const SUBJECTS = ["Math", "Science", "History", "Language", "Geography", "Art", "Music", "Other"];
 const GRADES = ["6th-7th", "7th-8th", "8th-9th", "9th-10th", "10th-11th", "11th-12th"];
@@ -61,6 +69,7 @@ const LangBadge = ({ lang }) => {
 // ─── Create Deck Editor ─────────────────────────────
 // ─── Live preview of a deck card while editing ──────────────────────────────
 export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onNavigateToSessions, onOpenMobileMenu, profile = null }) {
+  const toast = useToast();
   const isMobile = useIsMobile();
   const [lang, setLangLocal] = useState(pageLang);
   const setLang = pageSetLang || setLangLocal;
@@ -285,14 +294,14 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
 
       if (origErr) {
         console.error("Failed to load original for derivation check:", origErr);
-        alert(t.publishBlockedLowEffort);
+        toast.error(t.publishBlockedLowEffort, { reportError: origErr, context: { source: "Decks.publish.derivation" } });
         return;
       }
 
       if (original) {
         const result = analyzeDerivation(original.questions, deck.questions);
         if (!result.canPublish) {
-          alert(
+          toast.error(
             result.status === "identical"
               ? t.publishBlockedIdentical
               : t.publishBlockedLowEffort
@@ -934,14 +943,19 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
           called. Single instance, mounted at the root so it can overlay
           any view (library, class decks, favorites). */}
       {pdfModalState && (
-        <PDFExportModal
-          deck={pdfModalState.deck}
-          classObj={userClasses.find(c => c.id === pdfModalState.deck.class_id) || null}
-          lang={pdfModalState.deck.language || l}
-          initialVariant={pdfModalState.kind === "answers" ? "answers" : "exam"}
-          onClose={closePdfModal}
-          C={C}
-        />
+        // PR 98: Suspense para el lazy chunk del modal. fallback=null
+        // evita un flicker visible mientras se descarga (el modal está
+        // por aparecer a pantalla completa, un null transiente es OK).
+        <Suspense fallback={null}>
+          <PDFExportModal
+            deck={pdfModalState.deck}
+            classObj={userClasses.find(c => c.id === pdfModalState.deck.class_id) || null}
+            lang={pdfModalState.deck.language || l}
+            initialVariant={pdfModalState.kind === "answers" ? "answers" : "exam"}
+            onClose={closePdfModal}
+            C={C}
+          />
+        </Suspense>
       )}
     </div>
   );

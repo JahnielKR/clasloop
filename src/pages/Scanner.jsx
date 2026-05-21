@@ -42,6 +42,8 @@ import {
 } from "../lib/scanner-mlkit";
 // PR 76: i18n centralizado
 import { useT } from "../i18n";
+import { useToast } from "../lib/toast";
+import { captureError } from "../lib/sentry";
 
 // ─── i18n ───────────────────────────────────────────────────────────────────
 // PR 76: el bloque I18N local fue movido a src/i18n/{en,es,ko}.js
@@ -50,6 +52,7 @@ import { useT } from "../i18n";
 // ─── Component ──────────────────────────────────────────────────────────────
 
 export default function Scanner({ lang = "en", profile, onOpenMobileMenu }) {
+  const toast = useToast();
   const t = useT("scanner", lang);
   const isNative = Capacitor.isNativePlatform();
 
@@ -84,6 +87,7 @@ export default function Scanner({ lang = "en", profile, onOpenMobileMenu }) {
         .order("created_at", { ascending: false });
       if (cancelled) return;
       if (error) {
+        captureError(error, { source: "Scanner.decksFetch" });
         console.error("[scanner] decks fetch failed:", error);
         setDecks([]);
         return;
@@ -145,6 +149,7 @@ export default function Scanner({ lang = "en", profile, onOpenMobileMenu }) {
         setStage("result");
       }
     } catch (err) {
+      captureError(err, { source: "Scanner.scan" });
       console.error("[scanner] scan error:", err);
       // Detect known error types
       const msg = String(err?.message || err);
@@ -191,6 +196,7 @@ export default function Scanner({ lang = "en", profile, onOpenMobileMenu }) {
         .upload(imagePath, blob, { contentType: "image/jpeg", upsert: false });
 
       if (uploadErr) {
+        captureError(uploadErr, { source: "Scanner.upload" });
         console.error("[scanner] upload failed:", uploadErr);
         // Continue without image — better to save score than nothing
       }
@@ -208,7 +214,7 @@ export default function Scanner({ lang = "en", profile, onOpenMobileMenu }) {
 
       if (insertErr) {
         console.error("[scanner] insert failed:", insertErr);
-        alert("Error saving scan. " + insertErr.message);
+        toast.error("Error saving scan. Try again.", { reportError: insertErr, context: { source: "Scanner.save", phase: "insert" } });
         setSaving(false);
         return;
       }
@@ -227,7 +233,7 @@ export default function Scanner({ lang = "en", profile, onOpenMobileMenu }) {
       }
     } catch (err) {
       console.error("[scanner] save error:", err);
-      alert("Error: " + err.message);
+      toast.error("Error saving scan. Try again.", { reportError: err, context: { source: "Scanner.save", phase: "exception" } });
     } finally {
       setSaving(false);
     }
