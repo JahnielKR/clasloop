@@ -25,6 +25,16 @@
 
 import posthog from "posthog-js";
 
+// PR 130: migrated from .js to .ts. Thin PostHog wrapper.
+
+// User context we attach to events. Privacy: id + role + language only,
+// never email/name (see comments on identifyUser).
+export interface AnalyticsUser {
+  id: string;
+  role?: string | null;
+  language?: string | null;
+}
+
 // ─── State ─────────────────────────────────────────────────────────────
 let initialized = false;
 
@@ -41,7 +51,7 @@ let initialized = false;
  * Solo se inicializa en production. En dev local podés ver los eventos
  * en la consola con console.log (cada trackEvent loguea).
  */
-export function initAnalytics() {
+export function initAnalytics(): void {
   if (initialized) return;
 
   const key = import.meta.env.VITE_POSTHOG_KEY;
@@ -112,7 +122,7 @@ export function initAnalytics() {
  * @param {string} [user.role]    - "teacher" | "student" | "guest"
  * @param {string} [user.language] - "en" | "es" | "ko"
  */
-export function identifyUser(user) {
+export function identifyUser(user: AnalyticsUser | null | undefined): void {
   if (!initialized) return;
   if (!user || !user.id) return;
 
@@ -131,7 +141,7 @@ export function identifyUser(user) {
  * Limpia el user context (usar al logout). Eventos posteriores serán
  * anónimos hasta el próximo identify.
  */
-export function resetAnalytics() {
+export function resetAnalytics(): void {
   if (!initialized) return;
   try {
     posthog.reset();
@@ -163,7 +173,7 @@ export function resetAnalytics() {
  * En general: si la propiedad podría identificar a alguien o exponer
  * IP del usuario, NO la mandes.
  */
-export function trackEvent(eventName, properties = {}) {
+export function trackEvent(eventName: string, properties: Record<string, unknown> = {}): void {
   if (!initialized) {
     // En dev, logueamos para que se vea el flow. Esto NO se envía a PostHog.
     console.log("[event]", eventName, properties);
@@ -191,7 +201,7 @@ export function trackEvent(eventName, properties = {}) {
  * @param {string} id - el UUID a hashear
  * @returns {string} hash de 8 caracteres
  */
-export function hashId(id) {
+export function hashId(id: string | null | undefined): string {
   if (!id) return "";
   // FNV-1a hash, 32 bits, en hex. Suficiente para evitar leaks accidentales.
   let h = 0x811c9dc5;
