@@ -7,6 +7,42 @@
 
 import { supabase } from "./supabase";
 
+// PR 131: migrated from .js to .ts. RPC wrapper + pure UI helpers.
+
+// One normalized stat row per question_index that has responses.
+export interface DeckStatsRow {
+  questionIndex: number;
+  totalResponses: number;
+  correctCount: number;
+  partialCount: number;
+  incorrectCount: number;
+  pendingReviewCount: number;
+  avgTimeMs: number;
+  answerDistribution: Record<string, number>;
+}
+
+// Subset of the theme palette these helpers read.
+export interface StatsPalette {
+  textMuted: string;
+  green: string;
+  orange: string;
+  red: string;
+}
+
+// A question as stored in deck.questions (loosely typed — shape varies by type).
+export interface StatsQuestion {
+  options?: unknown;
+  correct?: unknown;
+}
+
+// One bar in the answer-distribution chart.
+export interface DistributionEntry {
+  key: string;
+  count: number;
+  percent: number;
+  isCorrect: boolean | null;
+}
+
 // Fetch aggregated stats for a deck, optionally filtered by class.
 //
 // Returns { rows, error }:
@@ -18,7 +54,7 @@ import { supabase } from "./supabase";
 //
 // Questions with zero responses are NOT in the array — the page renders
 // them with a "no data yet" placeholder.
-export async function fetchDeckQuestionStats({ deckId, classId = null }) {
+export async function fetchDeckQuestionStats({ deckId, classId = null }: { deckId: string | null | undefined; classId?: string | null }): Promise<{ rows: DeckStatsRow[]; error: string | null }> {
   if (!deckId) return { rows: [], error: "Missing deck id" };
 
   const { data, error } = await supabase.rpc("deck_question_stats", {
@@ -31,7 +67,7 @@ export async function fetchDeckQuestionStats({ deckId, classId = null }) {
   }
 
   // Normalize key names to camelCase for the UI.
-  const rows = (data || []).map((r) => ({
+  const rows: DeckStatsRow[] = (data || []).map((r: any) => ({
     questionIndex: r.question_index,
     totalResponses: r.total_responses,
     correctCount: r.correct_count,
@@ -54,7 +90,7 @@ export async function fetchDeckQuestionStats({ deckId, classId = null }) {
 // 5 pending" rather than "78% with 5 unrelated mystery answers".
 //
 // Returns a number 0..100, or null if no responses at all.
-export function pctCorrect(row) {
+export function pctCorrect(row: DeckStatsRow | null | undefined): number | null {
   if (!row || !row.totalResponses) return null;
   // partial counts as half-credit toward % correct, since pedagogically
   // it's "kind of got it". Tweak this if the teacher prefers a stricter
@@ -68,7 +104,7 @@ export function pctCorrect(row) {
 //   ≥80 green : the class got it
 //   ≥50 orange: mixed, worth re-teaching some
 //   <50 red   : needs serious re-teaching
-export function pctColor(pct, palette) {
+export function pctColor(pct: number | null, palette: StatsPalette): string {
   if (pct == null) return palette.textMuted;
   if (pct >= 80) return palette.green;
   if (pct >= 50) return palette.orange;
@@ -78,15 +114,15 @@ export function pctColor(pct, palette) {
 // Turn an MCQ/TF answer key into a display label using the question's
 // own option list. For MCQ: "0" → options[0].text. For TF: "true"/"false".
 // Returns the original key as fallback when nothing better is available.
-export function labelForAnswerKey(key, question, type) {
+export function labelForAnswerKey(key: unknown, question: StatsQuestion | null | undefined, type: string): string {
   if (key == null) return "";
   if (type === "mcq") {
-    const opts = Array.isArray(question?.options) ? question.options : [];
-    const idx = parseInt(key, 10);
+    const opts: unknown[] = Array.isArray(question?.options) ? question!.options as unknown[] : [];
+    const idx = parseInt(String(key), 10);
     if (!Number.isNaN(idx) && opts[idx] != null) {
       const o = opts[idx];
       if (typeof o === "string") return o;
-      if (typeof o === "object") return o.text || "(image)";
+      if (o && typeof o === "object") return (o as { text?: string }).text || "(image)";
     }
     return String(key);
   }
@@ -108,7 +144,10 @@ export function labelForAnswerKey(key, question, type) {
 // ground truth is the SET, not any single option index seen in
 // distribution). In that case we just leave isCorrect=null and the UI
 // renders neutral bars.
-export function sortedDistribution(distribution, correctKeys) {
+export function sortedDistribution(
+  distribution: Record<string, number> | null | undefined,
+  correctKeys: Set<string> | null
+): DistributionEntry[] {
   const entries = Object.entries(distribution || {});
   if (entries.length === 0) return [];
   const total = entries.reduce((a, [, c]) => a + c, 0);
@@ -127,7 +166,7 @@ export function sortedDistribution(distribution, correctKeys) {
 // can reason about (MCQ single, TF). Returns null when we can't easily
 // derive a single-option correct set (multi-correct MCQ, free-text,
 // match, order, etc.) — the UI will render neutral bars.
-export function correctKeysForQuestion(question, type) {
+export function correctKeysForQuestion(question: StatsQuestion | null | undefined, type: string): Set<string> | null {
   if (!question) return null;
   if (type === "mcq" && !Array.isArray(question.correct)) {
     return new Set([String(question.correct)]);
@@ -140,7 +179,7 @@ export function correctKeysForQuestion(question, type) {
 
 // Format an avg ms as "X.Xs" or "Xs". For brief glances; the precision
 // doesn't matter beyond a tenth of a second.
-export function formatAvgTime(ms) {
+export function formatAvgTime(ms: number | null | undefined): string {
   if (!ms || ms <= 0) return "—";
   const sec = ms / 1000;
   if (sec < 10) return sec.toFixed(1) + "s";
