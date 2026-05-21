@@ -10,7 +10,7 @@
 - Tabla `scans` con todos los campos + RLS
 - Storage bucket `scan-images` privado
 - Auto-expire 7 días via cron job hourly
-- Migration: `supabase/pr57_scans_table.sql`
+- Migration: `supabase/migrations/20240101000037_scans_table.sql`
 
 **PR 57.2 — Scanner ML Kit** (próximo)
 - Instalar plugins `@capacitor-mlkit/document-scanner` + `barcode-scanning`
@@ -93,7 +93,7 @@ supabase db push
 # Si NO tenés CLI (más común), usar Dashboard:
 # 1. Andá a https://supabase.com/dashboard/project/TU_PROYECTO
 # 2. SQL Editor → New Query
-# 3. Copiá el contenido de supabase/pr57_scans_table.sql
+# 3. Copiá el contenido de supabase/migrations/20240101000037_scans_table.sql
 # 4. Click "Run"
 # 5. Verificar en Database → Tables que aparezca 'scans'
 # 6. Verificar en Database → Extensions que pg_cron esté habilitado

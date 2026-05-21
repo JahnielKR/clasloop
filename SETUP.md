@@ -23,11 +23,15 @@ Clasloop maintains a single canonical schema file regenerated from production vi
 
 This creates all tables, RLS policies, functions, triggers, and RPCs needed for Clasloop to run.
 
-> **Note:** the individual `supabase/phase*.sql` and `supabase/pr*.sql` files are historical migrations already incorporated into `schema.sql`. Do NOT apply them individually on top of `schema.sql` — that would attempt to recreate tables that already exist.
+> **Note:** the files in `supabase/migrations/<timestamp>_*.sql` are historical migrations already incorporated into `schema.sql`. Do NOT apply them individually on top of `schema.sql` — that would attempt to recreate tables that already exist.
 
 ### Existing production project
 
-Don't re-apply `schema.sql` — it's destructive on top of an existing schema. For incremental updates after a fresh setup, apply individual PR SQL files (`supabase/pr*_*.sql` or `supabase/phase*.sql`) in the order specified by the PR README.
+Don't re-apply `schema.sql` — it's destructive on top of an existing schema. For incremental updates after a fresh setup, apply individual files from `supabase/migrations/` in timestamp order, following any per-PR README that documents new migrations.
+
+### Database history
+
+Production schema is captured in `supabase/schema.sql` (regenerated from `pg_dump` — see `supabase/schema.README.md`). For historical context, individual migrations live in `supabase/migrations/<timestamp>_*.sql`. You don't need to apply them — they're already in `schema.sql`.
 
 ### Edge Functions
 
