@@ -86,36 +86,36 @@ export const ROUTES = {
 //   1. Encoding seguro de IDs (UUIDs no necesitan, pero futuras claves quizá sí).
 //   2. Si renombramos un segmento (ej. /teacher → /teachers), un solo cambio.
 
-const enc = (v) => encodeURIComponent(String(v));
+const enc = (v: unknown) => encodeURIComponent(String(v));
 
 export const buildRoute = {
   // Sessions flow (subviews que en SessionFlow.jsx hoy son `step`)
-  sessionsOptions: (deckId) => `/sessions/options/${enc(deckId)}`,
-  sessionsLobby:   (sessionId) => `/sessions/lobby/${enc(sessionId)}`,
-  sessionsLive:    (sessionId) => `/sessions/live/${enc(sessionId)}`,
+  sessionsOptions: (deckId: string) => `/sessions/options/${enc(deckId)}`,
+  sessionsLobby: (sessionId: string) => `/sessions/lobby/${enc(sessionId)}`,
+  sessionsLive: (sessionId: string) => `/sessions/live/${enc(sessionId)}`,
 
   // Decks (subview view=edit hoy en Decks.jsx)
-  deckEdit: (deckId) => `/decks/${enc(deckId)}/edit`,
+  deckEdit: (deckId: string) => `/decks/${enc(deckId)}/edit`,
   // Per-deck aggregated results page
-  deckResults: (deckId) => `/decks/${enc(deckId)}/results`,
+  deckResults: (deckId: string) => `/decks/${enc(deckId)}/results`,
 
   // PR 13: Post-session recap screen (teacher's view after ending a session).
   // Shows leaderboard + AI-generated weak-points insight.
-  sessionRecap: (sessionId) => `/sessions/${enc(sessionId)}/recap`,
+  sessionRecap: (sessionId: string) => `/sessions/${enc(sessionId)}/recap`,
 
   // Practice mode (hoy es state practiceDeck en App.jsx)
-  practice: (deckId) => `/practice/${enc(deckId)}`,
+  practice: (deckId: string) => `/practice/${enc(deckId)}`,
 
   // Teacher profile público (hoy es state viewingTeacherId en App.jsx)
-  teacher: (teacherId) => `/teacher/${enc(teacherId)}`,
+  teacher: (teacherId: string) => `/teacher/${enc(teacherId)}`,
 
   // Class detail (Fase 3 — MyClasses.jsx tiene view=list|class)
-  classDetail: (classId) => `/classes/${enc(classId)}`,
+  classDetail: (classId: string) => `/classes/${enc(classId)}`,
   // Class insights — per-deck aggregated stats for a class
-  classInsights: (classId) => `/classes/${enc(classId)}/insights`,
+  classInsights: (classId: string) => `/classes/${enc(classId)}/insights`,
   // Student-facing per-session results page — landed from a "graded"
   // notification. Shows the student's own answers + teacher feedback.
-  myResults: (sessionId) => `/sessions/${enc(sessionId)}/my-results`,
+  myResults: (sessionId: string) => `/sessions/${enc(sessionId)}/my-results`,
 };
 
 // ── Patrones para <Route path=...> ─────────────────────────────────────────
@@ -212,7 +212,7 @@ export const PAGE_TO_ROUTE = {
 // igual que /sessions/lobby/xyz cuenta como page="sessions". El refinamiento
 // (qué subview mostrar) lo hace el componente leyendo useParams/useLocation.
 
-export function pathToPage(pathname) {
+export function pathToPage(pathname: string | null | undefined): string | null {
   if (!pathname || pathname === "/") return null; // home: depende del rol, App.jsx decide
 
   // /sessions/:sessionId/my-results → its own page. MUST come before the
@@ -261,7 +261,7 @@ export function pathToPage(pathname) {
 // para student en el primer load. Acá centralizamos esa decisión para que
 // App.jsx la pueda usar para redirigir "/" según el rol.
 
-export function defaultRouteForRole(role) {
+export function defaultRouteForRole(role: string | null | undefined): string {
   // Both roles default to /classes. For students it's their joined classes;
   // for teachers it's the classes they own (with codes to share with students).
   // The /classes route renders MyClassesByRole which picks the right component.
@@ -309,7 +309,7 @@ const STUDENT_ONLY_PAGES = new Set([
 // Returns true if the role is allowed to see the given page id.
 // Unknown role → allow (we don't know enough to deny).
 // Unknown page id → allow (don't accidentally deny shared pages).
-export function isPageAllowedForRole(pageId, role) {
+export function isPageAllowedForRole(pageId: string, role: string | null | undefined): boolean {
   if (!role) return true;
   if (TEACHER_ONLY_PAGES.has(pageId)) return role === "teacher";
   if (STUDENT_ONLY_PAGES.has(pageId)) return role === "student";
@@ -335,7 +335,7 @@ export function isPageAllowedForRole(pageId, role) {
 // would mean different things on different pages (today there's just one
 // target per key, but it makes future-proofing trivial).
 
-export function buildPathWithOpts(basePath, opts, targetPage) {
+export function buildPathWithOpts(basePath: string, opts: Record<string, unknown> | null | undefined, targetPage: string): string {
   if (!opts || typeof opts !== "object") return basePath;
 
   const params = new URLSearchParams();
