@@ -12,11 +12,37 @@
 
 ## Step 2: Set Up Database
 
+Clasloop maintains a single canonical schema file regenerated from production via `pg_dump` (see `supabase/schema.README.md`).
+
+### Fresh setup (new Supabase project)
+
 1. In your Supabase dashboard, go to **SQL Editor**
 2. Click **"New Query"**
-3. Copy the ENTIRE content of `supabase/schema.sql` and paste it
+3. Copy the **entire** content of `supabase/schema.sql` and paste it
 4. Click **"Run"** (or Cmd+Enter)
-5. You should see "Success. No rows returned" — that's correct!
+
+This creates all tables, RLS policies, functions, triggers, and RPCs needed for Clasloop to run.
+
+> **Note:** the individual `supabase/phase*.sql` and `supabase/pr*.sql` files are historical migrations already incorporated into `schema.sql`. Do NOT apply them individually on top of `schema.sql` — that would attempt to recreate tables that already exist.
+
+### Existing production project
+
+Don't re-apply `schema.sql` — it's destructive on top of an existing schema. For incremental updates after a fresh setup, apply individual PR SQL files (`supabase/pr*_*.sql` or `supabase/phase*.sql`) in the order specified by the PR README.
+
+### Edge Functions
+
+After the schema, deploy the Edge Functions:
+
+```bash
+npx supabase functions deploy generate-insight
+npx supabase secrets set WEBHOOK_SECRET=$(node -e "console.log(require('crypto').randomBytes(32).toString('hex'))")
+```
+
+Then configure the webhook in Supabase Dashboard → Database → Webhooks (see PR 90 README for details).
+
+### Cron jobs
+
+Enable `pg_cron` and schedule `close_zombie_sessions` (see PR 103) and the existing scan-cleanup cron.
 
 ## Step 3: Enable Google Auth (Optional)
 
