@@ -8,6 +8,47 @@ Entries are appended chronologically. Most recent at the top.
 
 ---
 
+## 2026-05-21 — PR 113 partial — DeckTiles only
+
+**Status:** ⚠️ partial — 1 cohesive extraction done.
+
+**Done:**
+- `pages/Decks/DeckTiles.jsx` (~371 LOC): the draggable deck-card family
+  `DeckRow` + `SortableDeckTile` + `DeckTile`. They were pure
+  presentational components (all data via props, no shared local state
+  with Decks.jsx, deps are all imports), so the extraction was safe.
+  Only `DeckRow` is consumed by Decks.jsx (ClassDecksView); the other
+  two are exported for potential DragOverlay reuse.
+
+Decks.jsx is now ~1423 LOC (was 1775 → −352 LOC).
+
+**Deferred (the PR 113 README's proposed names don't match the real
+structure — the file has ClassDecksView / FavoritesGrid / LangBadge,
+not DeckCard / DecksGrid / DecksFilters / CommunityDecks):**
+- `ClassDecksView` (~300 LOC) — the core "my decks" view. Heavily
+  coupled to the parent's state (search params, drag handlers, the
+  outer DndContext + DragOverlay). Extracting needs careful prop
+  threading + UI smoke test.
+- `FavoritesGrid` (~120 LOC) — community-favorites grid. Mostly
+  self-contained; a reasonable next extraction but left for a focused
+  pass.
+- `LangBadge` (~15 LOC) — trivial, but used inline in one spot; not
+  worth its own file yet.
+- `useDecks()` data hook + the realtime channel — same react-query
+  caveat as PR 112's useSessionTick (PR 170 will replace it).
+- SaveAsFavorite / Share / Delete / Import modals — they're inline JSX
+  blocks inside Decks.jsx, not standalone functions; extracting needs
+  reconstruction + smoke test.
+
+**Reason for deferral:** same as PR 112 — the remaining pieces share
+state/refs/handlers with the parent and need per-path UI smoke testing
+that isn't possible in this iteration. DeckTiles was the one block that
+was already fully prop-driven and standalone.
+
+H6 (Decks.jsx god-file) partially addressed.
+
+---
+
 ## 2026-05-21 — PR 112 partial — AuthScreen + NotFoundScreen only
 
 **Status:** ⚠️ partial — 2 of 7 extractions done.
