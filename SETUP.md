@@ -1,169 +1,169 @@
-# 🏗️ Clasloop Phase 1 — Setup Guide
+# Clasloop — Setup
 
-## Step 1: Create Supabase Project
+This document walks you through cloning, configuring, and running clasloop locally + deploying to production.
 
-1. Go to [supabase.com](https://supabase.com) → Sign up (free)
-2. Click **"New Project"**
-3. Settings:
-   - Name: `clasloop`
-   - Password: generate a strong one, save it
-   - Region: `Northeast Asia (ap-northeast-1)` ← closest to Korea
-4. Wait ~2 minutes for the project to be ready
+**Target environment:** Node 22+, npm 10+, modern browser (Chrome / Firefox / Safari / Edge). Optional: Android Studio + Capacitor CLI for native builds.
 
-## Step 2: Set Up Database
-
-Clasloop maintains a single canonical schema file regenerated from production via `pg_dump` (see `supabase/schema.README.md`).
-
-### Fresh setup (new Supabase project)
-
-1. In your Supabase dashboard, go to **SQL Editor**
-2. Click **"New Query"**
-3. Copy the **entire** content of `supabase/schema.sql` and paste it
-4. Click **"Run"** (or Cmd+Enter)
-
-This creates all tables, RLS policies, functions, triggers, and RPCs needed for Clasloop to run.
-
-> **Note:** the files in `supabase/migrations/<timestamp>_*.sql` are historical migrations already incorporated into `schema.sql`. Do NOT apply them individually on top of `schema.sql` — that would attempt to recreate tables that already exist.
-
-### Existing production project
-
-Don't re-apply `schema.sql` — it's destructive on top of an existing schema. For incremental updates after a fresh setup, apply individual files from `supabase/migrations/` in timestamp order, following any per-PR README that documents new migrations.
-
-### Database history
-
-Production schema is captured in `supabase/schema.sql` (regenerated from `pg_dump` — see `supabase/schema.README.md`). For historical context, individual migrations live in `supabase/migrations/<timestamp>_*.sql`. You don't need to apply them — they're already in `schema.sql`.
-
-### Edge Functions
-
-After the schema, deploy the Edge Functions:
+## 1. Clone
 
 ```bash
-npx supabase functions deploy generate-insight
-npx supabase secrets set WEBHOOK_SECRET=$(node -e "console.log(require('crypto').randomBytes(32).toString('hex'))")
+git clone https://github.com/JahnielKR/clasloop.git
+cd clasloop
 ```
 
-Then configure the webhook in Supabase Dashboard → Database → Webhooks (see PR 90 README for details).
-
-### Cron jobs
-
-Enable `pg_cron` and schedule `close_zombie_sessions` (see PR 103) and the existing scan-cleanup cron.
-
-## Step 3: Enable Google Auth (Optional)
-
-1. Go to **Authentication → Providers**
-2. Find **Google** and enable it
-3. You'll need to set up a Google OAuth app:
-   - Go to [console.cloud.google.com](https://console.cloud.google.com)
-   - Create a new project or use existing
-   - Go to **APIs & Services → Credentials**
-   - Create **OAuth 2.0 Client ID** (Web application)
-   - Add authorized redirect URI: `https://YOUR-PROJECT.supabase.co/auth/v1/callback`
-4. Copy the Client ID and Secret back to Supabase
-
-## Step 4: Get API Keys
-
-1. Go to **Settings → API**
-2. Copy:
-   - **Project URL**: `https://xxxxx.supabase.co`
-   - **anon public key**: `eyJ...` (the long one under "Project API keys")
-
-## Step 5: Configure Project
-
-1. Copy `.env.example` to `.env`:
-   ```bash
-   cp .env.example .env
-   ```
-2. Edit `.env` with your Supabase values:
-   ```
-   VITE_SUPABASE_URL=https://xxxxx.supabase.co
-   VITE_SUPABASE_ANON_KEY=eyJ...your-key
-   ```
-
-## Step 6: Install & Run
+## 2. Install dependencies
 
 ```bash
 npm install
+```
+
+Node 22+ is required. `npm install` may install platform-specific binaries (`@rollup/rollup-*`, `@esbuild/*`); the lockfile pins them.
+
+## 3. Set up the database
+
+Clasloop uses Supabase for Postgres + Auth + Realtime + Edge Functions.
+
+### 3a. Create a Supabase project
+
+1. Sign up at https://supabase.com.
+2. Create a new project (free tier works for development).
+3. Note the `Project URL` and `anon key` from Project Settings → API.
+
+### 3b. Apply the schema
+
+Clasloop maintains a canonical schema in `supabase/schema.sql`, regenerated from production after each change (see `supabase/schema.README.md`).
+
+1. Supabase Dashboard → SQL Editor → New Query.
+2. Copy the **entire** content of `supabase/schema.sql` and paste it.
+3. Click Run.
+
+This creates all tables, RLS policies, functions, triggers, and RPCs in a single shot.
+
+> **Don't** apply individual files from `supabase/migrations/` on top of this. Those are historical migrations already incorporated into `schema.sql`.
+
+### 3c. Enable extensions
+
+In Supabase Dashboard → Database → Extensions, enable:
+- `pg_cron` (needed for `close_zombie_sessions` cron — see PR 103, and the `cleanup_expired_scans` job from the original scans migration)
+- `pgcrypto` (usually enabled by default)
+
+After enabling `pg_cron`, re-run any cron-setup migrations (search `supabase/migrations/` for files mentioning `cron.schedule`).
+
+### 3d. Storage buckets
+
+In Supabase Dashboard → Storage:
+- Create bucket `avatars` (public).
+- Create bucket `deck-images` (public).
+- Create bucket `scan-images` (private).
+
+(If you forget, `npm run dev` works for everything except avatar upload + deck images + scanner upload.)
+
+## 4. Configure environment
+
+### 4a. Copy `.env.example` to `.env`
+
+```bash
+cp .env.example .env
+```
+
+### 4b. Fill in the values
+
+Edit `.env`:
+
+```
+# Supabase
+VITE_SUPABASE_URL=https://<your-project>.supabase.co
+VITE_SUPABASE_ANON_KEY=<your-anon-key>
+
+# Anthropic (server-side only — used by api/generate.js)
+ANTHROPIC_API_KEY=sk-ant-...
+
+# Optional: observability
+VITE_SENTRY_DSN=
+VITE_POSTHOG_KEY=
+VITE_POSTHOG_HOST=https://us.i.posthog.com
+```
+
+`VITE_*` variables are bundled into the client. `ANTHROPIC_API_KEY` stays server-side (Vercel function env var only — DO NOT put it in `VITE_*`).
+
+## 5. Run dev server
+
+```bash
 npm run dev
 ```
 
-Open `http://localhost:3000` 🎉
+Vite serves on http://localhost:5173 by default.
 
-## Project Structure
+Sign up with email/password → confirm via the email Supabase sends → log in. The first signup gets `role: 'teacher'` automatically.
+
+## 6. (Optional) Deploy Edge Function
+
+The Edge Function `generate-insight` runs post-session AI analysis. To deploy:
+
+```bash
+# Install Supabase CLI if you don't have it
+npm install -g supabase
+
+# Link your local project to the remote
+supabase link --project-ref <your-project-ref>
+
+# Generate and set the webhook secret (used by the function to auth incoming webhook calls)
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+supabase secrets set WEBHOOK_SECRET=<output>
+supabase secrets set ANTHROPIC_API_KEY=<your-key>
+
+# Deploy
+supabase functions deploy generate-insight
+```
+
+Then configure the webhook in Supabase Dashboard → Database → Webhooks → "session_completed_insight":
+- HTTP Headers → add `Authorization: Bearer <WEBHOOK_SECRET>`.
+
+(See `PRs/PR_90_edge_function_webhook_auth/README.md` for details.)
+
+## 7. (Optional) Deploy to Vercel
+
+1. Push to GitHub.
+2. Create a Vercel project, link the repo.
+3. Add env vars (mirror `.env`, EXCEPT `ANTHROPIC_API_KEY` is the only one without `VITE_` prefix — Vercel reads it for serverless functions).
+4. Deploy. `vercel.json` handles security headers and routing.
+
+## 8. (Optional) Native Android build
+
+```bash
+npm run build
+npx cap sync android
+cd android
+./gradlew assembleDebug
+```
+
+APK lands in `android/app/build/outputs/apk/debug/`.
+
+For Play Store release, see `docs/CAPACITOR_FASE2_OAUTH.md` and friends in `docs/`.
+
+## Common issues
+
+| Symptom | Likely cause | Fix |
+|---|---|---|
+| `Cannot find module @rollup/rollup-linux-x64-gnu` | `node_modules` from a different platform | `rm -rf node_modules package-lock.json && npm install` |
+| Auth works but RPCs error | Migration didn't apply | Re-paste `supabase/schema.sql` |
+| `generate-insight` returns 401 | WEBHOOK_SECRET mismatch | Re-set via `supabase secrets set` AND update the webhook header in Dashboard |
+| White screen, no error | ErrorBoundary off (regression) | Check `src/main.jsx` imports `SentryErrorBoundary` + wraps `<App />` |
+
+## Where things live
 
 ```
-clasloop-phase1/
-├── supabase/
-│   └── schema.sql          # Database schema (run in Supabase SQL Editor)
-├── src/
-│   ├── lib/
-│   │   ├── supabase.js     # Supabase client
-│   │   └── ai.js           # Claude API question generation
-│   ├── hooks/
-│   │   ├── useAuth.js      # Auth: signup, login, Google, profile
-│   │   ├── useSession.js   # Sessions: create, join PIN, real-time, answers
-│   │   └── useClass.js     # Classes: create, join with code, manage
-│   ├── components/         # UI components (from Phase 0)
-│   ├── pages/              # Page components (from Phase 0)
-│   └── ...
-├── .env.example            # Environment variables template
-├── package.json
-└── README.md
+src/                  Frontend (React + Vite)
+api/                  Vercel serverless (Anthropic proxy)
+supabase/             DB schema + migrations + Edge Functions
+android/              Capacitor Android wrap
+scripts/              Build helpers (icons, fonts, patches)
+PRs/                  Per-PR change documents (run by Claude Code)
+docs/                 Architecture / feature notes
 ```
 
-## What's Included
+## Next steps
 
-### Database (schema.sql)
-- **profiles**: User data, XP, level, streak, avatar
-- **classes**: Teacher's classes with auto-generated codes
-- **class_members**: Students enrolled in classes
-- **sessions**: Warmups/exit tickets with questions JSON
-- **session_participants**: Who joined each session
-- **responses**: Individual answers with timing
-- **topic_retention**: Spaced repetition data per topic
-- **student_topic_progress**: Per-student retention
-- **achievements**: Unlocked achievements
-- **decks**: Community shared decks
-- Row Level Security (RLS) on all tables
-- Realtime enabled for live sessions
-- Auto-create profile on signup trigger
-
-### Auth (useAuth.js)
-- Email/password signup & login
-- Google OAuth
-- Auto-profile creation
-- Session persistence
-- Profile updates
-
-### Sessions (useSession.js)
-- Create session with PIN
-- Join session by PIN (no auth needed for students)
-- Real-time participant updates (WebSocket)
-- Real-time response tracking
-- Submit answers with timing
-- Session results calculation
-
-### Classes (useClass.js)
-- Create class with auto-generated code
-- Join class by code
-- List teacher's classes with member count
-
-### AI (ai.js)
-- Prompt engineering for 6 activity types
-- Claude API integration
-- Multi-language support
-
-## Next Steps After Setup
-
-1. ✅ Verify database tables exist (Supabase → Table Editor)
-2. ✅ Test signup/login flow
-3. ✅ Create a class and note the code
-4. ✅ Create a session with AI-generated questions
-5. ✅ Open another browser tab and join with PIN
-6. ✅ Answer questions and see real-time results
-
-## Costs
-
-- Supabase free tier: 500MB database, 50K monthly active users
-- Vercel free tier: unlimited deploys
-- Claude API: ~$0.02 per question set (Haiku 4.5)
-- **Total: ~$20-50/month** depending on usage
+- Read `ANALYSIS.md` for a deep audit of the codebase.
+- Read `PRs/INDICE_PENDIENTES.md` for the open roadmap.
+- Read `CONTRIBUTING.md` before opening a PR.
