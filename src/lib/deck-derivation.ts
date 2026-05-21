@@ -15,13 +15,37 @@
 const COVERAGE_THRESHOLD = 40; // %  — original presence above this = derivative
 const CONTRIBUTION_THRESHOLD = 40; // %  — own additions above this = enough effort
 
+// PR 128: migrated from .js to .ts. Pure functions, easy to type.
+
+// A question can carry its prompt under any of these keys depending on
+// where it came from. We only read the prompt text for comparison.
+export interface QuestionLike {
+  q?: unknown;
+  prompt?: unknown;
+  question?: unknown;
+  text?: unknown;
+}
+
+export type DerivationStatus = "identical" | "blocked" | "adapted" | "independent";
+
+export interface DerivationResult {
+  originalCount: number;
+  copyCount: number;
+  samePrompts: number;
+  originalCoverage: number;
+  ownContribution: number;
+  status: DerivationStatus;
+  canPublish: boolean;
+  showAdaptedBadge: boolean;
+}
+
 // Normalize a question's prompt for comparison. We compare on prompt only
 // because it's the strongest signal of "same question". Reordering MCQ options
 // or rewording an option doesn't make a new question.
 //
 // The deck schema in this app stores prompt under `q`. We also check
 // alternative names (prompt/question/text) for safety.
-function normalizePrompt(question) {
+function normalizePrompt(question: QuestionLike | null | undefined): string {
   if (!question) return "";
   const raw = (question.q || question.prompt || question.question || question.text || "").toString();
   return raw.trim().toLowerCase().replace(/\s+/g, " ");
@@ -41,13 +65,16 @@ function normalizePrompt(question) {
  *     showAdaptedBadge,   // bool — true means the copy should be shown as "Adapted from X"
  *   }
  */
-export function analyzeDerivation(originalQuestions, copyQuestions) {
+export function analyzeDerivation(
+  originalQuestions: QuestionLike[] | null | undefined,
+  copyQuestions: QuestionLike[] | null | undefined
+): DerivationResult {
   const orig = (originalQuestions || []).map(normalizePrompt).filter(Boolean);
   const copy = (copyQuestions || []).map(normalizePrompt).filter(Boolean);
 
   // Use a multi-set so duplicate prompts (rare but possible) don't
   // disproportionately count toward "same".
-  const origCounts = new Map();
+  const origCounts = new Map<string, number>();
   orig.forEach(p => origCounts.set(p, (origCounts.get(p) || 0) + 1));
 
   let samePrompts = 0;
@@ -68,7 +95,9 @@ export function analyzeDerivation(originalQuestions, copyQuestions) {
   // (Reordering / cover changes don't count as new content.)
   const identical = originalCount === copyCount && samePrompts === originalCount && originalCount > 0;
 
-  let status, canPublish, showAdaptedBadge;
+  let status: DerivationStatus;
+  let canPublish: boolean;
+  let showAdaptedBadge: boolean;
   if (identical) {
     status = "identical";
     canPublish = false;
