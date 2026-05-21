@@ -8,6 +8,52 @@ Entries are appended chronologically. Most recent at the top.
 
 ---
 
+## 2026-05-21 — PR 112 partial — AuthScreen + NotFoundScreen only
+
+**Status:** ⚠️ partial — 2 of 7 extractions done.
+
+**Done:**
+- `pages/AuthScreen.jsx` (~400 LOC including the AUTH_I18N constant).
+- `pages/NotFoundScreen.jsx` (~40 LOC).
+
+App.jsx is now 1093 LOC (was 1510 → −417 LOC).
+
+**Deferred (left as inline state/effects in App.jsx, file a follow-up
+PR when they become a problem):**
+- `useProfile()` hook — currently inline as `[profile, setProfile]` +
+  `fetchProfile` function + the corresponding useEffect. Not trivial to
+  extract because it's woven into the auth listener and the
+  `profileLoadedRef` / `fetchProfileInFlightRef` guards.
+- `useClassMembership()` hook — currently inline starting around line
+  ~860 (the realtime channel that detects "removed from class" + the
+  toast trigger). Tightly coupled to `setRemovedToast`,
+  `setStudentMembershipTick`, navigation.
+- `useLocaleDetection()` hook — currently the `lang` state +
+  `setLang` in App. Small but pervasive — almost every page receives
+  `lang`/`setLang` as props. Extracting cleanly would touch a lot of
+  call sites.
+- `useSessionTick()` hook — the `*Tick` counters
+  (`studentMembershipTick`, `activeSessionTick`) and their setters.
+  The PR 112 README itself notes that the `*Tick` pattern goes away
+  with PR 170 (react-query migration), so extracting it just to delete
+  it later is low value.
+- `RemovedFromClassToast` component — currently inline at ~line 940
+  (after the AuthScreen/NotFoundScreen removal). Doable as a
+  follow-up if M17 (i18n centralization) is prioritized.
+
+**Reason for deferral:** the 5 deferred items all touch refs/state
+shared across multiple effects in App.jsx. Extracting them safely
+needs smoke testing each path that uses them — beyond what we can do
+in a single iteration without UI access. AuthScreen + NotFoundScreen
+were standalone functions already, so extracting them was mechanical
+and low-risk.
+
+H5 (the audit finding about App.jsx being a god component) is
+partially addressed. The remaining 700 LOC of App.jsx is now mostly
+orchestration; the next round can target those hooks individually.
+
+---
+
 ## 2026-05-21 — Skip PR 111 (React Router migration)
 
 **Status:** ⏭️ skipped — already effectively done.
