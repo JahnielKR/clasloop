@@ -119,4 +119,9 @@ export default function AvatarOnboarding({ profile, lang = "en", onDone }) {
           }}
         >
           {saving ? t.saving : t.continue}
+        </button>
+      </div>
+    </div>
+  );
+}
     

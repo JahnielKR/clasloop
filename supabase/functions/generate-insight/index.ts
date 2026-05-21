@@ -319,4 +319,42 @@ async function markFailed(
 }
 
 /**
- * Extract a readable "correct answer" from a question 
+ * Extract a readable "correct answer" from a question object. Question
+ * shape varies by type; we normalize to a string the prompt can show.
+ */
+function extractCorrectAnswer(q: any): string | null {
+  if (q == null) return null;
+
+  // MCQ: q.correct is the index (or array of indices for multi)
+  if (q.type === "mcq" && Array.isArray(q.options)) {
+    if (Array.isArray(q.correct)) {
+      return q.correct
+        .map((i: number) => (q.options[i]?.text || q.options[i] || ""))
+        .filter(Boolean)
+        .join(", ");
+    }
+    if (typeof q.correct === "number") {
+      return q.options[q.correct]?.text || q.options[q.correct] || null;
+    }
+  }
+
+  // True/False
+  if (q.type === "tf") {
+    return q.correct === true ? "true" : q.correct === false ? "false" : null;
+  }
+
+  // Fill-in-the-blank
+  if (q.type === "fill" && typeof q.answer === "string") {
+    return q.answer;
+  }
+
+  // Free-text / open: no canonical answer
+  if (q.type === "free" || q.type === "open") {
+    return null;
+  }
+
+  // Match / Order / Sentence: stringify the answer struct
+  if (q.answer != null) return JSON.stringify(q.answer).slice(0, 200);
+
+  return null;
+}

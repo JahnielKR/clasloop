@@ -315,4 +315,10 @@ export default function RoleOnboarding({ user, lang = "en", onCreated }) {
                 }}
               >{"\u2190"} {t.confirmBack}</button>
             </div>
-          
+          </div>
+        )}
+
+      </div>
+    </div>
+  );
+}

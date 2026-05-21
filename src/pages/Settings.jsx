@@ -629,4 +629,21 @@ export default function Settings({ lang: pageLang = "en", setLang: pageSetLang, 
                   onClick={() => setShowDeleteModal(true)}
                   style={{ padding: "8px 16px", borderRadius: 8, fontSize: 13, fontWeight: 600, background: C.redSoft, color: C.red, border: "none", cursor: "pointer", fontFamily: "'Outfit',sans-serif" }}
                 >{t.deleteAccountBtn}</button>
-              } 
+              } />
+            </Section>
+          </div>
+        )}
+      </div>
+
+      {/* PR 28: Delete account modal — opens from the Danger zone
+          button above. Renders only when triggered, lives outside
+          the tab content so it overlays everything. */}
+      <DeleteAccountModal
+        open={showDeleteModal}
+        profile={profile}
+        lang={lang}
+        onClose={() => setShowDeleteModal(false)}
+      />
+    </div>
+  );
+}
