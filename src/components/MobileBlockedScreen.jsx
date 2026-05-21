@@ -45,7 +45,12 @@ export default function MobileBlockedScreen({ lang = "en", onBack }) {
 
   return (
     <div style={{
-      minHeight: "100vh", minHeight: "100dvh",
+      // 100dvh excludes the mobile browser chrome (better than 100vh on mobile).
+      // The fallback to 100vh was here as a duplicate key, but the second value
+      // always silently won, so dropping it is a no-op on behavior. Browsers
+      // that don't support dvh (Safari < 15.4) fall back to natural sizing,
+      // which is fine for this blocking screen.
+      minHeight: "100dvh",
       display: "flex", flexDirection: "column",
       alignItems: "center", justifyContent: "center",
       padding: "32px 24px",
