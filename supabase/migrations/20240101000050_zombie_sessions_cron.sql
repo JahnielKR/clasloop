@@ -8,30 +8,42 @@
 -- Frequency: every 5 minutes. The function is idempotent and cheap
 -- (one UPDATE with a few WHERE clauses), so 5min is conservative.
 --
--- Prereq: pg_cron extension enabled. Already enabled in clasloop prod
--- (used by scan-cleanup since pr57). If new project, run first:
+-- Prereq: pg_cron extension enabled. Enable via:
+--   Supabase Dashboard → Database → Extensions → pg_cron → toggle ON
+-- or run as superuser:
 --   create extension if not exists pg_cron with schema extensions;
+--
+-- This migration checks for the extension before touching the cron schema,
+-- so it's safe to run before pg_cron is enabled — it just no-ops with a
+-- NOTICE. Re-run after enabling pg_cron to actually install the schedule.
 -- ============================================
 
--- Drop any prior schedule with the same name (idempotent)
 do $$
 begin
+  -- Bail out cleanly if pg_cron is not installed (don't even reference
+  -- the cron schema, otherwise we get error 3F000 "schema does not exist").
+  if not exists (select 1 from pg_extension where extname = 'pg_cron') then
+    raise notice 'pg_cron extension not enabled — skipping schedule. Enable via Dashboard → Database → Extensions, then re-run this migration.';
+    return;
+  end if;
+
+  -- Drop any prior schedule with the same name (idempotent)
   if exists (select 1 from cron.job where jobname = 'clasloop-close-zombie-sessions') then
     perform cron.unschedule('clasloop-close-zombie-sessions');
   end if;
-exception when undefined_table then
-  raise notice 'pg_cron not available — skipping schedule (apply with pg_cron enabled)';
+
+  -- Schedule: every 5 minutes
+  perform cron.schedule(
+    'clasloop-close-zombie-sessions',
+    '*/5 * * * *',
+    $cron$ select public.close_zombie_sessions(); $cron$
+  );
+
+  raise notice 'pg_cron schedule installed: clasloop-close-zombie-sessions (every 5 min)';
 end $$;
 
--- Schedule: every 5 minutes
-select cron.schedule(
-  'clasloop-close-zombie-sessions',  -- jobname (unique)
-  '*/5 * * * *',                     -- cron expression: every 5 min
-  $$ select public.close_zombie_sessions(); $$
-);
-
 -- ============================================
--- VERIFICATION
+-- VERIFICATION (run separately, only after pg_cron is enabled)
 -- ============================================
 -- 1. Confirm the job exists:
 --      select jobid, jobname, schedule, command, active
