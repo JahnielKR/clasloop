@@ -29,7 +29,9 @@ import { buildCandidates } from "./insight-prep.ts";
 import type { Question, Response, Participant } from "./insight-prep.ts";
 import { buildInsightPrompt, parseHaikuResponse } from "./insight-prompt.ts";
 
-const HAIKU_MODEL = "claude-haiku-4-5-20251001";
+// PR 108 (L16): modelo configurable via secret. Fallback a Haiku 4.5
+// para no romper el deploy si el secret no está seteado.
+const HAIKU_MODEL = Deno.env.get("HAIKU_MODEL") || "claude-haiku-4-5-20251001";
 const MAX_TOKENS = 300;
 
 interface WebhookPayload {
@@ -44,6 +46,9 @@ interface DeckRow {
   questions: any[];
   class_id: string;
   language: string | null;
+  // PR 108 (M13): author_id used to look up teacher.language so the
+  // insight is generated in the language the teacher actually reads.
+  author_id: string | null;
 }
 
 Deno.serve(async (req: Request) => {
@@ -154,7 +159,7 @@ Deno.serve(async (req: Request) => {
   const [deckRes, respRes, partRes] = await Promise.all([
     supabase
       .from("decks")
-      .select("id, questions, class_id, language")
+      .select("id, questions, class_id, language, author_id")
       .eq("id", deckId)
       .single(),
     supabase
@@ -175,6 +180,23 @@ Deno.serve(async (req: Request) => {
   const deck = deckRes.data as DeckRow;
   const rawResponses = respRes.data || [];
   const rawParticipants = partRes.data || [];
+
+  // ── 2.5. Look up teacher language (PR 108 / M13) ──────────────────
+  // The insight is shown TO the teacher, so it must be in the teacher's
+  // own UI language, not the deck's content language. Falls back to
+  // deck.language → 'en' if the teacher is missing or has no language set
+  // (e.g. deck.author_id points to a deleted user).
+  let teacherLanguage: string | null = null;
+  if (deck.author_id) {
+    const { data: teacherProfile, error: profileErr } = await supabase
+      .from("profiles")
+      .select("language")
+      .eq("id", deck.author_id)
+      .maybeSingle();
+    if (!profileErr && teacherProfile?.language) {
+      teacherLanguage = teacherProfile.language;
+    }
+  }
 
   // Transform deck.questions (jsonb array) into the Question[] shape
   // expected by insight-prep. We use the array index as the question id
@@ -221,7 +243,10 @@ Deno.serve(async (req: Request) => {
   }
 
   // ── 4. Call Haiku for labels ──────────────────────────────────────
-  const uiLang = deck.language || "en";
+  // PR 108 (M13): priorizar teacher.language sobre deck.language.
+  // Si el teacher tiene perfil con language seteado, usar ese.
+  // Si no, caer al deck.language (legacy behavior) o 'en'.
+  const uiLang = teacherLanguage || deck.language || "en";
   const { system, user } = buildInsightPrompt(
     candidates.map((c) => ({
       question_text: c.question_text,
@@ -232,20 +257,24 @@ Deno.serve(async (req: Request) => {
 
   let haikuText: string;
   try {
-    const haikuResp = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        "x-api-key": ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01",
+    // PR 108 (M14): retry con backoff para 5xx y network errors transients.
+    const haikuResp = await callAnthropicWithRetry(
+      "https://api.anthropic.com/v1/messages",
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-api-key": ANTHROPIC_API_KEY,
+          "anthropic-version": "2023-06-01",
+        },
+        body: JSON.stringify({
+          model: HAIKU_MODEL,
+          max_tokens: MAX_TOKENS,
+          system,
+          messages: [{ role: "user", content: user }],
+        }),
       },
-      body: JSON.stringify({
-        model: HAIKU_MODEL,
-        max_tokens: MAX_TOKENS,
-        system,
-        messages: [{ role: "user", content: user }],
-      }),
-    });
+    );
 
     if (!haikuResp.ok) {
       const errText = await haikuResp.text();
@@ -357,4 +386,52 @@ function extractCorrectAnswer(q: any): string | null {
   if (q.answer != null) return JSON.stringify(q.answer).slice(0, 200);
 
   return null;
+}
+
+/**
+ * PR 108 (M14): Call Anthropic with retry on 5xx and network errors.
+ * Up to 3 attempts total (initial + 2 retries) with backoff: 0, 1s, 3s.
+ * 4xx errors (auth, bad request) do NOT retry — they fail fast.
+ */
+async function callAnthropicWithRetry(
+  url: string,
+  init: RequestInit,
+  maxAttempts = 3,
+): Promise<Response> {
+  let lastError: Error | null = null;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      const resp = await fetch(url, init);
+      // 4xx — no retry, fail fast
+      if (resp.status >= 400 && resp.status < 500) {
+        return resp;
+      }
+      // 2xx — success
+      if (resp.ok) {
+        return resp;
+      }
+      // 5xx — retry if attempts remain
+      if (attempt < maxAttempts) {
+        const delayMs = attempt === 1 ? 1000 : 3000;
+        console.log(
+          `[generate-insight] Anthropic ${resp.status} attempt ${attempt}/${maxAttempts}, retrying in ${delayMs}ms`,
+        );
+        await new Promise((r) => setTimeout(r, delayMs));
+        continue;
+      }
+      return resp; // last attempt — return the 5xx
+    } catch (err) {
+      lastError = err as Error;
+      if (attempt < maxAttempts) {
+        const delayMs = attempt === 1 ? 1000 : 3000;
+        console.log(
+          `[generate-insight] fetch threw attempt ${attempt}/${maxAttempts}: ${err}, retrying in ${delayMs}ms`,
+        );
+        await new Promise((r) => setTimeout(r, delayMs));
+        continue;
+      }
+      throw err;
+    }
+  }
+  throw lastError ?? new Error("callAnthropicWithRetry: unreachable");
 }
