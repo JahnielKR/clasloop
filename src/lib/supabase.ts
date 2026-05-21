@@ -1,3 +1,12 @@
+// PR 134: migrated from .js to .ts.
+//
+// NOTE: the PR 134 README proposed createClient<Database>() with a
+// generated schema type. There is no `Database` type in the repo yet
+// (db-types.ts doesn't export one), and generating it would type every
+// supabase query across all .ts files against the schema at once — a
+// large, cascade-prone change well beyond a mechanical migration. So
+// this keeps the untyped client for now; generating Database + adding
+// the generic is left as a dedicated follow-up (see CHANGES_TO_PLAN.md).
 import { createClient } from '@supabase/supabase-js';
 import { Capacitor } from '@capacitor/core';
 
