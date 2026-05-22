@@ -44,6 +44,28 @@ export default function AvatarOnboarding({ profile, lang = "en", onDone }) {
     onDone(selected);
   };
 
+  // PR 150 (M20): "skip for now" — assigns a random starter so the chooser
+  // isn't a hard gate. Picking from the live starter list (not a hardcoded id)
+  // guarantees a valid avatar and gives skippers some variety; they can change
+  // it later in Settings. Same RPC path as handleConfirm (PR 92: no direct
+  // profile writes).
+  const handleSkip = async () => {
+    if (!profile?.id || saving) return;
+    const fallback = startAvatars[Math.floor(Math.random() * startAvatars.length)]?.id;
+    if (!fallback) return;
+    setSaving(true);
+    const { error } = await supabase.rpc("update_my_profile", {
+      p_updates: { avatar_id: fallback },
+    });
+    setSaving(false);
+    if (error) {
+      captureError(error, { source: "AvatarOnboarding.skip" });
+      console.error("Failed to save default avatar:", error);
+      return;
+    }
+    onDone(fallback);
+  };
+
   return (
     <div style={{
       minHeight: "100vh", background: C.bgSoft,
@@ -119,6 +141,23 @@ export default function AvatarOnboarding({ profile, lang = "en", onDone }) {
           }}
         >
           {saving ? t.saving : t.continue}
+        </button>
+
+        {/* PR 150 (M20): let undecided users in without picking — assigns a
+            random starter (changeable later in Settings). */}
+        <button
+          onClick={handleSkip}
+          disabled={saving}
+          style={{
+            width: "100%", padding: "11px", marginTop: 10,
+            borderRadius: 10, fontSize: 13, fontWeight: 500,
+            background: "transparent", color: C.textMuted,
+            border: "none",
+            cursor: saving ? "default" : "pointer",
+            fontFamily: "'Outfit',sans-serif",
+          }}
+        >
+          {t.skipForNow}
         </button>
       </div>
     </div>
