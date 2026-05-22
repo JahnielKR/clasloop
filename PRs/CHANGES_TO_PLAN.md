@@ -8,6 +8,35 @@ Entries are appended chronologically. Most recent at the top.
 
 ---
 
+## 2026-05-22 — PR 140 done; migrated to TS with the real return shape
+
+**Status:** ✅ done + merged to main. Closes M5. Gates green (typecheck 0 ·
+101 tests · build ✓) + app loads clean after the rename (Playwright, 0 console
+errors on a fresh dev server).
+
+`src/hooks/useClass.js` → `src/lib/classes.ts`. Dropped the three dead exports
+(`createClass`, `getTeacherClasses`, `deleteClass` — grep confirmed zero
+consumers; the only importer, ClassCodeModal, uses just `joinClass`). Took the
+README's optional TS migration.
+
+**Minor deviation:** the README's sketched `JoinClassResult { success,
+classId, error }` doesn't match what `joinClass` actually returns — it resolves
+to `{ class, member }` (the RPC's jsonb) or `{ error }`, and ClassCodeModal
+destructures `{ class, error }`. Typed it with the real shape
+(`{ class?: unknown; member?: unknown; error?: string }`) rather than inventing
+a `success`/`classId` shape that would have broken the consumer. Left `class`/
+`member` as `unknown` (no generated DB types — same stance as PR 134).
+
+**Smoke test note:** `joinClass` is the student "join a class by code" path,
+not reachable from the logged-in teacher session without creating data, so it
+wasn't exercised end-to-end. The change is structural (rename + dead-code
+removal + one import) and is covered by build + typecheck + a clean reload.
+
+(Aside: had to restart the dev server — renaming a file under a live Vite
+server left a stale HMR reference to the old path; a fresh server is clean.)
+
+---
+
 ## 2026-05-22 — PR 139 done; centralized style objects, not React components
 
 **Status:** ✅ done + merged to main. Closes M3. Gates green (typecheck 0 ·
