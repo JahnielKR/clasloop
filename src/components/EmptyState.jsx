@@ -1,0 +1,79 @@
+// ─── EmptyState ────────────────────────────────────────────────────────────
+// Phase 2 — a friendly, consistent empty state. New users hit these the moment
+// they finish onboarding (an empty class list, an empty deck library), so they
+// should welcome + guide, not show a cold blank. Optional Cleo for student-
+// facing surfaces (kids); an emoji or a custom icon node otherwise.
+//
+//   <EmptyState cleo title="No classes yet"
+//     body="Got a code from your teacher? Join your first class."
+//     actionLabel="Join a class" onAction={openJoinForm} />
+import Cleo from "./Cleo";
+import { C } from "./tokens";
+
+export default function EmptyState({
+  emoji,           // string emoji (fallback visual)
+  icon,            // custom node (e.g. <CIcon name="..." size={48} />)
+  cleo = false,    // show the Cleo mascot (student-facing warmth)
+  title,
+  body,
+  actionLabel,
+  onAction,
+  secondaryLabel,
+  onSecondary,
+  style = {},
+}) {
+  return (
+    <div style={{
+      textAlign: "center",
+      background: C.bg,
+      border: `1px solid ${C.border}`,
+      borderRadius: 16,
+      padding: "40px 28px",
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      ...style,
+    }}>
+      {(cleo || icon || emoji) && (
+        <div style={{ marginBottom: 16, lineHeight: 1 }}>
+          {cleo ? <Cleo size={88} /> : icon || <span style={{ fontSize: 42 }}>{emoji}</span>}
+        </div>
+      )}
+      {title && (
+        <h3 style={{ fontSize: 18, fontWeight: 700, color: C.text, margin: "0 0 6px", fontFamily: "'Outfit', sans-serif" }}>
+          {title}
+        </h3>
+      )}
+      {body && (
+        <p style={{ fontSize: 14, color: C.textSecondary, lineHeight: 1.55, margin: "0 0 20px", maxWidth: 380 }}>
+          {body}
+        </p>
+      )}
+      {(actionLabel || secondaryLabel) && (
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "center" }}>
+          {actionLabel && (
+            <button
+              onClick={onAction}
+              style={{
+                padding: "11px 22px", borderRadius: 10, fontSize: 14, fontWeight: 600,
+                background: C.accent, color: "#fff", border: "none", cursor: "pointer",
+                fontFamily: "'Outfit', sans-serif",
+              }}
+            >{actionLabel}</button>
+          )}
+          {secondaryLabel && (
+            <button
+              onClick={onSecondary}
+              style={{
+                padding: "11px 18px", borderRadius: 10, fontSize: 14, fontWeight: 600,
+                background: "transparent", color: C.textSecondary,
+                border: `1px solid ${C.border}`, cursor: "pointer",
+                fontFamily: "'Outfit', sans-serif",
+              }}
+            >{secondaryLabel}</button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
