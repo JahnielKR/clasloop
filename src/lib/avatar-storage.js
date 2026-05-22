@@ -2,6 +2,7 @@
 // Compresses to a square thumbnail before uploading. Profile avatars are
 // rendered small (40-120px), so we don't need full resolution.
 import { supabase } from "./supabase";
+import { captureError } from "./sentry";
 
 const BUCKET = "profile-avatars";
 const MAX_DIM = 400;     // square crop, plenty for any UI we render
@@ -36,8 +37,11 @@ export async function uploadProfileAvatar(file, userId) {
 }
 
 /**
- * Delete a previously-uploaded avatar from Storage. Best-effort — silently
- * ignores files we don't own (RLS will block) or files that don't exist.
+ * Delete a previously-uploaded avatar from Storage. Best-effort and
+ * fire-and-forget: callers don't await it. PR 136: report failures here
+ * (centralised) so a broken cleanup path surfaces in Sentry instead of
+ * leaking storage silently. This never rejects, so callers don't need
+ * their own .catch().
  * @param {string} url
  */
 export async function deleteProfileAvatar(url) {
@@ -46,7 +50,12 @@ export async function deleteProfileAvatar(url) {
   const idx = url.indexOf(`/${BUCKET}/`);
   if (idx === -1) return;
   const path = url.slice(idx + BUCKET.length + 2);
-  await supabase.storage.from(BUCKET).remove([path]).catch(() => {});
+  try {
+    const { error } = await supabase.storage.from(BUCKET).remove([path]);
+    if (error) captureError(error, { source: "deleteProfileAvatar", path });
+  } catch (err) {
+    captureError(err, { source: "deleteProfileAvatar", path });
+  }
 }
 
 // ── Internal: image compression ──

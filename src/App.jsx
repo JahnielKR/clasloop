@@ -557,7 +557,7 @@ export default function App() {
     let cancelled = false;
     countVisibleNotifications(profile).then(n => {
       if (!cancelled) setNotifsCount(n);
-    }).catch(() => {});
+    }).catch((err) => captureError(err, { source: "App.countVisibleNotifications" }));
     return () => { cancelled = true; };
   }, [profile, page]);
 
@@ -574,7 +574,7 @@ export default function App() {
     let cancelled = false;
     countPendingReviewsForTeacher(profile.id).then(n => {
       if (!cancelled) setReviewBadgeCount(n);
-    }).catch(() => {});
+    }).catch((err) => captureError(err, { source: "App.countPendingReviewsForTeacher" }));
     return () => { cancelled = true; };
   }, [profile, page]);
 
@@ -620,7 +620,7 @@ export default function App() {
       //   console.log("[clasloop] activeSession poll:",
       //     { tick: activeSessionTick, page, found: data?.[0] || null, error });
       setActiveSessionId(data?.[0]?.id || null);
-    })().catch(() => {});
+    })().catch((err) => captureError(err, { source: "App.activeSessionPoll" }));
     return () => { cancelled = true; };
   }, [profile, page, activeSessionTick]);
 
@@ -685,6 +685,7 @@ export default function App() {
           probeErr: probeErr?.message,
           status: probeErr?.status,
         });
+        // Obsolete key (see top-of-effect cleanup); no-op if storage is unavailable.
         try { localStorage.removeItem("clasloop_pending_role"); } catch (_) {}
         await supabase.auth.signOut();
         setUser(null);

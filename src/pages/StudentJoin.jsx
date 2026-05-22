@@ -607,7 +607,7 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
       // Outside the in-flight quiz states → clear. We keep the flag
       // through "waiting" since the student is still engaged with
       // this session.
-      try { sessionStorage.removeItem(QUIZ_FLAG_KEY); } catch (_) {}
+      try { sessionStorage.removeItem(QUIZ_FLAG_KEY); } catch (_) { /* sessionStorage disabled */ }
     }
   }, [step, session?.id, profile?.id, isPractice, isGuest, rehydrating]);
 
@@ -782,7 +782,7 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
       // to the results screen on a fresh "Join session" click is
       // confusing. They wanted to join a NEW session.
       if (allAnswered) {
-        try { sessionStorage.removeItem(QUIZ_FLAG_KEY); } catch (_) {}
+        try { sessionStorage.removeItem(QUIZ_FLAG_KEY); } catch (_) { /* sessionStorage disabled */ }
         return;
       }
 
@@ -1270,6 +1270,7 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
     if (answers.length > 0) return;
     if (step !== "results") return;
     const t = setTimeout(() => {
+      // Best-effort cleanup before leaving; never block the redirect on it.
       try { clearGuestSession(guestPin); } catch (_) {}
       window.location.href = "/";
     }, 2000);
@@ -3992,6 +3993,7 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
               // Guest mode: bounce back to the public home so they can pick
               // any code, instead of the unmounted reset path that doesn't
               // really work for guests (their entry point was /join).
+              // Best-effort cleanup before leaving; never block the redirect on it.
               try { clearGuestSession(guestPin); } catch (_) {}
               window.location.href = "/";
             } else {

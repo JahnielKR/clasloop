@@ -2,6 +2,7 @@
 // Compresses on the client before sending to Supabase Storage so we don't
 // store 5MB phone photos for a tiny banner.
 import { supabase } from "./supabase";
+import { captureError } from "./sentry";
 
 const BUCKET = "deck-covers";
 const MAX_DIM = 1200;        // longest side
@@ -42,14 +43,22 @@ export async function uploadDeckCover(file, userId) {
 
 /**
  * Delete a previously uploaded cover. Owner-restricted via RLS, so this only
- * succeeds for the user's own files.
+ * succeeds for the user's own files. Best-effort and fire-and-forget: callers
+ * don't await it. PR 136: report failures here (centralised) so a broken
+ * cleanup path surfaces in Sentry instead of leaking storage silently. This
+ * never rejects, so callers don't need their own .catch().
  */
 export async function deleteDeckCover(url) {
   if (!url || !url.includes("/storage/v1/object/public/")) return;
   const idx = url.indexOf(`/${BUCKET}/`);
   if (idx === -1) return;
   const path = url.slice(idx + BUCKET.length + 2);
-  await supabase.storage.from(BUCKET).remove([path]);
+  try {
+    const { error } = await supabase.storage.from(BUCKET).remove([path]);
+    if (error) captureError(error, { source: "deleteDeckCover", path });
+  } catch (err) {
+    captureError(err, { source: "deleteDeckCover", path });
+  }
 }
 
 // ── Compress: redraw onto a canvas with max dimension + JPEG encoding ──────
