@@ -75,7 +75,7 @@ const css = `
   .sj-slider:disabled { opacity: .6; cursor: default; }
 `;
 
-const inp = { fontFamily: "'Outfit',sans-serif", background: C.bg, border: `1px solid ${C.border}`, color: C.text, padding: "11px 14px", borderRadius: 8, fontSize: 14, width: "100%", outline: "none" };
+import { inputStyle as inp } from "../components/forms/field-styles";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────
 // Resolve question type, falling back to session.activity_type then "mcq".

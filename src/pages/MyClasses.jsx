@@ -16,7 +16,7 @@ import { useT } from "../i18n";
 // PR 77: el bloque i18n local fue movido a src/i18n/{en,es,ko}.js
 // bajo el namespace "myClasses".
 
-const inp = { fontFamily: "'Outfit',sans-serif", background: C.bg, border: `1px solid ${C.border}`, color: C.text, padding: "11px 14px", borderRadius: 8, fontSize: 14, width: "100%", outline: "none" };
+import { inputStyle as inp } from "../components/forms/field-styles";
 
 const css = `
   @keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }

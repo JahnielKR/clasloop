@@ -11,6 +11,7 @@ import { googleOAuthNative } from '../lib/native-oauth';
 import { captureError } from '../lib/sentry';
 import { LogoMark } from '../components/Icons';
 import { C } from '../components/tokens';
+import { inputStyle as inp } from '../components/forms/field-styles';
 
 // ─── AuthScreen ──────────────────────────────────────────────────────────
 //
@@ -148,17 +149,6 @@ function AuthScreen({ initialMode = "signup", onBack, lang = "en" }) {
     }
   };
 
-  const inp = {
-    fontFamily: "'Outfit',sans-serif",
-    background: C.bg,
-    border: `1px solid ${C.border}`,
-    color: C.text,
-    padding: "11px 14px",
-    borderRadius: 8,
-    fontSize: 14,
-    width: "100%",
-    outline: "none",
-  };
   const btnP = {
     width: "100%",
     padding: "12px",
