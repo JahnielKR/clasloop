@@ -17,13 +17,12 @@ test.describe("public landing", () => {
 
   test("header nav links smooth-scroll to their section", async ({ page }) => {
     await page.goto("/");
-    // The "How it works" heading lives far below the fold. The header nav
-    // items used to be inert <span>s; the landing-scaffold PR turned them into
-    // real buttons that scroll to in-page anchors. Clicking "Features" should
-    // bring the section into the viewport.
+    // The header nav items used to be inert <span>s; the landing redesign
+    // turned them into real buttons that scroll to in-page anchors. "Features"
+    // targets the generation demo, which lives far below the fold.
     await page.getByRole("button", { name: "Features" }).click();
     await expect(
-      page.getByRole("heading", { name: "Three steps. Five minutes. Done." })
+      page.getByRole("heading", { name: "From any file to verified questions" })
     ).toBeInViewport({ timeout: 5000 });
   });
 

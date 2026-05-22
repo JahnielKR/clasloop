@@ -6,6 +6,8 @@ import { useT } from "../../i18n";
 
 import { landingCss } from "./landing-css";
 import Hero from "./sections/Hero";
+import GenerationDemo from "./sections/GenerationDemo";
+import PrintAndScanDemo from "./sections/PrintAndScanDemo";
 import QuestionTypes from "./sections/QuestionTypes";
 import HowItWorks from "./sections/HowItWorks";
 import WhyDaily from "./sections/WhyDaily";
@@ -122,7 +124,7 @@ export default function PublicHome({ onSignIn, onSignUp }) {
                 refinarán cuando lleguen los demos del producto (Features →
                 GenerationDemo). */}
             <nav className="ph-nav-links" style={{ display: "flex", gap: 28 }}>
-              <button className="ph-nav-link" onClick={() => scrollToId("how")} style={navLinkStyle}>{t.navFeatures}</button>
+              <button className="ph-nav-link" onClick={() => scrollToId("generate")} style={navLinkStyle}>{t.navFeatures}</button>
               <button className="ph-nav-link" onClick={() => scrollToId("why")} style={navLinkStyle}>{t.navSchools}</button>
               <button className="ph-nav-link" onClick={() => scrollToId("start")} style={navLinkStyle}>{t.navPricing}</button>
             </nav>
@@ -185,9 +187,11 @@ export default function PublicHome({ onSignIn, onSignUp }) {
           lang={lang}
           onSignUp={handleSignUp}
           onOpenCode={() => setCodeDialogOpen(true)}
-          onSeeHow={() => scrollToId("how")}
+          onSeeHow={() => scrollToId("generate")}
         />
 
+        <GenerationDemo t={t} lang={lang} />
+        <PrintAndScanDemo t={t} lang={lang} />
         <QuestionTypes t={t} />
         <HowItWorks t={t} />
         <WhyDaily t={t} />
