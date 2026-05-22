@@ -22,13 +22,6 @@ export interface DeckStatsRow {
 }
 
 // Subset of the theme palette these helpers read.
-export interface StatsPalette {
-  textMuted: string;
-  green: string;
-  orange: string;
-  red: string;
-}
-
 // A question as stored in deck.questions (loosely typed — shape varies by type).
 export interface StatsQuestion {
   options?: unknown;
@@ -99,17 +92,10 @@ export function pctCorrect(row: DeckStatsRow | null | undefined): number | null 
   return Math.round((credited / row.totalResponses) * 100);
 }
 
-// Color the percentage circle by tier — same thresholds the rest of the
-// app uses for retention scores.
-//   ≥80 green : the class got it
-//   ≥50 orange: mixed, worth re-teaching some
-//   <50 red   : needs serious re-teaching
-export function pctColor(pct: number | null, palette: StatsPalette): string {
-  if (pct == null) return palette.textMuted;
-  if (pct >= 80) return palette.green;
-  if (pct >= 50) return palette.orange;
-  return palette.red;
-}
+// PR 154 (M33): pctColor (the 80/50 SCORE tiers) now lives in
+// scoring-thresholds.ts as the single source of truth. Re-exported here so
+// existing importers (DeckResults) don't change.
+export { pctColor } from "./scoring-thresholds";
 
 // Turn an MCQ/TF answer key into a display label using the question's
 // own option list. For MCQ: "0" → options[0].text. For TF: "true"/"false".
