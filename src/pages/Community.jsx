@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { useEffectEvent } from "../hooks/useEffectEvent";
+import { useState, useMemo } from "react";
+import { useCommunity, useCommunityCache } from "../hooks/useCommunity";
 import { supabase } from "../lib/supabase";
 import { CIcon } from "../components/Icons";
 import { DeckCover, colorTint } from "../lib/deck-cover";
@@ -56,56 +56,27 @@ export default function Community({ lang: pageLang = "en", setLang: pageSetLang,
   const [lang, setLangLocal] = useState(pageLang);
   const setLang = pageSetLang || setLangLocal;
   const l = pageLang || lang;
-  const [decks, setDecks] = useState([]);
-  const [userId, setUserId] = useState(null);
-  const [userClasses, setUserClasses] = useState([]);
+  // PR 170c (M1): community decks + the user's saved set + (teachers') classes
+  // now come from one cached React Query (src/hooks/useCommunity.js). The
+  // favorite toggle patches the cache via patchSaved below.
+  const { data: cd, isPending: loading } = useCommunity(profile?.role === "student");
+  const userId = cd?.userId ?? null;
+  const userClasses = cd?.userClasses ?? [];
+  const decks = useMemo(() => cd?.decks ?? [], [cd]);
+  const saved = cd?.saved ?? {};
+  const { patchSaved } = useCommunityCache();
   const [search, setSearch] = useState("");
   const [subject, setSubject] = useState("");
   const [deckLang, setDeckLang] = useState("");
   const [sort, setSort] = useState("uses_count");
   const [selectedDeck, setSelectedDeck] = useState(null);
   const [savingDeck, setSavingDeck] = useState(null); // deck being saved (for class picker)
-  const [saved, setSaved] = useState({});
-  const [loading, setLoading] = useState(true);
   // PR 73: i18n centralizado via useT
   const t = useT("community", l);
   const isStudent = profile?.role === "student";
 
-  const onLoad = useEffectEvent(() => { loadData(); });
-  useEffect(() => { onLoad(); }, [profile?.id, onLoad]);
-
-  const loadData = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    setUserId(user?.id);
-    if (user) {
-      // Both teachers and students have favorites in the same saved_decks table.
-      const { data: savedRows } = await supabase.from("saved_decks").select("deck_id").eq("student_id", user.id);
-      const map = {};
-      (savedRows || []).forEach(r => { map[r.deck_id] = true; });
-      setSaved(map);
-
-      // Teachers also need their classes for the "Save to my decks" picker.
-      if (!isStudent) {
-        // PR 19: order classes by position (teacher's drag arrangement)
-        const { data: cls } = await supabase
-          .from("classes")
-          .select("*")
-          .eq("teacher_id", user.id)
-          .order("position", { ascending: true })
-          .order("created_at", { ascending: false });
-        setUserClasses(cls || []);
-      }
-    }
-    // Pull each public deck plus its author and (if it's a copy) the original
-    // author. We use the latter to render "Adapted from X" attribution.
-    const { data } = await supabase
-      .from("decks")
-      .select("*, profiles(full_name), originals:copied_from_id(id, author_id, profiles(full_name))")
-      .eq("is_public", true)
-      .order("uses_count", { ascending: false });
-    setDecks(data || []);
-    setLoading(false);
-  };
+  // PR 170c: community data loads via useCommunity() (src/hooks/useCommunity.js);
+  // React Query owns loading + caching. The favorite toggle patches the cache.
 
   // Toggle favorite — works for both students and teachers (same saved_decks table).
   // PR 28.15: saving from Community now marks the row as is_favorite=true so
@@ -118,12 +89,12 @@ export default function Community({ lang: pageLang = "en", setLang: pageSetLang,
     const isAlreadySaved = saved[deck.id];
     if (isAlreadySaved) {
       const { error } = await supabase.from("saved_decks").delete().eq("student_id", userId).eq("deck_id", deck.id);
-      if (!error) setSaved(prev => { const next = { ...prev }; delete next[deck.id]; return next; });
+      if (!error) patchSaved(prev => { const next = { ...prev }; delete next[deck.id]; return next; });
     } else {
       const { error } = await supabase.from("saved_decks").insert({ student_id: userId, deck_id: deck.id, is_favorite: true });
       if (!error) {
         await supabase.from("decks").update({ uses_count: (deck.uses_count || 0) + 1 }).eq("id", deck.id);
-        setSaved(prev => ({ ...prev, [deck.id]: true }));
+        patchSaved(prev => ({ ...prev, [deck.id]: true }));
       }
     }
   };
