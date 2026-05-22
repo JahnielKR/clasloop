@@ -92,7 +92,7 @@ VITE_POSTHOG_HOST=https://us.i.posthog.com
 npm run dev
 ```
 
-Vite serves on http://localhost:5173 by default.
+Vite serves on http://localhost:3000 by default (configured in `vite.config.js`).
 
 Sign up with email/password → confirm via the email Supabase sends → log in. The first signup gets `role: 'teacher'` automatically.
 
@@ -116,7 +116,7 @@ supabase secrets set ANTHROPIC_API_KEY=<your-key>
 supabase functions deploy generate-insight
 ```
 
-Then configure the webhook in Supabase Dashboard → Database → Webhooks → "session_completed_insight":
+Then configure the webhook in Supabase Dashboard → Database → Webhooks → "generate-insight-on-session-complete":
 - HTTP Headers → add `Authorization: Bearer <WEBHOOK_SECRET>`.
 
 (See `PRs/PR_90_edge_function_webhook_auth/README.md` for details.)
@@ -148,7 +148,7 @@ For Play Store release, see `docs/CAPACITOR_FASE2_OAUTH.md` and friends in `docs
 | `Cannot find module @rollup/rollup-linux-x64-gnu` | `node_modules` from a different platform | `rm -rf node_modules package-lock.json && npm install` |
 | Auth works but RPCs error | Migration didn't apply | Re-paste `supabase/schema.sql` |
 | `generate-insight` returns 401 | WEBHOOK_SECRET mismatch | Re-set via `supabase secrets set` AND update the webhook header in Dashboard |
-| White screen, no error | ErrorBoundary off (regression) | Check `src/main.jsx` imports `SentryErrorBoundary` + wraps `<App />` |
+| White screen, no error | ErrorBoundary off (regression) | Check `src/main.jsx` imports `SentryErrorBoundary` + wraps `ToastProvider > Root` |
 
 ## Where things live
 

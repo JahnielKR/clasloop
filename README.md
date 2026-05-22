@@ -36,7 +36,7 @@ src/
   hooks/         Custom React hooks
   i18n/          en / es / ko translations
   styles/        Themes + global CSS
-  routes.js      Centralized route definitions
+  routes.ts      Centralized route definitions
 
 api/             Vercel serverless endpoints (Anthropic proxy + rate limit)
 supabase/        Database schema, migrations, Edge Functions

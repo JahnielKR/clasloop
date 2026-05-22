@@ -8,13 +8,13 @@ You only do this once, after the first time the function is deployed.
 
 ### Step 1: Run the migration
 
-In Supabase Dashboard → SQL Editor, paste and run `supabase/phase13_session_insights.sql`.
+In Supabase Dashboard → SQL Editor, paste and run `supabase/migrations/20240101000015_session_insights.sql` (or, for a fresh project, the full `supabase/schema.sql`, which already includes it).
 
 This creates the `session_insights` table, RLS policies, and indexes.
 
 ### Step 2: Deploy the Edge Function
 
-From your local terminal (in the `clasloop-phase1` directory):
+From your local terminal (in the `clasloop` directory):
 
 ```bash
 # First time only: link the project (if not already linked)
