@@ -8,6 +8,42 @@ Entries are appended chronologically. Most recent at the top.
 
 ---
 
+## 2026-05-22 — PR 149 done; navigator.language detection for the App shell (M19)
+
+**Status:** ✅ done + merged to main (`a6f1c9b`). Closes M19. Gates green
+(typecheck 0 · 146 tests incl. 5 new · build ✓) + browser-verified.
+
+**Narrow, per the REALITY CHECK.** `navigator.language` was already used by
+`PublicHome` + `GuestJoin`; the only gap was the **authed App shell's `lang`
+initializer** (defaulted to `"en"` without consulting the browser). Now the
+chain is **saved localStorage → navigator.language → "en"**; `profile.language`
+still overrides on login (App.jsx ~743/778).
+
+**Deviation — extracted a pure helper, NOT the README's `useLocaleDetection`
+hook.** The REALITY CHECK explicitly warned the hook/`useMemo` would regress
+Settings' `setLang` + localStorage persistence, and said "keep `lang` a
+`useState`." So I kept the `useState`, but pulled the detection chain into a
+**pure function** `resolveInitialLang({saved, navigatorLang})` in
+**`src/lib/locale.ts`** (not a hook — fully respects the constraint). Why
+extract at all instead of inlining: the preview browser can't emulate a
+non-English locale, so the `navigator → es/ko` branch isn't browser-testable —
+a pure helper makes it **unit-testable** (5 tests: precedence, ko/es fallback,
+region-strip + lowercase, unsupported→en, defaults). Added `.toLowerCase()` for
+robustness (PublicHome's inline copy omits it; harmless, stricter).
+
+**Verification:** 5 unit tests for the chain + browser integration on the dev
+server — `clasloop_lang=ko` → `<html lang="ko">` (saved wins); cleared
+localStorage + `navigator.language="en-US"` → `<html lang="en">` (navigator
+branch ran). 0 console errors.
+
+**Closes the PR 145 gap:** 145 owns the `documentElement.lang` write effect, 149
+owns the initial-value detection (split on purpose). An unauthenticated
+browser-Spanish visitor with no saved pref now gets `<html lang="es">`. (Did NOT
+dedupe PublicHome's own inline chain — it has an extra `?lang=` URL step and
+M19 doesn't ask for it; left as-is.)
+
+---
+
 ## 2026-05-22 — PR 148 done; modal backdrop keyboard-accessibility verified (M18)
 
 **Status:** ✅ done + merged to main (`4e9bffd`). Gates green (typecheck 0 ·
