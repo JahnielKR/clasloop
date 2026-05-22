@@ -1,4 +1,4 @@
-// ─── i18n/en.js ────────────────────────────────────────────────────────
+// ─── i18n/en.ts ────────────────────────────────────────────────────────
 //
 // PR 73-75: traducciones en INGLÉS, agrupadas por namespace.
 //
@@ -6,10 +6,14 @@
 //
 // Para agregar strings nuevas:
 //   1. Agregalas acá bajo el namespace correspondiente
-//   2. Hacé lo MISMO en es.js y ko.js (mantener sincronizado)
+//   2. Hacé lo MISMO en es.ts y ko.ts (mantener sincronizado)
 //   3. Usalas con `useT("namespace")` en el componente
+//
+// PR 135: EN es la fuente de verdad. `Locale` se deriva de este objeto
+// (export al final del archivo). es.ts y ko.ts se tipan como `Locale`,
+// así que TypeScript falla en compile si les falta o les sobra una key.
 
-export default {
+const en = {
   // ─── PR 73 ───────────────────────────────────────────────────────────
 
   avatarOnboarding: {
@@ -29,8 +33,8 @@ export default {
     collapse: "hide",
     dismiss: "hide",
     analyzing: "Analyzing session…",
-    repeatedNote: (name) => `**${name}** appears in both points. They're struggling beyond a single topic.`,
-    failerSummary: (wrong, total) => `failed ${wrong}/${total}`,
+    repeatedNote: (name: string) => `**${name}** appears in both points. They're struggling beyond a single topic.`,
+    failerSummary: (wrong: number, total: number) => `failed ${wrong}/${total}`,
   },
 
   community: {
@@ -491,7 +495,7 @@ export default {
     searchPlaceholder: "Search your decks…",
     emptySearch: "No matches. Try a different search.",
     startBtn: "Start scanning",
-    questionsLabel: (n) => `${n} ${n === 1 ? "question" : "questions"}`,
+    questionsLabel: (n: number) => `${n} ${n === 1 ? "question" : "questions"}`,
     webTitle: "Scanner runs on the app",
     webSubtitle: "Download the Clasloop app on your phone or tablet to scan answer sheets.",
     webAndroid: "Get it on Android",
@@ -499,14 +503,14 @@ export default {
     scanningLabel: "Open camera…",
     samplingLabel: "Reading answers…",
     reviewTitle: "Quick review",
-    reviewSubtitle: (n) => `I'm unsure about ${n} ${n === 1 ? "bubble" : "bubbles"}. Tap to confirm.`,
+    reviewSubtitle: (n: number) => `I'm unsure about ${n} ${n === 1 ? "bubble" : "bubbles"}. Tap to confirm.`,
     reviewSkip: "Skip review",
     reviewDone: "Continue",
-    questionLabel: (n) => `Question ${n}`,
+    questionLabel: (n: number) => `Question ${n}`,
     detectedAs: "Detected as",
     chooseAnswer: "Choose answer",
     noAnswer: "(blank)",
-    resultScore: (n, total) => `${n} / ${total}`,
+    resultScore: (n: number, total: number) => `${n} / ${total}`,
     resultDetailLabel: "Per-question detail",
     saveAndNext: "Save and scan next",
     saveAndFinish: "Save and finish",
@@ -522,7 +526,7 @@ export default {
     retryBtn: "Try again",
     backBtn: "Back",
     cancelBtn: "Cancel",
-    summary: (n) => `You scanned ${n} ${n === 1 ? "sheet" : "sheets"}.`,
+    summary: (n: number) => `You scanned ${n} ${n === 1 ? "sheet" : "sheets"}.`,
     backToStart: "Back to start",
   },
 
@@ -1037,7 +1041,7 @@ export default {
     tagsPlaceholder: "revolution, europe, history",
     activityType: "Activity type", questions: "Questions", addQuestion: "+ Add question",
     questionText: "Question", option: "Option", removeQuestion: "Remove",
-    publish: "Save deck", publishing: "Saving...", makePublic: "Make public to community",
+    publish: "Save deck", publishing: "Saving...",
     derivIdentical: "Identical to original — cannot publish",
     derivBlocked: "Not enough adaptation — cannot publish",
     derivAdapted: "Will be published as Adapted",
@@ -1052,7 +1056,7 @@ export default {
     gradePlaceholder: "e.g. 6th, 7th–9th, Mixed",
     lockedByClass: "Locked — this is set by the selected class.",
     back: "Back", noDecks: "No decks yet. Click Create to make your first one.",
-    private: "Private", public: "Public", delete: "Delete", edit: "Edit", results: "Results",
+    private: "Private", public: "Public", results: "Results",
     questionCount: "questions", launchSession: "Launch in class",
     deleteConfirm: "Delete this deck? This cannot be undone.",
     by: "by",
@@ -1159,3 +1163,10 @@ export default {
     pdfErrorMsg: "PDF export failed. Try again.",
   },
 };
+
+// `Locale` es la forma canónica de un locale, derivada de EN. Los strings
+// se ensanchan a `string` (no usamos `as const`: las traducciones tienen
+// otro literal y deben poder asignarse). es.ts y ko.ts implementan este tipo.
+export type Locale = typeof en;
+
+export default en;

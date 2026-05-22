@@ -1,9 +1,15 @@
-// ─── i18n/es.js ────────────────────────────────────────────────────────
+// ─── i18n/es.ts ────────────────────────────────────────────────────────
 //
 // PR 73-75: traducciones en ESPAÑOL, agrupadas por namespace.
-// Ver en.js para documentación de la estructura.
+// Ver en.ts para documentación de la estructura.
+//
+// PR 135: tipado como `Locale` (derivado de en.ts). Si falta o sobra una
+// key respecto a en.ts, TypeScript falla en compile. Los parámetros de las
+// funciones (ej. repeatedNote) se tipan por contexto desde `Locale`.
 
-export default {
+import type { Locale } from "./en";
+
+const es: Locale = {
   // ─── PR 73 ───────────────────────────────────────────────────────────
 
   avatarOnboarding: {
@@ -1031,7 +1037,7 @@ export default {
     tagsPlaceholder: "revolución, europa, historia",
     activityType: "Tipo de actividad", questions: "Preguntas", addQuestion: "+ Agregar pregunta",
     questionText: "Pregunta", option: "Opción", removeQuestion: "Eliminar",
-    publish: "Guardar deck", publishing: "Guardando...", makePublic: "Hacer público en comunidad",
+    publish: "Guardar deck", publishing: "Guardando...",
     derivIdentical: "Idéntico al original — no se puede publicar",
     derivBlocked: "Adaptación insuficiente — no se puede publicar",
     derivAdapted: "Se publicará como Adaptado",
@@ -1046,7 +1052,7 @@ export default {
     gradePlaceholder: "ej. 6to, 7mo–9no, Mixto",
     lockedByClass: "Bloqueado — lo define la clase seleccionada.",
     back: "Volver", noDecks: "Sin decks aún. Click Crear para hacer tu primero.",
-    private: "Privado", public: "Público", delete: "Eliminar", edit: "Editar", results: "Resultados",
+    private: "Privado", public: "Público", results: "Resultados",
     questionCount: "preguntas", launchSession: "Lanzar en clase",
     deleteConfirm: "¿Eliminar este deck? No se puede deshacer.",
     by: "por",
@@ -1151,3 +1157,5 @@ export default {
     pdfErrorMsg: "Falló la exportación a PDF. Intenta de nuevo.",
   },
 };
+
+export default es;
