@@ -1,4 +1,8 @@
 import { C, MONO } from "../../../components/tokens";
+// Real in-app section theming (the same module the student quiz uses) so the
+// warmup / exit-ticket cards on the landing look exactly like the product.
+// forceDark=false → always the light values (the landing is always light).
+import { getSectionTheme, getSectionLabel } from "../../../lib/section-theme";
 
 // ─── Floating doc card data ────────────────────────────────
 // 4 cards animan en el hero. Cada card representa un input típico (PDF,
@@ -11,9 +15,9 @@ const FLOATING_CARDS = [
     fileType: "PDF",
     fileColor: "#D85A30",
     fileName: "chapter5.pdf",
-    questionTag: { en: "WARMUP · MCQ", es: "WARMUP · MCQ", ko: "워밍업 · 객관식" },
+    section: "warmup",
+    typeTag: { en: "MCQ", es: "MCQ", ko: "객관식" },
     questionText: { en: "What is photosynthesis?", es: "¿Qué es la fotosíntesis?", ko: "광합성이란 무엇인가요?" },
-    bg: "#DDEBFB", border: "#2383E2", labelColor: "#185FA5", textColor: "#042C53",
     pos: { top: 90, left: 60 }, size: { w: 225, h: 150 },
     floatDelay: 0,
   },
@@ -22,9 +26,9 @@ const FLOATING_CARDS = [
     fileType: "PPT",
     fileColor: "#BA7517",
     fileName: "lesson.pptx",
-    questionTag: { en: "EXIT TICKET · TF", es: "EXIT TICKET · VF", ko: "종료 티켓 · 참거짓" },
+    section: "exit_ticket",
+    typeTag: { en: "TF", es: "VF", ko: "참거짓" },
     questionText: { en: "Mitosis happens in 4 phases.", es: "La mitosis tiene 4 fases.", ko: "유사분열은 4단계입니다." },
-    bg: "#FAEEDA", border: "#BA7517", labelColor: "#854F0B", textColor: "#412402",
     pos: { top: 65, right: 75 }, size: { w: 215, h: 145 },
     floatDelay: -1,
   },
@@ -33,9 +37,9 @@ const FLOATING_CARDS = [
     fileType: "DOC",
     fileColor: "#185FA5",
     fileName: "notes.docx",
-    questionTag: { en: "WARMUP · FILL", es: "WARMUP · ESPACIO", ko: "워밍업 · 빈칸" },
+    section: "warmup",
+    typeTag: { en: "FILL", es: "ESPACIO", ko: "빈칸" },
     questionText: { en: "The mitochondria is the ___.", es: "La mitocondria es el ___.", ko: "미토콘드리아는 ___입니다." },
-    bg: "#E1F5EE", border: "#1D9E75", labelColor: "#0F6E56", textColor: "#04342C",
     pos: { bottom: 75, left: 110 }, size: { w: 215, h: 145 },
     floatDelay: -2,
   },
@@ -44,16 +48,50 @@ const FLOATING_CARDS = [
     fileType: "TXT",
     fileColor: "#5A5A5A",
     fileName: "topic",
-    questionTag: { en: "EXIT TICKET · MATCH", es: "EXIT TICKET · EMPAREJAR", ko: "종료 티켓 · 짝짓기" },
+    section: "exit_ticket",
+    typeTag: { en: "MATCH", es: "EMPAREJAR", ko: "짝짓기" },
     questionText: { en: "Match cell parts to functions", es: "Empareja partes de la célula", ko: "세포 부분과 기능 짝짓기" },
-    bg: "#FBEAF0", border: "#D4537E", labelColor: "#993556", textColor: "#4B1528",
     pos: { bottom: 100, right: 60 }, size: { w: 210, h: 140 },
     floatDelay: -1.5,
   },
 ];
 
+// Section glyphs — mirror SectionBadge.jsx (☀ warmup, ⤓ exit ticket) so the
+// landing badge reads identically to the in-app one.
+const SECTION_GLYPH = { warmup: "☀", exit_ticket: "⤓" };
+
 // Helper para float class por id
 const floatClass = (id) => ["ph-float-a", "ph-float-b", "ph-float-c", "ph-float-d"][(id - 1) % 4];
+
+// The "question" face of a floating card, themed to look like a real warmup /
+// exit-ticket question (uses the in-app getSectionTheme). Keeps the
+// .ph-morph-to class so the doc↔question morph animation still works.
+function MorphTo({ card, lang }) {
+  const th = getSectionTheme(card.section, false);
+  const typeTag = card.typeTag[lang] || card.typeTag.en;
+  return (
+    <div className="ph-morph-to" style={{
+      background: th.tint, border: `1px solid ${th.accent}`,
+      borderRadius: 12, padding: 16, textAlign: "left",
+    }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 9, flexWrap: "wrap" }}>
+        <span style={{
+          display: "inline-flex", alignItems: "center", gap: 4,
+          background: th.iconBg, color: th.iconFg,
+          borderRadius: 5, padding: "2px 7px",
+          fontSize: 10.5, fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase",
+        }}>
+          <span aria-hidden="true" style={{ fontSize: 11, lineHeight: 1 }}>{SECTION_GLYPH[card.section]}</span>
+          {getSectionLabel(card.section, lang)}
+        </span>
+        <span style={{ fontSize: 10.5, fontWeight: 700, color: th.labelFg, letterSpacing: "0.06em" }}>{typeTag}</span>
+      </div>
+      <div style={{ fontSize: 15, color: th.onTint, lineHeight: 1.4 }}>
+        {card.questionText[lang] || card.questionText.en}
+      </div>
+    </div>
+  );
+}
 
 export default function Hero({ t, lang, onSignUp, onOpenCode, onSeeHow }) {
   return (
@@ -99,17 +137,7 @@ export default function Hero({ t, lang, onSignUp, onOpenCode, onSeeHow }) {
             <div style={{ height: 4, background: C.border, borderRadius: 2, marginBottom: 6 }} />
             <div style={{ height: 4, background: C.border, borderRadius: 2, width: "65%" }} />
           </div>
-          <div className="ph-morph-to" style={{
-            background: card.bg, border: `1px solid ${card.border}`,
-            borderRadius: 12, padding: 18, textAlign: "left",
-          }}>
-            <div style={{ fontSize: 13, color: card.labelColor, fontWeight: 700, marginBottom: 9, letterSpacing: "0.5px" }}>
-              {card.questionTag[lang] || card.questionTag.en}
-            </div>
-            <div style={{ fontSize: 16, color: card.textColor, lineHeight: 1.4 }}>
-              {card.questionText[lang] || card.questionText.en}
-            </div>
-          </div>
+          <MorphTo card={card} lang={lang} />
         </div>
       ))}
 

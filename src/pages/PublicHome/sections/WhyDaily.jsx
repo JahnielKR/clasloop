@@ -1,4 +1,5 @@
 import { C } from "../../../components/tokens";
+import { CIcon } from "../../../components/Icons";
 import { useReveal } from "../useReveal";
 
 export default function WhyDaily({ t }) {
@@ -6,9 +7,9 @@ export default function WhyDaily({ t }) {
   const [gridRef, gridVisible] = useReveal();
 
   const whys = [
-    { title: t.why1Title, body: t.why1Body, icon: "🔁" },
-    { title: t.why2Title, body: t.why2Body, icon: "📚" },
-    { title: t.why3Title, body: t.why3Body, icon: "🎯" },
+    { title: t.why1Title, body: t.why1Body, icon: "spaced" },
+    { title: t.why2Title, body: t.why2Body, icon: "library" },
+    { title: t.why3Title, body: t.why3Body, icon: "subjects" },
   ];
 
   return (
@@ -31,7 +32,7 @@ export default function WhyDaily({ t }) {
         }}>
           {whys.map(w => (
             <div key={w.title} style={{ padding: 8 }}>
-              <div style={{ fontSize: 44, marginBottom: 20 }}>{w.icon}</div>
+              <div style={{ marginBottom: 18 }}><CIcon name={w.icon} size={58} /></div>
               <h3 className="ph-why-title" style={{
                 fontSize: 26, fontWeight: 600, color: C.text,
                 margin: "0 0 12px",

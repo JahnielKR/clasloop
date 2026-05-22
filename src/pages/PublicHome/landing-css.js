@@ -68,6 +68,20 @@ export const landingCss = `
   @keyframes ph-bob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(5px); } }
   .ph-scroll-cue { animation: ph-bob 1.8s ease-in-out infinite; }
 
+  /* ── Product demos (landing PR B): generation + print/scan ── */
+  /* Pulsing "AI working" dot */
+  @keyframes ph-pulse { 0%,100% { opacity:.35; transform:scale(.82); } 50% { opacity:1; transform:scale(1); } }
+  .ph-pulse-dot { animation: ph-pulse 1.1s ease-in-out infinite; }
+  /* Indeterminate progress bar fill */
+  @keyframes ph-progress { 0% { transform: translateX(-100%); } 100% { transform: translateX(250%); } }
+  .ph-progress-bar { animation: ph-progress 1.6s ease-in-out infinite; }
+  /* Sweeping scan line over the paper test */
+  @keyframes ph-scan { 0% { top: 6%; opacity:.2; } 15% { opacity:1; } 50% { top: 90%; opacity:1; } 65% { opacity:.2; } 100% { top: 6%; opacity:.2; } }
+  .ph-scanline { animation: ph-scan 3s ease-in-out infinite; }
+  /* Pop-in for the verified badge / graded check (only once revealed) */
+  @keyframes ph-pop-in { 0% { opacity:0; transform: scale(.6); } 70% { transform: scale(1.12); } 100% { opacity:1; transform: scale(1); } }
+  .is-visible .ph-pop-in { animation: ph-pop-in .45s ease both; }
+
   /* Hover states */
   .ph-btn-primary { transition: transform .15s, box-shadow .15s; }
   .ph-btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(35,131,226,0.25); }
@@ -127,6 +141,8 @@ export const landingCss = `
     .ph-section { padding: 56px 22px !important; }
     .ph-hero { padding: 64px 22px 48px !important; min-height: auto !important; }
     .ph-how-grid, .ph-why-grid { grid-template-columns: 1fr !important; }
+    .ph-print-grid { grid-template-columns: 1fr !important; }
+    .ph-ins-grid { grid-template-columns: 1fr !important; }
     .ph-section-h2 { font-size: 30px !important; }
     .ph-section-sub { font-size: 15px !important; }
     .ph-step-title, .ph-why-title { font-size: 18px !important; }
@@ -180,7 +196,8 @@ export const landingCss = `
      ran unconditionally, ignoring the user's OS preference.) */
   @media (prefers-reduced-motion: reduce) {
     html { scroll-behavior: auto; }
-    .ph-float, .ph-morph-from, .ph-morph-to, .ph-fade, .ph-scroll-cue { animation: none !important; }
+    .ph-float, .ph-morph-from, .ph-morph-to, .ph-fade, .ph-scroll-cue,
+    .ph-pulse-dot, .ph-progress-bar, .ph-scanline, .is-visible .ph-pop-in { animation: none !important; }
     .ph-morph-to { opacity: 0; }
     .ph-reveal, .ph-stagger > * { opacity: 1 !important; transform: none !important; transition: none !important; }
   }
