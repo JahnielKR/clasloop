@@ -14,3 +14,6 @@ dist/
 # agregamos iOS), porque pueden ser pesados y se regeneran con `pod install`.
 ios/App/Pods/
 ios/App/build/
+
+.vercel
+.env*
