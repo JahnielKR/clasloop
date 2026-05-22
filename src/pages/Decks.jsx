@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef, lazy, Suspense } from "react";
-import { useEffectEvent } from "../hooks/useEffectEvent";
+import { useState, useEffect, useMemo, useRef, lazy, Suspense } from "react";
+import { useDecksPage, useDecksCache } from "../hooks/useDecks";
 import { useSearchParams, useNavigate, useMatch } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { CIcon } from "../components/Icons";
@@ -87,14 +87,20 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
   const editingId = editMatch?.params?.deckId || null;
   const view = editingId ? "edit" : (newMatch ? "create" : "list");
   const [tab, setTab] = useState("myDecks"); // myDecks | favorites
-  const [myDecks, setMyDecks] = useState([]);
-  const [favoriteDecks, setFavoriteDecks] = useState([]);
-  // PR 7: all units across the teacher's classes, used to group decks
-  // in the new Library layout (Class → Unit → Section row of decks).
-  const [allUnits, setAllUnits] = useState([]);
-  const [userId, setUserId] = useState(null);
-  const [userClasses, setUserClasses] = useState([]);
-  const [loading, setLoading] = useState(true);
+  // PR 170a (M1): the Decks page data (classes, decks, units, favorites) is now
+  // one cached React Query — see src/hooks/useDecks.js. The four datasets and
+  // userId come from `pageData`; mutations patch the cache via patchMyDecks /
+  // patchFavorites below, preserving the previous optimistic list updates.
+  const { data: pageData, isLoading: loading } = useDecksPage();
+  const userId = pageData?.userId ?? null;
+  // Memoized so the `?? []` fallback doesn't hand out a fresh array every
+  // render (which would thrash effect deps + child re-renders). React Query
+  // returns a stable `pageData` ref until the cache changes.
+  const userClasses = useMemo(() => pageData?.userClasses ?? [], [pageData]);
+  const myDecks = useMemo(() => pageData?.myDecks ?? [], [pageData]);
+  const allUnits = useMemo(() => pageData?.allUnits ?? [], [pageData]);
+  const favoriteDecks = useMemo(() => pageData?.favoriteDecks ?? [], [pageData]);
+  const { patchMyDecks, patchFavorites } = useDecksCache();
   // The editing deck object. Derived from editingId + the loaded myDecks list.
   // This used to be standalone state; now it's a function of the URL + data.
   const editing = editingId ? (myDecks.find(d => d.id === editingId) || null) : null;
@@ -138,8 +144,13 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
   };
   const t = useT("decks", l);
 
-  const onLoad = useEffectEvent(() => { loadData(); });
-  useEffect(() => { onLoad(); }, [onLoad]);
+  // PR 170a: auto-select the first class as the active tab once classes load
+  // (was inline in the old loadData). Re-runs harmlessly while data is empty.
+  useEffect(() => {
+    if (userClasses.length > 0 && activeClassTab === null) {
+      setActiveClassTab(userClasses[0].id);
+    }
+  }, [userClasses, activeClassTab]);
 
   // Cross-page navigation hint via URL search param: ?class=<id>. When
   // arriving from "Create class" in Sessions we get a focusClassId so we can
@@ -176,66 +187,16 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams.get(QUERY.CLASS), newMatch, editMatch]);
 
-  const loadData = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    setUserId(user?.id);
-    if (!user) { setLoading(false); return; }
-
-    // PR 19: order classes by position (the teacher's drag-ordered
-    // arrangement from My Classes), with created_at as a stable
-    // tiebreaker. Same ordering rule as MyClassesTeacher, so the
-    // class tabs in Library follow the order the teacher chose.
-    const { data: cls } = await supabase
-      .from("classes")
-      .select("*")
-      .eq("teacher_id", user.id)
-      .order("position", { ascending: true })
-      .order("created_at", { ascending: false });
-    setUserClasses(cls || []);
-    // PR 7: auto-select the first class as the active tab when Library
-    // first loads. If the teacher has zero classes, leave activeClassTab
-    // null and the empty-state shows. Once they create a class, this
-    // effect won't re-run (it's part of loadData which runs once on
-    // mount), but the empty state has a "+ New class" link as escape.
-    if (cls && cls.length > 0 && activeClassTab === null) {
-      setActiveClassTab(cls[0].id);
-    }
-
-    // My decks: created by user (not from community)
-    const { data: mine } = await supabase.from("decks").select("*, originals:copied_from_id(id, author_id, profiles(full_name))").eq("author_id", user.id).order("created_at", { ascending: false });
-    setMyDecks(mine || []);
-
-    // PR 7: all units across the teacher's classes — used to group decks
-    // in the new Library layout. Sorted by position so units appear in
-    // their canonical order within each class.
-    if (cls && cls.length > 0) {
-      const classIds = cls.map(c => c.id);
-      const { data: us } = await supabase
-        .from("units")
-        .select("*")
-        .in("class_id", classIds)
-        .order("position", { ascending: true });
-      setAllUnits(us || []);
-    }
-
-    // Favorites: decks the user (as teacher) saved from Community via saved_decks table.
-    // Pull saved_decks rows + join the actual deck data + author profile for "by X" labels.
-    const { data: savedRows } = await supabase
-      .from("saved_decks")
-      .select("deck_id, decks(*, profiles(full_name))")
-      .eq("student_id", user.id); // table column is `student_id` but it works for any user
-    const favs = (savedRows || []).map(r => r.decks).filter(Boolean);
-    setFavoriteDecks(favs);
-
-    setLoading(false);
-  };
+  // PR 170a: the old loadData (classes → decks → units → favorites) now lives
+  // in useDecksPage() (src/hooks/useDecks.js) as one cached React Query, so
+  // React Query owns loading + caching. Mutations below patch that cache.
 
   // Toggle favorite (remove). For adding, the action happens in Community.
   const handleRemoveFavorite = async (deckId) => {
     if (!userId) return;
     await supabase.from("saved_decks").delete()
       .eq("student_id", userId).eq("deck_id", deckId);
-    setFavoriteDecks(prev => prev.filter(d => d.id !== deckId));
+    patchFavorites(prev => prev.filter(d => d.id !== deckId));
   };
 
   // "Customize" a favorite — INSERT a personal copy into `decks` with
@@ -261,7 +222,7 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
     await supabase.from("decks").update({ uses_count: (deck.uses_count || 0) + 1 }).eq("id", deck.id);
     // Add the new copy to MyDecks state so the user sees it in My Decks
     // immediately without a refetch.
-    setMyDecks(prev => [inserted, ...prev]);
+    patchMyDecks(prev => [inserted, ...prev]);
     setCustomizingFav(null);
     setTab("myDecks"); // bounce them into My Decks where their copy lives now
     // Open the editor on the fresh copy so they can immediately personalize it.
@@ -273,7 +234,7 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
   const handleDelete = async (deckId) => {
     if (!confirm(t.deleteConfirm)) return;
     await supabase.from("decks").delete().eq("id", deckId);
-    setMyDecks(prev => prev.filter(d => d.id !== deckId));
+    patchMyDecks(prev => prev.filter(d => d.id !== deckId));
   };
 
   const handleTogglePublic = async (deck) => {
@@ -282,7 +243,7 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
     // Un-publishing is always allowed.
     if (!newPublic) {
       await supabase.from("decks").update({ is_public: false, is_adapted: false }).eq("id", deck.id);
-      setMyDecks(prev => prev.map(d => d.id === deck.id ? { ...d, is_public: false, is_adapted: false } : d));
+      patchMyDecks(prev => prev.map(d => d.id === deck.id ? { ...d, is_public: false, is_adapted: false } : d));
       return;
     }
 
@@ -320,7 +281,7 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
     }
 
     await supabase.from("decks").update({ is_public: true, is_adapted: isAdapted }).eq("id", deck.id);
-    setMyDecks(prev => prev.map(d => d.id === deck.id ? { ...d, is_public: true, is_adapted: isAdapted } : d));
+    patchMyDecks(prev => prev.map(d => d.id === deck.id ? { ...d, is_public: true, is_adapted: isAdapted } : d));
   };
 
   // PR 7: drag-to-reorder within (class, unit, section). The teacher can
@@ -335,7 +296,7 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
     // Apply new positions: position = index in the reordered list.
     const updates = reordered.map((d, i) => ({ id: d.id, position: i }));
     // Optimistic local update first.
-    setMyDecks(prev => prev.map(d => {
+    patchMyDecks(prev => prev.map(d => {
       const u = updates.find(x => x.id === d.id);
       return u ? { ...d, position: u.position } : d;
     }));
@@ -459,8 +420,8 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
           prefilledPosition={prefilledPosition}
           profile={profile}
           onCreated={(d) => {
-            if (editing) setMyDecks(prev => prev.map(dk => dk.id === d.id ? d : dk));
-            else setMyDecks(prev => [d, ...prev]);
+            if (editing) patchMyDecks(prev => prev.map(dk => dk.id === d.id ? d : dk));
+            else patchMyDecks(prev => [d, ...prev]);
             navigate(returnTo);
           }}
         />
