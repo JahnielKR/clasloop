@@ -15,8 +15,8 @@
 // (toggle off), the row disappears from this page (because we re-derive
 // from the source list each render).
 // ─────────────────────────────────────────────────────────────────────────────
-import { useState, useEffect, useMemo } from "react";
-import { useEffectEvent } from "../hooks/useEffectEvent";
+import { useState, useMemo } from "react";
+import { useFavorites, useFavoritesCache } from "../hooks/useFavorites";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import PageHeader from "../components/PageHeader";
@@ -41,32 +41,11 @@ export default function Favorites({
   const setLang = pageSetLang || (() => {});
   const navigate = useNavigate();
 
-  const [savedDecks, setSavedDecks] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-
-  const onLoadFavorites = useEffectEvent(() => { loadFavorites(); });
-  useEffect(() => { onLoadFavorites(); }, [profile?.id, onLoadFavorites]);
-
-  const loadFavorites = async () => {
-    if (!profile?.id) { setLoading(false); return; }
-    setLoading(true);
-    // Same query shape as MyClasses.loadAll — fetches ALL saved_decks rows
-    // (favorited or not). We filter in-memory because the favorites set is
-    // small and the user may toggle a star (and we want it to disappear
-    // from this page immediately).
-    const { data } = await supabase
-      .from("saved_decks")
-      .select("deck_id, saved_at, is_favorite, decks(*, classes(name, profiles:teacher_id(full_name)))")
-      .eq("student_id", profile.id)
-      .order("saved_at", { ascending: false });
-
-    setSavedDecks((data || [])
-      .filter(s => s.decks)
-      .map(s => ({ ...s.decks, _isFavorite: s.is_favorite || false }))
-    );
-    setLoading(false);
-  };
+  // PR 170 (M1): savedDecks + loading now come from a cached React Query
+  // (src/hooks/useFavorites.js); the un-star/unsave handlers patch the cache.
+  const { data: savedDecks = [], isLoading: loading } = useFavorites(profile?.id);
+  const { patchSavedDecks } = useFavoritesCache(profile?.id);
 
   // Toggle favorite — PR 28.15: post-unification, "saved" === "favorite".
   // Un-starring removes the row entirely (DELETE) since there's no
@@ -75,7 +54,7 @@ export default function Favorites({
   const handleToggleFavorite = async (deckId) => {
     if (!profile?.id) return;
     const removed = savedDecks.find(d => d.id === deckId);
-    setSavedDecks(prev => prev.filter(d => d.id !== deckId));
+    patchSavedDecks(prev => prev.filter(d => d.id !== deckId));
     const { error } = await supabase.from("saved_decks")
       .delete()
       .eq("student_id", profile.id)
@@ -83,7 +62,7 @@ export default function Favorites({
     if (error) {
       console.warn("[clasloop] unstar (toggle off) failed", { deckId, error });
       if (removed) {
-        setSavedDecks(prev => [removed, ...prev]);
+        patchSavedDecks(prev => [removed, ...prev]);
       }
     }
   };
@@ -93,7 +72,7 @@ export default function Favorites({
     await supabase.from("saved_decks").delete()
       .eq("student_id", profile.id)
       .eq("deck_id", deckId);
-    setSavedDecks(prev => prev.filter(d => d.id !== deckId));
+    patchSavedDecks(prev => prev.filter(d => d.id !== deckId));
   };
 
   // Filter: only favorites + match search query against title (case-insensitive).
