@@ -36,6 +36,7 @@
 //   captureError(err, { context: "scanner.sample" });
 
 import * as Sentry from "@sentry/react";
+import { beforeSendFilter } from "./sentry-filters";
 
 // ─── State ─────────────────────────────────────────────────────────────
 let initialized = false;
@@ -81,33 +82,10 @@ export function initSentry() {
       // Si en el futuro querés performance, subirlo a 0.1 (10% sampling).
       tracesSampleRate: 0,
 
-      // beforeSend: filtramos ruido común que ensucia el dashboard
-      // sin agregar valor para debug.
-      beforeSend(event, hint) {
-        const err = hint?.originalException;
-
-        // Filter 1: Network errors típicos en mobile (cambio de wifi,
-        // timeouts puntuales). No son bugs nuestros, son del entorno.
-        if (err?.name === "NetworkError" || err?.message?.includes("Failed to fetch")) {
-          return null;
-        }
-
-        // Filter 2: errores de Capacitor cuando el user cancela un
-        // diálogo nativo (file picker, scanner). No es bug.
-        const msg = err?.message || "";
-        if (msg.includes("cancelled") || msg.includes("user_cancelled")) {
-          return null;
-        }
-
-        // Filter 3: ResizeObserver loop warning (ruido conocido del browser,
-        // no afecta funcionalidad). Es el "ResizeObserver loop completed
-        // with undelivered notifications" que Chrome tira a veces.
-        if (msg.includes("ResizeObserver")) {
-          return null;
-        }
-
-        return event;
-      },
+      // beforeSend: filtramos ruido común que ensucia el dashboard. PR 158
+      // (M15) lo extrajo a lib/sentry-filters.js (función pura, testeable) —
+      // network errors YA NO se dropean, se mandan tageados kind:network.
+      beforeSend: beforeSendFilter,
 
       // No integrations especiales: solo las defaults de @sentry/react
       // que capturan errors automáticos (uncaught, unhandled rejections).
