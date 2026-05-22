@@ -1173,6 +1173,10 @@ const ko: Locale = {
   mobileMenu: {
     openMenu: "메뉴 열기",
   },
+
+  sidebar: {
+    activeSession: "진행 중인 세션",
+  },
 };
 
 export default ko;

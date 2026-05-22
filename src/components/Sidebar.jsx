@@ -37,6 +37,7 @@ import { Avatar as ProfileAvatar } from "./Avatars";
 import { C } from "./tokens";
 import { useNavigate } from "react-router-dom";
 import { buildRoute } from "../routes";
+import { useT } from "../i18n";
 
 // ─── Nav config ────────────────────────────────────────────────────────
 // Glyph chosen per role: each is a single Unicode char that reads at any
@@ -386,10 +387,10 @@ export default function Sidebar({
     navigate(buildRoute.sessionsLobby(activeSessionId));
   };
 
-  // PR 23.13: i18n for the active session button label
-  const activeSessionLabel = lang === "es" ? "Sesión activa"
-    : lang === "ko" ? "진행 중인 세션"
-    : "Active session";
+  // PR 162 (L5): active session label moved to centralized i18n (was an
+  // inline lang=== ternary). Sidebar's first useT usage.
+  const t = useT("sidebar", lang);
+  const activeSessionLabel = t.activeSession;
 
   const badgeFor = (key) => {
     if (key === "review") return reviewBadgeCount;
