@@ -8,6 +8,106 @@ Entries are appended chronologically. Most recent at the top.
 
 ---
 
+## 2026-05-22 — PR 136 done; centralised storage-cleanup reporting
+
+**Status:** ✅ done + merged to main. Closes H8 (completes PR 100).
+
+Swept the remaining silent catches. All gates green (typecheck 0 · 101 tests
+· build ✓). Classified each per the README (A = expected/log, B = silenced-
+but-actionable, C = intentional no-op):
+
+**Deviation — centralised, not inline.** The README suggested converting each
+`.catch(() => {})` inline at the call site. The bulk of them (12) were
+fire-and-forget storage cleanups: `deleteDeckCover` (9 call sites in
+CreateDeckEditor) and `deleteProfileAvatar` (3 in Settings). Instead of 12
+inline `captureError` calls, I moved the reporting **into the two helpers**
+(`lib/deck-image-upload.js`, `lib/avatar-storage.js`) and **removed the now-
+redundant `.catch()`** from every call site. Reasons: DRY, one report point
+per operation (less Sentry-spam risk), and the H8 grep
+(`.catch(() => {})`) comes back clean. The helpers wrap in try/catch so they
+never reject — callers can fire-and-forget safely.
+
+**Bonus correctness:** `supabase.storage.remove()` does **not** reject on API
+errors (RLS, etc.) — it resolves with `{ error }`, which the old `.catch()`
+never saw. The helpers now report **both** the thrown exception and a returned
+`{ error }`.
+
+**Caso B (report, low frequency):** App.jsx sidebar-badge fetches
+(countVisibleNotifications, countPendingReviewsForTeacher, activeSessionPoll)
+and SessionFlow.jsx `cacheAccessToken` → `captureError(err, { source })`.
+
+**Caso A (report):** tokens.js `localStorage.setItem(theme)` → `captureError(…,
+{ kind: "localstorage_write" })`, the README's exact example. This couples the
+design-token module to `lib/sentry`, but `@sentry/react` is already in the
+entry graph via App.jsx's static `captureError` import, so no new bundle cost
+and no import cycle.
+
+**Caso C (comment, do NOT report — spam risk):** chunk prefetch (App.jsx:393,
+already commented), obsolete-key `localStorage.removeItem` (App.jsx 274/689),
+`sessionStorage.removeItem` and `clearGuestSession` best-effort cleanups
+(StudentJoin), and the clipboard `execCommand` fallback-of-fallback
+(ClassPage, MyClassesTeacher). Each empty catch now carries an explanatory
+comment.
+
+**Process note:** PR 135's CHANGES_TO_PLAN.md entry was left uncommitted (the
+file is git-tracked but I only `git add src/i18n` on PR 135). Recovered in a
+doc commit alongside this entry.
+
+---
+
+## 2026-05-22 — PR 135 done, with 3 deviations from the README
+
+**Status:** ✅ done + merged to main. Batch G (TS migration) complete.
+
+`en/es/ko.js` → `.ts`, `Locale` type derived from EN, parity test added,
+all gates green (typecheck 0 errors · 101 tests incl. 3 new · build ✓).
+Three deviations from the README, all because the README's snippets were
+illustrative and didn't match the real files:
+
+**1. NO `as const`.** The README proposed
+`export const en = {...} as const; type Locale = typeof en`. That is
+**wrong** for this use case: `as const` makes every string a *literal*
+type, so `Locale` would demand `es.common.save === "Save"` — but es says
+`"Guardar"`. Every single translation would be a type error. Fix: plain
+`const en = {...}` (no `as const`) so values widen to `string`/`string[]`/
+`(n: number) => string`. `Locale = typeof en` still enforces the **key
+shape** (missing/extra key = compile error), which is the point of M30.
+
+**2. Kept `export default`.** The README showed named exports
+(`export const en`) and said to update the hook's import. The real
+locales use `export default {...}` and the only consumer,
+`src/i18n/index.js`, does `import en from "./en"`. Keeping the default
+export means **index.js needs zero changes**. The `Locale` type is still
+exported (`export type Locale = typeof en` alongside `export default en`).
+`index.js` was left as `.js` (out of scope; `checkJs:false` anyway).
+
+**3. Real structure preserved.** The README's example shape
+(`common/auth/decks`) is not the real one — locales are
+namespace-per-component (`avatarOnboarding`, `scanner`, `decks`, …, 33
+namespaces). No keys were reorganized; that would break every
+`useT("namespace")` call site.
+
+**Bonus — real bug found by tsc (TS1117):** the `decks` namespace had 3
+**duplicate keys** (`makePublic`, `delete`, `edit`). JS silently kept the
+*last* occurrence; TS strict rejected the literal. Removed the **shadowed
+earlier** copies (kept the last/runtime-effective value), so behavior is
+unchanged. The earlier `makePublic` strings ("Make public to community" /
+"Hacer público en comunidad" / "커뮤니티에 공개") were dead — never rendered,
+since `t.makePublic` already resolved to the later "Make public" value.
+
+**Parity test adaptation:** values aren't all strings — 7 are
+interpolation functions (e.g. `scanner.resultScore`) and 2 are arrays
+(`community.langs`, `lobbyThemeSelector.sampleOptions`). `collectKeys`
+recurses into arrays (so array-length drift IS caught at runtime, which
+the widened `string[]` type would miss) and treats functions as leaves;
+the leaf-type assertion allows `string | function`.
+
+**Follow-up (optional):** components consuming `useT` are still untyped
+JS. A future PR could import `Locale`/namespace types at call sites for
+end-to-end type safety, but that's a large, separate change.
+
+---
+
 ## 2026-05-22 — HOTFIX: PR 107 broke deck creation (found in QA)
 
 **Status:** 🔧 fixed in prod + committed.
