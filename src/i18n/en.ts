@@ -1175,6 +1175,10 @@ const en = {
     withClass: "You were removed from {class}",
     withoutClass: "You were removed from this class",
   },
+
+  mobileMenu: {
+    openMenu: "Open menu",
+  },
 };
 
 // `Locale` es la forma canónica de un locale, derivada de EN. Los strings

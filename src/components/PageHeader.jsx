@@ -13,10 +13,10 @@ import { C } from "./tokens";
 
 export default function PageHeader({
   title,
-  // lang and setLang are still accepted as props so existing call sites
-  // don't have to change, but they're no longer used inside the header.
-  // The language selector moved to the sidebar footer (App.jsx).
-  lang: _lang,
+  // setLang is still accepted but unused — the language selector moved to the
+  // sidebar footer (App.jsx). lang is used again (PR 153) to localize the
+  // mobile menu button's aria-label.
+  lang,
   setLang: _setLang,
   maxWidth = 800,
   onOpenMobileMenu,
@@ -36,7 +36,7 @@ export default function PageHeader({
       }}
     >
       <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
-        <MobileMenuButton onOpen={onOpenMobileMenu} />
+        <MobileMenuButton onOpen={onOpenMobileMenu} lang={lang} />
         <h1
           style={{
             fontFamily: "'Outfit',sans-serif",

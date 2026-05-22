@@ -4,6 +4,7 @@
 // The matchMedia listener lives here too so this component is self-contained.
 // App.jsx re-exports `useIsMobile` from the same place to keep one source.
 import { useState, useEffect } from "react";
+import { useT } from "../i18n";
 
 export function useIsMobile() {
   const [isMobile, setIsMobile] = useState(() => {
@@ -24,13 +25,16 @@ export function useIsMobile() {
   return isMobile;
 }
 
-export default function MobileMenuButton({ onOpen }) {
+export default function MobileMenuButton({ onOpen, lang }) {
   const isMobile = useIsMobile();
+  // PR 153 (M32): localized aria-label (called before the early return so the
+  // hook order stays stable). Callers thread `lang` (PageHeader, SessionFlow).
+  const t = useT("mobileMenu", lang);
   if (!isMobile || !onOpen) return null;
   return (
     <button
       onClick={onOpen}
-      aria-label="Open menu"
+      aria-label={t.openMenu}
       style={{
         width: 40, height: 40, borderRadius: 10,
         background: "#FFFFFF", border: "1px solid #E8E8E4",

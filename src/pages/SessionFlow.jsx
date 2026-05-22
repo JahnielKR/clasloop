@@ -2400,7 +2400,7 @@ export default function SessionFlow({ lang = "en", setLang, onNavigateToDecks, o
           own so the user can still open the drawer on mobile. */}
       {(step === "lobby" || step === "live") && (
         <div style={{ maxWidth: 800, margin: "0 auto 16px" }}>
-          <MobileMenuButton onOpen={onOpenMobileMenu} />
+          <MobileMenuButton onOpen={onOpenMobileMenu} lang={lang} />
         </div>
       )}
 

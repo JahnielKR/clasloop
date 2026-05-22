@@ -1169,6 +1169,10 @@ const ko: Locale = {
     withClass: "{class}에서 제거되었습니다",
     withoutClass: "이 수업에서 제거되었습니다",
   },
+
+  mobileMenu: {
+    openMenu: "메뉴 열기",
+  },
 };
 
 export default ko;
