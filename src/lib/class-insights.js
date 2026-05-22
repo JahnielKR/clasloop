@@ -84,14 +84,7 @@ export function groupRowsBySection(rows) {
   });
 }
 
-// Color the percentage bar by tier — same thresholds as deck-stats.js
-// and the rest of the app.
-//   ≥80 green : the class got it
-//   ≥50 orange: mixed, worth re-teaching some
-//   <50 red   : needs serious re-teaching
-export function pctColor(pct, palette) {
-  if (pct == null) return palette.textMuted;
-  if (pct >= 80) return palette.green;
-  if (pct >= 50) return palette.orange;
-  return palette.red;
-}
+// PR 154 (M33): pctColor (the 80/50 SCORE tiers) now lives in
+// scoring-thresholds.ts as the single source of truth. Re-exported here so
+// existing importers (ClassInsights) don't change.
+export { pctColor } from "./scoring-thresholds";
