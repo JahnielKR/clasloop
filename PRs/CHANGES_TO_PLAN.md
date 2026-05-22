@@ -8,6 +8,38 @@ Entries are appended chronologically. Most recent at the top.
 
 ---
 
+## 2026-05-22 — PR 167 done (foundation); Playwright e2e + public flows (H22 pt 2)
+
+**Status:** ✅ done + merged to main (`132bb3d`). **Foundation + public flows**
+(the user picked this option); authed flows scaffolded `.skip`. Gates green
+(typecheck 0 · 156 unit tests · build ✓) + **e2e: 2 passed / 5 skipped**.
+
+Set up `@playwright/test` + `playwright.config.ts` (chromium; `webServer = npm
+run dev` :3000) + `test:e2e`/`test:e2e:ui` scripts + `e2e/` + `.gitignore`
+artifacts. **`vite.config.js`: scoped Vitest `include` to `src/`** — Vitest's
+default include also matches `*.spec`, so without this it would try to run
+Playwright's `e2e/*.spec.ts` (which import `@playwright/test`) and fail.
+
+- **`e2e/public.spec.ts` — RUN + passing (2/2):** PublicHome landing +
+  `/join` guest screen. No auth, no data writes → safe in CI without a backend.
+  Selectors verified against the real components (PublicHome/GuestJoin i18n).
+- **`e2e/authed.spec.ts` — 5 `test.skip` scaffolds** (sign-up, login,
+  deck-create, session+join, student question types). They WRITE data, so they
+  need a dedicated **TEST Supabase project + teacher creds — never prod** (PR 107
+  lesson). I have neither (and can't enter passwords), so they're skipped with
+  TODOs; `e2e/README.md` documents enabling them.
+
+**Per the REALITY CHECK:** `MOCK_ANTHROPIC` is fictional + the `api/` serverless
+path doesn't run under `npm run dev`, so **insight-generation is NOT e2e-scaffolded**
+(noted for a stubbed-webhook integration test later). The Playwright **MCP
+browser** (used for QA in earlier PRs) ≠ this committed `@playwright/test` suite —
+this PR delivers the latter. Chromium-only for now (firefox/webkit later).
+
+**Follow-up:** enabling the authed e2e (and having PR 168 CI run them) needs a
+user-provided TEST Supabase project + `E2E_TEACHER_EMAIL/PASSWORD` as CI secrets.
+
+---
+
 ## 2026-05-22 — PR 165; L15 done, L11 no-op, L17 deferred — Batch J COMPLETE
 
 **Status:** ✅ merged to main (`a67a182`). Gates green (typecheck 0 · 156 tests
