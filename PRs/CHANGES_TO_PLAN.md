@@ -8,6 +8,45 @@ Entries are appended chronologically. Most recent at the top.
 
 ---
 
+## 2026-05-22 — PR 142 partial; envelopes only, NOT the README's _lib/auth.js
+
+**Status:** ✅ done + merged to main. Partially addresses M8. (User chose
+"envelopes only, minimum risk" from a 3-way prompt.)
+
+Unified the error envelopes of `generate.js` and `close-unit-narrative.js` from
+prose (`'Missing Authorization header'`, `'Only teachers can…'`) to snake_case
+codes, matching `session-insight.js` which was already snake. The 429 keeps its
+human `message`; config 500s collapse to `server_misconfigured` (also stops
+leaking which env var is missing).
+
+**Two reasons the README's `_lib/auth.js` extraction was NOT done:**
+
+1. **The README's auth pattern is wrong/dangerous here.** It sketches
+   `createClient(url, ANON, { headers: { Authorization } })` + RLS, and an
+   **in-memory** rate limiter. Reality: all 3 endpoints use **SERVICE_KEY**
+   (`supabaseAdmin`, bypass RLS — their ownership queries depend on it) and a
+   **DB-based** rate limit (`ai_generations` count, 50/day, persists across
+   cold starts). Following the README would break RLS and downgrade the limit
+   to per-cold-start (≈ineffective on serverless).
+2. **`api/` can't be verified the way `src/` can.** `tsconfig` only includes
+   `src/`, so `typecheck` skips `api/`; Vite's build skips it too (these are
+   Vercel serverless functions); and they don't run under `npm run dev`, so
+   there's no local smoke test without `vercel dev`/deploy. Refactoring the
+   auth *flow* of 3 security endpoints without runtime verification is too
+   risky right now.
+
+**Why envelopes-only is safe:** clients map by **HTTP status** (ai.js: 401/
+403/429) or use the error **only as a truthy flag** with a generic i18n
+message (CloseUnitFlow shows `t.aiError`), never by the code text. Verified
+with `node --check` on both files + a grep confirming no multi-word codes
+remain.
+
+**Follow-up:** extract shared `requireAuth`/`requireTeacher`/
+`requireDailyRateLimit` (preserving SERVICE_KEY + DB rate limit) once the
+endpoints can be exercised in a test/staging environment.
+
+---
+
 ## 2026-05-22 — PR 141 partial; extracted getTypeRules, not the .md redesign
 
 **Status:** ✅ done + merged to main. Partially addresses M7. Gates green
