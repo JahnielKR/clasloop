@@ -14,6 +14,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
+import { formatSupabaseError } from "../lib/supabase-errors";
 import { CIcon } from "../components/Icons";
 import { DeckCover, resolveColor as resolveDeckColor } from "../lib/deck-cover";
 import { useIsMobile } from "../components/MobileMenuButton";
@@ -716,7 +717,7 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
       .single();
     setCreatingUnit(false);
     if (error || !data) {
-      setNewUnitError(error?.message || "Could not create unit");
+      setNewUnitError(formatSupabaseError(error, lang));
       return;
     }
     setUnits(prev => [...prev, data]);

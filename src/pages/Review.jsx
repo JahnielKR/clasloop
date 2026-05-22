@@ -180,7 +180,8 @@ export default function Review({ profile, lang = "en", onOpenMobileMenu }) {
         .order("created_at", { ascending: true })
         .limit(200);
       if (err) {
-        setError(t.fetchError + " " + err.message);
+        // PR 144 (M21): don't append err.message — it can leak RLS/SQL detail.
+        setError(t.fetchError);
         setItems([]);
         return;
       }
