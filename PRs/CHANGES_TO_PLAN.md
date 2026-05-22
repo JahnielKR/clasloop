@@ -8,6 +8,54 @@ Entries are appended chronologically. Most recent at the top.
 
 ---
 
+## 2026-05-22 — PR 170a (cont.) — Decks page migrated to React Query, USER-VERIFIED
+
+**Status:** ✅ done + merged to main (`258dac2`). **Verified by the user logged in**
+(test teacher account) — the loop worked: I wrote it on a branch, the user smoke-
+tested every flow, all good. Gates green (typecheck 0 · lint 0 errors · 164 tests
+· build ✓ · e2e public boot 2/2).
+
+**What changed.** New `src/hooks/useDecks.js`:
+- `useDecksPage()` — ONE cached query (`['decksPage']`) whose queryFn is the old
+  `loadData` body verbatim (auth.getUser → classes → decks → units → favorites),
+  returning `{ userId, userClasses, myDecks, allUnits, favoriteDecks }`.
+- `useDecksCache()` — `patchMyDecks`/`patchFavorites` = `setQueryData` helpers.
+
+`Decks.jsx`: dropped the 6 data `useState` + `loadData` + the PR-143 `onLoad`
+effect; the 4 datasets (memoized — see below) + `userId` now come from the query;
+the **7 mutation sites** (remove-favorite, customize, delete, publish ×2, reorder,
+and the editor's `onCreated`) kept their **byte-identical optimistic updaters**,
+just renamed `setMyDecks`/`setFavoriteDecks` → `patchMyDecks`/`patchFavorites`
+(so they patch the cache instead of local state). `activeClassTab` auto-select
+moved from inside loadData to a `useEffect` on the classes data.
+
+**Decisions / deviations:**
+- **Single page-level query, NOT the README's granular `['decks', filters]`.**
+  Lowest-risk faithful migration — the fetch logic is unchanged, so behavior is
+  preserved by construction. Granular per-entity queries can come in 170b-g.
+- **Memoized the 4 datasets** (`useMemo(() => pageData?.x ?? [], [pageData])`):
+  required — `exhaustive-deps` (now `error`, PR 143) flagged that the `?? []`
+  fallback hands a fresh array each render, which would thrash the activeClassTab
+  effect's deps; also avoids needless child re-renders.
+- **Devtools still deferred** (will add lazy/dev-only in 170b).
+
+**User feedback — two NON-issues (both unrelated to this migration):**
+1. **"generar con AI → API error 404"** — expected under `npm run dev`: the AI
+   endpoint is a Vercel serverless fn in `api/` which Vite does NOT serve (needs
+   `vercel dev` + secrets). This migration didn't touch `api/` or the editor's AI
+   call. Not a regression.
+2. **"worth review today" decks show the bg color, not white** — that section is
+   in **`StudentJoin.jsx`** (the student practice view: "your plan for today" /
+   "worth reviewing"), a DIFFERENT page the Decks migration never touched. Pre-
+   existing styling; the user confirmed it reads fine (differentiates the two
+   groups). Confirmed by grep — those strings are not in `Decks.jsx`.
+
+**Next:** 170b (Classes — MyClasses/ClassPage) via the same loop (branch → user
+verifies logged in → merge). Internal order after: c/e/f parallelizable, d
+(sessions/realtime) highest-risk, g (`*Tick` removal) after b+d.
+
+---
+
 ## 2026-05-22 — PR 170a done (SETUP ONLY); React Query provider. Page migrations deferred
 
 **Status:** ✅ done + merged to main (`3853d43`). **Scoped to the setup step** —
