@@ -8,6 +8,37 @@ Entries are appended chronologically. Most recent at the top.
 
 ---
 
+## 2026-05-22 — PR 147 done; MobileBlockedScreen + removedToast → centralized i18n (M17)
+
+**Status:** ✅ done + merged to main (`1bfb741`). Closes M17. Gates green
+(typecheck 0 · 140 tests · build ✓) + browser-verified.
+
+Added namespaces **`mobileBlocked`** `{title,body,cta}` and
+**`removedFromClass`** `{withClass,withoutClass}` to `en/es/ko.ts` — the exact
+strings relocated from the inline objects, **no translation change**.
+`MobileBlockedScreen.jsx` now uses `useT('mobileBlocked', lang)`; the
+`removedToast` block in `App.jsx` uses **`getStrings('removedFromClass', lang)`**.
+
+**Two small calls:**
+- **`getStrings`, not the `useT` hook, for the toast** — it renders inside an
+  IIFE (`{removedToast && (() => {…})()}`), not at the component top level, so a
+  hook would violate the rules-of-hooks. `getStrings` is the non-hook accessor
+  the i18n module exposes for exactly this. `role="status"`/`aria-live="polite"`
+  preserved.
+- **Did NOT extract `RemovedFromClassToast.jsx`** (the README floated it, citing
+  PR 112's plan). PR 112 deliberately deferred that extraction; M17 only asks to
+  de-duplicate the i18n, which the in-place `getStrings` does. Extraction stays
+  an optional follow-up.
+
+**Verification:** MobileBlockedScreen renders on the **public `/join`** route at
+mobile width (no auth needed) — confirmed en/es/ko (title + CTA) in the browser,
+0 console errors. The `removedToast` is a pure string relocation but isn't
+runtime-triggerable without auth + a second teacher removing a student; it's
+covered by typecheck (the `Locale` type) + the locale-parity test (key parity)
++ the unchanged `.replace("{class}", …)` / role / aria.
+
+---
+
 ## 2026-05-22 — PR 146 done; Modal a11y primitive + CreateClassModal adoption (H23, PARTIAL)
 
 **Status:** ✅ done + merged to main (`fdaa555`). H23 **partially** addressed
