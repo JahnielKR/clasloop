@@ -8,6 +8,53 @@ Entries are appended chronologically. Most recent at the top.
 
 ---
 
+## 2026-05-22 — PR 170 — student pages (MyClasses + Favorites) → React Query. **170 COMPLETE; PR PLAN 101→170 DONE.** 🎉
+
+**Status:** ✅ done + merged to main (`9c56881`). **User-verified LIVE** (student
+account). Gates green (typecheck 0 · lint 0 errors / 400 warnings · 164 tests ·
+build ✓ · e2e public 2/2).
+
+**What changed.** Two new hooks:
+- `src/hooks/useFavorites.js`: `useFavorites(profileId)` (the saved_decks list,
+  query data IS the array) + `useFavoritesCache().patchSavedDecks`.
+- `src/hooks/useStudentClasses.js`: `useStudentClasses(profileId, membershipTick)`
+  (classes enriched with deck count / reviews-due / avg retention + saved decks;
+  **`studentMembershipTick` is in the query key** so a join/leave refetches —
+  preserving the old effect-dep behavior) + `useStudentClassesCache()`
+  (`patchSavedDecks` + `invalidate`); and `useClassDetail(classId, profileId)`
+  (the class's decks + the student's progress, read-only).
+- `Favorites.jsx` + `MyClasses.jsx` (student view + its `ClassDetail`
+  subcomponent): dropped the data `useState` + load fns + the PR-143 onLoad
+  effects; read from the queries; the saved-deck toggles `patchSavedDecks`; the
+  join handler (was `await loadAll()`) and `ClassDetail`'s `onBack` now
+  `invalidate()` to refresh. Behavior-preserving by construction.
+
+### 🎉 PR 170 COMPLETE — and with it the whole sequenced plan (PR 101 → 170).
+
+**React Query migration (M1) — all the query-cacheable pages migrated + verified:**
+Decks · MyClassesTeacher · ClassPage · Community · Notifications · TeacherProfile ·
+Director · MyClasses (student) · Favorites. Setup (provider) in `main.jsx`. Hooks
+in `src/hooks/use{Decks,Classes,Community,TeacherProfile,Director,Favorites,StudentClasses}.js`.
+
+**Intentionally SKIPPED (documented, not react-query-appropriate):**
+- **SessionFlow** (live-session page): realtime — `session` is a live state
+  machine + 4 Supabase channels (participants/responses kept live by
+  subscription), NOT cacheable query data. React Query is the wrong tool;
+  forcing it = risk for no benefit. Left as-is.
+- **170g `*Tick` removal** (`studentMembershipTick`, `activeSessionTick` in
+  App.jsx): these feed App-level realtime state (the active-session probe at
+  ~App:641, the membership realtime at ~App:679) + are still consumed (the
+  student-classes query key uses `studentMembershipTick`). They're doing real
+  work that isn't react-query; left in place.
+
+**Devtools:** never added (deferred each sub-PR; not needed for the migration to
+function — a clean follow-up if anyone wants the panel). **Follow-ups still open**
+from earlier PRs (unchanged): 143's ~28 realtime exhaustive-deps suppressions,
+146's 8 modals, 154's retention axis, 168's CI secrets + branch protection, 169's
+L4/L6/L12/L19, the react/jsx-uses-vars lint chip. None block the plan.
+
+---
+
 ## 2026-05-22 — PR 170 — Director (school analysis) migrated to React Query
 
 **Status:** ✅ done + merged to main (`e96a54f`). Merged on the user's "dale"
