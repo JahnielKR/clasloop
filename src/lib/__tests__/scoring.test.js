@@ -1,3 +1,4 @@
+/* @vitest-environment node */
 // ─── scoring.test.js ───────────────────────────────────────────────────
 //
 // PR 70: tests para scoring.js. Esta función decide si el alumno acertó

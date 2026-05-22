@@ -1,3 +1,4 @@
+/* @vitest-environment node */
 // ─── spaced-repetition.test.js ─────────────────────────────────────────
 //
 // PR 70: tests para las funciones puras de spaced-repetition.js.

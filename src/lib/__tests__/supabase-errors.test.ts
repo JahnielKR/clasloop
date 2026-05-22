@@ -1,3 +1,4 @@
+/* @vitest-environment node */
 // ─── supabase-errors.test.ts ────────────────────────────────────────────
 //
 // PR 144 (M21): formatSupabaseError must turn raw errors into friendly,

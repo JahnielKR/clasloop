@@ -90,6 +90,11 @@ export default defineConfig({
     // Convention: ponerlos en src/lib/__tests__/*.test.js
     // (Vitest los descubre automaticamente).
     globals: false,  // Forzar import explicit de { describe, it, expect }
-    environment: 'node',  // Tests de funciones puras — no necesitamos jsdom
+    // PR 166: jsdom global para los component tests (React render con
+    // @testing-library/react). Los tests de libs algorítmicos se quedan en
+    // node con el comment-pragma `/* @vitest-environment node */` al inicio
+    // del archivo (evita el overhead de jsdom para funciones puras).
+    environment: 'jsdom',
+    setupFiles: ['./src/test-setup.js'],
   },
 })
