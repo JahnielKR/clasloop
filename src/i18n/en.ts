@@ -1092,6 +1092,7 @@ const en = {
     sliderHint: "Student sees a slider from min to max, drags to estimate, ✓ if within tolerance.",
     addQuestionImage: "+ Add image", removeQuestionImage: "Remove image", changeQuestionImage: "Change image",
     questionImageHint: "Optional image displayed with the question",
+    imageAltPlaceholder: "Describe the image for screen readers (optional)",
     // ── AI generation panel ──
     aiGenerateButton: "Generate with AI",
     aiPanelTitle: "Generate questions with AI",

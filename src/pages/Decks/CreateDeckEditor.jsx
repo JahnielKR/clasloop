@@ -2134,6 +2134,7 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
 
                       {/* Question image: preview if present, otherwise add button */}
                       {q.image_url ? (
+                        <>
                         <div style={{
                           position: "relative",
                           marginBottom: 10,
@@ -2144,7 +2145,7 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
                         }}>
                           <img
                             src={q.image_url}
-                            alt=""
+                            alt={q.image_alt || q.q || t.questionImageHint}
                             style={{
                               display: "block", width: "100%", maxHeight: 240,
                               objectFit: "contain", background: C.bg,
@@ -2169,6 +2170,21 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
                             </button>
                           </div>
                         </div>
+                        {/* PR 152 (M31): alt text the teacher can write so screen
+                            readers describe the image; falls back to q.q. */}
+                        <input
+                          type="text"
+                          value={q.image_alt || ""}
+                          onChange={e => updateQ(qi, "image_alt", e.target.value)}
+                          placeholder={t.imageAltPlaceholder}
+                          style={{
+                            width: "100%", marginBottom: 10, padding: "8px 10px",
+                            fontSize: 12.5, border: `1px solid ${C.border}`,
+                            borderRadius: 8, background: C.bg, color: C.text,
+                            fontFamily: "'Outfit',sans-serif", boxSizing: "border-box",
+                          }}
+                        />
+                        </>
                       ) : (
                         <button
                           type="button"

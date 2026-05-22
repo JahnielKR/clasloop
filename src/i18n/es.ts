@@ -1088,6 +1088,7 @@ const es: Locale = {
     sliderHint: "El estudiante ve un slider de mín a máx, arrastra para estimar. ✓ si está dentro de la tolerancia.",
     addQuestionImage: "+ Agregar imagen", removeQuestionImage: "Quitar imagen", changeQuestionImage: "Cambiar imagen",
     questionImageHint: "Imagen opcional que se muestra con la pregunta",
+    imageAltPlaceholder: "Describí la imagen para lectores de pantalla (opcional)",
     // ── AI generation panel ──
     aiGenerateButton: "Generar con AI",
     aiPanelTitle: "Generar preguntas con AI",

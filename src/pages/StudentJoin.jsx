@@ -2435,7 +2435,7 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
                             <img
                               className="question-image"
                               src={displayedQ.image_url}
-                              alt=""
+                              alt={displayedQ.image_alt || displayedQ.q || ""}
                             />
                           </div>
                         )}
@@ -2523,6 +2523,10 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
                             >
                               <div className="tile-letter">{letter}</div>
                               {optImg && (
+                                // PR 152 (M31): decorative — the option is already
+                                // labelled by the tile-letter (A/B/C…) and optText
+                                // beside it, so the image must NOT repeat them (and
+                                // the question text is not its description).
                                 <img className="tile-image" src={optImg} alt="" />
                               )}
                               {optText && (
@@ -2991,7 +2995,7 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
               }}>
                 <img
                   src={q.image_url}
-                  alt=""
+                  alt={q.image_alt || q.q || ""}
                   style={{
                     display: "block", width: "100%", maxHeight: 240,
                     objectFit: "contain", background: "#000",
