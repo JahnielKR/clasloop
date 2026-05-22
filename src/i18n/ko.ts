@@ -1,9 +1,15 @@
-// ─── i18n/ko.js ────────────────────────────────────────────────────────
+// ─── i18n/ko.ts ────────────────────────────────────────────────────────
 //
 // PR 73-75: traducciones en COREANO, agrupadas por namespace.
-// Ver en.js para documentación de la estructura.
+// Ver en.ts para documentación de la estructura.
+//
+// PR 135: tipado como `Locale` (derivado de en.ts). Si falta o sobra una
+// key respecto a en.ts, TypeScript falla en compile. Los parámetros de las
+// funciones (ej. repeatedNote) se tipan por contexto desde `Locale`.
 
-export default {
+import type { Locale } from "./en";
+
+const ko: Locale = {
   // ─── PR 73 ───────────────────────────────────────────────────────────
 
   avatarOnboarding: {
@@ -1031,7 +1037,7 @@ export default {
     tagsPlaceholder: "혁명, 유럽, 역사",
     activityType: "활동 유형", questions: "문제", addQuestion: "+ 문제 추가",
     questionText: "문제", option: "선택지", removeQuestion: "삭제",
-    publish: "덱 저장", publishing: "저장 중...", makePublic: "커뮤니티에 공개",
+    publish: "덱 저장", publishing: "저장 중...",
     derivIdentical: "원본과 동일합니다 — 게시할 수 없습니다",
     derivBlocked: "적응 부족 — 게시할 수 없습니다",
     derivAdapted: "각색됨으로 게시됩니다",
@@ -1046,7 +1052,7 @@ export default {
     gradePlaceholder: "예: 6학년, 7-9학년, 혼합",
     lockedByClass: "잠김 — 선택된 수업이 정합니다.",
     back: "뒤로", noDecks: "아직 덱이 없습니다. 만들기를 클릭하세요.",
-    private: "비공개", public: "공개", delete: "삭제", edit: "편집", results: "결과",
+    private: "비공개", public: "공개", results: "결과",
     questionCount: "문제", launchSession: "수업에서 시작",
     deleteConfirm: "이 덱을 삭제하시겠습니까?",
     by: "",
@@ -1151,3 +1157,5 @@ export default {
     pdfErrorMsg: "PDF 내보내기에 실패했습니다. 다시 시도하세요.",
   },
 };
+
+export default ko;
