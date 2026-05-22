@@ -626,7 +626,7 @@ const ko: Locale = {
   myClasses: {
     pageTitle: "내 수업", subtitle: "교실과 덱을 한 곳에서.",
     joinClass: "+ 수업 참여", joinClassTitle: "수업에 참여",
-    classCode: "수업 코드", classCodePlaceholder: "예: MATH-8B",
+    classCode: "수업 코드", classCodePlaceholder: "예: MATH-8-ABC",
     join: "참여", joining: "참여 중...", cancel: "취소",
     notFound: "수업을 찾을 수 없습니다. 코드를 확인하세요.",
     alreadyJoined: "이미 참여한 수업입니다.",

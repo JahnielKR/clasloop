@@ -626,7 +626,7 @@ const es: Locale = {
   myClasses: {
     pageTitle: "Mis Clases", subtitle: "Tus salones y decks en un solo lugar.",
     joinClass: "+ Unirse a Clase", joinClassTitle: "Unirse a una clase",
-    classCode: "Código de clase", classCodePlaceholder: "ej. MATH-8B",
+    classCode: "Código de clase", classCodePlaceholder: "ej. MATH-8-ABC",
     join: "Unirse", joining: "Uniéndose...", cancel: "Cancelar",
     notFound: "Clase no encontrada. Verifica el código.",
     alreadyJoined: "Ya estás en esta clase.",
