@@ -86,9 +86,11 @@ export default defineConfig({
   },
   // PR 70: Vitest config (mismo defineConfig que vite, Vitest lo lee).
   test: {
-    // Default: tests en archivos *.test.{js,jsx,ts,tsx}
-    // Convention: ponerlos en src/lib/__tests__/*.test.js
-    // (Vitest los descubre automaticamente).
+    // Convention: tests en src/**/__tests__/*.test.{js,ts,jsx,tsx}.
+    // PR 167: acotamos `include` a src/ — el default de Vitest también matchea
+    // *.spec, y Playwright usa e2e/*.spec.ts; sin esto, Vitest intentaría
+    // correr los e2e (que importan @playwright/test) y fallaría.
+    include: ['src/**/*.{test,spec}.{js,jsx,ts,tsx}'],
     globals: false,  // Forzar import explicit de { describe, it, expect }
     // PR 166: jsdom global para los component tests (React render con
     // @testing-library/react). Los tests de libs algorítmicos se quedan en

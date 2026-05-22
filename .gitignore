@@ -17,3 +17,8 @@ ios/App/build/
 
 .vercel
 .env*
+
+# Playwright e2e (PR 167) — generated artifacts, never committed
+/test-results/
+/playwright-report/
+/playwright/.cache/
