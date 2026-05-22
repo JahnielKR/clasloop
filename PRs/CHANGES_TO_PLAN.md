@@ -8,6 +8,37 @@ Entries are appended chronologically. Most recent at the top.
 
 ---
 
+## 2026-05-22 — HOTFIX: PR 107 broke deck creation (found in QA)
+
+**Status:** 🔧 fixed in prod + committed.
+
+**Bug:** PR 107's `CHECK (language in ('en','es','ko'))` on `decks`
+rejected `language = ''`, which is exactly what the deck editor
+(CreateDeckEditor) sends by default when the teacher doesn't pick a
+language. Result: after PR 107 was applied to prod, **no teacher could
+create a deck** — the insert failed with `23514`. Caught during
+Playwright QA of the create-deck flow (the POST to /rest/v1/decks
+returned 400).
+
+**Fix:** migration `20240101000054_decks_language_normalize_trigger.sql`
+adds a BEFORE INSERT/UPDATE trigger `normalize_deck_language()` that
+coerces null/empty/out-of-range language to 'en'. Runs before the CHECK,
+so the CHECK still holds and the table only stores en/es/ko. Chosen over
+fixing just the editor because it covers every insert path (editor,
+imports, copies, future clients). Applied to prod via `db query --linked`
+and verified (a deck saved with empty language now shows "EN").
+
+**Follow-up (optional, low priority):** also fix CreateDeckEditor to send
+the selected language (or 'en') instead of '' — cosmetic now that the DB
+normalizes, but cleaner.
+
+**Lesson:** a CHECK constraint added to an existing table must be
+validated against what the live app actually writes, not just the
+intended value set. PR 107's README assumed the app always sent a valid
+language; it didn't.
+
+---
+
 ## 2026-05-21 — PR 134 done conservatively (no Database generic)
 
 **Status:** ✅ migrated, but **without** the `createClient<Database>()` the
