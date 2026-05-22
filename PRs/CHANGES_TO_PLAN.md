@@ -8,6 +8,27 @@ Entries are appended chronologically. Most recent at the top.
 
 ---
 
+## 2026-05-22 — PR 162 done; Sidebar "active session" label → centralized i18n (L5)
+
+**Status:** ✅ done + merged to main (`a91a110`). Closes L5. Gates green
+(typecheck 0 · 156 tests · build ✓).
+
+`Sidebar.jsx` had a hardcoded `lang===` ternary for the active-session label
+(`"Active session"` / `"Sesión activa"` / `"진행 중인 세션"`). Added a new
+**`sidebar`** i18n namespace (en/es/ko) and **wired `useT` into Sidebar for the
+first time** — `activeSessionLabel = t.activeSession` (same strings, relocated).
+
+**Per the REALITY CHECK:** the README's "other Sidebar strings already use i18n"
+was false — Sidebar used **no `useT`** (only a `lang` prop). Only one
+translatable string existed (`:390`); the other `lang === code` expressions
+(`:628-630`) are language-picker selection-state checks, not strings — left
+untouched. Verified by typecheck (the `Locale` type + locale-parity test enforce
+the new namespace's parity); the label itself is authed + only shows with an
+active session, so not browser-smoke-tested (relocation of identical strings via
+the already-proven `useT`).
+
+---
+
 ## 2026-05-22 — PR 160 (M28) ⏭️ SKIPPED — `persistence: "memory"` is intentional
 
 **Status:** ⏭️ skipped — no code change (user decision). M28 stays open by
