@@ -8,6 +8,30 @@ Entries are appended chronologically. Most recent at the top.
 
 ---
 
+## 2026-05-22 — PR 153 done; localized aria-label for MobileMenuButton (M32)
+
+**Status:** ✅ done + merged to main (`b4876c6`). Closes M32. Gates green
+(typecheck 0 · 147 tests incl. 1 new · build ✓). **Unit-test verified.**
+
+The hamburger's `aria-label` was hardcoded `"Open menu"`. Now
+`useT("mobileMenu", lang).openMenu`. New `mobileMenu.openMenu` in en/es/ko —
+**open-only key** (the button has no `isOpen`, so the README's `closeMenu` is
+unused, omitted).
+
+**Threading (per the REALITY CHECK):** the component had **no `lang` prop**, so
+without threading it the label would silently stay English. Added `lang` to
+`MobileMenuButton` (called `useT` *before* the `!isMobile`/`!onOpen` early return
+to keep hook order stable) and passed it from both renderers — **PageHeader**
+(it already *received* `lang` from every caller but had stopped using it, so
+zero caller churn) and **SessionFlow** (`lang` prop in scope at :2403).
+
+**Verification:** extended `MobileMenuButton.test.jsx` — `lang="es"` →
+`aria-label="Abrir menú"` (and NOT "Open menu"). The existing "Open menu" test
+still passes because EN keeps that string. Real verification without a browser
+(RTL covers the actual component + i18n).
+
+---
+
 ## 2026-05-22 — PR 152 done; real alt text for informative question images (M31)
 
 **Status:** ✅ done + merged to main (`e0fe570`). Closes M31. Gates green
