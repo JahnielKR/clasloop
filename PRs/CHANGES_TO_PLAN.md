@@ -8,6 +8,34 @@ Entries are appended chronologically. Most recent at the top.
 
 ---
 
+## 2026-05-22 — PR 170 — Notifications migrated to React Query (user-verified "nítido")
+
+**Status:** ✅ done + merged to main (`9357e08`). User-verified ("nítido"). Gates
+green (typecheck 0 · lint 0 errors · 164 tests · build ✓ · e2e public 2/2).
+
+**What changed.** `Notifications.jsx`: `notifications` + `loading` now come from
+`useQuery(['notifications', lang])`. **No new hook file** — the queryFn is the
+existing `generateNotifications` (changed only its tail: `return notifs` instead
+of `setNotifications`+`setLoading`, and `return []` for no-user), kept inline
+because it builds the notif objects with the component's `t` (i18n) + `C` (colors);
+extracting to a hook would force a `t`→`getStrings` + color-import rewrite for no
+gain. Dropped the PR-143 `onGenerate` effect. `dismissed` (localStorage, via
+loadDismissed/saveDismissed + its persist effect) stays `useState` — it's client
+state, not server data, and filters the list in render.
+
+**Minor behavior improvement:** notifications now re-translate on language change
+(queryKey includes `lang`) and refresh on window focus (global default), vs the
+old build-once-on-mount. No optimistic mutations to convert (the list is read-only
+generated; dismissal is the separate localStorage path).
+
+**170 progress:** ✅ setup · Decks · MyClassesTeacher · ClassPage · Community ·
+Notifications. **Next teacher pages:** Profile, Director (= "school analysis",
+which the user clarified lives INSIDE the teacher account → teacher-verifiable,
+not a separate role). **Last + riskiest:** SessionFlow (sessions + realtime) →
+then 170g removes the App `*Tick`. **Student-session-needed:** MyClasses, Favorites.
+
+---
+
 ## 2026-05-22 — PR 170c — Community migrated to React Query
 
 **Status:** ✅ done + merged to main (`5a8f8e7`). Merged on the user's "dale"
