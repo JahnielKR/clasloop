@@ -8,6 +8,43 @@ Entries are appended chronologically. Most recent at the top.
 
 ---
 
+## 2026-05-22 — PR 137 skipped — already resolved (H3 closed by current code)
+
+**Status:** ⏭️ skipped — no code change. H3 ("AI endpoints log content +
+emails + DB details") is already satisfied in the files PR 137 targets.
+
+Audited every server-side log statement, not just the three the README named
+("probablemente logea content + teacher email" — that was an unverified guess):
+
+- **`api/close-unit-narrative.js`** — 0 `console.*`. No logging at all.
+- **`api/session-insight.js`** — 0 `console.*`. No logging at all.
+- **`supabase/functions/generate-insight/index.ts`** — 6 `console.*`, all
+  sanitised: webhook-auth failures (static strings), `"Insert failed:" +
+  insertErr` (DB error on `session_insights`, whose columns are
+  session_id/status/attempts — no student PII), and retry logs that print
+  Anthropic HTTP status + attempt count + a fetch (network) error. None print
+  request body, email, prompt, or student answers.
+- Full universe of server-side `console.*` is just `generate.js` (PR 94's
+  scope) + that edge function — nothing else in `api/` or
+  `supabase/functions/`.
+
+The README's own verification grep returns a single hit —
+`generate.js:426` — which is a **false positive** (the word "question" is in
+the log prefix `[validator] dropped question`; the logged values are the
+index `${i}` and the validator's `reason`, not question content) and is PR
+94's scope anyway.
+
+**Out of scope (NOT H3):** `session-insight.js:110`,
+`close-unit-narrative.js:194`, and `index.ts:154` return `*.message`/`detail`
+in HTTP **error responses** (to the authenticated owner of the resource), not
+in logs. Hardening those would be a separate information-disclosure finding,
+not H3.
+
+**Decision:** declare H3 closed by the existing implementation (PR 94 +
+endpoints written without PII logging). No branch, no code commit.
+
+---
+
 ## 2026-05-22 — PR 136 done; centralised storage-cleanup reporting
 
 **Status:** ✅ done + merged to main. Closes H8 (completes PR 100).
