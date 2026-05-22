@@ -69,6 +69,21 @@ describe("Modal", () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
+  // M18 (PR 148): the backdrop closes on mouse only and is a roleless <div>, so
+  // it must NOT be a keyboard tab stop — otherwise keyboard users would land on
+  // a clickable element a screen reader can't describe. Their close path is
+  // Escape (asserted here too). The focus-trap test alone would NOT catch a
+  // focusable backdrop, since the trap only cycles focusables inside the dialog.
+  it("M18: backdrop is not a keyboard tab stop; Escape is the keyboard close", () => {
+    const onClose = vi.fn();
+    renderOpen({ onClose });
+    const backdrop = screen.getByRole("dialog").parentElement;
+    expect(backdrop).not.toHaveAttribute("tabindex");
+    expect(backdrop.tabIndex).toBe(-1); // default for a non-focusable div
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
   it("traps Tab within the dialog (last→first, first→last)", () => {
     renderOpen();
     const first = screen.getByRole("button", { name: "First" });
