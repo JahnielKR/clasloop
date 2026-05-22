@@ -769,6 +769,15 @@ const ko: Locale = {
     insFailed: "틀림",
     insRetention: "수업 정착도",
     insResurface: "내일 워밍업에 다시 등장",
+    // Landing — Live session demo
+    liveTitle: "또는 라이브로 — 전체 학급이 함께",
+    liveSub: "순위표를 띄우고 학생들은 휴대폰으로 답하면 교실이 살아납니다. 같은 문제, 실시간 에너지.",
+    livePlaying: "참여 중",
+    liveLeaderboard: "순위",
+    liveCorrect: "정답!",
+    // Landing — Question types showcase
+    typesTitle: "아홉 가지 질문 방식",
+    typesSub: "빠른 점검부터 깊은 사고까지 — 순간에 맞는 문제 유형을 고르세요.",
     typeMcq: "객관식",
     typeTf: "참/거짓",
     typeFill: "빈칸 채우기",

@@ -769,6 +769,15 @@ const es: Locale = {
     insFailed: "lo falló",
     insRetention: "Retención de la clase",
     insResurface: "Vuelve en el warmup de mañana",
+    // Landing — Live session demo
+    liveTitle: "O lánzalo en vivo — toda la clase a la vez",
+    liveSub: "Proyecta la clasificación, los alumnos responden desde el móvil y el aula se enciende. Las mismas preguntas, energía en tiempo real.",
+    livePlaying: "jugando",
+    liveLeaderboard: "Clasificación",
+    liveCorrect: "¡Correcto!",
+    // Landing — Question types showcase
+    typesTitle: "Nueve formas de preguntar",
+    typesSub: "Desde un chequeo rápido hasta pensar más a fondo — elige el tipo de pregunta que encaje con el momento.",
     typeMcq: "Opción múltiple",
     typeTf: "Verdadero/Falso",
     typeFill: "Rellenar espacios",

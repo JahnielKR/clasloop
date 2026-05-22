@@ -8,6 +8,7 @@ import { landingCss } from "./landing-css";
 import Hero from "./sections/Hero";
 import GenerationDemo from "./sections/GenerationDemo";
 import PrintAndScanDemo from "./sections/PrintAndScanDemo";
+import LiveSessionDemo from "./sections/LiveSessionDemo";
 import QuestionTypes from "./sections/QuestionTypes";
 import InsightsDemo from "./sections/InsightsDemo";
 import WhyDaily from "./sections/WhyDaily";
@@ -192,6 +193,7 @@ export default function PublicHome({ onSignIn, onSignUp }) {
 
         <GenerationDemo t={t} lang={lang} />
         <PrintAndScanDemo t={t} lang={lang} />
+        <LiveSessionDemo t={t} lang={lang} />
         <QuestionTypes t={t} />
         <InsightsDemo t={t} lang={lang} />
         <WhyDaily t={t} />
