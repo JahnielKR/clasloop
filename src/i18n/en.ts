@@ -773,6 +773,15 @@ const en = {
     insFailed: "missed it",
     insRetention: "Class retention",
     insResurface: "Resurfaces in tomorrow's warmup",
+    // Landing — Live session demo
+    liveTitle: "Or run it live — the whole class at once",
+    liveSub: "Project it on the big screen, students answer on their phones — and set the room's vibe with a theme: calm, ocean, pop or mono.",
+    livePlaying: "playing",
+    liveLeaderboard: "Leaderboard",
+    liveCorrect: "Correct!",
+    // Landing — Question types showcase
+    typesTitle: "Nine ways to ask",
+    typesSub: "From a quick gut-check to deeper thinking — pick the question type that fits the moment.",
     typeMcq: "Multiple choice",
     typeTf: "True/False",
     typeFill: "Fill blanks",
