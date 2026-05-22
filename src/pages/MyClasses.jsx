@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from "react";
-import { useEffectEvent } from "../hooks/useEffectEvent";
+import { useState, useRef } from "react";
+import { useStudentClasses, useStudentClassesCache, useClassDetail } from "../hooks/useStudentClasses";
 import { useNavigate, useMatch } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { CIcon, LogoMark } from "../components/Icons";
@@ -76,9 +76,14 @@ export default function MyClasses({ lang: pageLang = "en", setLang: pageSetLang,
   const view = selectedClassId ? "class" : "list";
 
   // List view state
-  const [classes, setClasses] = useState([]);      // [{ ...class, teacher, reviewsDue, deckCount }]
-  const [savedDecks, setSavedDecks] = useState([]); // [{ ...deck, class_name, teacher_name }]
-  const [loading, setLoading] = useState(true);
+  // PR 170 (M1): classes + savedDecks now come from a cached React Query
+  // (src/hooks/useStudentClasses.js). studentMembershipTick is in the query key
+  // so a join/leave refetches (same as the old effect dep); the saved-deck
+  // handlers patch the cache, and the join handler invalidates to refresh.
+  const { data: scData, isLoading: loading } = useStudentClasses(profile?.id, studentMembershipTick);
+  const classes = scData?.classes ?? [];
+  const savedDecks = scData?.savedDecks ?? [];
+  const { patchSavedDecks, invalidate: invalidateStudentClasses } = useStudentClassesCache(profile?.id, studentMembershipTick);
 
   // Join form
   const [showJoinForm, setShowJoinForm] = useState(false);
@@ -89,69 +94,8 @@ export default function MyClasses({ lang: pageLang = "en", setLang: pageSetLang,
   const joinFormRef = useRef(null);
   const classRefs = useRef({});
 
-  // PR 26.2 + 26.3: studentMembershipTick increments every time the
-  // student's class membership changes (join via modal, leave via
-  // class detail). Including it in deps causes loadAll to re-run, so
-  // the list updates immediately without a page reload.
-  const onLoadAll = useEffectEvent(() => { loadAll(); });
-  useEffect(() => { onLoadAll(); }, [profile?.id, studentMembershipTick, onLoadAll]);
-
-  const loadAll = async () => {
-    if (!profile?.id) { setLoading(false); return; }
-    setLoading(true);
-
-    // 1. Classes the student belongs to (via class_members)
-    const { data: members } = await supabase
-      .from("class_members")
-      .select("class_id, classes(*, profiles:teacher_id(full_name, avatar_url, avatar_id, id))")
-      .eq("student_id", profile.id);
-
-    const list = (members || [])
-      .map(m => m.classes)
-      .filter(Boolean);
-
-    // 2. For each class, count decks + reviews due (best-effort)
-    const enriched = await Promise.all(list.map(async (cls) => {
-      const { count: deckCount } = await supabase
-        .from("decks")
-        .select("*", { count: "exact", head: true })
-        .eq("class_id", cls.id);
-
-      // Count reviews due for this student in this class
-      const { data: progress } = await supabase
-        .from("student_topic_progress")
-        .select("retention_score, last_reviewed_at")
-        .eq("student_id", profile.id)
-        .eq("class_id", cls.id);
-      const reviewsDue = (progress || []).filter(p => (p.retention_score ?? 100) < 65).length;
-      const avgRetention = (progress && progress.length > 0)
-        ? Math.round(progress.reduce((s, p) => s + (p.retention_score || 0), 0) / progress.length)
-        : null;
-
-      return {
-        ...cls,
-        deckCount: deckCount || 0,
-        reviewsDue,
-        avgRetention,
-      };
-    }));
-
-    setClasses(enriched);
-
-    // 3. Saved decks from community
-    const { data: saved } = await supabase
-      .from("saved_decks")
-      .select("deck_id, saved_at, is_favorite, decks(*, classes(name, profiles:teacher_id(full_name)))")
-      .eq("student_id", profile.id)
-      .order("saved_at", { ascending: false });
-
-    setSavedDecks((saved || [])
-      .filter(s => s.decks)
-      .map(s => ({ ...s.decks, _isFavorite: s.is_favorite || false }))
-    );
-
-    setLoading(false);
-  };
+  // PR 170: classes + savedDecks load via useStudentClasses() (above);
+  // React Query owns loading + caching.
 
   // ── Join class ──
   const openJoinForm = () => {
@@ -207,7 +151,7 @@ export default function MyClasses({ lang: pageLang = "en", setLang: pageSetLang,
     setJoinCode("");
     setFlashClassId(cls.id);
     setTimeout(() => setFlashClassId(null), 1600);
-    await loadAll();
+    await invalidateStudentClasses();
     setJoining(false);
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
@@ -222,7 +166,7 @@ export default function MyClasses({ lang: pageLang = "en", setLang: pageSetLang,
     await supabase.from("saved_decks").delete()
       .eq("student_id", profile.id)
       .eq("deck_id", deckId);
-    setSavedDecks(prev => prev.filter(d => d.id !== deckId));
+    patchSavedDecks(prev => prev.filter(d => d.id !== deckId));
   };
 
   // ── Toggle favorite on a saved deck ──
@@ -238,7 +182,7 @@ export default function MyClasses({ lang: pageLang = "en", setLang: pageSetLang,
     // means unsaving.
     // Optimistic remove from local list.
     const removed = savedDecks.find(d => d.id === deckId);
-    setSavedDecks(prev => prev.filter(d => d.id !== deckId));
+    patchSavedDecks(prev => prev.filter(d => d.id !== deckId));
     const { error } = await supabase.from("saved_decks")
       .delete()
       .eq("student_id", profile.id)
@@ -247,7 +191,7 @@ export default function MyClasses({ lang: pageLang = "en", setLang: pageSetLang,
       console.warn("[clasloop] unstar (toggle off) failed", { deckId, error });
       // Revert: put the deck back if DELETE failed.
       if (removed) {
-        setSavedDecks(prev => [removed, ...prev].sort((a, b) => 0));
+        patchSavedDecks(prev => [removed, ...prev].sort((a, b) => 0));
       }
     }
   };
@@ -297,7 +241,7 @@ export default function MyClasses({ lang: pageLang = "en", setLang: pageSetLang,
           profile={profile}
           t={t}
           lang={l}
-          onBack={() => { navigate(ROUTES.CLASSES); loadAll(); }}
+          onBack={() => { navigate(ROUTES.CLASSES); invalidateStudentClasses(); }}
           onLaunchPractice={onLaunchPractice}
         />
       </div>
@@ -703,24 +647,12 @@ export function SavedDeckCard({ deck, t, lang, onPractice, onToggleFavorite, onU
 function ClassDetail({ cls, profile, t, lang, onBack, onLaunchPractice }) {
   const isMobile = useIsMobile();
   const [activeTab, setActiveTab] = useState("reviews");
-  const [decks, setDecks] = useState([]);
-  const [progress, setProgress] = useState([]);
-  const [loading, setLoading] = useState(true);
   // PR 27: leavingConfirm state and handleLeave removed.
-
-  const onLoadDetail = useEffectEvent(() => { loadDetail(); });
-  useEffect(() => { onLoadDetail(); }, [cls.id, profile?.id, onLoadDetail]);
-
-  const loadDetail = async () => {
-    setLoading(true);
-    const [{ data: decksData }, { data: progressData }] = await Promise.all([
-      supabase.from("decks").select("*").eq("class_id", cls.id).order("created_at", { ascending: false }),
-      supabase.from("student_topic_progress").select("*").eq("student_id", profile.id).eq("class_id", cls.id),
-    ]);
-    setDecks(decksData || []);
-    setProgress(progressData || []);
-    setLoading(false);
-  };
+  // PR 170 (M1): decks + progress now come from a cached React Query
+  // (src/hooks/useStudentClasses.js → useClassDetail).
+  const { data: cdData, isLoading: loading } = useClassDetail(cls.id, profile?.id);
+  const decks = cdData?.decks ?? [];
+  const progress = cdData?.progress ?? [];
 
   // Reviews due (retention < 65%)
   const reviewsDue = progress
