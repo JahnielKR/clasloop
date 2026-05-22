@@ -743,6 +743,7 @@ const ko: Locale = {
     sub: "어떤 파일이나 주제든 입력하세요. 검증된 사용 가능한 문제가 나옵니다. 검토하고, 시작하고, 완료.",
     ctaPrimary: "무료 체험 시작",
     ctaSubtext: "7일 무료, 모든 기능 잠금 해제. 신용카드 필요 없음.",
+    scrollCue: "작동 방식 보기",
     typeMcq: "객관식",
     typeTf: "참/거짓",
     typeFill: "빈칸 채우기",
