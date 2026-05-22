@@ -775,7 +775,7 @@ const en = {
     insResurface: "Resurfaces in tomorrow's warmup",
     // Landing — Live session demo
     liveTitle: "Or run it live — the whole class at once",
-    liveSub: "Project the leaderboard, students answer on their phones, and the room lights up. Same questions, real-time energy.",
+    liveSub: "Project it on the big screen, students answer on their phones — and set the room's vibe with a theme: calm, ocean, pop or mono.",
     livePlaying: "playing",
     liveLeaderboard: "Leaderboard",
     liveCorrect: "Correct!",

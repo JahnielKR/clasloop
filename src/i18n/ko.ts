@@ -771,7 +771,7 @@ const ko: Locale = {
     insResurface: "내일 워밍업에 다시 등장",
     // Landing — Live session demo
     liveTitle: "또는 라이브로 — 전체 학급이 함께",
-    liveSub: "순위표를 띄우고 학생들은 휴대폰으로 답하면 교실이 살아납니다. 같은 문제, 실시간 에너지.",
+    liveSub: "큰 화면에 띄우고 학생들은 휴대폰으로 답합니다 — 그리고 테마로 교실 분위기를 정하세요: calm, ocean, pop, mono.",
     livePlaying: "참여 중",
     liveLeaderboard: "순위",
     liveCorrect: "정답!",

@@ -771,7 +771,7 @@ const es: Locale = {
     insResurface: "Vuelve en el warmup de mañana",
     // Landing — Live session demo
     liveTitle: "O lánzalo en vivo — toda la clase a la vez",
-    liveSub: "Proyecta la clasificación, los alumnos responden desde el móvil y el aula se enciende. Las mismas preguntas, energía en tiempo real.",
+    liveSub: "Proyéctalo en la pantalla grande, los alumnos responden desde el móvil — y elige el ambiente del aula con un tema: calm, ocean, pop o mono.",
     livePlaying: "jugando",
     liveLeaderboard: "Clasificación",
     liveCorrect: "¡Correcto!",
