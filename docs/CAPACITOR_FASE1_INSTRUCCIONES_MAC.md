@@ -29,7 +29,7 @@ Mientras se descarga Android Studio, podés ir haciendo los pasos 1-3 abajo. Par
 ### 1. Bajar el repo actualizado
 
 ```bash
-cd /donde/sea/que/tengas/clasloop-fresh/clasloop-phase1
+cd /donde/sea/que/tengas/clasloop
 git pull origin main
 npm install
 ```

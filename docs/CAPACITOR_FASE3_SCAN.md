@@ -47,7 +47,7 @@ Reactiva item Scanner en el sidebar.
 ### Cómo deployar
 
 ```powershell
-cd C:\path\a\clasloop-phase1
+cd C:\path\a\clasloop
 git pull origin feature/capacitor-android
 npm install
 npm run build

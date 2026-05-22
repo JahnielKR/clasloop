@@ -23,7 +23,7 @@ Si no lo hiciste, el login va a fallar con "redirect URL not allowed".
 ### 1. Bajar el código nuevo
 
 ```powershell
-cd C:\path\a\clasloop-phase1
+cd C:\path\a\clasloop
 git pull origin feature/capacitor-android
 npm install
 ```

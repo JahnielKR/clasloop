@@ -24,7 +24,7 @@ profe el menú de qué hacer con el archivo.
 ## Pasos a correr
 
 ```powershell
-cd C:\path\a\clasloop-phase1
+cd C:\path\a\clasloop
 git pull origin feature/capacitor-android
 npm install
 npm run build

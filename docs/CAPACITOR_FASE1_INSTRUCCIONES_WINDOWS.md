@@ -86,7 +86,7 @@ Android Studio trae su propio JDK embebido y Capacitor lo usa automáticamente d
 Abrí PowerShell, navegá al directorio del proyecto:
 
 ```powershell
-cd C:\donde\sea\que\tengas\clasloop-fresh\clasloop-phase1
+cd C:\donde\sea\que\tengas\clasloop
 git pull origin feature/capacitor-android
 npm install
 ```
@@ -156,7 +156,7 @@ Esto abre Android Studio con el proyecto `android\` cargado. **La primera vez ta
 
 > **Si Android Studio no abre solo o `npx cap open` falla**, también podés abrirlo manualmente:
 > - Abrir Android Studio
-> - "Open" → navegar a `C:\path\to\clasloop-phase1\android` → "OK"
+> - "Open" → navegar a `C:\path\to\clasloop\android` → "OK"
 
 ### 7. Crear un emulador (si no tenés ninguno)
 
@@ -272,7 +272,7 @@ Tomar screenshot del error y mandar. Errores comunes en Windows:
 ### `npx cap` no es reconocido
 - Asegurate de estar en el directorio del proyecto:
   ```powershell
-  cd C:\path\to\clasloop-phase1
+  cd C:\path\to\clasloop
   ```
 - Y de haber corrido `npm install` antes
 

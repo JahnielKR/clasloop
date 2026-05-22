@@ -34,7 +34,7 @@ Resultado total: el usuario ve aparecer el logo, después aparecer
 ### 1. Pull + install
 
 ```powershell
-cd C:\path\a\clasloop-phase1
+cd C:\path\a\clasloop
 git pull origin feature/capacitor-android
 npm install
 ```
