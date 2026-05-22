@@ -8,6 +8,67 @@ Entries are appended chronologically. Most recent at the top.
 
 ---
 
+## 2026-05-22 — PR 143 done (PARTIAL M9); useEffectEvent + exhaustive-deps=error
+
+**Status:** ✅ done + merged to main (`537a0f9`). **PARTIAL M9** — enforcement +
+the clean conversions are done; the realtime/quiz-core suppressions keep
+documented disables (conversion deferred). Gates green (typecheck 0 · **159**
+tests incl. 3 new · build ✓ · **`npm run lint` 0 errors / 405 warnings** with
+the rule now at error · e2e 2 passed/5 skipped).
+
+**Real landscape (bigger than the README's "31 disables"):** the new ESLint
+(PR 168) surfaced **~43** exhaustive-deps sites — **28** active suppressions
+(comment + real violation; mostly StudentJoin/SessionFlow realtime), **15**
+*unsuppressed* missing-dep warnings (the classic `useEffect(() => loadX(), […])`
+fetch pattern), and **3** dead directives.
+
+**What this PR did:**
+1. **Polyfill `src/hooks/useEffectEvent.js`** (React 18.2 — the native hook is
+   experimental/unexported in 18.2) + **3 unit tests** (stable identity, latest
+   closure, arg forwarding). Built on `useInsertionEffect` so the ref is current
+   before any effect calls the event. **Important gotcha:** eslint-plugin-react-
+   hooks v5.2 does **NOT** recognize a *userland* `useEffectEvent`, so the stable
+   event MUST be listed in the dep array (e.g. `[profile?.id, onLoad]`) — harmless
+   because its identity never changes, and the lint then passes.
+2. **Deleted the 3 dead directives** (StudentJoin 889/1124/1186 — ESLint confirmed
+   they suppressed nothing; all deps already present).
+3. **Converted the 6 CLEAN fetch effects** (Decks:140, Community:73, Favorites:47,
+   MyClasses:95+709, Notifications:57) to useEffectEvent. **Behavior-preserving by
+   construction:** the effect fires on the same triggers as before and calls the
+   latest `loadX` closure (identical to the prior behavior where the effect ran
+   after the triggering render).
+4. **Added explicit, reasoned `eslint-disable` to the 9 non-clean unsuppressed
+   effects** (App:330 auth-subscription + :676 membership, CloseUnitFlow:195+213,
+   ClassPage:584, CreateDeckEditor:116, Review:515, StudentJoin:1003 realtime-
+   channel + :1224 unlocks) — **zero behavior change**; these are inline async /
+   subscription effects with intentional partial deps whose useEffectEvent
+   conversion needs runtime verification.
+5. **Flipped `react-hooks/exhaustive-deps` to `error`** in eslint.config.js. Every
+   violation is now either fixed or explicitly suppressed, so any NEW unsuppressed
+   one fails CI (the actual M9 enforcement win) — achieved WITHOUT touching
+   realtime behavior (existing suppressions stay green as reviewed choices).
+
+**Deferred (documented follow-up):** the **28 pre-existing active suppressions'**
+useEffectEvent conversion — overwhelmingly **SessionFlow + StudentJoin realtime
+channels / quiz loop** (plus App:493/533, AdminAIStats:144, PDFExportModal:439,
+PlanView:1262, SessionInsightBar:86, CreateDeckEditor:660, GuestJoin:70 mount-only,
+Decks:174 focus-class). Each is an individual semantic judgment in code that needs
+a **live session + teacher/student login to smoke-test** (realtime re-subscribe
+timing, StrictMode double-mount) — exactly the constraint that deferred 143
+originally. The error-flip already gives the enforcement; the conversions are
+cosmetic cleanup, best done with a staging env.
+
+**Verification (per the can't-log-in / can't-run-realtime constraint):** the 6
+conversions + 9 suppressions are all on **authed/realtime surfaces not browser-
+smoke-testable here**. Relied on: behavior-preserving-by-construction for the
+conversions; the **lint-at-error net** (a botched conversion that still missed a
+dep would now FAIL lint, not pass silently); typecheck; **159 unit tests** (incl.
+the polyfill's 3); build; and e2e public (confirms the shell/public flow didn't
+regress — the converted pages are lazy authed routes, not reachable login-free).
+The polyfill itself is directly unit-tested.
+
+---
+
 ## 2026-05-22 — PR 168 done; GitHub Actions CI + ESLint (H22 pt 3) — UNBLOCKS PR 143
 
 **Status:** ✅ done + merged to main (`5e9fd2a`). Closes H22 part 3. Gates green
