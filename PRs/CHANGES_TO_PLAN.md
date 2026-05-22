@@ -8,6 +8,40 @@ Entries are appended chronologically. Most recent at the top.
 
 ---
 
+## 2026-05-22 — PR 170b (cont.) — ClassPage migrated to React Query
+
+**Status:** ✅ done + merged to main (`bd734ff`). Merged on the user's "dale"
+go-ahead (they authorized merge+continue; flagged it as the complex one — they'll
+report any issue since the merge is local/revertible). Gates green (typecheck 0 ·
+lint 0 errors · 164 tests · build ✓ · e2e public 2/2).
+
+**What changed.** `src/hooks/useClasses.js` gained `useClassPage(classId, userId)`
+— one cached query (`['classPage', classId]`) wrapping the old 4-fetch load
+(class + decks + units + used-deck-ids, incl. the not-found / not-owner bounce) —
+and `useClassPageCache()` with `patchClassObj`/`patchDecks`/`patchUnits` (value or
+updater) + `invalidate()`.
+
+`ClassPage.jsx` (the most complex page so far): dropped the 6 data `useState` +
+the **`refreshTick` refetch counter** + the load effect. The **5 `refreshTick`
+bumps** (close-unit ×2, PlanView onRefresh/onUnitChanged, reopen-unit) AND the
+drag-error manual decks refetch all become **`invalidateClassPage()`**. The
+optimistic mutations (color ×2, edit, add-unit, move-deck ×2, reorder) keep their
+byte-identical updaters via `patch*`. The **`currentUnitIdx` first-load logic**
+(was keyed off `refreshTick === 0` inside the load) moved to a `useEffect` on
+`[units, notFound]` with a `firstUnitLoadRef` (+ the same documented
+exhaustive-deps disable for reading currentUnitIdx without re-triggering).
+
+**One intended behavior change** (noted to the user): refetches (close-unit, etc.)
+no longer flash a full-page loader — React Query updates in the background
+(`isPending` is only the first load). The data still updates when the refetch
+lands.
+
+**Teacher Classes (170b) is now done** (MyClassesTeacher + ClassPage). `MyClasses`
+(student view) still needs a student session — deferred. **Next:** 170c
+Community/Favorites.
+
+---
+
 ## 2026-05-22 — PR 170b — teacher Classes list migrated to React Query, USER-VERIFIED
 
 **Status:** ✅ done + merged to main (`d84d694`). **User-verified** (~30 min
