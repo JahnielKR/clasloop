@@ -8,6 +8,43 @@ Entries are appended chronologically. Most recent at the top.
 
 ---
 
+## 2026-05-22 — PR 138 done; kept string array, dropped README's redesign
+
+**Status:** ✅ done + merged to main. Closes M2. Gates green (typecheck 0 ·
+101 tests · build ✓). No UI smoke test possible here (no browser) — change is
+mechanical (same list, same option value/label).
+
+`SUBJECTS` was duplicated identically in 6 files. Now it lives once in
+`src/lib/constants.ts`.
+
+**Deviation — kept the plain string array, NOT the README's id/icon/i18n
+redesign.** The README sketched `SUBJECTS: [{ id: 'math', icon: 'calculator' }
+…]` with labels in i18n and a `getSubjectLabel()`. The real array is just
+`["Math","Science","History","Language","Geography","Art","Music","Other"]`,
+and those English strings are **the values persisted to the DB**
+(`classes.subject`, `decks.subject`) — `<option>` uses each string as both
+value and label. Switching to `'math'` ids or i18n labels would change stored
+values and break every existing class/deck and its subject filter — a data
+migration, not a 1h dedup. M2 only asks to remove the duplication, so
+constants.ts exports the same strings (`as const`) plus a derived `Subject`
+union type for future TS call sites. (Note: the README's own list also
+differed from reality — it had no "Language"/"Geography" and invented
+"spanish/korean/pe"; reality is the 8 strings above.)
+
+**Bonus — removed dead code:** of the 6 copies, only 4 are actually used
+(Community, CreateClassModal, EditClassModal, CreateDeckEditor — all in
+`<select>` dropdowns). `Decks.jsx` and `SessionFlow.jsx` *defined* `SUBJECTS`
+but never referenced it (their subject filters derive the list dynamically
+from existing decks). Those two defs were deleted, not re-pointed at the
+import.
+
+**Out of scope (left as-is):** `SUBJ_ICON` (subject→icon map) is also
+duplicated — defined locally in Community.jsx and Decks.jsx but already
+exported from `lib/deck-cover` and imported by CreateDeckEditor. Same
+drift smell as SUBJECTS, but not part of M2. Candidate for a follow-up.
+
+---
+
 ## 2026-05-22 — PR 137 skipped — already resolved (H3 closed by current code)
 
 **Status:** ⏭️ skipped — no code change. H3 ("AI endpoints log content +
