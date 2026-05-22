@@ -1,38 +1,4 @@
-import { supabase } from '../lib/supabase';
-
-// ─── Create a class ─────────────────────────────────
-export async function createClass({ teacherId, name, grade, subject }) {
-  // Generate class code
-  const code = subject.slice(0, 4).toUpperCase() + '-' + grade.replace(/[^0-9]/g, '') + String.fromCharCode(65 + Math.floor(Math.random() * 26));
-
-  const { data, error } = await supabase
-    .from('classes')
-    .insert({
-      teacher_id: teacherId,
-      name,
-      grade,
-      subject,
-      class_code: code,
-    })
-    .select()
-    .single();
-
-  return { data, error };
-}
-
-// ─── Get teacher's classes ──────────────────────────
-export async function getTeacherClasses(teacherId) {
-  const { data, error } = await supabase
-    .from('classes')
-    .select(`
-      *,
-      class_members(count)
-    `)
-    .eq('teacher_id', teacherId)
-    .order('created_at', { ascending: false });
-
-  return { data, error };
-}
+import { supabase } from './supabase';
 
 // ─── Join a class (student) ─────────────────────────
 //
@@ -46,7 +12,15 @@ export async function getTeacherClasses(teacherId) {
 // que detectaba duplicado por código 23505).
 //
 // Devuelve la misma shape que antes: { class, member } o { error }.
-export async function joinClass(classCode, studentName, studentId = null) {
+//
+// PR 140: este archivo era src/hooks/useClass.js pero nunca fue un hook.
+// Renombrado a lib/classes.ts y migrado a TS. Las funciones createClass /
+// getTeacherClasses / deleteClass se eliminaron: no tenían consumers.
+export async function joinClass(
+  classCode: string,
+  studentName: string,
+  studentId: string | null = null,
+): Promise<{ class?: unknown; member?: unknown; error?: string }> {
   if (!studentId) {
     return { error: 'You must be signed in to join a class.' };
   }
@@ -76,14 +50,4 @@ export async function joinClass(classCode, studentName, studentId = null) {
 
   // El RPC devuelve { class, member } como jsonb.
   return { class: data?.class, member: data?.member };
-}
-
-// ─── Delete a class ─────────────────────────────────
-export async function deleteClass(classId) {
-  const { error } = await supabase
-    .from('classes')
-    .delete()
-    .eq('id', classId);
-
-  return { error };
 }

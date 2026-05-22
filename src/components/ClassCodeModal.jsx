@@ -14,7 +14,7 @@
 // point in customizing).
 
 import { useState, useEffect } from "react";
-import { joinClass } from "../hooks/useClass";
+import { joinClass } from "../lib/classes";
 import { supabase } from "../lib/supabase";
 import { C } from "./tokens";
 
