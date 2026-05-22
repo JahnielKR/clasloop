@@ -1179,6 +1179,10 @@ const en = {
   mobileMenu: {
     openMenu: "Open menu",
   },
+
+  sidebar: {
+    activeSession: "Active session",
+  },
 };
 
 // `Locale` es la forma canónica de un locale, derivada de EN. Los strings

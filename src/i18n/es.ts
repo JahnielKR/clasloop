@@ -1173,6 +1173,10 @@ const es: Locale = {
   mobileMenu: {
     openMenu: "Abrir menú",
   },
+
+  sidebar: {
+    activeSession: "Sesión activa",
+  },
 };
 
 export default es;
