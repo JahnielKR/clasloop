@@ -1156,6 +1156,17 @@ const es: Locale = {
     pdfAnswerKey: "Clave de respuestas",
     pdfErrorMsg: "Falló la exportación a PDF. Intenta de nuevo.",
   },
+
+  mobileBlocked: {
+    title: "Usa una tablet o computadora",
+    body: "Las sesiones y la práctica de Clasloop están diseñadas para pantallas más grandes. Puedes seguir navegando en el celular, pero para unirte a una sesión o practicar un deck, usa una tablet o computadora.",
+    cta: "Volver",
+  },
+
+  removedFromClass: {
+    withClass: "Te removieron de {class}",
+    withoutClass: "Te removieron de esta clase",
+  },
 };
 
 export default es;

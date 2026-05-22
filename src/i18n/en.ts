@@ -1162,6 +1162,17 @@ const en = {
     pdfAnswerKey: "Answer key",
     pdfErrorMsg: "PDF export failed. Try again.",
   },
+
+  mobileBlocked: {
+    title: "Use a tablet or computer",
+    body: "Clasloop sessions and practice are designed for larger screens. You can still browse on your phone, but to join or practice a deck, switch to a tablet or computer.",
+    cta: "Back",
+  },
+
+  removedFromClass: {
+    withClass: "You were removed from {class}",
+    withoutClass: "You were removed from this class",
+  },
 };
 
 // `Locale` es la forma canónica de un locale, derivada de EN. Los strings

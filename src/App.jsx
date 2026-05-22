@@ -3,6 +3,7 @@ import { useLocation, useNavigate, useMatch } from 'react-router-dom';
 import { Capacitor } from '@capacitor/core';
 import { ROUTES, PAGE_TO_ROUTE, pathToPage, defaultRouteForRole, buildRoute, buildPathWithOpts, isPageAllowedForRole } from './routes';
 import { supabase } from './lib/supabase';
+import { getStrings } from './i18n';
 import { googleOAuthNative } from './lib/native-oauth';
 import { LogoMark, TeacherInline, StudentInline, TeacherAvatar, StudentAvatar } from './components/Icons';
 // PublicHome and AvatarOnboarding are eagerly imported because they paint
@@ -1057,21 +1058,10 @@ export default function App() {
           at the same time. Color is orange (informational, not alarming
           — could be a teacher mistake). */}
       {removedToast && (() => {
-        const i18n = {
-          en: {
-            withClass: "You were removed from {class}",
-            withoutClass: "You were removed from this class",
-          },
-          es: {
-            withClass: "Te removieron de {class}",
-            withoutClass: "Te removieron de esta clase",
-          },
-          ko: {
-            withClass: "{class}에서 제거되었습니다",
-            withoutClass: "이 수업에서 제거되었습니다",
-          },
-        };
-        const tt = i18n[lang] || i18n.en;
+        // PR 147 (M17): strings moved to the centralized i18n (namespace
+        // "removedFromClass"). getStrings (not the useT hook) because this
+        // runs inside an IIFE, not at the component's top level.
+        const tt = getStrings("removedFromClass", lang);
         const msg = removedToast.className
           ? tt.withClass.replace("{class}", removedToast.className)
           : tt.withoutClass;
