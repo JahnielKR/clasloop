@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "../lib/supabase";
+import { useTeacherClasses, useTeacherClassesCache } from "../hooks/useClasses";
 import { CIcon, SchoolIcon } from "../components/Icons";
 import { useIsMobile } from "../components/MobileMenuButton";
 import CreateClassModal from "../components/CreateClassModal";
@@ -268,10 +269,15 @@ export default function MyClassesTeacher({ lang = "en", profile, onNavigateToSes
   const isMobile = useIsMobile();
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const [classes, setClasses] = useState([]);
-  const [deckCounts, setDeckCounts] = useState({}); // { classId: count }
-  const [studentCounts, setStudentCounts] = useState({}); // { classId: count }
-  const [loading, setLoading] = useState(true);
+  // PR 170b (M1): classes + per-class deck/student counts now come from one
+  // cached React Query (src/hooks/useClasses.js). Mutations below patch the
+  // cache via patchClasses, preserving the previous optimistic list updates.
+  const userId = profile?.id;
+  const { data: classesData, isPending: loading } = useTeacherClasses(userId);
+  const classes = classesData?.classes ?? [];
+  const deckCounts = classesData?.deckCounts ?? {};
+  const studentCounts = classesData?.studentCounts ?? {};
+  const { patchClasses } = useTeacherClassesCache(userId);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
   // PR 22: when non-null, the LobbyThemeSelector modal is open for this class
@@ -305,7 +311,7 @@ export default function MyClassesTeacher({ lang = "en", profile, onNavigateToSes
     // Reassign positions to match new index. Simpler than trying to
     // only update affected rows — the array is small (1-15 classes).
     const withPositions = reordered.map((c, i) => ({ ...c, position: i }));
-    setClasses(withPositions);
+    patchClasses(withPositions);
 
     // Persist in parallel. We update only the rows whose position changed
     // to minimize DB writes.
@@ -337,49 +343,8 @@ export default function MyClassesTeacher({ lang = "en", profile, onNavigateToSes
     return () => clearTimeout(timer);
   }, [toast]);
 
-  // Read user
-  const userId = profile?.id;
-
-  // Load classes + counts
-  useEffect(() => {
-    if (!userId) return;
-    let cancelled = false;
-    (async () => {
-      setLoading(true);
-      const { data: cls } = await supabase
-        .from("classes")
-        .select("*")
-        .eq("teacher_id", userId)
-        // PR 18: order by position (teacher-set via drag-to-reorder),
-        // with created_at as a stable tiebreaker for rows that share
-        // the same position (shouldn't happen after backfill but safe).
-        .order("position", { ascending: true })
-        .order("created_at", { ascending: false });
-      if (cancelled) return;
-      const list = cls || [];
-      setClasses(list);
-
-      // Fetch deck counts and student counts in parallel.
-      // For now we use simple count queries — fine for small N; if a teacher
-      // ever has 100+ classes we can switch to a single grouped RPC.
-      if (list.length > 0) {
-        const ids = list.map(c => c.id);
-        const [decksRes, membersRes] = await Promise.all([
-          supabase.from("decks").select("class_id").in("class_id", ids),
-          supabase.from("class_members").select("class_id").in("class_id", ids),
-        ]);
-        if (cancelled) return;
-        const dCounts = {};
-        const sCounts = {};
-        (decksRes.data || []).forEach(d => { dCounts[d.class_id] = (dCounts[d.class_id] || 0) + 1; });
-        (membersRes.data || []).forEach(m => { sCounts[m.class_id] = (sCounts[m.class_id] || 0) + 1; });
-        setDeckCounts(dCounts);
-        setStudentCounts(sCounts);
-      }
-      setLoading(false);
-    })();
-    return () => { cancelled = true; };
-  }, [userId]);
+  // PR 170b: classes + counts now load via useTeacherClasses() (src/hooks/
+  // useClasses.js); React Query owns loading + caching. Mutations patch the cache.
 
   // ?createClass=1 — open the modal directly. Comes from the legacy
   // /sessions?createClass=1 redirect (and any old links/bookmarks that still
@@ -400,7 +365,7 @@ export default function MyClassesTeacher({ lang = "en", profile, onNavigateToSes
   const handleClassCreated = async (newClass) => {
     // PR 18: new classes go at the END (max position + 1) so they don't
     // disturb the teacher's existing drag-ordered arrangement.
-    setClasses(prev => {
+    patchClasses(prev => {
       const maxPos = prev.reduce((m, c) => Math.max(m, c.position || 0), -1);
       const nextPos = maxPos + 1;
       // Patch the new class with its position locally so the optimistic
@@ -705,7 +670,7 @@ export default function MyClassesTeacher({ lang = "en", profile, onNavigateToSes
             // PR 18: same as handleClassCreated — imported classes get
             // the next available position so they don't disturb the
             // teacher's existing drag order.
-            setClasses(prev => {
+            patchClasses(prev => {
               const maxPos = prev.reduce((m, c) => Math.max(m, c.position || 0), -1);
               const nextPos = maxPos + 1;
               const patched = { ...insertedClass, position: nextPos };
@@ -780,7 +745,7 @@ export default function MyClassesTeacher({ lang = "en", profile, onNavigateToSes
           lang={lang}
           onClose={() => setThemeSelectorClass(null)}
           onSaved={(newTheme) => {
-            setClasses(prev => prev.map(c =>
+            patchClasses(prev => prev.map(c =>
               c.id === themeSelectorClass.id
                 ? { ...c, lobby_theme: newTheme }
                 : c
