@@ -1,7 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "../lib/supabase";
-import { getClassRetentionOverview, getStudentProgress } from "../lib/spaced-repetition";
+import { useDirector } from "../hooks/useDirector";
 import { CIcon } from "../components/Icons";
 import { useIsMobile } from "../components/MobileMenuButton";
 import PageHeader from "../components/PageHeader";
@@ -52,56 +51,19 @@ export default function Director({ lang: pageLang = "en", setLang: pageSetLang, 
   const setLang = pageSetLang || setLangLocal;
   const l = pageLang || lang;
   const [tab, setTab] = useState("overview");
-  const [loading, setLoading] = useState(true);
-  const [classes, setClasses] = useState([]);
-  const [retentionData, setRetentionData] = useState({});
-  const [studentData, setStudentData] = useState({});
-  const [sessionCounts, setSessionCounts] = useState({});
-  const [memberCounts, setMemberCounts] = useState({});
+  // PR 170 (M1): the Director (school analysis) data — classes + per-class
+  // retention / student progress / counts — now comes from one cached React
+  // Query (src/hooks/useDirector.js). Read-only; no mutations.
+  const { data: dd, isPending: loading } = useDirector();
+  const classes = dd?.classes ?? [];
+  const retentionData = dd?.retentionData ?? {};
+  const studentData = dd?.studentData ?? {};
+  const sessionCounts = dd?.sessionCounts ?? {};
+  const memberCounts = dd?.memberCounts ?? {};
   const t = useT("director", l);
 
-  useEffect(() => { loadData(); }, []);
-
-  const loadData = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) { setLoading(false); return; }
-
-    // Get all classes for this teacher
-    const { data: cls } = await supabase.from("classes").select("*").eq("teacher_id", user.id).order("created_at", { ascending: false });
-    setClasses(cls || []);
-
-    if (cls) {
-      for (const c of cls) {
-        // Retention
-        const ret = await getClassRetentionOverview(c.id);
-        setRetentionData(prev => ({ ...prev, [c.id]: ret }));
-
-        // Students
-        const stu = await getStudentProgress(c.id);
-        setStudentData(prev => ({ ...prev, [c.id]: stu }));
-
-        // Session count
-        const { count } = await supabase.from("sessions").select("*", { count: "exact", head: true }).eq("class_id", c.id);
-        setSessionCounts(prev => ({ ...prev, [c.id]: count || 0 }));
-
-        // Member count
-        const { count: mc } = await supabase.from("class_members").select("*", { count: "exact", head: true }).eq("class_id", c.id);
-        // Also count unique participants
-        const { data: parts } = await supabase.from("session_participants").select("student_name").eq("session_id", c.id);
-        const { data: sessIds } = await supabase.from("sessions").select("id").eq("class_id", c.id);
-        let uniqueStudents = mc || 0;
-        if (sessIds && sessIds.length > 0) {
-          const { data: allParts } = await supabase.from("session_participants").select("student_name").in("session_id", sessIds.map(s => s.id));
-          if (allParts) {
-            const unique = new Set(allParts.map(p => p.student_name));
-            uniqueStudents = Math.max(uniqueStudents, unique.size);
-          }
-        }
-        setMemberCounts(prev => ({ ...prev, [c.id]: uniqueStudents }));
-      }
-    }
-    setLoading(false);
-  };
+  // PR 170: data loads via useDirector() (src/hooks/useDirector.js); React Query
+  // owns loading + caching. Read-only analytics — no mutations.
 
   // Back-to-MyClasses bar — Director is now reached only as a sub-page from
   // MyClasses (no longer in the sidebar), so users need a way out beyond
