@@ -24,6 +24,7 @@
 
 import { LogoMark } from "./Icons";
 import { C } from "./tokens";
+import { safeGet } from "../lib/safe-storage";
 
 // ─── i18n (mínimo — 3 idiomas) ─────────────────────────────────────────
 const COPY = {
@@ -56,14 +57,10 @@ const COPY = {
  * contexto de la app puede no estar disponible.
  */
 function detectLang() {
-  try {
-    const htmlLang = document.documentElement.lang;
-    if (htmlLang && COPY[htmlLang]) return htmlLang;
-    const stored = localStorage.getItem("clasloop_lang");
-    if (stored && COPY[stored]) return stored;
-  } catch {
-    // localStorage puede tirar SecurityError si está deshabilitado
-  }
+  const htmlLang = document.documentElement.lang;
+  if (htmlLang && COPY[htmlLang]) return htmlLang;
+  const stored = safeGet("clasloop_lang");
+  if (stored && COPY[stored]) return stored;
   return "en";
 }
 

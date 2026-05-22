@@ -6,6 +6,8 @@
 // Storage is keyed by session PIN (the 6-digit code in the URL) so /join can
 // look up reconnect data directly from `?code=` without first hitting the DB.
 
+import { safeGetJSON, safeSetJSON, safeRemove } from "./safe-storage";
+
 const STORAGE_KEY_PREFIX = "clasloop_guest_";
 
 /**
@@ -32,12 +34,7 @@ export function generateGuestToken() {
  */
 export function saveGuestSession({ pin, sessionId, token, name }) {
   if (typeof window === "undefined" || !pin) return;
-  try {
-    localStorage.setItem(
-      STORAGE_KEY_PREFIX + pin,
-      JSON.stringify({ sessionId, token, name, savedAt: Date.now() })
-    );
-  } catch (e) { /* storage may be disabled */ }
+  safeSetJSON(STORAGE_KEY_PREFIX + pin, { sessionId, token, name, savedAt: Date.now() });
 }
 
 /**
@@ -46,18 +43,12 @@ export function saveGuestSession({ pin, sessionId, token, name }) {
  */
 export function loadGuestSession(pin) {
   if (typeof window === "undefined" || !pin) return null;
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY_PREFIX + pin);
-    if (!raw) return null;
-    return JSON.parse(raw);
-  } catch (e) { return null; }
+  return safeGetJSON(STORAGE_KEY_PREFIX + pin, null);
 }
 
 export function clearGuestSession(pin) {
   if (typeof window === "undefined" || !pin) return;
-  try {
-    localStorage.removeItem(STORAGE_KEY_PREFIX + pin);
-  } catch (e) { /* ignore */ }
+  safeRemove(STORAGE_KEY_PREFIX + pin);
 }
 
 // ─── Name validation ────────────────────────────────────────────────────────
