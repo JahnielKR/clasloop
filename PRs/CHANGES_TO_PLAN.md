@@ -8,6 +8,32 @@ Entries are appended chronologically. Most recent at the top.
 
 ---
 
+## 2026-05-22 — PR 151 done; align launchAutoHide comment with config (M22)
+
+**Status:** ✅ done + merged to main (`b55bdf7`). Closes M22. Gates green
+(typecheck 0 · 146 tests · build ✓). Comment-only change.
+
+M22 was a doc/config contradiction: `capacitor-boot.js` said *"el config tiene
+launchAutoHide: false, así que cerramos manual"*, but `capacitor.config.ts:38`
+has **`launchAutoHide: true`** (and its own comment confirms the OS hides the
+splash). Per Option A (the recommended one), kept `autoHide: true` and corrected
+the boot comment: Android auto-hides the splash (~`launchShowDuration` = 500ms);
+the manual `SplashScreen.hide()` stays as a **defensive fallback** for devices
+where the native auto-hide misfires (the short delay lets React paint first so
+the fallback never reveals a blank WebView).
+
+**No config or logic change** — only the misleading comment. Did NOT touch
+`launchShowDuration` (README floated 1500; current 500 is intended) nor swap the
+catch to `captureError` (the file consistently uses `console.warn` for
+non-critical native-plugin failures — kept that convention).
+
+**Verification:** typecheck + build + tests (capacitor-boot is a no-op off-native
+via the `isNativePlatform()` guard, so the web dev server can't exercise it). The
+actual splash timing would need `cap sync android` + an APK on a device — out of
+reach here; flagged.
+
+---
+
 ## 2026-05-22 — PR 150 done; avatar onboarding "skip for now" (M20)
 
 **Status:** ✅ done + merged to main (`88009ec`). Closes M20. Gates green
