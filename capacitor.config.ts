@@ -61,11 +61,14 @@ const config: CapacitorConfig = {
 
   // Configuración específica de Android
   android: {
-    // Permitir HTTP (para development con livereload local). En producción
-    // las llamadas HTTPS a Supabase y demás siguen funcionando.
-    // OJO: cuando se publique a Play Store hay que revisar si dejamos esto
-    // o lo restringimos.
-    allowMixedContent: true,
+    // PR 165 (L15): allowMixedContent (cargar HTTP dentro del WebView HTTPS)
+    // solo en debug — sirve para el livereload local sobre HTTP. En release
+    // queda false (requisito Play Store). Se resuelve con process.env.NODE_ENV
+    // al compilar este config (lo hace el Capacitor CLI en `cap sync`), así que
+    // el build de release DEBE correr con NODE_ENV=production. Si NODE_ENV no
+    // está seteado (dev), queda true → mantiene el comportamiento actual, sin
+    // regresión. Las llamadas HTTPS a Supabase funcionan igual en ambos casos.
+    allowMixedContent: process.env.NODE_ENV !== "production",
     // PR 53.1: background del WebView mientras carga = mismo blanco
     // neutro que el splash. Si hubiera un flash entre splash y app,
     // sería del mismo color, invisible.
