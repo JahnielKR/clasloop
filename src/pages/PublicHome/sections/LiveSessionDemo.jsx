@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { C, MONO } from "../../../components/tokens";
 import { getTheme } from "../../../lib/themes";
 import { getSectionLabel } from "../../../lib/section-theme";
@@ -21,6 +21,11 @@ const OPTIONS = [
 ];
 const LETTERS = ["A", "B", "C", "D"];
 const THEME_ORDER = ["calm", "ocean", "pop", "mono"];
+
+// The session screen is laid out at a fixed design size and then scaled to fit
+// the device width (like a real screenshot), so it never overflows on mobile.
+const BASE_W = 600;
+const BASE_H = 375; // 16:10
 
 // Mirror of LobbyThemeSelector's swatch backgrounds for the picker chips.
 const SWATCH = {
@@ -132,6 +137,20 @@ export default function LiveSessionDemo({ t, lang }) {
   const [active, setActive] = useState(0);
   const [paused, setPaused] = useState(false);
 
+  // Scale the fixed-size session screen to the device width.
+  const screenRef = useRef(null);
+  const [scale, setScale] = useState(1);
+  useEffect(() => {
+    const node = screenRef.current;
+    if (!node) return undefined;
+    const update = () => setScale(node.clientWidth / BASE_W);
+    update();
+    if (typeof ResizeObserver === "undefined") return undefined;
+    const ro = new ResizeObserver(update);
+    ro.observe(node);
+    return () => ro.disconnect();
+  }, []);
+
   // Auto-cycle the theme (paused on hover, off under reduced-motion).
   useEffect(() => {
     if (paused) return undefined;
@@ -163,8 +182,10 @@ export default function LiveSessionDemo({ t, lang }) {
             background: "#1B1E26", borderRadius: 26, padding: 12,
             boxShadow: "0 26px 60px rgba(0,0,0,0.26)",
           }}>
-            <div style={{ position: "relative", borderRadius: 14, overflow: "hidden", aspectRatio: "16 / 10", background: "#000" }}>
-              <SessionScreen themeId={activeId} lang={lang} />
+            <div ref={screenRef} style={{ position: "relative", borderRadius: 14, overflow: "hidden", width: "100%", aspectRatio: `${BASE_W} / ${BASE_H}`, background: "#000" }}>
+              <div style={{ position: "absolute", top: 0, left: 0, width: BASE_W, height: BASE_H, transform: `scale(${scale})`, transformOrigin: "top left" }}>
+                <SessionScreen themeId={activeId} lang={lang} />
+              </div>
             </div>
           </div>
 

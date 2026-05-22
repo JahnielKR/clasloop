@@ -1,4 +1,5 @@
 import { CIcon } from "../../../components/Icons";
+import Cleo from "../../../components/Cleo";
 import { C, MONO } from "../../../components/tokens";
 
 // Student "Got a code?" dialog — 6-digit teacher code → hands off to /join.
@@ -7,7 +8,11 @@ import { C, MONO } from "../../../components/tokens";
 export default function CodeDialog({ t, code, setCode, codeValid, onJoin, onClose }) {
   return (
     <div className="ph-dialog-bg" onClick={onClose}>
-      <div className="ph-dialog" onClick={(e) => e.stopPropagation()}>
+      <div className="ph-dialog" onClick={(e) => e.stopPropagation()} style={{ position: "relative" }}>
+        {/* Cleo peeking over the top edge — small brand warmth */}
+        <div style={{ position: "absolute", top: -52, left: 22, pointerEvents: "none" }} aria-hidden="true">
+          <Cleo size={72} />
+        </div>
         <h3 style={{
           fontSize: 18, fontWeight: 700, color: C.text,
           margin: "0 0 6px",
