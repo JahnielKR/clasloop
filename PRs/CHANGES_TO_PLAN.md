@@ -8,6 +8,41 @@ Entries are appended chronologically. Most recent at the top.
 
 ---
 
+## 2026-05-22 — PR 139 done; centralized style objects, not React components
+
+**Status:** ✅ done + merged to main. Closes M3. Gates green (typecheck 0 ·
+101 tests · build ✓) + Playwright smoke test (CreateClassModal + Settings
+render correctly, 0 console errors).
+
+The `inp`/`sel` style objects were copy-pasted across ~10 files with a padding
+drift (`10px 14px` vs `11px 14px`). Now there's one
+`src/components/forms/field-styles.js` exporting `inputStyle` + `selectStyle`.
+
+**Deviation — style objects, NOT components.** The README proposed React
+`<Input>/<Select>/<Textarea>` primitives with label/error/hint. Reality: these
+are **style objects** consumed as `style={inp}`, not components. Converting
+every call site to `<Input>` + refactoring each form's existing labels into the
+primitive is a broad visual rewrite (the README itself flags PR 139
+"medium-risk, wide visual change"). Instead I centralized the style objects and
+imported them with an alias (`import { inputStyle as inp } from …`) so **call
+sites stay byte-for-byte unchanged** — minimal diff, minimal visual risk.
+After running the smoke test (per the user enabling Playwright), the unified
+inputs look correct.
+
+**Padding drift unified:** the `11px 14px` copies (MyClasses, StudentJoin,
+AuthScreen) now use the `10px` standard — a deliberate 1px change to kill the
+drift M3 names.
+
+**Deliberate variants left alone:** GuestJoin (larger mobile-entry inputs:
+`12px 14px`, radius 10, fontSize 15) and TeacherProfile (compact filter select:
+`6px 26px`, fontSize 12, width auto) are intentional, not drift — they keep
+their own local styles.
+
+**Decision point:** asked the user A (README components) vs B (centralize
+styles); proceeded with B (recommended, low-risk).
+
+---
+
 ## 2026-05-22 — PR 138 done; kept string array, dropped README's redesign
 
 **Status:** ✅ done + merged to main. Closes M2. Gates green (typecheck 0 ·
