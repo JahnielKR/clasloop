@@ -222,6 +222,20 @@ const es: Locale = {
     confirmYes: "Sí, crear mi cuenta",
   },
 
+  teacherWelcome: {
+    welcome: "¡Bienvenido a Clasloop!",
+    welcomeNamed: "¡Bienvenido, {name}!",
+    intro: "Conviertes tu material en chequeos rápidos diarios — esto es lo esencial antes de empezar.",
+    point1Title: "Suelta cualquier archivo o tema",
+    point1Body: "PDF, diapositivas, un documento o solo un tema. La IA redacta las preguntas y las verifica.",
+    point2Title: "Lánzalo en vivo o imprímelo",
+    point2Body: "Inicia una sesión en vivo a la que los alumnos entran desde el móvil, o imprime un test impecable.",
+    point3Title: "Mira quién necesita ayuda",
+    point3Body: "Tras cada uno ves los puntos débiles y la retención por alumno — y vuelven solos.",
+    ctaPrimary: "Crear mi primer warmup",
+    ctaSkip: "Prefiero explorar por mi cuenta",
+  },
+
   guestJoin: {
     joinSession: "Unirse a la sesión",
     enterCode: "Ingresa el código de 6 dígitos que te dio tu profe",

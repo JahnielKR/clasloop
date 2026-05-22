@@ -226,6 +226,20 @@ const en = {
     confirmYes: "Yes, create my account",
   },
 
+  teacherWelcome: {
+    welcome: "Welcome to Clasloop!",
+    welcomeNamed: "Welcome, {name}!",
+    intro: "You turn your material into quick daily checks — here's the gist before you dive in.",
+    point1Title: "Drop any file or topic",
+    point1Body: "PDF, slides, a doc, or just a topic. The AI writes the questions and double-checks them.",
+    point2Title: "Run it live or print it",
+    point2Body: "Launch a live session students join on their phones, or print a polished test.",
+    point3Title: "See who needs a hand",
+    point3Body: "After each one you get the weak spots and per-student retention — they resurface on their own.",
+    ctaPrimary: "Create my first warmup",
+    ctaSkip: "I'll explore on my own",
+  },
+
   guestJoin: {
     joinSession: "Join session",
     enterCode: "Enter the 6-digit code your teacher gave you",
