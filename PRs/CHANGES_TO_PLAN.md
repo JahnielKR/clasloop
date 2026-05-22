@@ -8,6 +8,40 @@ Entries are appended chronologically. Most recent at the top.
 
 ---
 
+## 2026-05-22 — PR 170 — Director (school analysis) migrated to React Query
+
+**Status:** ✅ done + merged to main (`e96a54f`). Merged on the user's "dale"
+go-ahead. Gates green (typecheck 0 · lint 0 errors / 400 warnings · 164 tests ·
+build ✓ · e2e public 2/2). The user clarified "Director" = the **school-analysis**
+view that lives INSIDE the teacher account (reached as a sub-page from MyClasses)
+→ teacher-verifiable, not a separate role.
+
+New `src/hooks/useDirector.js`: `useDirector()` wraps the old loadData (classes +
+per-class retention / student progress / session & unique-student counts) in one
+cached read-only query (`['director']`). `Director.jsx`: dropped the 5 data
+`useState` + loadData + the load effect; reads from the query; removed the
+now-unused `supabase` + `useEffect` imports. No mutations (analytics is read-only).
+
+**Two faithful deviations:** (1) the query builds the full per-class maps then
+returns once, vs the old incremental `setState` inside the loop (the page filled
+in class-by-class) — now loads all-at-once (fine for analytics). (2) Dropped a
+**dead query** — the old loop fetched `session_participants` by
+`session_id = class_id` into a `parts` var that was never read (the unique count
+comes from `allParts`); one less query per class on an analytics page.
+
+**170 progress (teacher pages done):** setup · Decks · MyClassesTeacher ·
+ClassPage · Community · Notifications · TeacherProfile · Director.
+**⚠️ LAST + RISKIEST: SessionFlow** — the live-session page (Supabase realtime
+channels + timers + quiz loop + the `activeSessionTick`). Realtime state is NOT
+classic cacheable query data, so the migration should likely be SCOPED to the
+initial loads (session/deck/class) and LEAVE the realtime subscriptions + quiz
+state alone. Verification needs a REAL live session (teacher starts + students
+join) — much harder than a page-load smoke test. Then **170g** removes the App
+`*Tick` (`studentMembershipTick`, `activeSessionTick`). **Student-session-needed:**
+MyClasses, Favorites.
+
+---
+
 ## 2026-05-22 — PR 170 — TeacherProfile migrated to React Query (user-verified)
 
 **Status:** ✅ done + merged to main (`f5a83fc`). User-verified. Gates green
