@@ -8,6 +8,56 @@ Entries are appended chronologically. Most recent at the top.
 
 ---
 
+## 2026-05-22 — PR 169 done (L14 only); safe-storage. L4/L6/L12/L13/L19 deferred
+
+**Status:** ✅ done + merged to main (`8c89eb7`). **Scoped to L14** — the other 5
+items in this 6-in-1 grab-bag were audited and deferred/dropped (reasons below).
+Gates green (typecheck 0 · **164** tests incl. 5 new · build ✓ · lint 0 errors ·
+e2e 2 passed/5 skipped).
+
+**L14 — DONE.** New `src/lib/safe-storage.ts` (`safeGet`/`safeSet`/`safeRemove`/
+`safeGetJSON`/`safeSetJSON` — never throw on private-mode/quota/SSR) + 5 unit
+tests (incl. the throw path). Migrated the **10 silent-swallow** localStorage
+sites across 4 files: `App.jsx` (lang init `?.`→safeGet + setLang + 2 residual-key
+`removeItem`), `guest-session.js` (save/load/clear ×3), `notifications.ts`
+(load/saveDismissed ×2), `ErrorFallback.jsx` (detectLang read). **Left
+`tokens.js` untouched** — its write catch intentionally `captureError`s (PR 136);
+per the REALITY CHECK, don't silently swallow those. Bonus robustness: App's lang
+init/setLang used `window.localStorage?.` (guards undefined, NOT SecurityError) —
+safeGet/safeSet now catch the throw too. Verified on the **public path** (e2e):
+App lang-init runs on every load, and `/join` exercises `guest-session.loadGuestSession`.
+
+**Deferred / dropped (the REALITY CHECK itself proposed splitting 169a/b/c):**
+- **L13 — DROP (audited).** Not "create shared.js" (it exists since PR 29 with the
+  primitives `PAGE_A4`/`drawWrappedText`/`fetchImageAsDataURL`/…). The audit shows
+  classic/editorial/framed/modern each define their OWN `drawQuestion`/`drawMCQOptions`
+  /`drawSectionHeader`/etc. — but these are **intentionally style-specific** (that's
+  the point of the 4 visual styles; e.g. modern's take a `sectionCfg` param). Not
+  accidental duplication. Lifting more would risk changing printed exam-PDF layouts
+  and is **not verifiable here** (PDF output needs a teacher login + deck data).
+- **L4 — DEFER.** Replace `qrcode.react`'s `QRCodeSVG` (SessionFlow:3,486,710,743)
+  with an inline `<QRSvg>` off the `qrcode` lib (~20KB). The QR is the **student
+  join mechanism on a live session lobby** — not smoke-testable here, and the
+  README's QRSvg renders **async** (useEffect→setSvg) vs qrcode.react's sync, a UX
+  regression risk on the critical path. ~20KB isn't worth a blind swap (bundle's
+  real weight is the 3MB font). Revisit with a live session to verify.
+- **L19 — DEFER (own sub-PR, per REALITY CHECK).** `CreateDeckEditor.jsx:1282/2833`
+  drag-ghost via `outerHTML`/`dangerouslySetInnerHTML` → `@dnd-kit` `DragOverlay`.
+  Highest risk: refactors **interactive DnD in the live deck editor** (authed, not
+  smoke-testable).
+- **L12 — DEFER.** ~30 `key={i}` across 10 files; per the REALITY CHECK **most are
+  static lists (safe to leave** — React sanctions index keys there). The only
+  valuable changes are lists with local state / reorder, which are the **interactive
+  deck-editor/quiz surfaces** — pair them with the L19 sub-PR (same surface, needs
+  interactive verification). Changing keys blind where the "stable id" isn't truly
+  unique would introduce remount bugs on authed pages.
+- **L6 — DROP/DEFER.** Trimming `// PR NN.M:` comments is **subjective + huge-churn +
+  removes load-bearing archaeology** (the codebase leans on these for context). Git
+  history is the real changelog; a generated `CHANGELOG.md` from commits is a better
+  future approach than hand-trimming inline comments.
+
+---
+
 ## 2026-05-22 — PR 143 done (PARTIAL M9); useEffectEvent + exhaustive-deps=error
 
 **Status:** ✅ done + merged to main (`537a0f9`). **PARTIAL M9** — enforcement +
