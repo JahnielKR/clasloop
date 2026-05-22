@@ -175,6 +175,14 @@ export default function App() {
       window.localStorage?.setItem("clasloop_lang", newLang);
     }
   };
+  // PR 145 (H21): keep <html lang> in sync with the UI language so screen
+  // readers pronounce ES/KO correctly and crawlers see the right language.
+  // index.html ships lang="en"; this updates it post-mount. App is the
+  // always-mounted root, so it owns this write; navigator initial-value
+  // detection is PR 149's scope (kept here un-duplicated).
+  useEffect(() => {
+    document.documentElement.setAttribute("lang", lang);
+  }, [lang]);
   const [open, setOpen] = useState(true);
   const isMobile = useIsMobile();
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
