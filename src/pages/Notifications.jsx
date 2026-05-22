@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useEffectEvent } from "../hooks/useEffectEvent";
+import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { getReviewSuggestions } from "../lib/spaced-repetition";
@@ -48,15 +48,15 @@ export default function Notifications({ lang: pageLang = "en", setLang: pageSetL
   const l = pageLang || lang;
   const navigate = useNavigate();
   const [filter, setFilter] = useState("all");
-  const [notifications, setNotifications] = useState([]);
-  const [loading, setLoading] = useState(true);
+  // PR 170 (M1): notifications + loading now come from a React Query whose
+  // queryFn is the old generateNotifications (kept inline below — it builds the
+  // notif objects with this component's `t`/`C`, so extracting it would just add
+  // a t→getStrings + color-import dance for no gain). `dismissed` stays local
+  // (it's localStorage state, not server data).
   // Persistent across reloads — see DISMISSED_KEY above. We initialize from
   // localStorage on first render so dismiss survives a refresh.
   const [dismissed, setDismissed] = useState(() => loadDismissed());
   const t = useT("notifications", l);
-
-  const onGenerate = useEffectEvent(() => { generateNotifications(); });
-  useEffect(() => { onGenerate(); }, [onGenerate]);
 
   // Persist dismissed map every time it changes
   useEffect(() => { saveDismissed(dismissed); }, [dismissed]);
@@ -91,7 +91,7 @@ export default function Notifications({ lang: pageLang = "en", setLang: pageSetL
 
   const generateNotifications = async () => {
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) { setLoading(false); return; }
+    if (!user) return [];
 
     const { data: profile } = await supabase.from("profiles").select("*").eq("id", user.id).single();
     const isTeacher = profile?.role === "teacher";
@@ -245,9 +245,13 @@ export default function Notifications({ lang: pageLang = "en", setLang: pageSetL
 
     // Sort by time, newest first
     notifs.sort((a, b) => new Date(b.time) - new Date(a.time));
-    setNotifications(notifs);
-    setLoading(false);
+    return notifs;
   };
+
+  const { data: notifications = [], isPending: loading } = useQuery({
+    queryKey: ["notifications", l],
+    queryFn: generateNotifications,
+  });
 
   const filtered = filter === "all" ? notifications : notifications.filter(n => n.type === filter);
   const visibleNotifs = filtered.filter(n => !dismissed[n.id]);
