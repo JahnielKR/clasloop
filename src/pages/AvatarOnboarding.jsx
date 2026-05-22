@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { supabase } from "../lib/supabase";
-import { LogoMark, CIcon } from "../components/Icons";
+import { CIcon } from "../components/Icons";
+import Cleo from "../components/Cleo";
 import { Avatar as CatalogAvatar, AVATARS } from "../components/Avatars";
 import { C } from "../components/tokens";
 // PR 73: i18n centralizado — las strings de este componente viven ahora en
@@ -78,8 +79,8 @@ export default function AvatarOnboarding({ profile, lang = "en", onDone }) {
         padding: "32px 28px", maxWidth: 480, width: "100%",
         boxShadow: "0 6px 28px rgba(0,0,0,0.06)", textAlign: "center",
       }}>
-        <div style={{ display: "inline-flex", marginBottom: 14 }}>
-          <LogoMark size={42} />
+        <div style={{ display: "inline-flex", marginBottom: 12 }}>
+          <Cleo size={78} />
         </div>
 
         <h1 style={{ fontSize: 22, fontWeight: 700, marginBottom: 6, color: C.text }}>
