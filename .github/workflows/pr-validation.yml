@@ -1,0 +1,35 @@
+name: PR validation
+
+# Enforces the CONTRIBUTING.md commit convention `<type>(<scope>): <subject>`
+# on PR titles. Only fires on GitHub pull_request events (the project also
+# merges locally), so it is a gate for PRs opened on GitHub.
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+    branches: [main]
+
+permissions:
+  pull-requests: read
+
+jobs:
+  conventional-commit-title:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: amannn/action-semantic-pull-request@v5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          # Mirrors CONTRIBUTING.md (plus the standard ci/revert types).
+          types: |
+            feat
+            fix
+            refactor
+            perf
+            chore
+            docs
+            test
+            style
+            build
+            ci
+            revert
