@@ -13,6 +13,7 @@ import { supabase } from "../lib/supabase";
 import { CIcon } from "./Icons";
 import { C } from "./tokens";
 import { SUBJECTS } from "../lib/constants";
+import Modal from "./Modal";
 
 import { inputStyle as inp, selectStyle as sel } from "./forms/field-styles";
 
@@ -53,82 +54,81 @@ export default function CreateClassModal({ userId, t, onClose, onCreated }) {
   };
 
   return (
-    <div
-      onClick={onClose}
-      style={{
+    <Modal
+      open
+      onClose={onClose}
+      role="dialog"
+      ariaLabelledBy="create-class-title"
+      backdropStyle={{
         position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)",
         display: "flex", alignItems: "center", justifyContent: "center",
         zIndex: 100, padding: 20,
       }}
+      dialogClassName="ns-fade"
+      dialogStyle={{ background: C.bg, borderRadius: 14, padding: 24, maxWidth: 460, width: "100%", boxShadow: "0 12px 40px rgba(0,0,0,0.15)" }}
     >
-      <div
-        onClick={e => e.stopPropagation()}
-        className="ns-fade"
-        style={{ background: C.bg, borderRadius: 14, padding: 24, maxWidth: 460, width: "100%", boxShadow: "0 12px 40px rgba(0,0,0,0.15)" }}
-      >
-        <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 16, fontFamily: "'Outfit',sans-serif", display: "flex", alignItems: "center", gap: 8 }}>
-          <CIcon name="school" size={20} inline /> {t.createClass}
-        </h3>
+      <h3 id="create-class-title" style={{ fontSize: 18, fontWeight: 700, marginBottom: 16, fontFamily: "'Outfit',sans-serif", display: "flex", alignItems: "center", gap: 8 }}>
+        <CIcon name="school" size={20} inline /> {t.createClass}
+      </h3>
 
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        <div>
+          <label style={{ display: "block", fontSize: 12, fontWeight: 500, color: C.textSecondary, marginBottom: 6 }}>{t.className}</label>
+          <input
+            value={name}
+            onChange={e => setName(e.target.value)}
+            placeholder={t.classNamePlaceholder}
+            autoFocus
+            style={inp}
+            onKeyDown={e => { if (e.key === "Enter" && !creating) handleCreate(); }}
+          />
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 10 }}>
           <div>
-            <label style={{ display: "block", fontSize: 12, fontWeight: 500, color: C.textSecondary, marginBottom: 6 }}>{t.className}</label>
+            <label style={{ display: "block", fontSize: 12, fontWeight: 500, color: C.textSecondary, marginBottom: 6 }}>{t.classSubject}</label>
+            <select value={subject} onChange={e => setSubject(e.target.value)} style={sel}>
+              {SUBJECTS.map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+          </div>
+          <div>
+            <label style={{ display: "block", fontSize: 12, fontWeight: 500, color: C.textSecondary, marginBottom: 6 }}>{t.classGrade}</label>
             <input
-              value={name}
-              onChange={e => setName(e.target.value)}
-              placeholder={t.classNamePlaceholder}
-              autoFocus
+              value={grade}
+              onChange={e => setGrade(e.target.value)}
+              placeholder={t.classGradePlaceholder}
               style={inp}
               onKeyDown={e => { if (e.key === "Enter" && !creating) handleCreate(); }}
             />
           </div>
-
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 10 }}>
-            <div>
-              <label style={{ display: "block", fontSize: 12, fontWeight: 500, color: C.textSecondary, marginBottom: 6 }}>{t.classSubject}</label>
-              <select value={subject} onChange={e => setSubject(e.target.value)} style={sel}>
-                {SUBJECTS.map(s => <option key={s} value={s}>{s}</option>)}
-              </select>
-            </div>
-            <div>
-              <label style={{ display: "block", fontSize: 12, fontWeight: 500, color: C.textSecondary, marginBottom: 6 }}>{t.classGrade}</label>
-              <input
-                value={grade}
-                onChange={e => setGrade(e.target.value)}
-                placeholder={t.classGradePlaceholder}
-                style={inp}
-                onKeyDown={e => { if (e.key === "Enter" && !creating) handleCreate(); }}
-              />
-            </div>
-          </div>
-
-          {error && <p style={{ fontSize: 12, color: C.red, margin: 0 }}>{error}</p>}
         </div>
 
-        <div style={{ display: "flex", gap: 8, marginTop: 20 }}>
-          <button
-            onClick={onClose}
-            style={{
-              padding: "10px 18px", borderRadius: 8, fontSize: 13, fontWeight: 500,
-              background: "transparent", color: C.textMuted,
-              border: `1px solid ${C.border}`, cursor: "pointer",
-              fontFamily: "'Outfit',sans-serif",
-            }}
-          >{t.cancel}</button>
-          <button
-            onClick={handleCreate}
-            disabled={creating}
-            style={{
-              flex: 1,
-              padding: "10px 18px", borderRadius: 8, fontSize: 13, fontWeight: 600,
-              background: creating ? C.bgSoft : `linear-gradient(135deg, ${C.accent}, ${C.purple})`,
-              color: creating ? C.textMuted : "#fff",
-              border: "none", cursor: creating ? "default" : "pointer",
-              fontFamily: "'Outfit',sans-serif",
-            }}
-          >{creating ? t.creating : t.classCreate}</button>
-        </div>
+        {error && <p style={{ fontSize: 12, color: C.red, margin: 0 }}>{error}</p>}
       </div>
-    </div>
+
+      <div style={{ display: "flex", gap: 8, marginTop: 20 }}>
+        <button
+          onClick={onClose}
+          style={{
+            padding: "10px 18px", borderRadius: 8, fontSize: 13, fontWeight: 500,
+            background: "transparent", color: C.textMuted,
+            border: `1px solid ${C.border}`, cursor: "pointer",
+            fontFamily: "'Outfit',sans-serif",
+          }}
+        >{t.cancel}</button>
+        <button
+          onClick={handleCreate}
+          disabled={creating}
+          style={{
+            flex: 1,
+            padding: "10px 18px", borderRadius: 8, fontSize: 13, fontWeight: 600,
+            background: creating ? C.bgSoft : `linear-gradient(135deg, ${C.accent}, ${C.purple})`,
+            color: creating ? C.textMuted : "#fff",
+            border: "none", cursor: creating ? "default" : "pointer",
+            fontFamily: "'Outfit',sans-serif",
+          }}
+        >{creating ? t.creating : t.classCreate}</button>
+      </div>
+    </Modal>
   );
 }
