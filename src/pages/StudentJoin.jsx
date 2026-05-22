@@ -886,7 +886,6 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
     // los defaults por tipo.
     const t = resolveTimeLimit(q);
     return t || null;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [q, isPractice, practiceTimerOn, session?.session_settings?.time_mode]);
 
   // Stable shuffles per question. Re-shuffle when the DISPLAYED question
@@ -1000,6 +999,7 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
         }
       ).subscribe();
     return () => supabase.removeChannel(ch);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- realtime channel re-subscribes only on session id / step; handlers read latest state via closure
   }, [session?.id, step]);
 
   // ── PR 20.3: Realtime count of how many students are in the lobby ──
@@ -1121,7 +1121,6 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
       // countdown global colgado de una sesión anterior.
       setTotalTimeLeft(null);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step, session?.id, session?.session_settings?.time_mode, session?.session_settings?.time_limit]);
 
   // Decremento del timer global cada segundo mientras dure el quiz.
@@ -1183,7 +1182,6 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
       } catch (_) { /* swallow */ }
     })();
     return () => { cancelled = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step, participant?.id, isPractice]);
 
   // ── Phase 3: when student reaches results, evaluate avatar unlocks ──
@@ -1221,6 +1219,7 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
       }
     })();
     return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- runs once when results are reached; reads quiz state via closure without re-triggering
   }, [step, profile?.id]);
 
   // Advance through the unlock queue when one is dismissed.

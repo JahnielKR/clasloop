@@ -16,6 +16,7 @@
 // from the source list each render).
 // ─────────────────────────────────────────────────────────────────────────────
 import { useState, useEffect, useMemo } from "react";
+import { useEffectEvent } from "../hooks/useEffectEvent";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import PageHeader from "../components/PageHeader";
@@ -44,7 +45,8 @@ export default function Favorites({
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
 
-  useEffect(() => { loadFavorites(); }, [profile?.id]);
+  const onLoadFavorites = useEffectEvent(() => { loadFavorites(); });
+  useEffect(() => { onLoadFavorites(); }, [profile?.id, onLoadFavorites]);
 
   const loadFavorites = async () => {
     if (!profile?.id) { setLoading(false); return; }

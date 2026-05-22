@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useEffectEvent } from "../hooks/useEffectEvent";
 import { useNavigate, useMatch } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { CIcon, LogoMark } from "../components/Icons";
@@ -92,7 +93,8 @@ export default function MyClasses({ lang: pageLang = "en", setLang: pageSetLang,
   // student's class membership changes (join via modal, leave via
   // class detail). Including it in deps causes loadAll to re-run, so
   // the list updates immediately without a page reload.
-  useEffect(() => { loadAll(); }, [profile?.id, studentMembershipTick]);
+  const onLoadAll = useEffectEvent(() => { loadAll(); });
+  useEffect(() => { onLoadAll(); }, [profile?.id, studentMembershipTick, onLoadAll]);
 
   const loadAll = async () => {
     if (!profile?.id) { setLoading(false); return; }
@@ -706,7 +708,8 @@ function ClassDetail({ cls, profile, t, lang, onBack, onLaunchPractice }) {
   const [loading, setLoading] = useState(true);
   // PR 27: leavingConfirm state and handleLeave removed.
 
-  useEffect(() => { loadDetail(); }, [cls.id, profile?.id]);
+  const onLoadDetail = useEffectEvent(() => { loadDetail(); });
+  useEffect(() => { onLoadDetail(); }, [cls.id, profile?.id, onLoadDetail]);
 
   const loadDetail = async () => {
     setLoading(true);

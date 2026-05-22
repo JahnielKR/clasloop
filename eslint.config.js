@@ -1,15 +1,15 @@
-// ESLint flat config (PR 168, H22 part 3).
+// ESLint flat config (PR 168, H22 part 3; exhaustive-deps tightened in PR 143 / M9).
 //
-// Scope: src/ JS + JSX. The primary goal is to make
-// `react-hooks/exhaustive-deps` live — the repo had ~30 decorative
-// `// eslint-disable-next-line react-hooks/exhaustive-deps` comments that
-// nothing processed (no ESLint existed). With this config they finally do
-// something, which is the prerequisite PR 143 (M9) was waiting on.
+// Scope: src/ JS + JSX. PR 168 made `react-hooks/exhaustive-deps` live (the repo
+// had ~30 decorative disable comments that nothing processed). PR 143 then
+// triaged every violation and flipped the rule to `error` (see below).
 //
-// exhaustive-deps is `warn` (not `error`) on purpose: those ~30 live
-// suppressions sit in realtime/quiz core (SessionFlow, StudentJoin); flipping
-// to `error` now would red CI before PR 143 can triage them. PR 143 converts
-// the suppressions to useEffectEvent and then tightens this to `error`.
+// exhaustive-deps is `error` (M9 enforcement): every violation is either fixed
+// (the clean fetch-on-mount/dep effects were converted to useEffectEvent, see
+// src/hooks/useEffectEvent.js) or carries an explicit, reasoned
+// `// eslint-disable-next-line` — the realtime/quiz-core effects in SessionFlow/
+// StudentJoin whose useEffectEvent conversion is deferred until a live session
+// can smoke-test them. Any NEW unsuppressed violation now fails CI.
 //
 // .ts/.tsx are not linted here (no typescript-eslint parser installed — see
 // the devDeps). `tsc --noEmit` (npm run typecheck) already covers TS; full
@@ -62,9 +62,10 @@ export default [
       'no-empty': ['warn', { allowEmptyCatch: true }],
       // The Vite/React 17+ automatic JSX runtime means React need not be in scope.
       'react/react-in-jsx-scope': 'off',
-      // The two rules this PR exists to enable:
+      // react-hooks enforcement (rules-of-hooks since PR 168; exhaustive-deps
+      // tightened to error in PR 143 once all violations were triaged):
       'react-hooks/rules-of-hooks': 'error',
-      'react-hooks/exhaustive-deps': 'warn',
+      'react-hooks/exhaustive-deps': 'error',
     },
   },
 ];
