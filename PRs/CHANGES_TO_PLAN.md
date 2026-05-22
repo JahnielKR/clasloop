@@ -8,6 +8,36 @@ Entries are appended chronologically. Most recent at the top.
 
 ---
 
+## 2026-05-22 — PR 170c — Community migrated to React Query
+
+**Status:** ✅ done + merged to main (`5a8f8e7`). Merged on the user's "dale"
+go-ahead (same as ClassPage — they'll report any issue; local/revertible). Gates
+green (typecheck 0 · lint 0 errors · 164 tests · build ✓ · e2e public 2/2).
+
+**What changed.** New `src/hooks/useCommunity.js`: `useCommunity(isStudent)` wraps
+the old loadData (current user + their saved set + — for teachers — their classes
+for the "save to my decks" picker + the public deck list) in one cached query
+(`['community']`); `useCommunityCache()` exposes `patchSaved`. `Community.jsx`:
+dropped the data `useState` + loadData + the PR-143 onLoad effect (and `useEffect`
+became unused → removed from the import); reads from the query; the favorite
+toggle keeps its optimistic `saved`-map update via `patchSaved`. `decks` memoized.
+Community is used by BOTH teachers and students (the `isStudent` branch only
+gates the classes fetch) → teacher-verifiable.
+
+**Deferred — `Favorites.jsx`** (the standalone "see all favorites" page) is
+reached from the **student** MyClasses, so it pairs with the student-side pages
+(needs a student session to verify). Teachers see their favorites in the Decks
+page's Favorites tab (already migrated in 170a), so the standalone page is
+student-facing.
+
+**170 progress:** ✅ setup · Decks · MyClassesTeacher · ClassPage · Community.
+**Remaining (teacher-verifiable):** Notifications, Profile/misc (Director likely
+needs a director-role account — check before relying on the teacher login).
+**Student-session-needed:** MyClasses, Favorites. **Last + riskiest:** SessionFlow
+(sessions + realtime) → then 170g removes the App-level `*Tick` counters.
+
+---
+
 ## 2026-05-22 — PR 170b (cont.) — ClassPage migrated to React Query
 
 **Status:** ✅ done + merged to main (`bd734ff`). Merged on the user's "dale"
