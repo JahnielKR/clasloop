@@ -8,6 +8,34 @@ Entries are appended chronologically. Most recent at the top.
 
 ---
 
+## 2026-05-22 — PR 155 done; SHA256 integrity check for font download (M27) — Batch I complete
+
+**Status:** ✅ done + merged to main (`f0c0d9a`). Closes M27. **Batch I complete**
+(146–155 + 166 out of order). Gates green (typecheck 0 · 151 tests · build ✓).
+
+`scripts/prepare-fonts.cjs` now SHA256-checks the raw upstream NotoSansKR
+download against a pinned hash (right after the TTF magic-byte check, before
+subsetting), so a compromised GitHub release / proxy can't ship a trojaned font.
+
+**Per the REALITY CHECK (README written against a non-existent script):**
+- Pinned the **upstream `sourceBuf`** (`9e1d729e…b86f76`), NOT the committed
+  output — local `pyftsubset` is non-deterministic across tool versions.
+- Reused the script's own `https` **`download()`** (the README's `node-fetch`
+  snippet isn't a dependency).
+- Added the `EXPECTED_SHA256_OVERRIDE` env handling the README's test referenced
+  but the code never read (test-only; changes the *expected* value, can't skip
+  the check).
+
+**Verification:** got the real SHA + verified the check via a **throwaway probe**
+that downloads the live font and runs the exact compare — happy path matches the
+pinned value, a bogus expected throws. Did **NOT** run `npm run prepare-fonts` to
+completion: it overwrites the committed `src/lib/noto-sans-kr-data.js`, and
+without pyftsubset installed it would write the un-subset ~10 MB font. The script
+isn't part of `npm run build` (output is committed), so the check is non-blocking
+for normal builds.
+
+---
+
 ## 2026-05-22 — PR 154 done (PARTIAL); canonical scoring-thresholds.ts + SCORE consolidation (M33)
 
 **Status:** ✅ done + merged to main (`c455735`). **PARTIAL** M33 — the SCORE
