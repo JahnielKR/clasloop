@@ -4,6 +4,7 @@ import { Capacitor } from '@capacitor/core';
 import { ROUTES, PAGE_TO_ROUTE, pathToPage, defaultRouteForRole, buildRoute, buildPathWithOpts, isPageAllowedForRole } from './routes';
 import { supabase } from './lib/supabase';
 import { getStrings } from './i18n';
+import { resolveInitialLang } from './lib/locale';
 import { googleOAuthNative } from './lib/native-oauth';
 import { LogoMark, TeacherInline, StudentInline, TeacherAvatar, StudentAvatar } from './components/Icons';
 // PublicHome and AvatarOnboarding are eagerly imported because they paint
@@ -164,11 +165,15 @@ export default function App() {
   // El idioma de la UI persiste en localStorage. Si Jota cambia a español
   // y recarga la página, debe seguir en español — antes se reseteaba a "en"
   // en cada load porque useState arranca con "en" hardcoded.
+  // PR 149 (M19): si no hay elección guardada, caemos a navigator.language
+  // antes que a "en", así un visitante coreano/español ve su idioma en la
+  // primera carga. profile.language sigue ganando al loguear (~743/778).
   const [lang, setLangRaw] = useState(() => {
     if (typeof window === "undefined") return "en";
-    const saved = window.localStorage?.getItem("clasloop_lang");
-    if (saved === "en" || saved === "es" || saved === "ko") return saved;
-    return "en";
+    return resolveInitialLang({
+      saved: window.localStorage?.getItem("clasloop_lang"),
+      navigatorLang: navigator.language,
+    });
   });
   const setLang = (newLang) => {
     setLangRaw(newLang);
