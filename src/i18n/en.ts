@@ -747,6 +747,7 @@ const en = {
     sub: "Any file or topic in. Verified, ready-to-use questions out. You review, launch, done.",
     ctaPrimary: "Start free trial",
     ctaSubtext: "7 days free, all features unlocked. No credit card needed.",
+    scrollCue: "See how it works",
     typeMcq: "Multiple choice",
     typeTf: "True/False",
     typeFill: "Fill blanks",

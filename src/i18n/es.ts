@@ -743,6 +743,7 @@ const es: Locale = {
     sub: "Cualquier archivo o tema entra. Preguntas verificadas y listas para usar salen. Tú revisas, lanzas, listo.",
     ctaPrimary: "Empezar prueba gratis",
     ctaSubtext: "7 días gratis, todas las funciones. Sin tarjeta de crédito.",
+    scrollCue: "Mira cómo funciona",
     typeMcq: "Opción múltiple",
     typeTf: "Verdadero/Falso",
     typeFill: "Rellenar espacios",
