@@ -54,8 +54,7 @@ const GRADES = ["6th-7th", "7th-8th", "8th-9th", "9th-10th", "10th-11th", "11th-
 // Input/select styling for the list-view filters. The editor has its own
 // copy in CreateDeckEditor.jsx — we don't share to avoid coupling the two
 // files through a tiny utility module.
-const inp = { fontFamily: "'Outfit',sans-serif", background: C.bg, border: `1px solid ${C.border}`, color: C.text, padding: "10px 14px", borderRadius: 8, fontSize: 14, width: "100%", outline: "none" };
-const sel = { ...inp, cursor: "pointer", appearance: "none", backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2 4l4 4 4-4' fill='none' stroke='%239B9B9B' stroke-width='1.5'/%3E%3C/svg%3E")`, backgroundRepeat: "no-repeat", backgroundPosition: "right 12px center", paddingRight: 32 };
+import { inputStyle as inp, selectStyle as sel } from "../components/forms/field-styles";
 
 
 // PR 79: el bloque i18n local fue movido a src/i18n/{en,es,ko}.js

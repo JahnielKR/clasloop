@@ -39,7 +39,7 @@ const css = `
   .fade-up { animation: fadeUp .3s ease-out both; }
 `;
 
-const inp = { fontFamily: "'Outfit',sans-serif", background: C.bg, border: `1px solid ${C.border}`, color: C.text, padding: "10px 14px", borderRadius: 8, fontSize: 14, width: "100%", outline: "none" };
+import { inputStyle as inp } from "../components/forms/field-styles";
 
 const Toggle = ({ on, onToggle }) => (
   <button className="st-toggle" onClick={onToggle} style={{ width: 44, height: 24, borderRadius: 12, padding: 2, background: on ? C.accent : C.border, border: "none", display: "flex", alignItems: "center" }}>
