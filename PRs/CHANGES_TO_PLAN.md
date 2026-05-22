@@ -8,6 +8,35 @@ Entries are appended chronologically. Most recent at the top.
 
 ---
 
+## 2026-05-22 — PR 148 done; modal backdrop keyboard-accessibility verified (M18)
+
+**Status:** ✅ done + merged to main (`4e9bffd`). Gates green (typecheck 0 ·
+141 tests incl. 1 new · build ✓). As the REALITY CHECK predicted, this is a
+**verification PR** — M18's fix already shipped in the PR 146 primitive.
+
+**No primitive change.** M18 ("backdrop is a clickable `<div>`, not
+keyboard-accessible / not announced") is satisfied by Modal.jsx: **Escape**
+closes (the WCAG SC 2.1.1 keyboard path), the dialog carries `role` +
+`aria-modal`, and the backdrop is a **roleless `<div>` with no `tabindex`** so it
+never enters the tab order. Added one explicit Modal test
+(`Modal.test.jsx`, +15 lines) locking the "backdrop is not a tab stop" guarantee
+— **non-redundant**: the existing focus-trap test would NOT catch a regression
+that made the backdrop focusable, because the trap only cycles focusables
+*inside* the dialog, never the backdrop.
+
+**Option B declined** (README floated converting the backdrop to an invisible
+`<button aria-label="Close">`). Escape already satisfies the keyboard
+requirement; a roleless full-screen button adds complexity (must `tabIndex={-1}`
+it out of the trap, and screen readers announce a "Close" button that's visually
+just the dim overlay) for no real accessibility gain. The README itself
+recommended against it.
+
+**Scope:** M18 is closed for modals using the primitive (CreateClassModal). The
+8 modals PR 146 deferred still have the raw `<div onClick>` backdrop — closing
+M18 for them is the **same migration follow-up as PR 146**, not separate work.
+
+---
+
 ## 2026-05-22 — PR 147 done; MobileBlockedScreen + removedToast → centralized i18n (M17)
 
 **Status:** ✅ done + merged to main (`1bfb741`). Closes M17. Gates green
