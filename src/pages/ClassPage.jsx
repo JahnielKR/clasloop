@@ -11,9 +11,10 @@
 // deferred to a follow-up turn — this iteration covers create + assign +
 // listing, which is enough to validate the model.
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
+import { useClassPage, useClassPageCache } from "../hooks/useClasses";
 import { formatSupabaseError } from "../lib/supabase-errors";
 import { CIcon } from "../components/Icons";
 import { DeckCover, resolveColor as resolveDeckColor } from "../lib/deck-cover";
@@ -411,11 +412,18 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
   const navigate = useNavigate();
   const isMobile = useIsMobile();
 
-  const [classObj, setClassObj] = useState(null);
-  const [decks, setDecks] = useState([]);
-  const [units, setUnits] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [notFound, setNotFound] = useState(false);
+  // PR 170b (M1): class + decks + units + used-deck-ids now come from one cached
+  // React Query (src/hooks/useClasses.js). Mutations patch the cache; the old
+  // refreshTick refetch counter is now invalidateClassPage().
+  const userId = profile?.id;
+  const { data: cp, isPending: loading } = useClassPage(classId, userId);
+  const classObj = cp?.classObj ?? null;
+  const decks = useMemo(() => cp?.decks ?? [], [cp]);
+  const units = useMemo(() => cp?.units ?? [], [cp]);
+  const usedDeckIds = useMemo(() => cp?.usedDeckIds ?? new Set(), [cp]);
+  const notFound = cp?.notFound ?? false;
+  const { patchClassObj, patchDecks, patchUnits, invalidate: invalidateClassPage } =
+    useClassPageCache(classId);
   // Which tab to open first when a teacher lands on the class. Warmups —
   // it's the most-used section in real classroom rhythm (start of every
   // class), so it's the right thing to surface. NOT to be confused with
@@ -452,10 +460,8 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
   // (PointerSensor + KeyboardSensor below) — works on mobile, no special
   // codepath like the old HTML5 D&D needed.
   const [activeDragDeckId, setActiveDragDeckId] = useState(null);
-  // PR4 follow-up: bump this to force a re-fetch of decks/units. Used
-  // when AddToSlotModal updates a deck's unit_id and we need ClassPage
-  // to reflect the change without a full page reload.
-  const [refreshTick, setRefreshTick] = useState(0);
+  // PR 170b: the old refreshTick refetch counter is gone — actions that need a
+  // refresh call invalidateClassPage() (React Query refetch) instead.
   // PR5.1: top tab in ClassPage. One of:
   //   "current"  → the active unit, with prev/next arrows in PlanView
   //   "past"     → list of closed units (read mode)
@@ -500,89 +506,30 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
     });
   };
 
-  // PR 24.9: Set of deck IDs that have at least one session attached
-  // (excluding cancelled ones — those were never actually launched).
-  // Decks in this set are "used" and can't be removed from their unit
-  // — they're locked in place because they have student responses.
-  // Decks NOT in this set are still movable/removable.
-  const [usedDeckIds, setUsedDeckIds] = useState(new Set());
+  // PR 24.9 / 170b: `usedDeckIds` (decks with a non-cancelled session — locked
+  // in place because they have student responses) now comes from the
+  // useClassPage query above. See src/hooks/useClasses.js.
 
-  // Hydrate class + its decks + its units. We refetch when classId changes
-  // so the page works correctly when a teacher navigates between two classes.
+  // PR 170b: class data loads via useClassPage() above (one cached query).
+  // currentUnitIdx side-effect: when units (re)load, land on the active unit on
+  // FIRST load; on later refetches only correct it if it now points out of
+  // bounds (otherwise preserve the page the teacher was on). The old code keyed
+  // "first load" off refreshTick === 0; a ref does the same now.
+  const firstUnitLoadRef = useRef(true);
   useEffect(() => {
-    if (!classId || !profile?.id) return;
-    let cancelled = false;
-    (async () => {
-      setLoading(true);
-      setNotFound(false);
-      const [classRes, decksRes, unitsRes, usedRes] = await Promise.all([
-        supabase.from("classes").select("*").eq("id", classId).maybeSingle(),
-        supabase.from("decks").select("*").eq("class_id", classId).order("position", { ascending: true }).order("created_at", { ascending: false }),
-        supabase.from("units").select("*").eq("class_id", classId).order("position", { ascending: true }),
-        // PR 24.9: any deck with at least one non-cancelled session is
-        // considered "used" and gets locked in place. We pull deck_ids
-        // from sessions of this class with status in ('lobby','active','completed').
-        // 'cancelled' sessions don't count — the teacher bailed before
-        // students engaged.
-        supabase
-          .from("sessions")
-          .select("deck_id")
-          .eq("class_id", classId)
-          .in("status", ["lobby", "active", "completed"])
-          .not("deck_id", "is", null),
-      ]);
-      if (cancelled) return;
-      if (!classRes.data) {
-        setNotFound(true);
-        setClassObj(null);
-        setDecks([]);
-        setUnits([]);
-        setLoading(false);
-        return;
-      }
-      // Defense in depth: a teacher should only be able to land on classes
-      // they own. RLS would keep them from mutating, but they could read
-      // (anyone-can-read policy) — we still bounce them visually so the URL
-      // doesn't act as a peek-into-other-teacher's-class.
-      if (classRes.data.teacher_id !== profile.id) {
-        setNotFound(true);
-        setClassObj(null);
-        setDecks([]);
-        setUnits([]);
-        setLoading(false);
-        return;
-      }
-      setClassObj(classRes.data);
-      setDecks(decksRes.data || []);
-      // PR 24.9: build the Set of used deck IDs from sessions result.
-      const used = new Set();
-      (usedRes?.data || []).forEach(s => {
-        if (s?.deck_id) used.add(s.deck_id);
-      });
-      setUsedDeckIds(used);
-      const newUnits = unitsRes.data || [];
-      setUnits(newUnits);
-      // PR5.1: when units (re)load, point currentUnitIdx at the active
-      // one so the teacher lands on "the unit I'm teaching now". On
-      // refreshTick bumps from internal actions (rename, etc.) we
-      // preserve their current page if it still points to a valid index.
-      const activeOne = pickActiveUnit(newUnits);
-      if (activeOne) {
-        const idx = newUnits.findIndex(u => u.id === activeOne.id);
-        if (idx >= 0 && idx !== currentUnitIdx) {
-          // Only override if the current index is invalid OR we're on
-          // first load (refreshTick is 0). On manual refreshes we
-          // preserve whatever page the teacher was on.
-          if (refreshTick === 0 || currentUnitIdx >= newUnits.length) {
-            setCurrentUnitIdx(idx);
-          }
+    if (notFound || units.length === 0) return;
+    const activeOne = pickActiveUnit(units);
+    if (activeOne) {
+      const idx = units.findIndex(u => u.id === activeOne.id);
+      if (idx >= 0 && idx !== currentUnitIdx) {
+        if (firstUnitLoadRef.current || currentUnitIdx >= units.length) {
+          setCurrentUnitIdx(idx);
         }
       }
-      setLoading(false);
-    })();
-    return () => { cancelled = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- currentUnitIdx is read to preserve selection but must not re-trigger the reload (would loop)
-  }, [classId, profile?.id, refreshTick]);
+    }
+    firstUnitLoadRef.current = false;
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- reads currentUnitIdx to preserve selection but must not re-run on it (would loop)
+  }, [units, notFound]);
 
   // When the section changes, reset the unit filter — filters are scoped
   // to one section at a time. Also close any open unit-creation form so
@@ -604,13 +551,13 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
     // rejects. Network round-trip would otherwise make the picker feel
     // sluggish, especially over slow connections.
     const previous = classObj.color_id;
-    setClassObj({ ...classObj, color_id: newColorId });
+    patchClassObj({ ...classObj, color_id: newColorId });
     const { error } = await supabase
       .from("classes")
       .update({ color_id: newColorId })
       .eq("id", classObj.id);
     if (error) {
-      setClassObj({ ...classObj, color_id: previous });
+      patchClassObj({ ...classObj, color_id: previous });
     }
   };
 
@@ -640,7 +587,7 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
   // flash that required the teacher to click X. Real-use feedback: that
   // felt broken, not intentional.
   const handleClassSaved = (updated) => {
-    setClassObj(prev => ({ ...prev, ...updated }));
+    patchClassObj(prev => ({ ...prev, ...updated }));
     setShowEditModal(false);
   };
 
@@ -721,7 +668,7 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
       setNewUnitError(formatSupabaseError(error, lang));
       return;
     }
-    setUnits(prev => [...prev, data]);
+    patchUnits(prev => [...prev, data]);
     setNewUnitName("");
     setShowNewUnit(false);
     // Auto-focus the freshly-created unit so the teacher can immediately see
@@ -734,14 +681,14 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
   // dropdown doesn't feel laggy. Server responds with no payload (just status).
   const handleChangeDeckUnit = async (deck, newUnitId) => {
     const previous = deck.unit_id;
-    setDecks(prev => prev.map(d => d.id === deck.id ? { ...d, unit_id: newUnitId } : d));
+    patchDecks(prev => prev.map(d => d.id === deck.id ? { ...d, unit_id: newUnitId } : d));
     const { error } = await supabase
       .from("decks")
       .update({ unit_id: newUnitId })
       .eq("id", deck.id);
     if (error) {
       // Rollback so the picker goes back to where the deck actually lives.
-      setDecks(prev => prev.map(d => d.id === deck.id ? { ...d, unit_id: previous } : d));
+      patchDecks(prev => prev.map(d => d.id === deck.id ? { ...d, unit_id: previous } : d));
     }
   };
 
@@ -798,7 +745,7 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
     const updates = reordered.map((d, i) => ({ id: d.id, position: i + 1 }));
 
     // Optimistic local update.
-    setDecks(prev => prev.map(d => {
+    patchDecks(prev => prev.map(d => {
       const u = updates.find(x => x.id === d.id);
       return u ? { ...d, position: u.position } : d;
     }));
@@ -809,12 +756,9 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
     );
     const anyError = results.find(r => r.error);
     if (anyError) {
-      const { data: fresh } = await supabase
-        .from("decks").select("*")
-        .eq("class_id", classObj.id)
-        .order("position", { ascending: true })
-        .order("created_at", { ascending: false });
-      setDecks(fresh || []);
+      // Rare path — a position write failed. Refetch the whole page rather than
+      // rolling back N rows individually.
+      invalidateClassPage();
     }
   };
 
@@ -1132,7 +1076,7 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
           UI — it's a full-page experience, not a modal. The teacher
           can Back out (returns to topTab=current) or confirm the close
           (which fires the schema update + auto-promote, then closes
-          the flow + bumps refreshTick). */}
+          the flow + refetches via invalidateClassPage). */}
       {closeUnitFlow && closeUnitFlow.step === 2 && (
         <CloseUnitSummary
           unit={closeUnitFlow.unit}
@@ -1147,12 +1091,12 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
             // active now). If no promotion happened, stay where we are
             // — the closed unit will still be browsable via Past tab.
             if (promotedId) {
-              setRefreshTick(n => n + 1);
+              invalidateClassPage();
               // Defer setting the index until after the data refetch —
               // we need the new units array. We'll handle it in the
               // useEffect that loads data. For now, just bump.
             } else {
-              setRefreshTick(n => n + 1);
+              invalidateClassPage();
             }
           }}
         />
@@ -1436,8 +1380,8 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
             usedDeckIds={usedDeckIds}
             userId={profile?.id}
             lang={lang}
-            onRefresh={() => setRefreshTick(n => n + 1)}
-            onUnitChanged={() => setRefreshTick(n => n + 1)}
+            onRefresh={() => invalidateClassPage()}
+            onUnitChanged={() => invalidateClassPage()}
             onPrevUnit={safeIdx > 0 ? () => setCurrentUnitIdx(safeIdx - 1) : null}
             onNextUnit={safeIdx < units.length - 1 ? () => setCurrentUnitIdx(safeIdx + 1) : null}
             // PR6: close/reopen handlers. Active and planned units can
@@ -1985,7 +1929,7 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
           onCancel={() => setReopenUnit(null)}
           onConfirm={() => {
             setReopenUnit(null);
-            setRefreshTick(n => n + 1);
+            invalidateClassPage();
           }}
         />
       )}
