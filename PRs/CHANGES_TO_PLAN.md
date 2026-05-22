@@ -8,6 +8,42 @@ Entries are appended chronologically. Most recent at the top.
 
 ---
 
+## 2026-05-22 — PR 165; L15 done, L11 no-op, L17 deferred — Batch J COMPLETE
+
+**Status:** ✅ merged to main (`a67a182`). Gates green (typecheck 0 · 156 tests
+· build ✓). This was a 3-item grab-bag; outcomes differ per item.
+
+**L15 (allowMixedContent) — DONE.** `capacitor.config.ts`:
+`android.allowMixedContent` is now `process.env.NODE_ENV !== "production"`
+(HTTP-in-WebView only for local livereload; release disables it for the Play
+Store). Per the REALITY CHECK: it's under `android:`, NOT a `server:` block
+(there is no server block) — edited in place. **Caveat:** `process.env.NODE_ENV`
+resolves when the **Capacitor CLI** compiles the config at `cap sync` time, so
+release builds must run `cap sync` with `NODE_ENV=production`. **Safe default:**
+NODE_ENV unset → `true` = current dev behavior (no regression). Not
+web-smoke-testable (native config); verified the expression typechecks.
+
+**L11 (`ios/App/Pods/` in .gitignore) — NO-OP.** Already documented correctly
+(`.gitignore:8-16`: android/ committed, iOS Pods/build ignored for a future iOS
+target). The finding's premise (an unmanaged ignore) is already handled — no
+change.
+
+**L17 (un-dismiss a dismissed insight) — DEFERRED.** Low severity, and the fix
+spans two unverifiable layers + a UX decision: (1) `api/session-insight.js`
+PATCH only dismisses — `:81` 400s if `dismiss` is falsy, `:87` hardcodes
+`dismissed_at = now()`; it needs to accept `dismiss:false → dismissed_at = null`
+(api/ isn't smoke-testable here, and exercising it writes prod data). (2) the
+**UI**: `SessionInsightBar.jsx` `return null`s when dismissed (`:110`), so a
+"restore" affordance can't live in the bar — it needs a new "show dismissed"
+entry point in `SessionRecap.jsx`, which is a product/UX decision + an authed
+surface I can't verify. Documented path for a focused follow-up (ideally with a
+teacher login + the api/ change applied/verified server-side).
+
+**Batch J COMPLETE:** 157 ✅ · 158 ✅ · 162 ✅ · 164 ✅ · 165 (L15 ✅, L11 no-op,
+L17 deferred). 156 deferred · 159/160/161/163 skipped.
+
+---
+
 ## 2026-05-22 — PR 164 done; repaired UTF-8 mojibake in 4 components (L10)
 
 **Status:** ✅ done + merged to main (`67d053a`). Closes L10. Gates green
