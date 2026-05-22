@@ -8,6 +8,35 @@ Entries are appended chronologically. Most recent at the top.
 
 ---
 
+## 2026-05-22 — PR 143 deferred — no ESLint in the repo (M9 prerequisite missing)
+
+**Status:** ⏸️ deferred (NOT done, NOT closed). M9 stays open.
+
+The repo has **no ESLint** — no `.eslintrc*`, no `eslint` dependency, no `lint`
+script. So the 31 `// eslint-disable-next-line react-hooks/exhaustive-deps`
+comments (13 StudentJoin, 8 SessionFlow, rest scattered across 11 files) are
+**decorative** — nothing processes them (likely leftovers from a dev's IDE).
+
+**Why defer rather than do it:**
+- M9's actual goal — step 5 of the README, "re-enable exhaustive-deps as
+  `error` so future suppressions fail CI" — is **impossible without ESLint**.
+  Converting to `useEffectEvent` prevents nothing when there's no lint.
+- The cost is high and risky: `useEffectEvent` isn't native in React 18.2 (this
+  repo), so it needs the experimental polyfill; and the 31 sites are
+  **realtime/quiz core** (SessionFlow live-session channels, StudentJoin quiz
+  loop, timers). Each conversion is an individual semantic judgment (some
+  suppressions are intentional, some may hide real bugs), not mechanical.
+- It's **not smoke-testable locally**: realtime needs a live session + joined
+  students; StudentJoin is the student flow (not reachable from a teacher
+  session). High blast radius, weak verification.
+
+Net: high risk, ~zero benefit until ESLint exists. **Correct order:** add
+ESLint + `react-hooks/exhaustive-deps` in the CI PR (PR 168), THEN convert with
+the lint as both the justification and the safety net (and ideally with a
+staging env to exercise realtime). Revisit M9 then.
+
+---
+
 ## 2026-05-22 — PR 142 partial; envelopes only, NOT the README's _lib/auth.js
 
 **Status:** ✅ done + merged to main. Partially addresses M8. (User chose
