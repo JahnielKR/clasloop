@@ -1,6 +1,9 @@
 import { C, MONO } from "../../../components/tokens";
 import { CIcon } from "../../../components/Icons";
 import { useReveal } from "../useReveal";
+// Real in-app section theming so the generated warmup/exit-ticket cards match
+// what teachers actually see. forceDark=false → light values (landing is light).
+import { getSectionTheme, getSectionLabel } from "../../../lib/section-theme";
 
 // ─── GenerationDemo ────────────────────────────────────────────────────────
 // Teacher "wow" #1: any file/topic → AI writes + VERIFIES → ready questions.
@@ -17,16 +20,19 @@ const INPUT_CHIPS = [
 
 const OUTPUT_QS = [
   {
-    tag: { en: "WARMUP · MCQ", es: "WARMUP · MCQ", ko: "워밍업 · 객관식" },
+    section: "warmup",
+    typeTag: { en: "MCQ", es: "MCQ", ko: "객관식" },
     text: { en: "Which organelle powers the cell?", es: "¿Qué orgánulo da energía a la célula?", ko: "세포에 에너지를 공급하는 소기관은?" },
-    bg: "#DDEBFB", border: "#2383E2", labelColor: "#185FA5", textColor: "#042C53",
   },
   {
-    tag: { en: "EXIT TICKET · TF", es: "EXIT TICKET · VF", ko: "종료 티켓 · 참거짓" },
+    section: "exit_ticket",
+    typeTag: { en: "TF", es: "VF", ko: "참거짓" },
     text: { en: "Photosynthesis happens in the mitochondria.", es: "La fotosíntesis ocurre en la mitocondria.", ko: "광합성은 미토콘드리아에서 일어난다." },
-    bg: "#E1F5EE", border: "#1D9E75", labelColor: "#0F6E56", textColor: "#04342C",
   },
 ];
+
+// Section glyphs — mirror SectionBadge.jsx (☀ warmup, ⤓ exit ticket).
+const SECTION_GLYPH = { warmup: "☀", exit_ticket: "⤓" };
 
 const txt = (v, lang) => (typeof v === "string" ? v : (v[lang] || v.en));
 
@@ -101,35 +107,47 @@ export default function GenerationDemo({ t, lang }) {
           <Arrow />
 
           {/* Output — verified question cards */}
-          {OUTPUT_QS.map((q, i) => (
-            <div
-              key={i}
-              className="ph-pop-in"
-              style={{
-                animationDelay: `${0.15 + i * 0.18}s`,
-                background: q.bg, border: `1px solid ${q.border}`, borderRadius: 12,
-                padding: "14px 16px", textAlign: "left", position: "relative",
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 7 }}>
-                <span style={{ fontSize: 12, color: q.labelColor, fontWeight: 700, letterSpacing: "0.5px" }}>
-                  {txt(q.tag, lang)}
-                </span>
-                <span style={{ flex: 1 }} />
-                <span style={{
-                  display: "inline-flex", alignItems: "center", gap: 4,
-                  fontSize: 11, fontWeight: 700, color: "#0F6E56",
-                  background: "#E1F5EE", border: "1px solid #1D9E75",
-                  borderRadius: 100, padding: "2px 9px",
-                }}>
-                  <span aria-hidden="true">✓</span> {t.genVerified}
-                </span>
+          {OUTPUT_QS.map((q, i) => {
+            const th = getSectionTheme(q.section, false);
+            return (
+              <div
+                key={i}
+                className="ph-pop-in"
+                style={{
+                  animationDelay: `${0.15 + i * 0.18}s`,
+                  background: th.tint, border: `1px solid ${th.accent}`, borderRadius: 12,
+                  padding: "14px 16px", textAlign: "left", position: "relative",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                  <span style={{
+                    display: "inline-flex", alignItems: "center", gap: 4,
+                    background: th.iconBg, color: th.iconFg,
+                    borderRadius: 5, padding: "3px 8px",
+                    fontSize: 11, fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase",
+                  }}>
+                    <span aria-hidden="true" style={{ fontSize: 12, lineHeight: 1 }}>{SECTION_GLYPH[q.section]}</span>
+                    {getSectionLabel(q.section, lang)}
+                  </span>
+                  <span style={{ fontSize: 11.5, fontWeight: 700, color: th.labelFg, letterSpacing: "0.06em" }}>
+                    {q.typeTag[lang] || q.typeTag.en}
+                  </span>
+                  <span style={{ flex: 1 }} />
+                  <span style={{
+                    display: "inline-flex", alignItems: "center", gap: 4,
+                    fontSize: 11, fontWeight: 700, color: "#0F6E56",
+                    background: "#E1F5EE", border: "1px solid #1D9E75",
+                    borderRadius: 100, padding: "2px 9px",
+                  }}>
+                    <span aria-hidden="true">✓</span> {t.genVerified}
+                  </span>
+                </div>
+                <div style={{ fontSize: 16, color: th.onTint, lineHeight: 1.4, fontWeight: 500 }}>
+                  {txt(q.text, lang)}
+                </div>
               </div>
-              <div style={{ fontSize: 16, color: q.textColor, lineHeight: 1.4, fontWeight: 500 }}>
-                {txt(q.text, lang)}
-              </div>
-            </div>
-          ))}
+            );
+          })}
 
           {/* Ready pill */}
           <div style={{ marginTop: 8, display: "flex", justifyContent: "center" }}>
