@@ -28,8 +28,7 @@ import AIIcon from "../../components/AIIcon";
 import { C, css } from "./styles";
 import { SECTIONS, DEFAULT_SECTION, isValidSection, sectionLabels, resolveClassAccent, sectionToLessonContext } from "../../lib/class-hierarchy";
 import { useToast } from "../../lib/toast";
-
-const SUBJECTS = ["Math", "Science", "History", "Language", "Geography", "Art", "Music", "Other"];
+import { SUBJECTS } from "../../lib/constants";
 
 // Question type catalog — used by the type-selector grid and the per-question
 // header to render the right icon + label. Same definition Decks.jsx had

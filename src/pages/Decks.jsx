@@ -49,7 +49,6 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { useToast } from "../lib/toast";
 
-const SUBJECTS = ["Math", "Science", "History", "Language", "Geography", "Art", "Music", "Other"];
 const GRADES = ["6th-7th", "7th-8th", "8th-9th", "9th-10th", "10th-11th", "11th-12th"];
 
 // Input/select styling for the list-view filters. The editor has its own

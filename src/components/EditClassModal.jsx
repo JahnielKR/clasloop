@@ -19,8 +19,7 @@ import { useState, useMemo } from "react";
 import { supabase } from "../lib/supabase";
 import { CIcon } from "./Icons";
 import { C } from "./tokens";
-
-const SUBJECTS = ["Math", "Science", "History", "Language", "Geography", "Art", "Music", "Other"];
+import { SUBJECTS } from "../lib/constants";
 
 const inp = {
   fontFamily: "'Outfit',sans-serif",
