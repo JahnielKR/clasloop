@@ -1126,7 +1126,7 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
         const q = prev[target.qi];
         const prevUrl = q?.options?.[target.oi]?.image_url;
         if (prevUrl && !prevUrl.startsWith("preset:")) {
-          deleteDeckCover(prevUrl).catch(() => {});
+          deleteDeckCover(prevUrl);
         }
         return prev;
       });
@@ -1138,7 +1138,7 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
     if (i !== qIdx) return q;
     const opt = q.options[optIdx];
     if (typeof opt === "object" && opt?.image_url) {
-      deleteDeckCover(opt.image_url).catch(() => {});
+      deleteDeckCover(opt.image_url);
     }
     return {
       ...q,
@@ -1176,7 +1176,7 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
       // Best-effort: delete previous question image if any.
       setQuestions(prev => {
         const prevUrl = prev[target.qi]?.image_url;
-        if (prevUrl) deleteDeckCover(prevUrl).catch(() => {});
+        if (prevUrl) deleteDeckCover(prevUrl);
         return prev.map((q, i) => i === target.qi ? { ...q, image_url: result.url } : q);
       });
     }
@@ -1184,7 +1184,7 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
 
   const removeQImage = (qi) => setQuestions(prev => prev.map((q, i) => {
     if (i !== qi) return q;
-    if (q.image_url) deleteDeckCover(q.image_url).catch(() => {});
+    if (q.image_url) deleteDeckCover(q.image_url);
     return { ...q, image_url: null };
   }));
 
@@ -1192,10 +1192,10 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
     setQuestions(prev => {
       const removed = prev[idx];
       // Best-effort cleanup of any uploaded images attached to this question.
-      if (removed?.image_url) deleteDeckCover(removed.image_url).catch(() => {});
+      if (removed?.image_url) deleteDeckCover(removed.image_url);
       if (Array.isArray(removed?.options)) {
         removed.options.forEach(o => {
-          if (typeof o === "object" && o?.image_url) deleteDeckCover(o.image_url).catch(() => {});
+          if (typeof o === "object" && o?.image_url) deleteDeckCover(o.image_url);
         });
       }
       return prev.filter((_, i) => i !== idx);
@@ -1386,7 +1386,7 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
     setCoverImageUrl(result.url);
     // If we replaced an existing custom upload, delete the old file (best effort).
     if (prevUrl && !prevUrl.startsWith("preset:") && prevUrl !== result.url) {
-      deleteDeckCover(prevUrl).catch(() => {});
+      deleteDeckCover(prevUrl);
     }
   };
 
@@ -1394,7 +1394,7 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
     const prevUrl = coverImageUrl;
     setCoverImageUrl(`preset:${presetId}`);
     if (prevUrl && !prevUrl.startsWith("preset:")) {
-      deleteDeckCover(prevUrl).catch(() => {});
+      deleteDeckCover(prevUrl);
     }
   };
 
@@ -1402,7 +1402,7 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
     const prevUrl = coverImageUrl;
     setCoverImageUrl("");
     if (prevUrl && !prevUrl.startsWith("preset:")) {
-      deleteDeckCover(prevUrl).catch(() => {});
+      deleteDeckCover(prevUrl);
     }
   };
 

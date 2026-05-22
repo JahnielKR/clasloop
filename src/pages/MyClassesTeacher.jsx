@@ -51,7 +51,7 @@ function ClassCard({ cls, t, lang, onOpen, onOpenThemeSelector, deckCount = 0, s
       document.body.appendChild(ta);
       ta.select();
       try { document.execCommand("copy"); setCopied(true); setTimeout(() => setCopied(false), 1500); }
-      catch (_) {}
+      catch (_) { /* clipboard API + execCommand both unavailable; nothing to do */ }
       document.body.removeChild(ta);
     }
   };

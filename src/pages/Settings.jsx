@@ -168,7 +168,7 @@ export default function Settings({ lang: pageLang = "en", setLang: pageSetLang, 
       // hasta el siguiente reload (bug visible al estudiante).
       if (refreshProfile) refreshProfile();
       // Best-effort cleanup of previous photo
-      if (oldUrl && oldUrl !== result.url) deleteProfileAvatar(oldUrl).catch(() => {});
+      if (oldUrl && oldUrl !== result.url) deleteProfileAvatar(oldUrl);
     }
     setAvatarUploading(false);
   };
@@ -184,7 +184,7 @@ export default function Settings({ lang: pageLang = "en", setLang: pageSetLang, 
       setAvatarUrl(null);
       setAvatarTab("avatar");
       if (refreshProfile) refreshProfile();
-      if (oldUrl) deleteProfileAvatar(oldUrl).catch(() => {});
+      if (oldUrl) deleteProfileAvatar(oldUrl);
     }
   };
 
@@ -201,7 +201,7 @@ export default function Settings({ lang: pageLang = "en", setLang: pageSetLang, 
       setAvatarStatus("saved");
       setTimeout(() => setAvatarStatus(null), 2200);
       if (refreshProfile) refreshProfile();
-      if (oldUrl) deleteProfileAvatar(oldUrl).catch(() => {});
+      if (oldUrl) deleteProfileAvatar(oldUrl);
     }
   };
 

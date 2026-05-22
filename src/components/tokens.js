@@ -18,6 +18,8 @@
 // USED BY: 12+ pages directly, and indirectly by every page through the
 // design system. Adding new keys is fine; renaming requires sweeping.
 
+import { captureError } from "../lib/sentry";
+
 // ─── Theme CSS — injected once at app boot ──────────────────────────────
 export const THEME_CSS = `
 :root {
@@ -212,7 +214,14 @@ export function applyTheme(theme) {
  */
 export function setStoredTheme(theme) {
   const t = theme === "dark" ? "dark" : "light";
-  try { localStorage.setItem(THEME_KEY, t); } catch (_) {}
+  try {
+    localStorage.setItem(THEME_KEY, t);
+  } catch (err) {
+    // PR 136: persisting the theme can fail (private mode, quota). Not
+    // blocking — applyTheme still applies it for this session — but we want
+    // to know how often users lose theme persistence.
+    captureError(err, { kind: "localstorage_write", key: "theme" });
+  }
   applyTheme(t);
 }
 

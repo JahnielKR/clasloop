@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import { useSearchParams, useNavigate, useMatch } from "react-router-dom";
 import { QRCodeSVG } from "qrcode.react";
 import { supabase } from "../lib/supabase";
+import { captureError } from "../lib/sentry";
 import { processSessionResults, getSuggestedDecksForToday, getScheduledPlan, getUpcomingPlan } from "../lib/spaced-repetition";
 import { CIcon } from "../components/Icons";
 import { DeckCover, resolveColor } from "../lib/deck-cover";
@@ -2147,7 +2148,7 @@ export default function SessionFlow({ lang = "en", setLang, onNavigateToDecks, o
     (async () => {
       const { data } = await supabase.auth.getSession();
       accessTokenRef.current = data?.session?.access_token || null;
-    })().catch(() => {});
+    })().catch((err) => captureError(err, { source: "SessionFlow.cacheAccessToken" }));
 
     const onBeforeUnload = () => {
       try {
