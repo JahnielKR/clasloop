@@ -8,6 +8,41 @@ Entries are appended chronologically. Most recent at the top.
 
 ---
 
+## 2026-05-22 — PR 141 partial; extracted getTypeRules, not the .md redesign
+
+**Status:** ✅ done + merged to main. Partially addresses M7. Gates green
+(typecheck 0 · 101 tests · build ✓) + the constructed prompt is **byte-
+identical** before/after (verified with a throwaway script over 5 inputs).
+
+`ai-prompt.js` (677 LOC) mixed prompt strings with composition logic. Moved the
+biggest block — `getTypeRules` (~390 LOC of per-type rules in en/es/ko) — to
+`src/lib/prompts/type-rules.js`. ai-prompt.js drops to 283 LOC.
+
+**Deviation — the README's `.md` + `{placeholder}` + `interpolate` approach is
+inviable here.** The real prompts are **JS functions with `${}` interpolation**,
+in **three languages** (en/es/ko — the prompts themselves are translated, not
+just the output), and the system prompt **composes `getTypeRules()` dynamically
+inside its own template literal** (`${getTypeRules("en", activityType)}`). A
+flat `.md` can't call functions or branch by language/type. Converting `${}` →
+`{x}` + a hand-rolled interpolator would rewrite every prompt string — high risk
+of silently changing what Claude sees. So instead I moved the strings as-is
+into a module, preserving native JS interpolation.
+
+**Scope: extracted only `getTypeRules`** (offered the user A=getTypeRules-only,
+B=full split, C=skip; user said "do what's best, I trust you"). Chose A: it's
+the largest self-contained block (~60% of the file, called only by
+SYSTEM_PROMPTS), so the win is big and the blast radius small. SYSTEM_PROMPTS /
+USER_TEMPLATES / labelType / buildSourceBlock stayed in ai-prompt.js — they're
+smaller and more entangled with buildPromptParts; a full split (B) is a
+reasonable follow-up but moves ~620 LOC for less marginal benefit.
+
+**Verification note:** rather than spend Anthropic API quota generating a deck,
+I diffed the output of `buildPromptParts` for 5 representative inputs
+(en/es/ko × mcq/mix/slider/tf/sentence) pre/post — identical. That's a stronger
+guarantee than one smoke generation: it proves the model input is unchanged.
+
+---
+
 ## 2026-05-22 — PR 140 done; migrated to TS with the real return shape
 
 **Status:** ✅ done + merged to main. Closes M5. Gates green (typecheck 0 ·
