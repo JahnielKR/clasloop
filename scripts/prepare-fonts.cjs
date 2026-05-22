@@ -33,10 +33,21 @@ const fs = require("fs");
 const path = require("path");
 const https = require("https");
 const os = require("os");
+const crypto = require("crypto");
 const { spawnSync } = require("child_process");
 
 const FONT_URL =
   "https://github.com/notofonts/noto-cjk/raw/main/Sans/Variable/TTF/Subset/NotoSansKR-VF.ttf";
+
+// PR 155 (M27): pinned SHA256 of the UPSTREAM download (the ~10 MB variable
+// font), so a compromised GitHub release or proxy can't slip in a trojaned
+// font. We pin the raw source — NOT the committed output — because the local
+// fonttools/pyftsubset pass is non-deterministic across tool versions.
+// Regenerate when intentionally bumping the upstream font:
+//   node scripts/prepare-fonts.cjs   (it logs the actual SHA256), or
+//   curl -L "<FONT_URL>" | sha256sum
+const EXPECTED_SHA256 =
+  "9e1d729e7e2b36f9ef439da102f8c134c10aabe46f1c843bf0aca5c043b86f76";
 
 const OUTPUT_PATH = path.join(
   __dirname,
@@ -132,6 +143,21 @@ async function main() {
   console.log(`  Magic bytes: ${magicHex}`);
   if (magicHex !== "00010000" && sourceBuf.slice(0, 4).toString("ascii") !== "true") {
     throw new Error("Downloaded file is not a TTF (magic bytes wrong)");
+  }
+
+  // PR 155 (M27): integrity-check the raw download against the pinned SHA256
+  // before we trust it. Set EXPECTED_SHA256_OVERRIDE to exercise the mismatch
+  // path without editing this file.
+  const expectedSha = process.env.EXPECTED_SHA256_OVERRIDE || EXPECTED_SHA256;
+  const actualSha = crypto.createHash("sha256").update(sourceBuf).digest("hex");
+  console.log(`  SHA256: ${actualSha}`);
+  if (actualSha !== expectedSha) {
+    throw new Error(
+      `Font SHA256 mismatch — refusing this download.\n` +
+        `  expected: ${expectedSha}\n` +
+        `  actual:   ${actualSha}\n` +
+        `If you intentionally bumped the upstream font, update EXPECTED_SHA256 in scripts/prepare-fonts.cjs.`,
+    );
   }
 
   // Decide: subset locally with pyftsubset, or skip?
