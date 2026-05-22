@@ -8,6 +8,43 @@ Entries are appended chronologically. Most recent at the top.
 
 ---
 
+## 2026-05-22 — PR 164 done; repaired UTF-8 mojibake in 4 components (L10)
+
+**Status:** ✅ done + merged to main (`67d053a`). Closes L10. Gates green
+(typecheck 0 · 156 tests · build ✓ — the build parsing all four files is the
+key proof the byte-level edits didn't break syntax).
+
+Four files were double-encoded (Latin-1/cp1252 → re-read as UTF-8) + had a UTF-8
+BOM: `RoleOnboarding`, `ClassCodeModal`, `LobbyThemeSelector`, `AddToSlotModal`.
+Repaired to clean UTF-8, BOM stripped.
+
+**The "comment-only, no UX" note (cleanup + REALITY CHECK) was WRONG** — there
+were real user-facing bugs:
+- `LobbyThemeSelector` rendered a broken `âœ“` and `MarÃ­a R.` (now `✓` /
+  `María R.`).
+- **`AddToSlotModal`'s inline `lang === 'ko'` strings were corrupted Korean**
+  (`:484/:487/:500`) — KO users saw garbage in the add-to-slot modal. Now valid
+  한글 (verified the recovered codepoints are real Hangul, e.g. `새 워밍업 만들기`).
+- The rest (Spanish dev comments + box-drawing dividers) is cosmetic — comments
+  are stripped in the prod build.
+
+**Approach (per the REALITY CHECK — no blind iconv):** the corruption is lossy-
+looking (cp1252-undefined bytes stored as C1 controls) and mixed with **genuine
+non-ASCII** (`∈` at `RoleOnboarding:74`, valid Korean). A blanket recode would
+destroy those. Used a **byte-level cp1252 reverse** (`cp≤0xFF → byte`, else
+`cp1252 → byte`, then decode UTF-8) for the 3 all-mojibake files, and a
+**surgical mojibake-sequence map** for RoleOnboarding (it has genuine Latin-1 +
+`∈`, so the byte-reverse breaks on it) — preserving `∈`. Verified via
+throwaway Python probes (dry-run → confirm clean decode → apply); git grep finds
+zero mojibake markers afterward.
+
+**`.gitattributes`:** exists with `* text=auto eol=lf` + explicit `*.jsx … eol=lf`
+(its comment even names these 4 as the former CRLF offenders). Did **NOT** add
+`working-tree-encoding=UTF-8` — that's for *non-UTF-8* working trees; these files
+are UTF-8, so it'd be wrong. eol=lf already covers line endings.
+
+---
+
 ## 2026-05-22 — PR 162 done; Sidebar "active session" label → centralized i18n (L5)
 
 **Status:** ✅ done + merged to main (`a91a110`). Closes L5. Gates green
