@@ -8,6 +8,44 @@ Entries are appended chronologically. Most recent at the top.
 
 ---
 
+## 2026-05-22 — PR 170b — teacher Classes list migrated to React Query, USER-VERIFIED
+
+**Status:** ✅ done + merged to main (`d84d694`). **User-verified** (~30 min
+thorough pass, everything good). Gates green (typecheck 0 · lint 0 errors · 164
+tests · build ✓ · e2e public 2/2).
+
+**What changed.** New `src/hooks/useClasses.js`: `useTeacherClasses(userId)` wraps
+the old inline load (classes + per-class deck/student counts) in one cached query
+(`['teacherClasses', userId]`, `enabled: !!userId`); `useTeacherClassesCache()`
+exposes `patchClasses` (accepts a value OR an updater, mirroring `setClasses`).
+`MyClassesTeacher.jsx`: dropped the 4 data `useState` + the load effect; reads the
+3 datasets from the query (`isPending` → `loading`); the 4 mutation sites
+(drag-reorder, create, import, theme-save) keep their byte-identical optimistic
+updates via `patchClasses`. Same proven pattern as 170a/Decks; behavior-preserving
+by construction.
+
+**Scope note — teacher pages first.** The user's test account is a **teacher**, so
+the loop covers teacher-verifiable pages. `MyClasses.jsx` is the **student** view
+(join-by-code, saved decks, progress) → needs a student session; deferred. 170b's
+remaining teacher page is **ClassPage** (next).
+
+**The recurring user observation, RESOLVED (not a bug, not ours):** the "Worth
+reviewing today" deck cards showing a muted bg (vs white "Your plan for today"
+cards) is in **`SessionFlow.jsx`** (teacher home, `SuggestedCard` ~:1620) and is
+**intentional + documented in the code** — `background: C.bgSoft` "so the card
+sits one shade back … marking this as supporting content." Untouched by any
+react-query work.
+
+**Next:** ClassPage (teacher class detail). ⚠️ More complex — it has a LOCAL
+`refreshTick` counter (App.jsx:458-style) used as a refetch trigger, plus a
+`currentUnitIdx` "first load vs refetch" branch keyed off `refreshTick === 0`.
+Migration replaces refreshTick bumps with `invalidateQueries` and needs a
+first-load ref to preserve the currentUnitIdx behavior. (This local refreshTick is
+separate from the App-level `studentMembershipTick`/`activeSessionTick` that 170g
+removes.)
+
+---
+
 ## 2026-05-22 — PR 170a (cont.) — Decks page migrated to React Query, USER-VERIFIED
 
 **Status:** ✅ done + merged to main (`258dac2`). **Verified by the user logged in**
