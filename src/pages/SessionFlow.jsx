@@ -16,9 +16,6 @@ import { ROUTES, QUERY, buildRoute } from "../routes";
 import { useT } from "../i18n";
 import { useToast } from "../lib/toast";
 
-// ─── Theme ─────────────────────────────────────────────────────────────────
-const SUBJECTS = ["Math", "Science", "History", "Language", "Geography", "Art", "Music", "Other"];
-
 // ─── i18n ──────────────────────────────────────────────────────────────────
 // PR 79: el bloque i18n local fue movido a src/i18n/{en,es,ko}.js
 // bajo el namespace "sessionFlow".

@@ -9,13 +9,13 @@ import { C as BASE_C } from "../components/tokens";
 // PR 73: i18n centralizado — strings en src/i18n/{en,es,ko}.js
 // bajo el namespace "community".
 import { useT } from "../i18n";
+import { SUBJECTS } from "../lib/constants";
 
 // Community-specific extension: yellow tints for highlighting popular/
 // featured community decks.
 const C = BASE_C;
 
 const SUBJ_ICON = { Math: "math", Science: "science", History: "history", Language: "language", Geography: "geo", Art: "art", Music: "music", Other: "book" };
-const SUBJECTS = ["Math", "Science", "History", "Language", "Geography", "Art", "Music", "Other"];
 
 // PR 73: el bloque i18n local fue movido a src/i18n/{en,es,ko}.js
 // bajo el namespace "community". Se accede vía useT() en el componente.
