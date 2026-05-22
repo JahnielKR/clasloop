@@ -8,6 +8,73 @@ Entries are appended chronologically. Most recent at the top.
 
 ---
 
+## 2026-05-22 — Pre-PR-145 cleanup pass (docs + PR-spec accuracy)
+
+**Status:** ✅ done. A read-only deep audit (project state + every pending PR spec
+145-170) found the docs and several PR READMEs had drifted from the real code. This pass
+realigned them. **No `src/` code changed** — only docs and `PRs/` specs. Resuming point
+unchanged: **PR 145**.
+
+**Project docs fixed (git-tracked):**
+- `SETUP.md`: dev port `5173` → **`3000`** (vite.config.js:27 — was breaking setup);
+  ErrorBoundary nesting (`<App/>` → `ToastProvider > Root`); webhook name →
+  `generate-insight-on-session-complete`.
+- `README.md`: `routes.js` → `routes.ts` (migrated in PR 133).
+- `supabase/functions/generate-insight/README.md`: migration step pointed at a
+  non-existent `phase13_session_insights.sql` → real `migrations/20240101000015_*` /
+  `schema.sql`; "clasloop-phase1" dir → "clasloop".
+- Left historical snapshots untouched on purpose (`ANALYSIS.md`, `ANALYSIS_vs_HANDOFF.md`,
+  `docs/*HANDOFF*`, completed-PR specs) — they record past state, not current reality.
+
+**PRs marked ⏭️ SKIP** (banner prepended to each README, NOT deleted — `PRs/` is
+git-untracked, so a banner is reversible and keeps the audit trail):
+- **159** (`class_members` UNIQUE, M16) — misdiagnosed and dangerous. Joins go only via
+  the idempotent `join_class_by_code` RPC (`student_id` never null; returns the existing
+  row on rejoin; direct inserts blocked at schema.sql:4234), so the "re-link → UNIQUE
+  violation por residue" scenario can't occur, and dropping the `UNIQUE(class_id,
+  student_name)` guard would help nothing. Only real (rare) edge: two different auth users
+  with the same display name — re-scope to a `student_id` UNIQUE if product wants it.
+- **161** (font-weights audit, L3) — already done by PR 71/80. `index.html:33` already
+  loads 4 families / ~10 weights; the README's "Noto Sans KR + 22 weights" before-state is
+  fictional.
+- **163** (`decks.is_public` default, L9) — false premise. Migration `20240101000027` adds
+  `profiles.default_deck_visibility`, never touches `decks.is_public`; default already
+  `false` (schema.sql:2750).
+
+**PR specs rewritten** — each got a "⚠️ REALITY CHECK (2026-05-22)" block at the top with
+corrected files/lines/approach (original body kept for intent):
+- High-impact: **154** (two axes 80/50 + 70/40; EXCLUDE PctCircle — folding it in inverts
+  its colors; the "StudentJoin outlier" claim is backwards), **150** (direct `profiles`
+  UPDATE is RLS-blocked → use `update_my_profile` RPC; `'fox'` is not a valid avatar id),
+  **156/157** (don't reinvent `join_session`/`join_class_by_code`; throttle goes inside the
+  existing RPC; no frontend `CLASS_CODE_REGEX` exists; format is `MATH-3A`), **158** (keep
+  all 3 Sentry filters; only retag the network one), **165** (`allowMixedContent` is under
+  `android:`, not a `server:` block; un-dismiss needs `api/session-insight.js` extended),
+  **168** (add ESLint here → unblocks 143), **169** (L13 already done — shared.js exists;
+  L12 ~30 sites; split L19).
+- Line-ref / path / count drift: 145, 147, 149, 152, 155, 160 (`.js`→`.ts`), 162, 164
+  (comment-only, no UX), 166 (110 not 98 tests; Modal example targets a component that
+  doesn't exist yet), 167 (`MOCK_ANTHROPIC` fictional). Kept-with-note: 146, 148, 151, 153.
+
+**Sequencing:** **143 re-sequenced to run AFTER 168** — PR 168's rewrite now adds ESLint
+(`react-hooks/exhaustive-deps` = `warn`), the missing prerequisite for M9.
+
+**PR 170 split** into real folders **170a-g** (`PRs/PR_170a_* … PR_170g_*`): 170a
+setup+Decks, 170b Classes, 170c Community/Favorites, 170d Sessions+realtime (highest risk),
+170e Notifications/Director, 170f Profile/Settings/misc, 170g remove the two real `*Tick`
+counters (`studentMembershipTick`, `activeSessionTick` — there is no `decksTick`), after
+170b+170d. The master 170 README is now an overview with corrected facts.
+
+**Index:** `INDICE_PENDIENTES.md` got an "⚡ ESTADO (2026-05-22) — EMPEZAR AQUÍ" section
+(real start = PR 145; what's done; the SKIPs; 143-after-168; the 170a-g split) plus inline
+SKIP/DEFERRED/SPLIT markers on rows 143/159/161/163/170.
+
+**Tracked vs untracked:** the project-doc fixes + this entry are git-tracked and committed;
+the `PRs/PR_*` folders (banners, reality-check notes, 170a-g) stay untracked per the
+existing convention.
+
+---
+
 ## 2026-05-22 — PR 142b done; extracted _lib/auth.js (M8 now complete)
 
 **Status:** ✅ done + merged to main. Completes M8 (PR 142 did envelopes only;
