@@ -1,5 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { supabase } from "../lib/supabase";
+import { useTeacherProfile, useTeacherProfileCache } from "../hooks/useTeacherProfile";
 import { CIcon } from "../components/Icons";
 import { Avatar as CatalogAvatar } from "../components/Avatars";
 import { DeckCover, resolveColor, colorTint } from "../lib/deck-cover";
@@ -66,12 +67,17 @@ export default function TeacherProfile({ teacherId, profile: viewerProfile, lang
   const viewerId = viewerProfile?.id;
   const viewerRole = viewerProfile?.role; // "student" | "teacher"
 
-  const [loading, setLoading] = useState(true);
-  const [profile, setProfile] = useState(null);
-  const [decks, setDecks] = useState([]);
-  const [notAvailable, setNotAvailable] = useState(false);
-  const [saved, setSaved] = useState({}); // { deckId: true }
-  const [userClasses, setUserClasses] = useState([]); // for the "save to my decks" modal (teachers only)
+  // PR 170 (M1): profile + decks + the viewer's saved set + (teacher viewers')
+  // classes now come from one cached React Query (src/hooks/useTeacherProfile.js).
+  // The favorite toggle patches the cache via patchSaved below.
+  const { data: tp, isPending } = useTeacherProfile(teacherId, viewerId, viewerRole);
+  const loading = !!teacherId && isPending;
+  const notAvailable = !teacherId || (tp?.notAvailable ?? false);
+  const profile = tp?.profile ?? null;
+  const decks = useMemo(() => tp?.decks ?? [], [tp]);
+  const saved = tp?.saved ?? {};
+  const userClasses = tp?.userClasses ?? [];
+  const { patchSaved } = useTeacherProfileCache(teacherId, viewerId);
   const [savingDeck, setSavingDeck] = useState(null); // deck object that's being saved
   const [selectedDeck, setSelectedDeck] = useState(null); // deck open in detail view
   const [toast, setToast] = useState(null);
@@ -84,50 +90,8 @@ export default function TeacherProfile({ teacherId, profile: viewerProfile, lang
   const [filterGrade, setFilterGrade] = useState("");
   const [filterLanguage, setFilterLanguage] = useState("");
 
-  // Fetch profile + decks
-  useEffect(() => {
-    if (!teacherId) { setNotAvailable(true); setLoading(false); return; }
-    (async () => {
-      const { data: p } = await supabase
-        .from("profiles")
-        .select("id, full_name, role, avatar_url, avatar_id")
-        .eq("id", teacherId)
-        .maybeSingle();
-
-      if (!p || p.role !== "teacher") {
-        setNotAvailable(true);
-        setLoading(false);
-        return;
-      }
-      setProfile(p);
-
-      const { data: dks } = await supabase
-        .from("decks")
-        .select("*")
-        .eq("author_id", teacherId)
-        .eq("is_public", true)
-        .order("uses_count", { ascending: false });
-      setDecks(dks || []);
-
-      // Saved decks for the viewer (so we can show filled/empty stars)
-      if (viewerId) {
-        const { data: savedRows } = await supabase
-          .from("saved_decks").select("deck_id").eq("student_id", viewerId);
-        const map = {};
-        (savedRows || []).forEach(r => { map[r.deck_id] = true; });
-        setSaved(map);
-      }
-
-      // Teacher-only: load own classes for the "save to my decks" modal
-      if (viewerRole === "teacher" && viewerId) {
-        const { data: cls } = await supabase
-          .from("classes").select("*").eq("teacher_id", viewerId).order("created_at", { ascending: false });
-        setUserClasses(cls || []);
-      }
-
-      setLoading(false);
-    })();
-  }, [teacherId, viewerId, viewerRole]);
+  // PR 170: profile / decks / saved / classes now load via useTeacherProfile()
+  // (src/hooks/useTeacherProfile.js); React Query owns loading + caching.
 
   // Auto-dismiss toast
   useEffect(() => {
@@ -141,14 +105,14 @@ export default function TeacherProfile({ teacherId, profile: viewerProfile, lang
     const isAlreadySaved = saved[deck.id];
     if (isAlreadySaved) {
       const { error } = await supabase.from("saved_decks").delete().eq("student_id", viewerId).eq("deck_id", deck.id);
-      if (!error) setSaved(prev => { const next = { ...prev }; delete next[deck.id]; return next; });
+      if (!error) patchSaved(prev => { const next = { ...prev }; delete next[deck.id]; return next; });
     } else {
       // PR 28.15: save = favorite. INSERT with is_favorite=true so the
       // deck lands in the student's Favorites strip / page directly.
       const { error } = await supabase.from("saved_decks").insert({ student_id: viewerId, deck_id: deck.id, is_favorite: true });
       if (!error) {
         await supabase.from("decks").update({ uses_count: (deck.uses_count || 0) + 1 }).eq("id", deck.id);
-        setSaved(prev => ({ ...prev, [deck.id]: true }));
+        patchSaved(prev => ({ ...prev, [deck.id]: true }));
         setToast(t.saved);
       }
     }
