@@ -26,6 +26,10 @@ import { initAnalytics } from './lib/analytics'
 // pero nunca habían sido conectados al árbol React.
 import ErrorFallback from './components/ErrorFallback'
 import { ToastProvider } from './lib/toast'
+// PR 170a (M1): React Query client. First step of the incremental data-layer
+// migration — the provider is mounted now so per-page hooks (useDecks, etc.)
+// can be added page-by-page in the 170b-g sub-PRs.
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
 // ── Sentry boot ──
 initSentry();
@@ -82,6 +86,18 @@ function Root() {
   );
 }
 
+// PR 170a (M1): one QueryClient for the whole app. Defaults tuned for this
+// app's read patterns; per-query overrides go in the individual hooks.
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 30_000,      // 30s — most reads stay fresh this long
+      gcTime: 5 * 60_000,     // keep unused data cached for 5 min
+      refetchOnWindowFocus: true,
+    },
+  },
+});
+
 // ── React mount ──
 // PR 91: árbol con ErrorBoundary (afuera) + ToastProvider (adentro) + Root.
 // Orden importa:
@@ -98,7 +114,9 @@ ReactDOM.createRoot(document.getElementById('root')).render(
       showDialog={false}
     >
       <ToastProvider>
-        <Root />
+        <QueryClientProvider client={queryClient}>
+          <Root />
+        </QueryClientProvider>
       </ToastProvider>
     </SentryErrorBoundary>
   </React.StrictMode>,
