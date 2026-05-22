@@ -53,10 +53,11 @@ export async function bootCapacitor() {
     console.warn("[capacitor] backButton listener failed:", err);
   }
 
-  // ── 3. Splash screen: hide manual ──
-  // El config tiene launchAutoHide: false, así que lo cerramos cuando
-  // React ya pintó. Esperamos un beat extra para que termine la primera
-  // pintada del shell.
+  // ── 3. Splash screen: defensive hide ──
+  // PR 151 (M22): el config tiene launchAutoHide: true, así que Android cierra
+  // el splash solo (~launchShowDuration). Este hide() es un fallback defensivo
+  // por si el auto-hide nativo no dispara en algún device; el pequeño delay
+  // deja que React pinte el shell primero, para no revelar un WebView en blanco.
   try {
     await new Promise(r => setTimeout(r, 300));
     await SplashScreen.hide();
