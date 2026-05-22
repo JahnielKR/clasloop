@@ -19,6 +19,7 @@ const ko: Locale = {
     selected: "잘 어울려요!",
     continue: "계속",
     saving: "저장 중...",
+    skipForNow: "나중에 하기",
   },
 
   sessionInsightBar: {

@@ -23,6 +23,7 @@ const en = {
     selected: "Looking good!",
     continue: "Continue",
     saving: "Saving...",
+    skipForNow: "Skip for now",
   },
 
   sessionInsightBar: {

@@ -19,6 +19,7 @@ const es: Locale = {
     selected: "¡Te queda bien!",
     continue: "Continuar",
     saving: "Guardando...",
+    skipForNow: "Saltar por ahora",
   },
 
   sessionInsightBar: {
