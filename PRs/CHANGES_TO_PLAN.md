@@ -8,6 +8,44 @@ Entries are appended chronologically. Most recent at the top.
 
 ---
 
+## 2026-05-22 — PR 144 done; helper + targeted application (M21)
+
+**Status:** ✅ done + merged to main. Closes the user-facing leaks of M21;
+helper is reusable for the rest. Gates green (typecheck 0 · 110 tests incl. 9
+new · build ✓).
+
+New `src/lib/supabase-errors.ts` — `formatSupabaseError(err, lang)` categorizes
+Postgres codes / HTTP status / message patterns into a friendly localized
+(en/es/ko) message and never echoes the raw error. Messages live inline (not in
+i18n/) since they're low-level generic fallbacks tied 1:1 to the category.
+
+**Reality vs README:**
+- The README's flagship leak — `Scanner.jsx:211` `alert("…" + insertErr.message)`
+  — was **already fixed by PR 99/100** (now `toast.error("Error saving scan.
+  Try again.", { reportError })` → friendly text + raw error to Sentry).
+- So most `.message` usages are NOT M21: **AuthScreen** auth errors are
+  intentionally user-facing ("Invalid login credentials"); **CreateDeckEditor**
+  maps `AIError` codes to specific i18n already; **AdminAIStats** is admin-only
+  (technical detail is fine).
+- Applied `formatSupabaseError` to the genuine DB-error leaks that have `lang`:
+  **ClassPage** unit-create (was raw `error.message` / English prose) and
+  **Review** fetch error (dropped the appended `err.message`).
+
+**Verification:** UI smoke test of error messages isn't feasible (can't force
+RLS/unique errors as a normal teacher without breaking data), so instead added
+a unit test (9 cases) covering categorization, localization, defaults, and the
+M21 invariant — output never contains the raw error text. Stronger than a
+single forced-error click.
+
+**Follow-up:** `EditClassModal` / `CreateClassModal` also surface DB errors but
+receive `t`, not `lang`; threading `lang` to them (+ their callers) is a small
+follow-up to finish M21 everywhere.
+
+**Aside:** `.gitignore` gained `.vercel` (not from this PR — environment/tool
+added it; it's correct, left uncommitted).
+
+---
+
 ## 2026-05-22 — PR 143 deferred — no ESLint in the repo (M9 prerequisite missing)
 
 **Status:** ⏸️ deferred (NOT done, NOT closed). M9 stays open.
