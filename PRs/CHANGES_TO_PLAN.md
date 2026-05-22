@@ -8,6 +8,43 @@ Entries are appended chronologically. Most recent at the top.
 
 ---
 
+## 2026-05-22 — PR 154 done (PARTIAL); canonical scoring-thresholds.ts + SCORE consolidation (M33)
+
+**Status:** ✅ done + merged to main (`c455735`). **PARTIAL** M33 — the SCORE
+axis is consolidated; the retention axis is a documented follow-up. Gates green
+(typecheck 0 · 151 tests incl. 4 new · build ✓).
+
+New **`src/lib/scoring-thresholds.ts`** = single source of truth for the **two**
+tier axes: `SCORE_TIERS` 80/50 (`scoreTier`, `pctColor(pct, palette)`) and
+`RETENTION_TIERS` 70/40 (`retentionTier`). Consolidated the **two byte-identical
+SCORE `pctColor` copies** (`class-insights.js`, `deck-stats.ts`) — both now
+`export { pctColor } from "./scoring-thresholds"`, so the importing pages
+(ClassInsights, DeckResults) are untouched and behavior is identical. Removed the
+now-unused `StatsPalette` interface. Boundary values for both axes unit-tested
+(39/40/49/50/69/70/79/80/85 + pctColor null).
+
+**The README was HEAVILY drifted — followed the REALITY CHECK, not the body:**
+- Kept **TWO axes**. Did **NOT** flip StudentJoin 70/40→80/50 (the README's
+  step 3 + commit msg) — 70/40 is the retention *majority*, not an outlier.
+- **EXCLUDED `PctCircle.jsx`** — it colors the *miss/wrong* rate (high = red,
+  `pct>=50→red`), the inverse of these scales; the README's `isDanger` would
+  invert its colors. (Its PR-166 test guards this.)
+- Left spaced-repetition's 0–5 SR quality alone (different output, not a tier).
+
+**Deferred follow-up — retention-axis consolidation (NOT done):** these still
+inline 70/40 and should move to `retentionTier`: `CloseUnitFlow.jsx:462-463`,
+`Director.jsx:18`, `SessionFlow.jsx:1218,1623`, `StudentJoin.jsx:21` (`retCol`),
+`spaced-repetition.ts:597,675,950-952`, `unlock-checker.js:61,67`; plus the real
+outlier **`MyClasses.jsx:59,964` (80/60 → 70/40)**, a deliberate visual change.
+Why deferred: every consumer is an **authed** surface (not browser-verifiable
+here), the README itself flags "medium risk, visual," and migrating ~8 files
+blind while preserving each one's exact palette mapping would violate the
+smoke-test discipline. `RETENTION_TIERS`/`retentionTier` are defined and tested,
+so the follow-up is a careful per-file swap (ideally with a teacher login or
+staging to eyeball boundary values).
+
+---
+
 ## 2026-05-22 — PR 153 done; localized aria-label for MobileMenuButton (M32)
 
 **Status:** ✅ done + merged to main (`b4876c6`). Closes M32. Gates green
