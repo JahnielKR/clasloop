@@ -113,6 +113,7 @@ function AutoResizeTextarea({ value, onChange, placeholder, minHeight = 44, maxH
     el.style.height = `${next}px`;
     el.style.overflowY = el.scrollHeight > maxHeight ? "auto" : "hidden";
   };
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- resize reads stable layout props (min/maxHeight); re-running only when `value` changes is intended
   useEffect(resize, [value]);
   return (
     <textarea

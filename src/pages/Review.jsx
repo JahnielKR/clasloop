@@ -512,6 +512,7 @@ export default function Review({ profile, lang = "en", onOpenMobileMenu }) {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- gradeResponse closes over the listed values; it must not be a dep or the listener would rebind
   }, [filteredItems, activeIdx, selectedSessionId]); // gradeResponse closes over these
 
   // ── Render ────────────────────────────────────────────────────────────

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, lazy, Suspense } from "react";
+import { useEffectEvent } from "../hooks/useEffectEvent";
 import { useSearchParams, useNavigate, useMatch } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { CIcon } from "../components/Icons";
@@ -137,7 +138,8 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
   };
   const t = useT("decks", l);
 
-  useEffect(() => { loadData(); }, []);
+  const onLoad = useEffectEvent(() => { loadData(); });
+  useEffect(() => { onLoad(); }, [onLoad]);
 
   // Cross-page navigation hint via URL search param: ?class=<id>. When
   // arriving from "Create class" in Sessions we get a focusClassId so we can

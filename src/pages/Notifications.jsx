@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useEffectEvent } from "../hooks/useEffectEvent";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { getReviewSuggestions } from "../lib/spaced-repetition";
@@ -54,7 +55,8 @@ export default function Notifications({ lang: pageLang = "en", setLang: pageSetL
   const [dismissed, setDismissed] = useState(() => loadDismissed());
   const t = useT("notifications", l);
 
-  useEffect(() => { generateNotifications(); }, []);
+  const onGenerate = useEffectEvent(() => { generateNotifications(); });
+  useEffect(() => { onGenerate(); }, [onGenerate]);
 
   // Persist dismissed map every time it changes
   useEffect(() => { saveDismissed(dismissed); }, [dismissed]);

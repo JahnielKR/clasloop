@@ -192,6 +192,7 @@ export function CloseUnitSummary({ unit, classObj, userId, lang = "en", onBack, 
       }
     })();
     return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fetch keyed on unit id only; reading unit.closing_note here must not re-trigger the fetch
   }, [unit?.id]);
 
   // PR 12.4: Check if a closing review deck was already generated for
@@ -210,6 +211,7 @@ export function CloseUnitSummary({ unit, classObj, userId, lang = "en", onBack, 
       }
     })();
     return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed on the ids only; passing the full unit/classObj objects must not re-run on every render
   }, [unit?.id, classObj?.id]);
 
   // PR 12: Auto-generate the AI narrative when the summary is ready.

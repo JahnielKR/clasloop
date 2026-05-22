@@ -327,6 +327,7 @@ export default function App() {
     });
 
     return () => subscription.unsubscribe();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only auth bootstrap; the handler uses the latest fetchProfile via closure, listing it would tear down/recreate the subscription
   }, []);
 
   // ── URL → page state sync ──
@@ -673,6 +674,7 @@ export default function App() {
       setStudentHasClass((count || 0) > 0);
     })();
     return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- re-runs only on the listed id/role/tick; the async body reads `profile` without it being a trigger
   }, [profile?.id, profile?.role, studentMembershipTick]);
 
   const fetchProfile = async (id, isInitial = true) => {

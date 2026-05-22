@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useEffectEvent } from "../hooks/useEffectEvent";
 import { supabase } from "../lib/supabase";
 import { CIcon } from "../components/Icons";
 import { DeckCover, colorTint } from "../lib/deck-cover";
@@ -70,7 +71,8 @@ export default function Community({ lang: pageLang = "en", setLang: pageSetLang,
   const t = useT("community", l);
   const isStudent = profile?.role === "student";
 
-  useEffect(() => { loadData(); }, [profile?.id]);
+  const onLoad = useEffectEvent(() => { loadData(); });
+  useEffect(() => { onLoad(); }, [profile?.id, onLoad]);
 
   const loadData = async () => {
     const { data: { user } } = await supabase.auth.getUser();

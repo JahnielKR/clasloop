@@ -581,6 +581,7 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
       setLoading(false);
     })();
     return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- currentUnitIdx is read to preserve selection but must not re-trigger the reload (would loop)
   }, [classId, profile?.id, refreshTick]);
 
   // When the section changes, reset the unit filter — filters are scoped
