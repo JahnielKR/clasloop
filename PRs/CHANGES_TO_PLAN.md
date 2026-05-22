@@ -8,6 +8,47 @@ Entries are appended chronologically. Most recent at the top.
 
 ---
 
+## 2026-05-22 — PR 142b done; extracted _lib/auth.js (M8 now complete)
+
+**Status:** ✅ done + merged to main. Completes M8 (PR 142 did envelopes only;
+this does the shared-auth extraction the user re-enabled by installing
+`vercel dev`).
+
+New `api/_lib/auth.js`: `requireAuth` (SERVICE_KEY client + getUser),
+`requireTeacher` (+ profile.role), `requireDailyRateLimit` (ai_generations DB
+count, fail-open). The three endpoints now use them; ~150 LOC of duplicated
+boilerplate gone. Kept the **real** pattern (SERVICE_KEY + DB rate limit), not
+the README's dangerous ANON+RLS+in-memory sketch.
+
+**One intentional behavior change:** `session-insight` invalid-token code
+`invalid_session` → `invalid_auth` (and its config-500 `supabase_not_configured`
+→ `server_misconfigured`), unifying with the other two. Clients map by status /
+use the error as a flag, not by code text, so it's safe.
+
+**Verifying serverless locally was a saga — notes for next time:**
+- `vercel dev` does NOT load local `.env`/`.env.local` for the functions when
+  the project is linked; it uses the cloud **development** environment, which
+  lacks the secrets → endpoints 500'd no matter what.
+- `vercel env pull` returns **blank** values for secrets marked *sensitive* in
+  Vercel (SERVICE_KEY, ANTHROPIC_API_KEY, even VITE_SUPABASE_ANON_KEY). Only
+  non-sensitive ones (SUPABASE_URL) come through. So you can't get the real
+  secret values via pull — the user has to paste them (what the prior chat did).
+- **What worked:** a throwaway Node runner that loads `.env.local` into
+  `process.env`, sets *dummy* values for the blank-sensitive vars (the
+  auth-FAIL cases don't need real ones — a missing/invalid token is rejected
+  before any authed query), and invokes the real handlers with mock req/res
+  against Supabase prod (read-only). Diffed pre/post: identical except the one
+  intentional code change above.
+- **Gotcha:** a leftover `.env.local` (from `vercel env pull`) shadows `.env`
+  in Vite/Vitest with a blank `VITE_SUPABASE_ANON_KEY`, which made
+  `supabase.ts` throw and broke the spaced-repetition test suite. Deleting the
+  temp `.env.local` restored 110/110. Always clean up pulled `.env.local`.
+
+Cleanup: temp `.env.local` + runner deleted, `.env` reverted to VITE-only,
+vercel dev stopped. `.gitignore` gained `.vercel` + `.env*`.
+
+---
+
 ## 2026-05-22 — PR 144 done; helper + targeted application (M21)
 
 **Status:** ✅ done + merged to main. Closes the user-facing leaks of M21;
