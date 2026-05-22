@@ -222,6 +222,20 @@ const ko: Locale = {
     confirmYes: "예, 계정 만들기",
   },
 
+  teacherWelcome: {
+    welcome: "Clasloop에 오신 걸 환영해요!",
+    welcomeNamed: "{name}님, 환영해요!",
+    intro: "수업 자료를 매일의 빠른 점검으로 바꿔줘요 — 시작하기 전에 핵심만 짚을게요.",
+    point1Title: "어떤 파일이나 주제든 올리세요",
+    point1Body: "PDF, 슬라이드, 문서, 또는 주제만으로도. AI가 문제를 만들고 한 번 더 확인합니다.",
+    point2Title: "라이브로 진행하거나 인쇄하세요",
+    point2Body: "학생들이 휴대폰으로 참여하는 라이브 세션을 열거나, 깔끔한 시험지를 인쇄하세요.",
+    point3Title: "도움이 필요한 학생을 확인하세요",
+    point3Body: "끝날 때마다 약점과 학생별 정착도를 보여주고, 어려운 개념은 자동으로 다시 나옵니다.",
+    ctaPrimary: "첫 워밍업 만들기",
+    ctaSkip: "직접 둘러볼게요",
+  },
+
   guestJoin: {
     joinSession: "세션 참여",
     enterCode: "선생님이 알려준 6자리 코드를 입력하세요",

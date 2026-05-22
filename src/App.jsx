@@ -14,6 +14,7 @@ import { LogoMark, TeacherInline, StudentInline, TeacherAvatar, StudentAvatar } 
 import PublicHome from './pages/PublicHome';
 import AvatarOnboarding from './pages/AvatarOnboarding';
 import RoleOnboarding from './pages/RoleOnboarding';
+import TeacherWelcome from './pages/TeacherWelcome';
 // PR 112: AuthScreen + NotFoundScreen extracted to their own files.
 // Eagerly imported (no lazy) because they paint before the authed shell
 // loads — same rationale as the eager imports above.
@@ -157,6 +158,9 @@ export default function App() {
   // (cuenta nueva), mostramos RoleOnboarding.jsx que crea el profile
   // con el rol elegido. Mientras tanto guardamos el user en state.
   const [pendingRoleSelectionUser, setPendingRoleSelectionUser] = useState(null);
+  // Phase 2: one-time first-run welcome for teachers, set only on a fresh role
+  // pick (see handleRoleOnboardingCreated) so existing teachers never see it.
+  const [showTeacherWelcome, setShowTeacherWelcome] = useState(false);
   // `page` mirrors the URL (kept in sync by an effect below). Initialised from
   // the current pathname so the very first render already shows the correct
   // page without a flash. Default to "sessions" when path is "/" — fetchProfile
@@ -793,6 +797,9 @@ export default function App() {
     setPendingRoleSelectionUser(null);
     setProfile(newProfile);
     setLang(newProfile.language || "en");
+    // Phase 2: teachers skip avatar onboarding, so greet them once with a
+    // first-run welcome before the dashboard.
+    if (newProfile.role === "teacher") setShowTeacherWelcome(true);
     // Navegar a la home del rol elegido
     if (location.pathname === "/") {
       if (newProfile.role === "student") {
@@ -874,6 +881,20 @@ export default function App() {
         profile={profile}
         lang={lang}
         onDone={(avatarId) => setProfile(p => ({ ...p, avatar_id: avatarId }))}
+      />
+    );
+  }
+
+  // Phase 2: one-time first-run welcome for teachers (they skip the avatar
+  // step). showTeacherWelcome is only set on a fresh role pick, so returning
+  // teachers fall straight through to their dashboard.
+  if (profile && profile.role === "teacher" && showTeacherWelcome) {
+    return (
+      <TeacherWelcome
+        profile={profile}
+        lang={lang}
+        onStart={() => { setShowTeacherWelcome(false); navigate(ROUTES.DECKS_NEW); }}
+        onSkip={() => setShowTeacherWelcome(false)}
       />
     );
   }
