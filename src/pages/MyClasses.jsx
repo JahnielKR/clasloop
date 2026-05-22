@@ -8,6 +8,7 @@ import { DeckCover, colorTint } from "../lib/deck-cover";
 import { useIsMobile } from "../components/MobileMenuButton";
 import PageHeader from "../components/PageHeader";
 import SectionBadge from "../components/SectionBadge";
+import EmptyState from "../components/EmptyState";
 import { C, MONO } from "../components/tokens";
 import { getPracticeTimerPref, setPracticeTimerPref } from "../lib/practice-timer-pref";
 import { ROUTES, buildRoute } from "../routes";
@@ -425,19 +426,13 @@ export default function MyClasses({ lang: pageLang = "en", setLang: pageSetLang,
 
         {/* Empty state */}
         {classes.length === 0 && !showJoinForm && (
-          <Card style={{ textAlign: "center", padding: 36 }}>
-            <div style={{ fontSize: 36, marginBottom: 10 }}>📚</div>
-            <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 6, fontFamily: "'Outfit'" }}>{t.noClassesYet}</h3>
-            <p style={{ fontSize: 13, color: C.textMuted, marginBottom: 18, lineHeight: 1.5 }}>{t.noClassesSub}</p>
-            <button
-              onClick={openJoinForm}
-              style={{
-                padding: "10px 20px", borderRadius: 8, fontSize: 14, fontWeight: 600,
-                background: C.accent, color: "#fff", border: "none", cursor: "pointer",
-                fontFamily: "'Outfit',sans-serif",
-              }}
-            >{t.joinClass}</button>
-          </Card>
+          <EmptyState
+            cleo
+            title={t.noClassesYet}
+            body={t.noClassesSub}
+            actionLabel={t.joinClass}
+            onAction={openJoinForm}
+          />
         )}
 
         {/* Class cards */}
