@@ -1088,6 +1088,7 @@ const ko: Locale = {
     sliderHint: "학생이 슬라이더를 드래그하여 추정합니다. 허용 오차 내면 ✓.",
     addQuestionImage: "+ 이미지 추가", removeQuestionImage: "이미지 제거", changeQuestionImage: "이미지 변경",
     questionImageHint: "문제에 표시되는 선택적 이미지",
+    imageAltPlaceholder: "스크린 리더용 이미지 설명 (선택)",
     // ── AI 생성 패널 ──
     aiGenerateButton: "AI로 생성",
     aiPanelTitle: "AI로 문제 생성",
