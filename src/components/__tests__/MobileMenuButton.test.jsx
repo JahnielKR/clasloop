@@ -30,6 +30,13 @@ describe("MobileMenuButton", () => {
     expect(onOpen).toHaveBeenCalledTimes(1);
   });
 
+  it("localizes the aria-label from the lang prop (M32)", () => {
+    setViewport(true);
+    render(<MobileMenuButton onOpen={() => {}} lang="es" />);
+    expect(screen.getByRole("button", { name: "Abrir menú" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Open menu" })).not.toBeInTheDocument();
+  });
+
   it("renders nothing on desktop", () => {
     setViewport(false);
     render(<MobileMenuButton onOpen={() => {}} />);

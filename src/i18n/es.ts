@@ -1169,6 +1169,10 @@ const es: Locale = {
     withClass: "Te removieron de {class}",
     withoutClass: "Te removieron de esta clase",
   },
+
+  mobileMenu: {
+    openMenu: "Abrir menú",
+  },
 };
 
 export default es;
