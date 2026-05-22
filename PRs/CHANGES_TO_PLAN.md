@@ -8,6 +8,30 @@ Entries are appended chronologically. Most recent at the top.
 
 ---
 
+## 2026-05-22 — PR 158 done; stop dropping network errors in Sentry (M15)
+
+**Status:** ✅ done + merged to main (`cb50a1d`). Closes M15. Gates green
+(typecheck 0 · 156 tests incl. 5 new · build ✓). **Unit-test verified.**
+
+`beforeSend` was dropping `NetworkError` / `"Failed to fetch"` events — exactly
+what we want to see (CORS, Vercel down, offline). Now those are **kept and
+tagged `kind:network`** (so the dashboard can still filter them if noisy).
+
+**Per the REALITY CHECK (README's replacement was wrong):** kept **all three**
+filters and only changed filter 1. The README's "Reemplazar" block would have
+silently dropped filter 2 (Capacitor `cancelled`/`user_cancelled`) and narrowed
+filter 3 (ResizeObserver) — left both untouched.
+
+**Verification approach:** Sentry is a no-op in dev / without a DSN, so
+`beforeSend` can't be exercised live. Extracted it to a pure
+**`lib/sentry-filters.js`** (`beforeSendFilter(event, hint)`) and wired
+`beforeSend: beforeSendFilter` into `Sentry.init`; **5 unit tests** pin all
+three filters + the M15 tag (incl. both the `NetworkError` name and
+`Failed to fetch` message checks) + existing-tag preservation + null-safety.
+Same extract-for-testability pattern as PR 149's `resolveInitialLang`.
+
+---
+
 ## 2026-05-22 — PR 157 done; class code entropy 1→3 letters (L21). PR 156 deferred.
 
 **PR 157 status:** ✅ done + merged to main (`7377f05`). Closes L21. Gates green
