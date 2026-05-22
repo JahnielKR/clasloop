@@ -8,6 +8,30 @@ Entries are appended chronologically. Most recent at the top.
 
 ---
 
+## 2026-05-22 — PR 160 (M28) ⏭️ SKIPPED — `persistence: "memory"` is intentional
+
+**Status:** ⏭️ skipped — no code change (user decision). M28 stays open by
+design.
+
+M28 frames PostHog's `persistence: "memory"` as a defect ("breaks pre-login
+funnels"), but it's a **deliberate privacy/compliance choice** documented right
+in the code (`analytics.ts:74`): *"No cookies — usa solo memory storage. Esto
+evita el banner GDPR y mantiene compliance simple."* The lost pre-login funnel
+continuity is a **known, accepted tradeoff** (the code notes `identify()` at
+login restores post-auth continuity).
+
+Switching to `localStorage+cookie` would set a 365-day persistent tracking ID
+**without a consent banner**, on a product used by **students (potential minors
+→ COPPA / GDPR-K)**, reversing that decision and contradicting the team's
+privacy-first posture (cf. sentry.js: no email/name/student data). Per the
+user's call, **keep `memory`**. If pre-login funnels are ever wanted, the
+correct path is `localStorage+cookie` **+ an opt-in consent flow**
+(`opt_out_capturing_by_default: true` then `opt_in_capturing()`), not flipping
+the flag bare. (Same "intentional choice misframed as a bug" pattern as the
+159/161/163 skips.)
+
+---
+
 ## 2026-05-22 — PR 158 done; stop dropping network errors in Sentry (M15)
 
 **Status:** ✅ done + merged to main (`cb50a1d`). Closes M15. Gates green
