@@ -762,6 +762,13 @@ const ko: Locale = {
     printLoop2: "학생이 종이에 답안 작성",
     printLoop3: "휴대폰으로 스캔",
     printLoop4: "자동 채점",
+    // Landing — Insights / results demo
+    insTitle: "누가 이해했는지 정확히 확인",
+    insSub: "워밍업이나 종료 티켓이 끝날 때마다 약점과 학생별 정착도를 보여주고, 어려운 개념은 자동으로 다시 나옵니다.",
+    insMostMissed: "가장 많이 틀림",
+    insFailed: "틀림",
+    insRetention: "수업 정착도",
+    insResurface: "내일 워밍업에 다시 등장",
     typeMcq: "객관식",
     typeTf: "참/거짓",
     typeFill: "빈칸 채우기",

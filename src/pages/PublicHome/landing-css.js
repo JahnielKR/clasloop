@@ -142,6 +142,7 @@ export const landingCss = `
     .ph-hero { padding: 64px 22px 48px !important; min-height: auto !important; }
     .ph-how-grid, .ph-why-grid { grid-template-columns: 1fr !important; }
     .ph-print-grid { grid-template-columns: 1fr !important; }
+    .ph-ins-grid { grid-template-columns: 1fr !important; }
     .ph-section-h2 { font-size: 30px !important; }
     .ph-section-sub { font-size: 15px !important; }
     .ph-step-title, .ph-why-title { font-size: 18px !important; }

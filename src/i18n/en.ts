@@ -766,6 +766,13 @@ const en = {
     printLoop2: "Students answer on paper",
     printLoop3: "Scan with your phone",
     printLoop4: "Auto-graded",
+    // Landing — Insights / results demo
+    insTitle: "See exactly who got it",
+    insSub: "After every warmup or exit ticket you get the weak spots and a per-student retention read — and the tricky concepts come back on their own.",
+    insMostMissed: "Most missed",
+    insFailed: "missed it",
+    insRetention: "Class retention",
+    insResurface: "Resurfaces in tomorrow's warmup",
     typeMcq: "Multiple choice",
     typeTf: "True/False",
     typeFill: "Fill blanks",

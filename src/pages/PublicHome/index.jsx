@@ -9,7 +9,7 @@ import Hero from "./sections/Hero";
 import GenerationDemo from "./sections/GenerationDemo";
 import PrintAndScanDemo from "./sections/PrintAndScanDemo";
 import QuestionTypes from "./sections/QuestionTypes";
-import HowItWorks from "./sections/HowItWorks";
+import InsightsDemo from "./sections/InsightsDemo";
 import WhyDaily from "./sections/WhyDaily";
 import FinalCTA from "./sections/FinalCTA";
 import Footer from "./sections/Footer";
@@ -193,7 +193,7 @@ export default function PublicHome({ onSignIn, onSignUp }) {
         <GenerationDemo t={t} lang={lang} />
         <PrintAndScanDemo t={t} lang={lang} />
         <QuestionTypes t={t} />
-        <HowItWorks t={t} />
+        <InsightsDemo t={t} lang={lang} />
         <WhyDaily t={t} />
         <FinalCTA t={t} onSignUp={handleSignUp} />
         <Footer t={t} />

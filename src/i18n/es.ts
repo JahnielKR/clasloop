@@ -762,6 +762,13 @@ const es: Locale = {
     printLoop2: "Responden en papel",
     printLoop3: "Escanéalo con el móvil",
     printLoop4: "Corregido solo",
+    // Landing — Insights / results demo
+    insTitle: "Mira quién lo pilló",
+    insSub: "Tras cada warmup o exit ticket ves los puntos débiles y la retención de cada alumno — y los conceptos difíciles vuelven solos.",
+    insMostMissed: "Más fallado",
+    insFailed: "lo falló",
+    insRetention: "Retención de la clase",
+    insResurface: "Vuelve en el warmup de mañana",
     typeMcq: "Opción múltiple",
     typeTf: "Verdadero/Falso",
     typeFill: "Rellenar espacios",
