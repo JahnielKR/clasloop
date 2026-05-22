@@ -8,6 +8,40 @@ Entries are appended chronologically. Most recent at the top.
 
 ---
 
+## 2026-05-22 — PR 145 done; single `<html lang>` write effect in App.jsx (H21)
+
+**Status:** ✅ done + merged to main. Closes H21. Batch H complete. Gates green
+(typecheck 0 · 110 tests · build ✓) + browser-verified on the preview build.
+
+Added one `useEffect(() => document.documentElement.setAttribute("lang", lang), [lang])`
+in `App.jsx`, right after the `lang` state / `setLang` (≈line 178). `index.html`
+still ships `lang="en"`; the effect updates it post-mount. App is the
+always-mounted root (renders both the authed shell and PublicHome), so it is the
+**single writer** of `<html lang>`.
+
+**Scoped tight per the REALITY CHECK:**
+- **Did NOT add the `index.html` pre-React navigator.language script** (README's
+  "part 2") — that's initial-value detection = **PR 149**'s scope (M19). Keeping
+  the write in one place avoids duplicating the effect across 145/149.
+- **Did NOT add a second effect in `PublicHome.jsx`** despite its separate `lang`
+  state (~218). Both states persist to the same `clasloop_lang` key, and a child
+  effect would race the parent's write. App owns the single write.
+
+**Verification (login-free, exercises the real mechanism):** `npm run preview`
+(:4173); set `localStorage.clasloop_lang` + reload — `<html lang>` followed:
+`en` (default) → `ko` → `es`. Since index.html ships `en`, only the effect could
+change it. 0 console errors. The authed path uses the *same* `lang` state (App
+sets it from `profile.language` on login at App.jsx:743 and from Settings via
+`setLang`), so the same effect covers it; couldn't log in without creds, but the
+state path is identical.
+
+**Interaction with PR 149 (by design):** on the *unauthenticated* PublicHome,
+App's `lang` has no navigator.language detection yet (localStorage only, default
+`en`), so a browser-Spanish visitor with no saved pref still gets
+`<html lang="en">` until PR 149 adds navigator detection to App's initial value.
+
+---
+
 ## 2026-05-22 — Pre-PR-145 cleanup pass (docs + PR-spec accuracy)
 
 **Status:** ✅ done. A read-only deep audit (project state + every pending PR spec
