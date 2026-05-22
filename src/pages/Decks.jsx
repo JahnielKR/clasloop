@@ -8,6 +8,7 @@ import { analyzeDerivation } from "../lib/deck-derivation";
 import { useIsMobile } from "../components/MobileMenuButton";
 import PageHeader from "../components/PageHeader";
 import SectionBadge, { sectionAccent } from "../components/SectionBadge";
+import EmptyState from "../components/EmptyState";
 import { MONO } from "../components/tokens";
 import { C, css } from "./Decks/styles";
 import CreateDeckEditor from "./Decks/CreateDeckEditor";
@@ -665,29 +666,12 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
           // Hard empty state — no classes AND no favorites. Surface a
           // primary action to nudge the teacher to create their first
           // class (which is where decks come from).
-          <div style={{
-            padding: "60px 24px",
-            background: C.bg,
-            border: `1px dashed ${C.border}`,
-            borderRadius: 12,
-            textAlign: "center",
-            maxWidth: 480,
-            margin: "20px auto 0",
-          }}>
-            <div style={{
-              fontFamily: "'Outfit', sans-serif",
-              fontSize: 16, fontWeight: 700,
-              color: C.text, marginBottom: 6,
-            }}>
-              {t.libraryEmptyTitle}
-            </div>
-            <p style={{
-              fontSize: 13, color: C.textSecondary,
-              marginBottom: 18, lineHeight: 1.5,
-            }}>
-              {t.libraryEmptyHint}
-            </p>
-          </div>
+          <EmptyState
+            emoji="📚"
+            title={t.libraryEmptyTitle}
+            body={t.libraryEmptyHint}
+            style={{ maxWidth: 480, margin: "20px auto 0" }}
+          />
         ) : (
           <>
             {/* Top tabs bar — class tabs + Favorites + Search input */}
