@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { C, MONO } from "../../../components/tokens";
 import { STYLE_THUMBS } from "../../../components/PdfStyleThumbs";
+import { CIcon } from "../../../components/Icons";
 import { useT } from "../../../i18n";
 import { useReveal } from "../useReveal";
 
@@ -35,10 +36,10 @@ export default function PrintAndScanDemo({ t, lang }) {
     { id: "scan", label: t.printVariantScan },
   ];
   const LOOP = [
-    { icon: "🖨️", label: t.printLoop1 },
-    { icon: "✏️", label: t.printLoop2 },
-    { icon: "📷", label: t.printLoop3 },
-    { icon: "✅", label: t.printLoop4 },
+    { icon: "printer", label: t.printLoop1 },
+    { icon: "handwrite", label: t.printLoop2 },
+    { icon: "scan", label: t.printLoop3 },
+    { icon: "graded", label: t.printLoop4 },
   ];
 
   const Thumb = STYLE_THUMBS[style] || STYLE_THUMBS.classic;
@@ -160,7 +161,7 @@ export default function PrintAndScanDemo({ t, lang }) {
                   padding: "16px 14px", width: 132, minHeight: 104, justifyContent: "center",
                   boxShadow: "0 2px 10px rgba(0,0,0,0.04)",
                 }}>
-                  <span style={{ fontSize: 28, lineHeight: 1 }} aria-hidden="true">{step.icon}</span>
+                  <CIcon name={step.icon} size={46} />
                   <span style={{ fontSize: 12.5, fontWeight: 600, color: C.textSecondary, textAlign: "center", lineHeight: 1.3 }}>
                     {step.label}
                   </span>

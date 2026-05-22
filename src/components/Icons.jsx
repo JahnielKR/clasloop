@@ -526,6 +526,54 @@ const ICON_DEFS = {
   school: { color: D.green, d: "M5,20 L5,11 L12,6 L19,11 L19,20", extra: (c) => <><rect x="9" y="14" width="6" height="6" rx="1" fill="#fff" opacity="0.3" stroke="#fff" strokeWidth="0.8"/><circle cx="12" cy="11" r="1.5" fill="#fff" opacity="0.5"/><path d="M17,7 L17,4 L20,5.5 Z" fill={D.orange}/></> },
   settings: { color: D.muted, d: "", extra: (c) => <><line x1="4" y1="7" x2="20" y2="7" stroke={c} strokeWidth="1.5" strokeLinecap="round"/><line x1="4" y1="12" x2="20" y2="12" stroke={c} strokeWidth="1.5" strokeLinecap="round"/><line x1="4" y1="17" x2="20" y2="17" stroke={c} strokeWidth="1.5" strokeLinecap="round"/><circle cx="9" cy="7" r="2.5" fill={c} opacity="0.3" stroke={c} strokeWidth="1.2"/><circle cx="15" cy="12" r="2.5" fill={c} opacity="0.3" stroke={c} strokeWidth="1.2"/><circle cx="11" cy="17" r="2.5" fill={c} opacity="0.3" stroke={c} strokeWidth="1.2"/></> },
   back: { color: D.blue, d: "", extra: (c) => <><line x1="19" y1="12" x2="5" y2="12" stroke={c} strokeWidth="2" strokeLinecap="round"/><path d="M12,5 L5,12 L12,19" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/></> },
+
+  // ── Teacher workflow / landing (clean branded line icons) ──
+  // Added for the marketing landing's print→scan loop + "why daily" section,
+  // but they're part of the shared icon vocabulary so the in-app surfaces
+  // (Decks, Director, PDFExportModal…) can adopt the same marks later.
+  printer: { color: D.blue, d: "", extra: (c) => <>
+    <path d="M7,8 L7,4 C7,3.4 7.4,3 8,3 L16,3 C16.6,3 17,3.4 17,4 L17,8" fill="none" stroke={c} strokeWidth="1.8" strokeLinejoin="round"/>
+    <rect x="3.5" y="8" width="17" height="8" rx="2.5" fill={c + "14"} stroke={c} strokeWidth="1.8"/>
+    <rect x="7" y="13" width="10" height="7" rx="1.5" fill="#fff" stroke={c} strokeWidth="1.7"/>
+    <line x1="9.5" y1="16" x2="14.5" y2="16" stroke={c} strokeWidth="1.4" strokeLinecap="round" opacity="0.7"/>
+    <circle cx="16.5" cy="11" r="1.1" fill={c}/>
+  </> },
+  handwrite: { color: D.purple, d: "", extra: (c) => <>
+    <path d="M13,4 L5,4 C4.4,4 4,4.4 4,5 L4,19 C4,19.6 4.4,20 5,20 L12.5,20" fill={c + "10"} stroke={c} strokeWidth="1.8" strokeLinejoin="round" strokeLinecap="round"/>
+    <line x1="7" y1="8" x2="11" y2="8" stroke={c} strokeWidth="1.5" strokeLinecap="round" opacity="0.6"/>
+    <line x1="7" y1="11" x2="9.5" y2="11" stroke={c} strokeWidth="1.5" strokeLinecap="round" opacity="0.4"/>
+    <path d="M19.4,9.4 L21,11 L15,17 L12.8,17.6 L13.4,15.4 Z" fill={c + "22"} stroke={c} strokeWidth="1.7" strokeLinejoin="round"/>
+  </> },
+  scan: { color: D.blue, d: "", extra: (c) => <>
+    <path d="M4,8 L4,5.5 C4,4.7 4.7,4 5.5,4 L8,4" fill="none" stroke={c} strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"/>
+    <path d="M16,4 L18.5,4 C19.3,4 20,4.7 20,5.5 L20,8" fill="none" stroke={c} strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"/>
+    <path d="M20,16 L20,18.5 C20,19.3 19.3,20 18.5,20 L16,20" fill="none" stroke={c} strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"/>
+    <path d="M8,20 L5.5,20 C4.7,20 4,19.3 4,18.5 L4,16" fill="none" stroke={c} strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"/>
+    <line x1="6.5" y1="12" x2="17.5" y2="12" stroke={c} strokeWidth="2" strokeLinecap="round"/>
+  </> },
+  graded: { color: D.green, d: "", extra: (c) => <>
+    <rect x="4" y="3" width="16" height="18" rx="2.5" fill={c + "10"} stroke={c} strokeWidth="1.8"/>
+    <path d="M8,11.5 L11,14.5 L16,8.5" fill="none" stroke={c} strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round"/>
+    <line x1="8" y1="17.5" x2="16" y2="17.5" stroke={c} strokeWidth="1.5" strokeLinecap="round" opacity="0.45"/>
+  </> },
+  spaced: { color: D.orange, d: "", extra: (c) => <>
+    <path d="M18.8,10 A7,7 0 1,0 19,13.6" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round"/>
+    <path d="M18.4,5.5 L19,10 L14.6,9.4" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+    <line x1="12" y1="9" x2="12" y2="12" stroke={c} strokeWidth="1.8" strokeLinecap="round"/>
+    <line x1="12" y1="12" x2="14.2" y2="13.2" stroke={c} strokeWidth="1.8" strokeLinecap="round"/>
+  </> },
+  library: { color: D.purple, d: "", extra: (c) => <>
+    <rect x="4.5" y="14.5" width="15" height="5.5" rx="2" fill={c + "10"} stroke={c} strokeWidth="1.7"/>
+    <rect x="6" y="9.5" width="12" height="5" rx="2" fill={c + "18"} stroke={c} strokeWidth="1.7"/>
+    <rect x="7.5" y="4" width="9" height="5" rx="2" fill="#fff" stroke={c} strokeWidth="1.7"/>
+    <line x1="10" y1="6.5" x2="14" y2="6.5" stroke={c} strokeWidth="1.4" strokeLinecap="round" opacity="0.6"/>
+  </> },
+  subjects: { color: D.blue, d: "", extra: () => <>
+    <rect x="3.5" y="3.5" width="7.2" height="7.2" rx="2" fill={D.blue + "22"} stroke={D.blue} strokeWidth="1.5"/>
+    <rect x="13.3" y="3.5" width="7.2" height="7.2" rx="2" fill={D.green + "22"} stroke={D.green} strokeWidth="1.5"/>
+    <rect x="3.5" y="13.3" width="7.2" height="7.2" rx="2" fill={D.orange + "22"} stroke={D.orange} strokeWidth="1.5"/>
+    <rect x="13.3" y="13.3" width="7.2" height="7.2" rx="2" fill={D.purple + "22"} stroke={D.purple} strokeWidth="1.5"/>
+  </> },
 };
 
 export function CIcon({ name, size = 24, inline = false }) {

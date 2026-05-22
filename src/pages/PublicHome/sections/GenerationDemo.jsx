@@ -1,4 +1,5 @@
 import { C, MONO } from "../../../components/tokens";
+import { CIcon } from "../../../components/Icons";
 import { useReveal } from "../useReveal";
 
 // ─── GenerationDemo ────────────────────────────────────────────────────────
@@ -11,7 +12,7 @@ const INPUT_CHIPS = [
   { label: "chapter5.pdf", type: "PDF", color: "#D85A30" },
   { label: "lesson.pptx", type: "PPT", color: "#BA7517" },
   { label: "notes.docx", type: "DOC", color: "#185FA5" },
-  { label: { en: "or a topic", es: "o un tema", ko: "또는 주제" }, type: "✎", color: "#5A5A5A" },
+  { label: { en: "or a topic", es: "o un tema", ko: "또는 주제" }, type: "Aa", color: "#5A5A5A" },
 ];
 
 const OUTPUT_QS = [
@@ -138,7 +139,7 @@ export default function GenerationDemo({ t, lang }) {
               background: C.accentSoft, color: C.accent, borderRadius: 100,
               padding: "9px 18px", fontSize: 14, fontWeight: 600,
             }}>
-              <span aria-hidden="true">⚡</span> {t.genReady}
+              <CIcon name="rocket" inline size={16} /> {t.genReady}
             </span>
           </div>
         </div>
