@@ -5,6 +5,7 @@ import { ROUTES, PAGE_TO_ROUTE, pathToPage, defaultRouteForRole, buildRoute, bui
 import { supabase } from './lib/supabase';
 import { getStrings } from './i18n';
 import { resolveInitialLang } from './lib/locale';
+import { safeGet, safeSet, safeRemove } from './lib/safe-storage';
 import { googleOAuthNative } from './lib/native-oauth';
 import { LogoMark, TeacherInline, StudentInline, TeacherAvatar, StudentAvatar } from './components/Icons';
 // PublicHome and AvatarOnboarding are eagerly imported because they paint
@@ -171,14 +172,14 @@ export default function App() {
   const [lang, setLangRaw] = useState(() => {
     if (typeof window === "undefined") return "en";
     return resolveInitialLang({
-      saved: window.localStorage?.getItem("clasloop_lang"),
+      saved: safeGet("clasloop_lang"),
       navigatorLang: navigator.language,
     });
   });
   const setLang = (newLang) => {
     setLangRaw(newLang);
     if (typeof window !== "undefined") {
-      window.localStorage?.setItem("clasloop_lang", newLang);
+      safeSet("clasloop_lang", newLang);
     }
   };
   // PR 145 (H21): keep <html lang> in sync with the UI language so screen
@@ -285,7 +286,7 @@ export default function App() {
     // PR 43: limpieza defensiva de localStorage residual de los PRs
     // 36-42. Si por algún motivo quedó "clasloop_pending_role" del
     // flow viejo, lo borramos. Ya no se usa en ningún lado.
-    try { localStorage.removeItem("clasloop_pending_role"); } catch (_) {}
+    safeRemove("clasloop_pending_role");
 
     // Initial session check
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -702,7 +703,7 @@ export default function App() {
           status: probeErr?.status,
         });
         // Obsolete key (see top-of-effect cleanup); no-op if storage is unavailable.
-        try { localStorage.removeItem("clasloop_pending_role"); } catch (_) {}
+        safeRemove("clasloop_pending_role");
         await supabase.auth.signOut();
         setUser(null);
         setProfile(null);

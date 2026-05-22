@@ -5,6 +5,7 @@
 
 import { supabase } from "./supabase";
 import { getReviewSuggestions } from "./spaced-repetition";
+import { safeGetJSON, safeSetJSON } from "./safe-storage";
 
 // PR 129: migrated from .js to .ts. Mixes localStorage + supabase reads.
 
@@ -14,18 +15,12 @@ const DISMISSED_KEY = "clasloop_notifs_dismissed";
 export type DismissedMap = Record<string, boolean | number>;
 
 export function loadDismissed(): DismissedMap {
-  try {
-    const raw = localStorage.getItem(DISMISSED_KEY);
-    if (!raw) return {};
-    const parsed = JSON.parse(raw);
-    return parsed && typeof parsed === "object" ? (parsed as DismissedMap) : {};
-  } catch {
-    return {};
-  }
+  const parsed = safeGetJSON<DismissedMap>(DISMISSED_KEY, {});
+  return parsed && typeof parsed === "object" ? parsed : {};
 }
 
 export function saveDismissed(map: DismissedMap): void {
-  try { localStorage.setItem(DISMISSED_KEY, JSON.stringify(map)); } catch { /* ignore quota / privacy-mode errors */ }
+  safeSetJSON(DISMISSED_KEY, map);
 }
 
 // Count of free-text responses pending teacher review across all sessions
