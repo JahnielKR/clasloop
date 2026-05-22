@@ -19,7 +19,7 @@
 // We log to ai_generations with input_type='close_unit_narrative' so
 // the admin AI stats dashboard can track usage.
 
-import { createClient } from '@supabase/supabase-js';
+import { requireTeacher, requireDailyRateLimit } from './_lib/auth.js';
 
 const RATE_LIMIT_PER_DAY = 50;
 const MODEL = 'claude-sonnet-4-6';
@@ -89,56 +89,21 @@ export default async function handler(req, res) {
   }
 
   const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
-  const SUPABASE_URL = process.env.SUPABASE_URL;
-  const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
-
   if (!ANTHROPIC_API_KEY) {
     return res.status(500).json({ error: 'server_misconfigured' });
   }
-  if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
-    return res.status(500).json({ error: 'server_misconfigured' });
-  }
 
-  // ── 1. Auth ────────────────────────────────────────────
-  const authHeader = req.headers.authorization || req.headers.Authorization || '';
-  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
-  if (!token) {
-    return res.status(401).json({ error: 'missing_auth' });
-  }
+  // PR 142b: JWT + teacher gate + daily rate limit via api/_lib/auth.js.
+  const auth = await requireTeacher(req, res);
+  if (!auth) return; // error response already sent
+  const supabaseAdmin = auth.supabase;
+  const userId = auth.user.id;
 
-  const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
-    auth: { autoRefreshToken: false, persistSession: false },
-  });
-
-  const { data: userData, error: userErr } = await supabaseAdmin.auth.getUser(token);
-  if (userErr || !userData?.user) {
-    return res.status(401).json({ error: 'invalid_auth' });
-  }
-  const userId = userData.user.id;
-
-  // ── 2. Teacher only ────────────────────────────────────
-  const { data: profile } = await supabaseAdmin
-    .from('profiles')
-    .select('id, role')
-    .eq('id', userId)
-    .single();
-  if (!profile || profile.role !== 'teacher') {
-    return res.status(403).json({ error: 'teacher_required' });
-  }
-
-  // ── 3. Rate limit (shared with /api/generate.js) ──────
-  const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-  const { count: recentCount } = await supabaseAdmin
-    .from('ai_generations')
-    .select('id', { count: 'exact', head: true })
-    .eq('teacher_id', userId)
-    .gte('created_at', since);
-  if ((recentCount ?? 0) >= RATE_LIMIT_PER_DAY) {
-    return res.status(429).json({
-      error: 'rate_limited',
-      message: `You've reached ${RATE_LIMIT_PER_DAY} AI calls in the last 24 hours.`,
-    });
-  }
+  const okRate = await requireDailyRateLimit(
+    res, supabaseAdmin, userId, RATE_LIMIT_PER_DAY,
+    `You've reached ${RATE_LIMIT_PER_DAY} AI calls in the last 24 hours.`,
+  );
+  if (!okRate) return;
 
   // ── 4. Validate body ───────────────────────────────────
   const { unitId, context } = req.body || {};

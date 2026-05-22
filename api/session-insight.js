@@ -11,33 +11,16 @@
 // We do NOT generate insights here — that's the Edge Function's job.
 // This endpoint is purely the read/dismiss path.
 
-import { createClient } from "@supabase/supabase-js";
+import { requireAuth } from "./_lib/auth.js";
 
 export default async function handler(req, res) {
-  const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
-  const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY ||
-    process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-  if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
-    return res.status(500).json({ error: "supabase_not_configured" });
-  }
-
-  // ── Auth: require Bearer token ──
-  const authHeader = req.headers.authorization || req.headers.Authorization || "";
-  const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
-  if (!token) {
-    return res.status(401).json({ error: "missing_auth" });
-  }
-
-  const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
-    auth: { autoRefreshToken: false, persistSession: false },
-  });
-
-  const { data: userData, error: userErr } = await supabaseAdmin.auth.getUser(token);
-  if (userErr || !userData?.user) {
-    return res.status(401).json({ error: "invalid_session" });
-  }
-  const userId = userData.user.id;
+  // PR 142b: JWT validation via api/_lib/auth.js (SERVICE_KEY client +
+  // getUser). This endpoint is teacher-by-ownership (checked below via
+  // session→deck→class), not by profile.role, so it uses requireAuth.
+  const auth = await requireAuth(req, res);
+  if (!auth) return; // error response already sent
+  const supabaseAdmin = auth.supabase;
+  const userId = auth.user.id;
 
   // ── Extract sessionId ──
   const sessionId = req.query.sessionId || req.query.session_id;
