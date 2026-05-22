@@ -8,6 +8,63 @@ Entries are appended chronologically. Most recent at the top.
 
 ---
 
+## 2026-05-22 — PR 146 done; Modal a11y primitive + CreateClassModal adoption (H23, PARTIAL)
+
+**Status:** ✅ done + merged to main (`fdaa555`). H23 **partially** addressed
+(primitive + 1 of 9 modals). Gates green (typecheck 0 · 140 tests incl. 9 new
+Modal tests · build ✓) + browser-verified live. First PR of Batch I.
+
+New **`src/components/Modal.jsx`**: focus trap, return focus, initial focus,
+`role` prop (default `"dialog"`), `aria-modal`, `aria-labelledby/describedby`,
+Escape + backdrop close gated by **`canClose`**, body scroll-lock, portal.
+**CreateClassModal** adopts it (gained dialog role + aria + trap + return-focus
++ Escape — it had none).
+
+**Deviation — style-flexible primitive, NOT the README's white box.** The
+README's primitive hardcodes `background:'white'`, `maxWidth:480`, `padding:24`,
+`zIndex:1000`. Forcing the real modals into that would (a) break theming (they
+use `C.bg`/custom borders), (b) drop the `!deleting`/`!saving` guards
+(DeleteAccountModal/DayDateModal close-suppression → could close mid-op), and
+(c) change zIndex. Instead the primitive is visually neutral: callers pass their
+own `backdropStyle`/`dialogStyle` (applied as-is) + `dialogClassName` (preserves
+`ns-fade`), and **`canClose`** replaces the per-modal guards. So adoption is a
+wrapper swap with **zero visual change**. Also: README's "PDFExportModal already
+has focus traps" was false (Escape handler only); and **no** modal in the repo
+had a focus trap or return-focus (the accurate, stronger framing of H23).
+
+**Scope — 1 of 9 migrated, 8 deferred (decision, not omission).** Migrated only
+CreateClassModal (simplest, 134 LOC, lacked role/aria). Deferred: DeleteAccount,
+EditClass, ClassCode, DayDate, AddToSlot, ImportClass, **StudentsModal** (has a
+*nested* alertdialog — stacked-modal focus interaction needs runtime checking),
+**PDFExportModal** (832 LOC). Why defer: **all 9 modals are behind the teacher/
+student login, and I can't authenticate to smoke-test them** (the safety rule
+forbids me entering passwords). Bulk-migrating ~3700 LOC of large modals I can't
+runtime-verify would violate the "don't skip real smoke tests" discipline. The
+*primitive itself* — what PR 148 depends on — is done and fully verified.
+
+**Verification (login-free, real):** built a throwaway harness on a temporary
+public route (`/__modal_test`, since deleted) + drove it with the preview
+browser: role/aria set, initial focus enters dialog, Tab/Shift+Tab trap both
+directions, Escape closes + returns focus to opener, `canClose=false` suppresses
+Escape AND backdrop close. Rendered the **real CreateClassModal** in that harness
+too (autofocus + `ns-fade` preserved, trap works). After PR 166 landed RTL/jsdom,
+added a permanent **`Modal.test.jsx`** (9 tests, commit `64837da`) covering the
+same mechanics. (Screenshot tool timed out on the open fixed overlay — non-fatal;
+visual fidelity is guaranteed by passing identical style objects.)
+
+**Concurrency note:** PR 166 (RTL setup) was being built **in the same working
+tree at the same time**. Isolated PR 146 by committing only its 2 files via
+explicit pathspec; paused the merge per the user; landed it after PR 166 merged
+(`5966210`) — clean, no file overlap. (Aside: `.claude/launch.json`, untracked,
+gained a `dev` config for future preview verification.)
+
+**Follow-ups:** (1) migrate the remaining 8 modals to `Modal` — now lower-risk
+(primitive verified + a Modal test exists); ideally with a teacher login or
+staging to smoke-test, and extra care for StudentsModal's nested dialog. (2)
+**PR 148** (modal backdrop keyboard a11y) is now unblocked.
+
+---
+
 ## 2026-05-22 — PR 166 done (out of sequence); RTL component-test setup + first wave (H22 pt 1)
 
 **Status:** ✅ done. Gates green (typecheck 0 · 131 tests incl. 21 new · build ✓).
