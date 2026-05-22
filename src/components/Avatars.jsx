@@ -813,6 +813,12 @@ export function Avatar({
   style = {},
   onClick,
 }) {
+  // Rules of Hooks: derive these before the photoUrl early return below, so the
+  // useMemo always runs in the same order regardless of which branch renders.
+  const avatar = getAvatarById(id) || getDefaultAvatarFor(seed || id || "");
+  const renderer = RENDERERS[avatar?.id];
+  const gradId = useMemo(() => `g${avatar?.id || "x"}-${Math.random().toString(36).slice(2, 7)}`, [avatar?.id]);
+
   // Photo takes priority — render it inside the same circle, no frame
   if (photoUrl) {
     return (
@@ -831,10 +837,6 @@ export function Avatar({
       />
     );
   }
-
-  const avatar = getAvatarById(id) || getDefaultAvatarFor(seed || id || "");
-  const renderer = RENDERERS[avatar?.id];
-  const gradId = useMemo(() => `g${avatar?.id || "x"}-${Math.random().toString(36).slice(2, 7)}`, [avatar?.id]);
 
   if (!renderer) {
     // Fallback: solid circle with initial
