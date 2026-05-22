@@ -630,7 +630,7 @@ const en = {
   myClasses: {
     pageTitle: "My Classes", subtitle: "Your classrooms and decks in one place.",
     joinClass: "+ Join Class", joinClassTitle: "Join a class",
-    classCode: "Class code", classCodePlaceholder: "e.g. MATH-8B",
+    classCode: "Class code", classCodePlaceholder: "e.g. MATH-8-ABC",
     join: "Join", joining: "Joining...", cancel: "Cancel",
     notFound: "Class not found. Check the code and try again.",
     alreadyJoined: "You're already in this class.",

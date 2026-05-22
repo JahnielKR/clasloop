@@ -602,9 +602,17 @@ CREATE OR REPLACE FUNCTION "public"."generate_class_code"("p_subject" "text", "p
 declare
   code text;
   exists_count integer;
+  letters text;
 begin
   loop
-    code := upper(left(p_subject, 4)) || '-' || regexp_replace(p_grade, '[^0-9]', '', 'g') || chr(65 + floor(random() * 26)::int);
+    -- PR 157 (L21): 3 random letters → 26^3 = 17,576 codes per (subject, grade).
+    letters :=
+      chr(65 + floor(random() * 26)::int) ||
+      chr(65 + floor(random() * 26)::int) ||
+      chr(65 + floor(random() * 26)::int);
+    code := upper(left(p_subject, 4)) || '-' ||
+            regexp_replace(p_grade, '[^0-9]', '', 'g') || '-' ||
+            letters;
     select count(*) into exists_count from public.classes where class_code = code;
     exit when exists_count = 0;
   end loop;
