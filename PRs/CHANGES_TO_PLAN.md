@@ -8,6 +8,56 @@ Entries are appended chronologically. Most recent at the top.
 
 ---
 
+## 2026-05-22 — PR 170a done (SETUP ONLY); React Query provider. Page migrations deferred
+
+**Status:** ✅ done + merged to main (`3853d43`). **Scoped to the setup step** —
+the per-page data migrations (Decks + 170b-g) are deferred (reason below). Gates
+green (typecheck 0 · 164 tests · build ✓ · lint 0 errors · e2e 2 passed/5 skipped
+— the e2e public boot is the real proof the new provider mounts cleanly).
+
+**Done — setup.** Installed `@tanstack/react-query` (v5) and mounted
+`QueryClientProvider` around `Root` in `main.jsx` (real tree:
+`StrictMode > SentryErrorBoundary > ToastProvider > QueryClientProvider > Root`).
+QueryClient defaults: `staleTime 30s`, `gcTime 5min`, `refetchOnWindowFocus`.
+**Deviation:** did NOT install `@tanstack/react-query-devtools` yet — with zero
+queries it shows nothing; add it in 170b alongside the first real query (and
+lazy/dev-only so it stays out of the prod bundle).
+
+**Deferred — the Decks migration (170a's "POC") + all of 170b-g.** Per the
+user-facing fork I raised (login / blind / skip / setup-first) the answer came
+back empty, so I took the recommended safe default: **setup now, migrate when
+verifiable.** Why defer the migration:
+- `Decks.jsx` is **authed and not smoke-testable here** (no login; safety rule
+  forbids entering passwords). Its data layer is **not "~8 simple calls"** — it's
+  a `loadData` that hydrates **4 state slices** (`myDecks`, `favoriteDecks`,
+  `allUnits`, `userClasses`) consumed across ~1000 LOC of tabs/filters/grouping/
+  drag, plus **7 mutations** (insert/delete/update `is_public`/`position`/
+  `uses_count`, `saved_decks` delete). Rewiring all of that to `useQuery`/
+  `useMutation` blind — getting every queryKey, `enabled` guard and
+  `invalidateQueries` exactly right with **no runtime verification** — is the
+  high-blast-radius change the master README itself flags as ⚠️ alto.
+- The README's verification (list loads, mutation auto-refetches, devtools cache)
+  **requires a running authed session.** Build/typecheck/read can't confirm the
+  runtime data flow.
+- So `useDecks.ts` was **not created** either — an exported hook with no verifiable
+  consumer is half-a-feature; defer the hook + consumer together. The mounted
+  provider is inert (zero behavior change) and is the genuine prerequisite that
+  unblocks 170b-g whenever a test login/staging exists.
+
+**To finish 170 (170a-Decks + 170b-g):** needs a **TEST teacher login or staging**
+(never prod — PR 107). With that, each page migrates + smoke-tests in one focused
+sub-PR. Internal order: 170a-Decks → b/c/e/f (parallelizable) → d (sessions/realtime,
+highest risk) → g (`*Tick` removal: `studentMembershipTick`, `activeSessionTick`),
+after b+d.
+
+**Lint follow-up noticed (out of scope, flagged separately):** the PR-168 ESLint
+config lacks `react/jsx-uses-vars`, so components used **only in JSX** get false
+`no-unused-vars` warnings (e.g. `Root`/`Router` in main.jsx). Adding the rule (from
+eslint-plugin-react's recommended) would clear a chunk of the ~400-warning baseline.
+A small lint-config PR, not data-layer work.
+
+---
+
 ## 2026-05-22 — PR 169 done (L14 only); safe-storage. L4/L6/L12/L13/L19 deferred
 
 **Status:** ✅ done + merged to main (`8c89eb7`). **Scoped to L14** — the other 5
