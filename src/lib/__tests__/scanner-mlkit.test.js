@@ -1,3 +1,4 @@
+/* @vitest-environment node */
 // ─── scanner-mlkit.test.js ─────────────────────────────────────────────
 //
 // PR 70: tests para scanner-mlkit.js. Probamos las dos funciones puras

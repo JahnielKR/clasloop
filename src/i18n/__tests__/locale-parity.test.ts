@@ -1,3 +1,4 @@
+/* @vitest-environment node */
 // ─── locale-parity.test.ts ─────────────────────────────────────────────
 //
 // PR 135 (M30): garantiza que en/es/ko tengan EXACTAMENTE las mismas keys.

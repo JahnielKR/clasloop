@@ -8,6 +8,46 @@ Entries are appended chronologically. Most recent at the top.
 
 ---
 
+## 2026-05-22 — PR 166 done (out of sequence); RTL component-test setup + first wave (H22 pt 1)
+
+**Status:** ✅ done. Gates green (typecheck 0 · 131 tests incl. 21 new · build ✓).
+Pulled **forward out of order** — the user asked to "install React Testing
+Library" while the plan's NEXT was 146/Batch I. PRs 167 (e2e) + 168 (CI) still
+cover the rest of H22.
+
+**Setup:** added `@testing-library/react` + `jest-dom` + `user-event` + `jsdom`
+(devDeps); flipped Vitest to `environment: 'jsdom'` + `setupFiles:
+['./src/test-setup.js']` (jest-dom matchers, RTL `cleanup`, and a
+`window.matchMedia` polyfill — jsdom omits it and `useIsMobile` needs it). The 5
+existing lib/i18n suites got a `/* @vitest-environment node */` pragma so the
+pure-logic tests stay on node (fast; also dodges the `supabase.ts`-under-jsdom
+risk the README flagged).
+
+**First wave (21 tests):** `PctCircle`, `Toast`, `ErrorFallback`,
+`MobileMenuButton`, `Avatars`.
+
+**Deviations per the README REALITY CHECK:**
+- Dropped the **Modal** flagship example — it didn't exist when I started. It
+  DOES now (the user landed PR 146 mid-session — see the branch note below), so
+  a Modal test is a clean follow-up.
+- Dropped the **"forms primitives"** target — PR 139 made style *objects*, not
+  renderable components.
+- `Sidebar` (router-mocked) deferred to a second wave.
+
+**Test gotcha worth keeping:** the `Toast` close→`onDismiss` test was flaky —
+the entering `requestAnimationFrame` (phase `entering`→`visible`) fires *after*
+the click, reverting the `leaving` state and cancelling the dismiss timer. Fixed
+by waiting for the toast to reach the visible phase (opacity 1) before clicking.
+
+**Branch tangle (concurrency):** the user committed **PR 146** (`d6eaf8d`, Modal
+primitive) into the shared working tree mid-session, moving HEAD to
+`pr/146-modal-primitive`, so my PR 166 commit first landed there on top of 146.
+Untangled per the user's call: cherry-picked PR 166 onto its own branch
+`test/pr166-component-tests-setup` (clean base) and moved `pr/146-modal-primitive`
+back to `d6eaf8d` via `git branch -f`. Each PR is now its own clean branch off main.
+
+---
+
 ## 2026-05-22 — PR 145 done; single `<html lang>` write effect in App.jsx (H21)
 
 **Status:** ✅ done + merged to main. Closes H21. Batch H complete. Gates green
