@@ -8,6 +8,32 @@ Entries are appended chronologically. Most recent at the top.
 
 ---
 
+## 2026-05-22 — PR 150 done; avatar onboarding "skip for now" (M20)
+
+**Status:** ✅ done + merged to main (`88009ec`). Closes M20. Gates green
+(typecheck 0 · 146 tests · build ✓) + browser-verified (render).
+
+Added a **"Skip for now"** button to `AvatarOnboarding.jsx` so the chooser isn't
+a hard gate. It assigns a **random starter** via the `update_my_profile` RPC
+(same path as the Continue handler) then calls `onDone`. New `skipForNow` key in
+the `avatarOnboarding` i18n namespace (en/es/ko).
+
+**Fixed the README snippet's 3 real bugs (per its REALITY CHECK):**
+- Direct `profiles` UPDATE is **RLS-blocked** (PR 92) → used
+  `supabase.rpc("update_my_profile", { p_updates: { avatar_id } })`.
+- **`'fox'` is not a valid avatar id** → pick a random id from the live
+  `startAvatars` list (`AVATARS.filter(a => a.starter)`), which guarantees a
+  valid starter without hardcoding and gives skippers variety.
+- **`user` not in scope** → the component has `profile`; the RPC needs no id.
+
+**Verification:** rendered AvatarOnboarding on a temporary public route with
+stub props — "Skip for now" shows below Continue, the 10-starter grid renders
+(so the random pool is valid), 0 console errors. The RPC **success** path
+(persist + `onDone`) needs an authenticated session (not reachable in the
+harness), but it's a verbatim mirror of the already-working Continue handler.
+
+---
+
 ## 2026-05-22 — PR 149 done; navigator.language detection for the App shell (M19)
 
 **Status:** ✅ done + merged to main (`a6f1c9b`). Closes M19. Gates green
