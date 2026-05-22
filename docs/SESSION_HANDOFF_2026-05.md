@@ -54,7 +54,7 @@ This pattern emerged organically over many sessions. Stick to it.
 
 **Every PR follows this template:**
 
-1. Make the changes in `/home/claude/clasloop-fresh/clasloop-phase1/`
+1. Make the changes in `/home/claude/clasloop-fresh/clasloop/`
 2. Validate JSX with babel parser:
    ```js
    const parser = require('@babel/parser');
@@ -67,7 +67,7 @@ This pattern emerged organically over many sessions. Stick to it.
 7. Use `present_files` to share it
 8. Reply with: how to deploy, what changed, how to test, and any deploy order requirements
 
-**Working directory:** `/home/claude/clasloop-fresh/clasloop-phase1/` — repo is at `/home/claude/clasloop-fresh/` but the project lives in the `clasloop-phase1` subfolder.
+**Working directory:** `/home/claude/clasloop-fresh/clasloop/` — repo is at `/home/claude/clasloop-fresh/` but the project lives in the `clasloop` subfolder.
 
 **Git config:** Already set in the working dir as `claude@anthropic.com` — don't touch.
 
@@ -180,9 +180,9 @@ console.log('CSS:', open === close ? '✓' : 'MISMATCH', open, close);
 ```bash
 cd /home/claude/clasloop-fresh && \
 rm -f /tmp/clasloop-prXX.zip && \
-zip -r /tmp/clasloop-prXX.zip clasloop-phase1 \
-  -x "clasloop-phase1/node_modules/*" \
-  -x "clasloop-phase1/dist/*" \
+zip -r /tmp/clasloop-prXX.zip clasloop \
+  -x "clasloop/node_modules/*" \
+  -x "clasloop/dist/*" \
   -x "*.DS_Store" \
   2>&1 | tail -3 && \
 cp /tmp/clasloop-prXX.zip /mnt/user-data/outputs/clasloop-prXX-short-name.zip
@@ -238,7 +238,7 @@ Pause, recap what we've tried, what failed, what the root mismatch is. Then sket
 - **Auth:** Supabase Auth, email-only signup (no Google/social)
 - **Realtime:** Supabase Realtime channels for live sessions
 - **Hosting:** Vercel (push to main → auto-deploy)
-- **Repo:** Local at `/home/claude/clasloop-fresh/clasloop-phase1`. Jota maintains the github remote.
+- **Repo:** Local at `/home/claude/clasloop-fresh/clasloop`. Jota maintains the github remote.
 
 ### 3.2 Key paths
 
@@ -686,7 +686,7 @@ If you're the new Claude reading this:
 
 4. **When he reports a bug**: investigate before proposing. Read the relevant file. Check git log for recent PRs touching that area.
 
-5. **Working directory is always** `/home/claude/clasloop-fresh/clasloop-phase1/`.
+5. **Working directory is always** `/home/claude/clasloop-fresh/clasloop/`.
 
 6. **For UI changes that affect mobile**: he tests on Galaxy Tab S9 (1280×800 landscape) and iPhone. Use `max-height: 850px` to target tablets, not `max-width`.
 

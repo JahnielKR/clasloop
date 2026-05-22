@@ -116,7 +116,7 @@ The "Today" page surfaces decks with low retention OR overdue for review. Up to 
 ### Project structure
 
 ```
-clasloop-phase1/
+clasloop/
 ├── api/
 │   ├── generate.js                    # Deck question generation
 │   └── close-unit-narrative.js        # AI narrative for unit closure
@@ -367,7 +367,7 @@ These are decisions that survived multiple sessions and apply to all future work
 
 ### Deploy workflow
 
-1. Claude writes code locally in `/home/claude/clasloop-fresh/clasloop-phase1/`
+1. Claude writes code locally in `/home/claude/clasloop-fresh/clasloop/`
 2. Validates JS/JSX with `@babel/parser` (no ESLint, no TypeScript)
 3. Commits with detailed message (PR description + reasoning)
 4. Zips the project (excluding `node_modules`, `dist`)
@@ -480,7 +480,7 @@ These numbers are sketches — final decisions deferred to landing page work.
 ```bash
 # Jota's machine, after receiving a zip from Claude:
 unzip clasloop-prX-description.zip -d clasloop-prX/
-cd clasloop-prX/clasloop-phase1
+cd clasloop-prX/clasloop
 # If migration is included:
 # 1. Run supabase/phaseN_*.sql in Supabase SQL editor first
 # 2. Then push code:
