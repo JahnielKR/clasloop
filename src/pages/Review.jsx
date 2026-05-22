@@ -720,7 +720,7 @@ export default function Review({ profile, lang = "en", onOpenMobileMenu }) {
           background: C.bg, border: `1px dashed ${C.border}`,
           borderRadius: 14,
         }}>
-          <div style={{ fontSize: 48, marginBottom: 12 }}>☕</div>
+          <div style={{ marginBottom: 12, display: "flex", justifyContent: "center" }}><CIcon name="graded" size={56} /></div>
           <h2 style={{ fontSize: 18, fontWeight: 700, margin: "0 0 6px", color: C.text }}>
             {t.emptyTitle}
           </h2>

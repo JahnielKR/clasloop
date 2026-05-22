@@ -34,6 +34,7 @@ import { useState, useEffect, useMemo } from "react";
 import { Capacitor } from "@capacitor/core";
 import { supabase } from "../lib/supabase";
 import { C } from "../components/tokens";
+import { CIcon } from "../components/Icons";
 import {
   scanDocument,
   readQRFromImage,
@@ -338,7 +339,7 @@ function WebFallbackStage({ t }) {
       padding: 32, borderRadius: 16, background: C.bgSoft,
       textAlign: "center",
     }}>
-      <div style={{ fontSize: 48, marginBottom: 12 }}>📱</div>
+      <div style={{ marginBottom: 12, display: "flex", justifyContent: "center" }}><CIcon name="scan" size={56} /></div>
       <h2 style={{
         fontFamily: "'Outfit',sans-serif",
         fontSize: 22, fontWeight: 600, margin: 0, marginBottom: 8,

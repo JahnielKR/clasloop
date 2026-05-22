@@ -667,7 +667,7 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
           // primary action to nudge the teacher to create their first
           // class (which is where decks come from).
           <EmptyState
-            emoji="📚"
+            icon={<CIcon name="library" size={48} />}
             title={t.libraryEmptyTitle}
             body={t.libraryEmptyHint}
             style={{ maxWidth: 480, margin: "20px auto 0" }}
