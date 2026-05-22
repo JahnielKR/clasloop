@@ -8,6 +8,33 @@ Entries are appended chronologically. Most recent at the top.
 
 ---
 
+## 2026-05-22 — PR 170 — TeacherProfile migrated to React Query (user-verified)
+
+**Status:** ✅ done + merged to main (`f5a83fc`). User-verified. Gates green
+(typecheck 0 · lint 0 errors · 164 tests · build ✓ · e2e public 2/2).
+
+New `src/hooks/useTeacherProfile.js`: `useTeacherProfile(teacherId, viewerId,
+viewerRole)` wraps the old load (the viewed teacher's profile + their public
+decks + the viewer's saved set + teacher-viewers' classes), keyed on
+`teacherId+viewerId` so navigating between profiles refetches;
+`useTeacherProfileCache()` exposes `patchSaved`. `TeacherProfile.jsx`: dropped the
+6 data `useState` + the load effect; `notAvailable`/`loading` handle the
+no-teacherId case (`enabled: !!teacherId`); the favorite toggle keeps its
+optimistic update via `patchSaved`. Standard pattern (clean — the load has no
+`t`/`C` coupling, unlike Notifications).
+
+**Also: ClassPage + Community + Notifications now USER-VERIFIED** (the user
+confirmed "bien bien" / "nítido" after their post-merge spot-checks). So the whole
+teacher-page set so far is verified.
+
+**170 progress (all verified):** setup · Decks · MyClassesTeacher · ClassPage ·
+Community · Notifications · TeacherProfile. **Next:** Director (= school analysis,
+inside the teacher account → teacher-verifiable). **Last + riskiest:** SessionFlow
+(sessions + realtime) → then 170g removes the App `*Tick`. **Student-session:**
+MyClasses, Favorites.
+
+---
+
 ## 2026-05-22 — PR 170 — Notifications migrated to React Query (user-verified "nítido")
 
 **Status:** ✅ done + merged to main (`9357e08`). User-verified ("nítido"). Gates
