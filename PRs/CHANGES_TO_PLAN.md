@@ -8,6 +8,64 @@ Entries are appended chronologically. Most recent at the top.
 
 ---
 
+## 2026-05-22 — PR 168 done; GitHub Actions CI + ESLint (H22 pt 3) — UNBLOCKS PR 143
+
+**Status:** ✅ done + merged to main (`5e9fd2a`). Closes H22 part 3. Gates green
+(typecheck 0 · 156 unit tests · build ✓ · e2e 2 passed/5 skipped · `npm run
+lint` 0 errors). **This is the ESLint prerequisite PR 143 (M9) was deferred on —
+143 is now unblocked and is next in Batch K.**
+
+**Two GitHub Actions workflows (`.github/workflows/`):**
+- `ci.yml` — 5 jobs (typecheck, lint, test, build, e2e) on node 22, `npm ci` +
+  `cache: npm`. build uploads `dist/`. **e2e is `continue-on-error: true`** for
+  v1: the public specs run against the dev server with **throwaway Supabase env**
+  (`${{ secrets.E2E_* || 'dummy…' }}` — needed because `supabase.ts:16` throws +
+  paints an overlay if `VITE_SUPABASE_URL/ANON_KEY` are empty, and PublicHome/
+  GuestJoin don't call Supabase on load so dummies are safe), while the authed
+  specs stay `test.skip`. Per the REALITY CHECK: dropped the fictional
+  `MOCK_ANTHROPIC`; secrets + branch protection are manual GitHub-UI steps left
+  as follow-ups (see below).
+- `pr-validation.yml` — conventional-commit PR-title check
+  (`amannn/action-semantic-pull-request@v5`); `types` mirror CONTRIBUTING.md +
+  `ci`/`revert`. Confirmed `CONTRIBUTING.md` exists (documents the convention).
+  Only fires on real GitHub PRs (project also merges locally) — dormant but ready.
+
+**ESLint (the load-bearing part — unblocks 143):** flat config `eslint.config.js`
+(repo is `"type":"module"`), devDeps `eslint`+`@eslint/js`+`eslint-plugin-react`+
+`eslint-plugin-react-hooks`+`globals`. **Pinned to the ESLint 9 line** — ESLint 10
+just shipped but `eslint-plugin-react@7.37` peer-caps at eslint `^9.7`, so a bare
+`*` install conflicts (`@eslint/js@10` vs `eslint@9`); installed `eslint@^9` etc.
+explicitly. `lint` script = `eslint .`.
+- **`react-hooks/exhaustive-deps` = `warn`** (NOT error — ~30 live suppressions
+  in realtime/quiz core; error would red CI before 143 triages them). 143 will
+  convert them to `useEffectEvent` and flip this to `error`.
+- **`react-hooks/rules-of-hooks` = `error`** — and it caught a **real bug**:
+  `Avatar()` in `src/components/Avatars.jsx` called `useMemo` (gradId) *after* the
+  `if (photoUrl) return …` early return → a conditionally-called hook. If an
+  Avatar instance toggled `photoUrl` across renders (e.g. add/remove profile
+  photo while mounted), React would throw "rendered fewer/more hooks". Fixed by
+  hoisting the `avatar`/`renderer`/`gradId` derivations above the early return
+  (behavior-preserving; verified by the PR-166 `Avatars.test.jsx` + build).
+
+**Lint scope decisions (keep CI green on a never-linted ~30k-LOC repo):**
+- Lint **`src/` `.js`/`.jsx` only**. `.ts/.tsx` are NOT linted (no
+  typescript-eslint parser installed — matches the documented dep list; `tsc
+  --noEmit`/typecheck already covers TS, and all exhaustive-deps suppressions
+  live in `.jsx`). Full type-aware linting is a follow-up.
+- `js.configs.recommended` is on, but `no-unused-vars` and `no-empty`
+  (`allowEmptyCatch`) downgraded to **`warn`** so the never-linted baseline
+  (**423 warnings, 0 errors**) doesn't block CI. The exhaustive-deps warnings in
+  that baseline are exactly the M9 targets for 143.
+
+**Manual GitHub-UI follow-ups (cannot be done from a local worktree):** (1) add
+repo **secrets** `E2E_SUPABASE_URL/ANON_KEY/TEACHER_EMAIL/PASSWORD` pointing at a
+**dedicated TEST Supabase project — NEVER prod** (PR 107 lesson); enabling them
+also lets the 5 authed `e2e/authed.spec.ts` scaffolds be un-skipped. (2) **Branch
+protection** on `main`: require `typecheck`/`lint`/`test`/`build`; add `e2e` +
+flip its `continue-on-error` off once the secrets exist.
+
+---
+
 ## 2026-05-22 — PR 167 done (foundation); Playwright e2e + public flows (H22 pt 2)
 
 **Status:** ✅ done + merged to main (`132bb3d`). **Foundation + public flows**
