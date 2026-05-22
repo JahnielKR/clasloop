@@ -8,6 +8,50 @@ Entries are appended chronologically. Most recent at the top.
 
 ---
 
+## 2026-05-22 — PR 157 done; class code entropy 1→3 letters (L21). PR 156 deferred.
+
+**PR 157 status:** ✅ done + merged to main (`7377f05`). Closes L21. Gates green
+(typecheck 0 · 151 tests · build ✓). **The user ran the SQL in prod via the
+Supabase SQL editor** (got ahead of the queue); this PR verifies it's safe and
+records it in the repo.
+
+`generate_class_code` now appends **3 random letters** (26³ = 17,576 per
+subject+grade) instead of 1 (26), closing the enumeration vector. Format goes
+`MATH-8B` → `MATH-8-ABC`.
+
+**Verified safe before blessing it:** same signature `(p_subject, p_grade)` →
+the frontend `rpc("generate_class_code")` (CreateClassModal + class-import) is
+unchanged; `CREATE OR REPLACE` preserves the existing grants/owner; existing
+class codes (old format) are untouched; and nothing validates the code format —
+grepped the whole frontend (no `CLASS_CODE_REGEX`, codes are only generated,
+displayed, copied, and passed verbatim to `join_class_by_code`, which matches by
+exact case-insensitive value with only a non-empty check). Edge case
+(non-numeric grade → empty digit segment → `MATH--ABC`) is **pre-existing** (the
+old fn stripped the same way), not a regression.
+
+Tracked as **migration `20240101000061`** + **schema.sql synced** + i18n example
+placeholder updated (`MATH-8B` → `MATH-8-ABC`, en/es/ko). The function is a
+read-only generator (no writes), and class creation exercises it constantly, so
+it's effectively live-verified; offered the user a read-only CLI confirmation.
+
+## PR 156 (L20, session PIN) — ⏸️ DEFERRED (not done)
+
+**No robust server-side throttle is feasible**, so deferred. The REALITY CHECK
+wanted a throttle inside `join_session`, but the only identity keys SQL can see
+are `guest_token` / `student_id`, and the **guest token is client-generated**
+(`lib/guest-session.js` `crypto.randomUUID()`) → an attacker rotates it per
+attempt and bypasses any per-identity rate-limit. Supabase SQL functions don't
+reliably get the **client IP** either (`inet_client_addr()` = the pooler), so
+there's no good key. L20 is also low-severity (a session is only joinable while
+in lobby/active — minutes — and joining just makes you a random student), and
+rewriting the core `join_session` SECURITY DEFINER RPC blind (can't apply or
+test prod from here) is high blast-radius for marginal gain. **Recommended fix
+is infra-level:** Supabase platform rate limiting, or move the join behind an
+edge function that can throttle by IP/header. Keep the PIN at 6 digits (frontend
+input is hardcoded to 6 + `?pin=` deep-links). Revisit at the infra layer.
+
+---
+
 ## 2026-05-22 — PR 155 done; SHA256 integrity check for font download (M27) — Batch I complete
 
 **Status:** ✅ done + merged to main (`f0c0d9a`). Closes M27. **Batch I complete**
