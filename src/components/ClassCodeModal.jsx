@@ -1,4 +1,4 @@
-﻿// â”€â”€â”€ ClassCodeModal â€” gating modal for students without a class â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── ClassCodeModal — gating modal for students without a class ──────────
 //
 // Renders on top of the app shell (which is visible but dimmed) when a
 // student account has no class membership yet. The student MUST either:
@@ -9,7 +9,7 @@
 // Students arrive in Clasloop because a teacher told them to; without a
 // class code the app has nothing meaningful to show them.
 //
-// Used by App.jsx â€” see the interception block right after the avatar
+// Used by App.jsx — see the interception block right after the avatar
 // onboarding check. Renders BEFORE avatar onboarding (no class = no
 // point in customizing).
 
@@ -29,7 +29,7 @@ export default function ClassCodeModal({ profile, lang = "en", onJoined }) {
   const [joining, setJoining] = useState(false);
   const [error, setError] = useState("");
 
-  // Lock body scroll while the modal is open â€” student shouldn't be
+  // Lock body scroll while the modal is open — student shouldn't be
   // able to scroll the dimmed shell behind.
   useEffect(() => {
     const prev = document.body.style.overflow;
@@ -38,7 +38,7 @@ export default function ClassCodeModal({ profile, lang = "en", onJoined }) {
   }, []);
 
   // NO escape handlers. The student can't dismiss this with Esc or
-  // by clicking outside â€” only by joining or signing out.
+  // by clicking outside — only by joining or signing out.
 
   const handleJoin = async () => {
     const trimmed = code.trim();
@@ -63,7 +63,7 @@ export default function ClassCodeModal({ profile, lang = "en", onJoined }) {
       setJoining(false);
       return;
     }
-    // "Already joined" with class returned is still a success path â€”
+    // "Already joined" with class returned is still a success path —
     // the row exists, the student is in. Close the modal and let the
     // app re-render with the new membership.
     setJoining(false);
@@ -111,7 +111,7 @@ export default function ClassCodeModal({ profile, lang = "en", onJoined }) {
           boxShadow: "0 24px 70px rgba(0, 0, 0, 0.35)",
         }}
       >
-        {/* Decorative icon â€” gives the modal a face beyond pure text */}
+        {/* Decorative icon — gives the modal a face beyond pure text */}
         <div style={{
           width: 56, height: 56,
           margin: "0 auto 18px",
@@ -246,7 +246,7 @@ export default function ClassCodeModal({ profile, lang = "en", onJoined }) {
           {t.helpHint}
         </p>
 
-        {/* Sign out â€” the only escape hatch. Subtle but visible. */}
+        {/* Sign out — the only escape hatch. Subtle but visible. */}
         <div style={{
           marginTop: 22,
           paddingTop: 18,

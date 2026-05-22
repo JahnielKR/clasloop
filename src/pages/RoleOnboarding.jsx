@@ -1,21 +1,21 @@
-﻿// â”€â”€â”€ RoleOnboarding â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── RoleOnboarding ──────────────────────────────────────────────────────
 //
 // PR 43: Pantalla obligatoria post-signup/signin que aparece UNA SOLA VEZ
-// (cuando un user autenticado no tiene profile todavÃ­a). El user elige
-// si es profesor o estudiante. La elecciÃ³n crea el profile en la DB con
+// (cuando un user autenticado no tiene profile todavía). El user elige
+// si es profesor o estudiante. La elección crea el profile en la DB con
 // el rol seleccionado.
 //
-// Esta pantalla es la ÃšNICA forma de crear un profile. El trigger SQL
-// que antes hacÃ­a esto automÃ¡ticamente fue eliminado en el migration
+// Esta pantalla es la ÚNICA forma de crear un profile. El trigger SQL
+// que antes hacía esto automáticamente fue eliminado en el migration
 // pr43_drop_auto_profile_trigger.sql.
 //
 // Props:
 //   user      - el auth user (de supabase.auth.getUser())
-//   lang      - cÃ³digo de idioma (en/es/ko)
+//   lang      - código de idioma (en/es/ko)
 //   onCreated - callback(profile) cuando el user elige y el insert
-//               tiene Ã©xito. El padre actualiza setProfile.
+//               tiene éxito. El padre actualiza setProfile.
 //
-// La elecciÃ³n NO se puede cambiar despuÃ©s desde la UI â€” es una decisiÃ³n
+// La elección NO se puede cambiar después desde la UI — es una decisión
 // de producto: 1 cuenta = 1 rol. Si necesitan otro rol, usan otro email.
 
 // PR 74: i18n centralizado
@@ -36,8 +36,8 @@ export default function RoleOnboarding({ user, lang = "en", onCreated }) {
   const [hoveredCard, setHoveredCard] = useState(null);
   const [error, setError] = useState("");
 
-  // Click en una card del select step: solo guardamos la elecciÃ³n y
-  // pasamos al confirm step. No tocamos la DB todavÃ­a.
+  // Click en una card del select step: solo guardamos la elección y
+  // pasamos al confirm step. No tocamos la DB todavía.
   const handlePickRole = (role) => {
     if (submitting) return;
     setPickedRole(role);
@@ -45,7 +45,7 @@ export default function RoleOnboarding({ user, lang = "en", onCreated }) {
     setError("");
   };
 
-  // Click "AtrÃ¡s" en el confirm step: volvemos al select sin crear nada.
+  // Click "Atrás" en el confirm step: volvemos al select sin crear nada.
   const handleBack = () => {
     if (submitting) return;
     setStep("select");
@@ -53,7 +53,7 @@ export default function RoleOnboarding({ user, lang = "en", onCreated }) {
     setError("");
   };
 
-  // Click "SÃ­, crear mi cuenta" en el confirm step: ESTO reciÃ©n crea
+  // Click "Sí, crear mi cuenta" en el confirm step: ESTO recién crea
   // el profile en la DB.
   const handleConfirm = async () => {
     if (submitting || !pickedRole) return;
@@ -92,7 +92,7 @@ export default function RoleOnboarding({ user, lang = "en", onCreated }) {
     }
   };
 
-  // â”€â”€â”€ Card builder â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ─── Card builder ──────────────────────────────────────────────────────
   const buildCard = (role, label, desc, Icon, accentColor) => {
     const isHovered = hoveredCard === role;
     return (
@@ -171,7 +171,7 @@ export default function RoleOnboarding({ user, lang = "en", onCreated }) {
     }}>
       <div style={{ maxWidth: step === "confirm" ? 460 : 720, width: "100%" }}>
 
-        {/* Step: SELECT â€” elegir rol entre 2 cards */}
+        {/* Step: SELECT — elegir rol entre 2 cards */}
         {step === "select" && (
           <>
             <div style={{ textAlign: "center", marginBottom: 40 }}>
@@ -225,7 +225,7 @@ export default function RoleOnboarding({ user, lang = "en", onCreated }) {
           </>
         )}
 
-        {/* Step: CONFIRM â€” confirmaciÃ³n con AtrÃ¡s/Confirmar */}
+        {/* Step: CONFIRM — confirmación con Atrás/Confirmar */}
         {step === "confirm" && (
           <div style={{
             background: C.bg,

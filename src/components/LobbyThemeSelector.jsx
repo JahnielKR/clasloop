@@ -1,4 +1,4 @@
-﻿// src/components/LobbyThemeSelector.jsx
+// src/components/LobbyThemeSelector.jsx
 //
 // PR 22: Modal for picking the visual theme of a class. The chosen
 // theme cascades to all sessions launched from that class, applying
@@ -6,21 +6,21 @@
 // teacher's projected screen too).
 //
 // Layout:
-//   â”Œâ”€ modal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
-//   â”‚ Header: title + close                                       â”‚
-//   â”œâ”€ body â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¤
-//   â”‚ [theme grid 2Ã—2]    [live preview of Question state]        â”‚
-//   â”‚  - Calm                                                     â”‚
-//   â”‚  - Ocean                                                    â”‚
-//   â”‚  - Pop                                                      â”‚
-//   â”‚  - Mono                                                     â”‚
-//   â”œâ”€ footer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¤
-//   â”‚                                       [cancel]  [save]      â”‚
-//   â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+//   ┌─ modal ────────────────────────────────────────────────────┐
+//   │ Header: title + close                                       │
+//   ├─ body ──────────────────────────────────────────────────────┤
+//   │ [theme grid 2×2]    [live preview of Question state]        │
+//   │  - Calm                                                     │
+//   │  - Ocean                                                    │
+//   │  - Pop                                                      │
+//   │  - Mono                                                     │
+//   ├─ footer ────────────────────────────────────────────────────┤
+//   │                                       [cancel]  [save]      │
+//   └─────────────────────────────────────────────────────────────┘
 //
 // PR 74: i18n centralizado
 import { useT } from "../i18n";
-// Click a theme card â†’ that theme becomes "selected" and the preview
+// Click a theme card → that theme becomes "selected" and the preview
 // on the right re-renders with its styles. Nothing persists until the
 // teacher clicks Save.
 
@@ -116,7 +116,7 @@ export default function LobbyThemeSelector({
               fontSize: 13,
               color: C.textSecondary,
             }}>
-              {className && <strong style={{ color: C.text }}>{className} Â· </strong>}
+              {className && <strong style={{ color: C.text }}>{className} · </strong>}
               {t.subtitle}
             </p>
           </div>
@@ -172,7 +172,7 @@ export default function LobbyThemeSelector({
                     transition: "border-color .15s ease, background .15s ease",
                   }}
                 >
-                  {/* Mini swatch â€” small representation of the theme's background */}
+                  {/* Mini swatch — small representation of the theme's background */}
                   <div style={{
                     width: "100%",
                     height: 60,
@@ -205,14 +205,14 @@ export default function LobbyThemeSelector({
                       fontWeight: 700,
                       display: "grid",
                       placeItems: "center",
-                    }}>âœ“</div>
+                    }}>✓</div>
                   )}
                 </button>
               );
             })}
           </div>
 
-          {/* Live preview â€” embedded mini Question state */}
+          {/* Live preview — embedded mini Question state */}
           <ThemePreview themeId={selected} t={t} />
 
         </div>
@@ -266,7 +266,7 @@ export default function LobbyThemeSelector({
   );
 }
 
-// â”€â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Helpers ────────────────────────────────────────────────────────
 
 function themeSwatchBackground(id) {
   switch (id) {
@@ -278,8 +278,8 @@ function themeSwatchBackground(id) {
   }
 }
 
-// â”€â”€â”€ Mini Question state preview â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-// Self-contained â€” reuses .stage CSS classes from themes.css. Wrapped
+// ─── Mini Question state preview ─────────────────────────────────────
+// Self-contained — reuses .stage CSS classes from themes.css. Wrapped
 // in a scaled-down container so it fits the preview panel without
 // taking over the screen like the real student render does.
 function ThemePreview({ themeId, t }) {
@@ -294,7 +294,7 @@ function ThemePreview({ themeId, t }) {
       // Scale down: the real .stage CSS expects 100vw/vh, so we trick
       // it by making this container its own positioning context. The
       // CSS measurements (font sizes etc) are absolute, so this
-      // becomes a "mini" version â€” not a perfect 1:1 scaled mock, but
+      // becomes a "mini" version — not a perfect 1:1 scaled mock, but
       // close enough that the theme's feel comes through.
       contain: "layout style",
     }}>
@@ -309,7 +309,7 @@ function ThemePreview({ themeId, t }) {
           height: "100%",
         }}
       >
-        {/* Top strip (simplified â€” no exit button, no avatar) */}
+        {/* Top strip (simplified — no exit button, no avatar) */}
         <div className="top-strip" style={{ padding: "10px 14px 8px" }}>
           <div className="brand-area">
             <span className="brand-name" style={{ fontSize: 11 }}>Clasloop</span>
@@ -321,13 +321,13 @@ function ThemePreview({ themeId, t }) {
           </div>
           <div className="student-block">
             <div className="student-meta-text">
-              <div className="student-name-top" style={{ fontSize: 10 }}>MarÃ­a R.</div>
+              <div className="student-name-top" style={{ fontSize: 10 }}>María R.</div>
             </div>
             <div className="student-avatar" style={{ width: 22, height: 22, fontSize: 10 }}>M</div>
           </div>
         </div>
 
-        {/* Body â€” simplified Question state */}
+        {/* Body — simplified Question state */}
         <div className="content">
           <div
             className="question-state"
