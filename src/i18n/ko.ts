@@ -1156,6 +1156,17 @@ const ko: Locale = {
     pdfAnswerKey: "정답",
     pdfErrorMsg: "PDF 내보내기에 실패했습니다. 다시 시도하세요.",
   },
+
+  mobileBlocked: {
+    title: "태블릿 또는 컴퓨터를 사용하세요",
+    body: "Clasloop의 세션과 학습은 더 큰 화면에 맞게 설계되어 있습니다. 휴대폰에서 둘러볼 수는 있지만, 세션 참여나 덱 학습을 하려면 태블릿이나 컴퓨터에서 사용하세요.",
+    cta: "뒤로",
+  },
+
+  removedFromClass: {
+    withClass: "{class}에서 제거되었습니다",
+    withoutClass: "이 수업에서 제거되었습니다",
+  },
 };
 
 export default ko;

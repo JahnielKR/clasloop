@@ -19,29 +19,12 @@
 // sensible to send the user (default route for their role, or "/").
 // ─────────────────────────────────────────────────────────────────────────────
 import { C } from "./tokens";
+import { useT } from "../i18n";
 
 export default function MobileBlockedScreen({ lang = "en", onBack }) {
-  const txt = {
-    en: {
-      title: "Use a tablet or computer",
-      body: "Clasloop sessions and practice are designed for larger screens. You can still browse on your phone, but to join or practice a deck, switch to a tablet or computer.",
-      cta: "Back",
-    },
-    es: {
-      title: "Usa una tablet o computadora",
-      body: "Las sesiones y la práctica de Clasloop están diseñadas para pantallas más grandes. Puedes seguir navegando en el celular, pero para unirte a una sesión o practicar un deck, usa una tablet o computadora.",
-      cta: "Volver",
-    },
-    ko: {
-      title: "태블릿 또는 컴퓨터를 사용하세요",
-      body: "Clasloop의 세션과 학습은 더 큰 화면에 맞게 설계되어 있습니다. 휴대폰에서 둘러볼 수는 있지만, 세션 참여나 덱 학습을 하려면 태블릿이나 컴퓨터에서 사용하세요.",
-      cta: "뒤로",
-    },
-  }[lang] || {
-    title: "Use a tablet or computer",
-    body: "Clasloop sessions and practice are designed for larger screens. You can still browse on your phone, but to join or practice a deck, switch to a tablet or computer.",
-    cta: "Back",
-  };
+  // PR 147 (M17): strings moved to the centralized i18n (namespace
+  // "mobileBlocked"); getStrings falls back to EN for unknown langs.
+  const txt = useT("mobileBlocked", lang);
 
   return (
     <div style={{
