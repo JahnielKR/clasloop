@@ -85,7 +85,7 @@ Each issue ≤ 12 words.`;
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
+    return res.status(405).json({ error: 'method_not_allowed' });
   }
 
   const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
@@ -93,17 +93,17 @@ export default async function handler(req, res) {
   const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
 
   if (!ANTHROPIC_API_KEY) {
-    return res.status(500).json({ error: 'ANTHROPIC_API_KEY not configured' });
+    return res.status(500).json({ error: 'server_misconfigured' });
   }
   if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
-    return res.status(500).json({ error: 'Supabase backend credentials not configured' });
+    return res.status(500).json({ error: 'server_misconfigured' });
   }
 
   // ── 1. Auth ────────────────────────────────────────────
   const authHeader = req.headers.authorization || req.headers.Authorization || '';
   const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
   if (!token) {
-    return res.status(401).json({ error: 'Missing Authorization header' });
+    return res.status(401).json({ error: 'missing_auth' });
   }
 
   const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
@@ -112,7 +112,7 @@ export default async function handler(req, res) {
 
   const { data: userData, error: userErr } = await supabaseAdmin.auth.getUser(token);
   if (userErr || !userData?.user) {
-    return res.status(401).json({ error: 'Invalid or expired session' });
+    return res.status(401).json({ error: 'invalid_auth' });
   }
   const userId = userData.user.id;
 
@@ -123,7 +123,7 @@ export default async function handler(req, res) {
     .eq('id', userId)
     .single();
   if (!profile || profile.role !== 'teacher') {
-    return res.status(403).json({ error: 'Only teachers can use this endpoint' });
+    return res.status(403).json({ error: 'teacher_required' });
   }
 
   // ── 3. Rate limit (shared with /api/generate.js) ──────
@@ -143,10 +143,10 @@ export default async function handler(req, res) {
   // ── 4. Validate body ───────────────────────────────────
   const { unitId, context } = req.body || {};
   if (!unitId) {
-    return res.status(400).json({ error: 'Missing unitId' });
+    return res.status(400).json({ error: 'missing_unit_id' });
   }
   if (!context || typeof context !== 'object') {
-    return res.status(400).json({ error: 'Missing context object' });
+    return res.status(400).json({ error: 'missing_context' });
   }
 
   // Verify the unit belongs to a class this teacher owns. Important
@@ -157,7 +157,7 @@ export default async function handler(req, res) {
     .select('id, class_id')
     .eq('id', unitId)
     .single();
-  if (!unit) return res.status(404).json({ error: 'Unit not found' });
+  if (!unit) return res.status(404).json({ error: 'unit_not_found' });
 
   const { data: cls } = await supabaseAdmin
     .from('classes')
@@ -165,7 +165,7 @@ export default async function handler(req, res) {
     .eq('id', unit.class_id)
     .single();
   if (!cls || cls.teacher_id !== userId) {
-    return res.status(403).json({ error: 'You do not own this unit' });
+    return res.status(403).json({ error: 'not_authorized' });
   }
 
   // ── 5. Run the pipeline ────────────────────────────────
