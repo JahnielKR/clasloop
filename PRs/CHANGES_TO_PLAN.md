@@ -8,6 +8,39 @@ Entries are appended chronologically. Most recent at the top.
 
 ---
 
+## 2026-05-22 — PR 152 done; real alt text for informative question images (M31)
+
+**Status:** ✅ done + merged to main (`e0fe570`). Closes M31. Gates green
+(typecheck 0 · 146 tests · build ✓).
+
+The 3 **question** images (`CreateDeckEditor:2147`, `StudentJoin:2438` themed +
+`:2994` legacy) had `alt=""`. Now `alt = image_alt || q.q || generic` — the
+question text is the meaningful description. Added an **`image_alt` text input**
+to CreateDeckEditor (wired via the existing `updateQ`; persists alongside
+`image_url`, no migration) so teachers can write a precise alt; new
+`imageAltPlaceholder` key in the editor i18n namespace (en/es/ko).
+
+**Per the REALITY CHECK:**
+- Reused the existing **`questionImageHint`** as the editor's rare generic
+  fallback — did NOT invent a `common.*` key.
+- **Split the option-image case** (`StudentJoin:2526`, `optImg`) from the
+  question images: it stays **decorative `alt=""`** (with a comment), because the
+  option is already labelled by its tile-letter (A/B/C) + adjacent `optText` — an
+  alt would either duplicate that or wrongly inject the *question* text. Did NOT
+  add a StudentJoin generic key (q.q is the alt; `|| ""` guards the rare
+  image-only-question edge instead of a missing attribute).
+- Fixed all the drifted line refs; left the decorative editor bg-image alone.
+
+**Verification:** typecheck (Locale parity) + locale-parity test + build (the new
+editor fragment compiles cleanly). **No browser smoke test** — CreateDeckEditor
+(~2800 LOC) and StudentJoin are authed and too prop-heavy to harness
+practically; the alt expressions use fields confirmed by reading the render
+(`q.q` / `displayedQ.q`), and the input uses the already-proven `updateQ` path.
+A future deck-edit smoke test (with a teacher login) could confirm the input +
+that a saved image_alt round-trips to StudentJoin.
+
+---
+
 ## 2026-05-22 — PR 151 done; align launchAutoHide comment with config (M22)
 
 **Status:** ✅ done + merged to main (`b55bdf7`). Closes M22. Gates green
