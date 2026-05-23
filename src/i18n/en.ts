@@ -289,6 +289,60 @@ const en = {
     blocked: "I couldn't answer that one — try rephrasing, or reach the team.",
   },
 
+  // First-visit guided tours ("Cleo te guía"). Cleo offers to walk a teacher
+  // through each page step by step; copy is matched to ./onboarding/tours.js
+  // steps BY INDEX, so step counts must stay in sync across en/es/ko.
+  tours: {
+    offerYes: "Yes, show me",
+    offerNo: "Not now",
+    offerDefault: "Want a quick tour of this page?",
+    back: "Back",
+    next: "Next",
+    done: "Done",
+    skip: "Skip",
+    replay: "View guide",
+    home: {
+      offer: "Welcome! Want me to help you get your first class ready in a minute?",
+      steps: [
+        { title: "Create your first class", body: "Tap here to create a class. Everything — warmups, students, sessions — lives inside it." },
+        { title: "Share the code", body: "Every class gets a 6-digit code. Students use it to join from their phones — no accounts or emails." },
+      ],
+    },
+    classDetail: {
+      offer: "Want a tour of your class? I'll show you how to navigate it, create a unit, and invite students.",
+      steps: [
+        { title: "Navigate your class", body: "Switch between your current unit, past and upcoming units, and general review here." },
+        { title: "Create a unit", body: "A unit is a theme (e.g. 'Fractions'). Each day's warmups and exit tickets live inside it. Start here." },
+        { title: "Invite your students", body: "Share this code with your class. They type it into the app and join instantly — no accounts." },
+        { title: "That's it!", body: "Create a unit, add the day's warmups, and share the code. You can replay this guide anytime." },
+      ],
+    },
+    deckEditor: {
+      offer: "Want me to show you how to build your first warmup? It's quick.",
+      steps: [
+        { title: "Pick the section", body: "Mark it as a warmup, exit ticket, or general review. That's where it shows up in your class." },
+        { title: "Add your questions", body: "On the Questions tab you can generate them with AI or add them by hand." },
+        { title: "Save and you're set", body: "Hit Save. Your deck is ready to run live or print." },
+      ],
+    },
+    pdfExport: {
+      offer: "Want me to show you how to take this deck to paper?",
+      steps: [
+        { title: "Print your questions", body: "Export any deck as a PDF to hand out in class or run a screen-free exam." },
+        { title: "Pick a style", body: "There are several print-ready designs. Choose the one you like." },
+        { title: "Download the PDF", body: "Tap here to download it. Later you can grade the sheets with the scanner on your phone." },
+      ],
+    },
+    scanner: {
+      offer: "Want me to show you how to grade paper exams with the camera?",
+      steps: [
+        { title: "Grade with the camera", body: "Snap a photo of the answer sheet and the scanner grades it instantly." },
+        { title: "Scan the sheet", body: "Pick the exam, frame the student's answer sheet, and the scanner does the rest." },
+        { title: "Review and save", body: "If any mark looks unsure, we highlight it so you can confirm. Then save the score." },
+      ],
+    },
+  },
+
   guestJoin: {
     joinSession: "Join session",
     enterCode: "Enter the 6-digit code your teacher gave you",

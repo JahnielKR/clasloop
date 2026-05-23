@@ -10,6 +10,9 @@
 
 import MobileMenuButton, { useIsMobile } from "./MobileMenuButton";
 import { C, TYPE } from "./tokens";
+import Cleo from "./Cleo";
+import { useT } from "../i18n";
+import { useReplayTour } from "../onboarding/TourContext";
 
 export default function PageHeader({
   title,
@@ -23,8 +26,14 @@ export default function PageHeader({
   setLang: _setLang,
   maxWidth = 800,
   onOpenMobileMenu,
+  // When set (and a TourProvider is mounted), shows a "Ver guía" button that
+  // replays this page's first-visit Cleo tour.
+  tourId,
 }) {
   const isMobile = useIsMobile();
+  const replayTour = useReplayTour();
+  const tt = useT("tours", lang);
+  const showReplay = !!tourId && !!replayTour;
   return (
     <div
       style={{
@@ -36,7 +45,7 @@ export default function PageHeader({
         margin: "0 auto 24px",
         paddingBottom: 18,
         borderBottom: `1px solid ${C.border}`,
-        flexWrap: actions ? "wrap" : "nowrap",
+        flexWrap: (actions || showReplay) ? "wrap" : "nowrap",
       }}
     >
       <div style={{ display: "flex", alignItems: "flex-start", gap: 10, minWidth: 0, flex: 1 }}>
@@ -53,8 +62,31 @@ export default function PageHeader({
           )}
         </div>
       </div>
-      {actions && (
-        <div style={{ display: "flex", gap: 8, alignItems: "center", flexShrink: 0 }}>{actions}</div>
+      {(actions || showReplay) && (
+        <div style={{ display: "flex", gap: 8, alignItems: "center", flexShrink: 0 }}>
+          {showReplay && (
+            <button
+              type="button"
+              onClick={() => replayTour(tourId)}
+              title={tt.replay}
+              aria-label={tt.replay}
+              style={{
+                display: "inline-flex", alignItems: "center", gap: 6,
+                padding: "6px 10px", borderRadius: 8,
+                background: "transparent", color: C.textSecondary,
+                border: `1px solid ${C.border}`, cursor: "pointer",
+                fontFamily: "'Outfit',sans-serif", fontSize: 12.5, fontWeight: 600,
+                transition: "border-color .15s ease, color .15s ease",
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.borderColor = C.accent; e.currentTarget.style.color = C.accent; }}
+              onMouseLeave={(e) => { e.currentTarget.style.borderColor = C.border; e.currentTarget.style.color = C.textSecondary; }}
+            >
+              <Cleo size={18} animate={false} />
+              {!isMobile && tt.replay}
+            </button>
+          )}
+          {actions}
+        </div>
       )}
     </div>
   );

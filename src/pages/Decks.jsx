@@ -362,10 +362,6 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
     // "+ Create deck" inside an empty class group). On /decks/:id/edit the
     // existing deck's class wins, so we ignore the param.
     const prefilledClassId = view === "create" ? (searchParams.get(QUERY.CLASS) || null) : null;
-    // Guided onboarding: ?onboarding=1 on /decks/new shows the warmup coach in
-    // the editor and, on first save, routes to the celebration screen instead
-    // of the normal return destination.
-    const onboarding = view === "create" && searchParams.get("onboarding") === "1";
     // ?section= on /decks/new pre-fills the deck's section, used when the
     // teacher clicks "+ New warmup" / "+ New exit ticket" / "+ New review"
     // from inside ClassPage. On edit, existing deck's section wins.
@@ -451,7 +447,7 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
     return (
       <div style={{ padding: "28px 20px" }}>
         <style>{css}</style>
-        <PageHeader title={editorTitle} lang={l} setLang={setLang} maxWidth={600} onOpenMobileMenu={onOpenMobileMenu} />
+        <PageHeader title={editorTitle} lang={l} setLang={setLang} maxWidth={600} tourId="deckEditor" onOpenMobileMenu={onOpenMobileMenu} />
         <CreateDeckEditor
           t={t} l={l}
           onBack={() => navigate(returnTo)}
@@ -463,22 +459,12 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
           prefilledUnitId={prefilledUnitId}
           prefilledPosition={prefilledPosition}
           profile={profile}
-          onboarding={onboarding}
           onNeedClass={() => navigate(ROUTES.CLASSES)}
           onCreated={(d) => {
             if (editing) patchMyDecks(prev => prev.map(dk => dk.id === d.id ? d : dk));
             else patchMyDecks(prev => [d, ...prev]);
             invalidateClassCaches(d?.class_id);
-            // Guided onboarding: after the first warmup saves, send the teacher
-            // to the celebration (the class page renders behind it). d.class_id
-            // is the class we pre-created. Otherwise the normal destination.
-            if (onboarding && d?.class_id) {
-              // Carry the new warmup's id so the celebration's "start live
-              // session" can launch THIS deck directly (no unit needed).
-              navigate(`${buildRoute.classDetail(d.class_id)}?celebrate=${encodeURIComponent(d.class_id)}&warmup=${encodeURIComponent(d.id)}`);
-            } else {
-              navigate(returnTo);
-            }
+            navigate(returnTo);
           }}
         />
       </div>
@@ -1002,6 +988,7 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
             initialVariant={pdfModalState.kind === "answers" ? "answers" : "exam"}
             onClose={closePdfModal}
             C={C}
+            userId={profile?.id}
           />
         </Suspense>
       )}

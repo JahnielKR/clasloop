@@ -3,8 +3,6 @@ import { useLocation, useNavigate, useMatch } from 'react-router-dom';
 import { Capacitor } from '@capacitor/core';
 import { ROUTES, PAGE_TO_ROUTE, pathToPage, defaultRouteForRole, buildRoute, buildPathWithOpts, isPageAllowedForRole } from './routes';
 import { supabase } from './lib/supabase';
-import { useQueryClient } from '@tanstack/react-query';
-import { DECKS_PAGE_KEY } from './hooks/useDecks';
 import { getStrings } from './i18n';
 import { resolveInitialLang } from './lib/locale';
 import { safeGet, safeSet, safeRemove } from './lib/safe-storage';
@@ -17,15 +15,12 @@ import PublicHome from './pages/PublicHome';
 import AvatarOnboarding from './pages/AvatarOnboarding';
 import RoleOnboarding from './pages/RoleOnboarding';
 import TeacherWelcome from './pages/TeacherWelcome';
-// Guided first-run onboarding for teachers (create class → warmup → celebrate).
-// Eagerly imported: they overlay the authed shell on a fresh signup, so a
-// Suspense flash would undercut the "welcome" moment. All three are tiny.
-import CreateClassModal from './components/CreateClassModal';
-import OnboardingCoach from './components/OnboardingCoach';
-import OnboardingCelebration from './components/OnboardingCelebration';
 // In-app Cleo help bot (floating "Ask Cleo"). Eager — it's tiny and renders in
 // the authed shell for teachers.
 import CleoChat from './components/CleoChat';
+// Per-page first-visit tours ("Cleo te guía"). The provider lets each page's
+// PageHeader replay its tour ("Ver guía"); pages mount <CleoTour> themselves.
+import { TourProvider } from './onboarding/TourContext';
 // PR 112: AuthScreen + NotFoundScreen extracted to their own files.
 // Eagerly imported (no lazy) because they paint before the authed shell
 // loads — same rationale as the eager imports above.
@@ -177,11 +172,6 @@ export default function App() {
   // Phase 2: one-time first-run welcome for teachers, set only on a fresh role
   // pick (see handleRoleOnboardingCreated) so existing teachers never see it.
   const [showTeacherWelcome, setShowTeacherWelcome] = useState(false);
-  // Guided onboarding step 1: after the welcome, walk the teacher through
-  // creating their first class (a warmup can't be saved without one). Set from
-  // TeacherWelcome's CTA; the next steps (warmup, celebration) ride the URL.
-  const [creatingFirstClass, setCreatingFirstClass] = useState(false);
-  const queryClient = useQueryClient();
   // `page` mirrors the URL (kept in sync by an effect below). Initialised from
   // the current pathname so the very first render already shows the correct
   // page without a flash. Default to "sessions" when path is "/" — fetchProfile
@@ -914,7 +904,9 @@ export default function App() {
       <TeacherWelcome
         profile={profile}
         lang={lang}
-        onStart={() => { setShowTeacherWelcome(false); setCreatingFirstClass(true); }}
+        // Both CTAs just close the welcome and drop the teacher on their home
+        // (/classes), where the first-visit "home" tour offers to guide them.
+        onStart={() => setShowTeacherWelcome(false)}
         onSkip={() => setShowTeacherWelcome(false)}
       />
     );
@@ -953,14 +945,8 @@ export default function App() {
   // it to "teacherProfile" so it counts as known.
   const isNotFound = !inPractice && pathToPage(location.pathname) === null && location.pathname !== "/";
 
-  // Guided-onboarding step 3 trigger: Decks routes to the class page with
-  // ?celebrate=<classId>&warmup=<deckId> right after the teacher saves their
-  // first warmup. The warmup id lets "start live session" launch that deck.
-  const celebrateParams = new URLSearchParams(location.search);
-  const celebrateClassId = profile?.role === "teacher" ? celebrateParams.get("celebrate") : null;
-  const celebrateWarmupId = celebrateClassId ? celebrateParams.get("warmup") : null;
-
   return (
+    <TourProvider>
     <div style={{ display: "flex", minHeight: "100vh" }}>
       <style>{sidebarCSS}</style>
       {/* Backdrop — covers everything below the drawer, click-to-close */}
@@ -1090,51 +1076,9 @@ export default function App() {
         </Suspense>
       </div>
 
-      {/* Guided teacher onboarding — overlays the dimmed dashboard. Step 1:
-          create the first class (a warmup can't be saved without one). Steps 2
-          (warmup coach) and 3 (celebration) ride the URL: ?onboarding=1 on
-          /decks/new and ?celebrate=<classId> after the first save. All gated so
-          existing teachers never see any of it. */}
-      {profile?.role === "teacher" && creatingFirstClass && (
-        <>
-          <OnboardingCoach
-            floating
-            title={getStrings("onboarding", lang).classCoachTitle}
-            body={getStrings("onboarding", lang).classCoachBody}
-          />
-          <CreateClassModal
-            userId={profile.id}
-            t={getStrings("myClassesTeacher", lang)}
-            onClose={() => setCreatingFirstClass(false)}
-            onCreated={(newClass) => {
-              setCreatingFirstClass(false);
-              // The new class must be visible to the Decks page query before we
-              // land on /decks/new?class=… (its prefill resolves the class from
-              // that list). Invalidate so it refetches fresh.
-              queryClient.invalidateQueries({ queryKey: DECKS_PAGE_KEY });
-              navigate(`${ROUTES.DECKS_NEW}?class=${encodeURIComponent(newClass.id)}&onboarding=1`);
-            }}
-          />
-        </>
-      )}
-
-      {/* Step 3: celebration after the first warmup saves. Decks routes here
-          with ?celebrate=<classId>; the class page renders dimmed behind. */}
-      {celebrateClassId && (
-        <OnboardingCelebration
-          lang={lang}
-          onStartSession={() => navigate(
-            celebrateWarmupId
-              // Launch the just-created warmup directly (SessionOptions deep
-              // link) — a deck doesn't need a unit to go live; only the "Today"
-              // plan view requires scheduled units, which a brand-new teacher
-              // hasn't set up yet.
-              ? buildRoute.sessionsOptions(celebrateWarmupId)
-              : `${ROUTES.SESSIONS}?class=${encodeURIComponent(celebrateClassId)}`
-          )}
-          onViewClass={() => navigate(buildRoute.classDetail(celebrateClassId))}
-        />
-      )}
+      {/* First-run teacher guidance now lives in the per-page first-visit tours
+          ("Cleo te guía", src/onboarding). TeacherWelcome (above) still greets a
+          brand-new teacher once; from there the home tour takes over. */}
 
       {/* In-app Cleo help bot — floating "Ask Cleo" for teachers (how things
           work / where to find them). Gated to teachers; the authed shell only. */}
@@ -1204,5 +1148,6 @@ export default function App() {
         );
       })()}
     </div>
+    </TourProvider>
   );
 }

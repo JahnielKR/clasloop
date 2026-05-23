@@ -36,6 +36,7 @@ import { useT } from "../i18n";
 import TwoColPage from "../components/TwoColPage";
 import MyClassesRail from "./MyClasses.rail";
 import { countPendingReviewsForTeacher } from "../lib/notifications";
+import CleoTour from "../onboarding/CleoTour";
 
 // ─── i18n ────────────────────────────────────────────────────────────────
 // PR 77: el bloque i18n local fue movido a src/i18n/{en,es,ko}.js
@@ -468,6 +469,7 @@ export default function MyClassesTeacher({ lang = "en", profile, onNavigateToSes
         subtitle={t.subtitle}
         maxWidth={1100}
         lang={lang}
+        tourId="home"
         onOpenMobileMenu={onOpenMobileMenu}
         actions={
           <>
@@ -496,7 +498,7 @@ export default function MyClassesTeacher({ lang = "en", profile, onNavigateToSes
               {isMobile ? null : t.importClass}
             </Button>
             {/* Brand signature CTA — the one gradient on this screen. */}
-            <Button variant="gradient" size="sm" onClick={handleNewClass}>
+            <Button variant="gradient" size="sm" onClick={handleNewClass} data-tour="new-class">
               {t.newClass}
             </Button>
           </>
@@ -683,6 +685,10 @@ export default function MyClassesTeacher({ lang = "en", profile, onNavigateToSes
           }}
         />
       )}
+
+      {/* First-visit guided tour — Cleo offers to walk a new teacher through
+          creating their first class. */}
+      <CleoTour tourId="home" lang={lang} userId={profile?.id} enabled={profile?.role === "teacher"} />
     </div>
   );
 }

@@ -285,6 +285,60 @@ const es: Locale = {
     blocked: "No pude responder eso — prueba reformularlo o escribe al equipo.",
   },
 
+  // Tours guiados de primera visita ("Cleo te guía"). Cleo ofrece recorrer cada
+  // página paso a paso; el texto se empareja con los steps de ./onboarding/tours.js
+  // POR ÍNDICE, así que la cantidad de steps debe coincidir en en/es/ko.
+  tours: {
+    offerYes: "Sí, guíame",
+    offerNo: "Ahora no",
+    offerDefault: "¿Te muestro cómo funciona esta página?",
+    back: "Atrás",
+    next: "Siguiente",
+    done: "Listo",
+    skip: "Saltar",
+    replay: "Ver guía",
+    home: {
+      offer: "¡Bienvenido! ¿Te ayudo a dejar tu primera clase lista en un minuto?",
+      steps: [
+        { title: "Crea tu primera clase", body: "Pulsa aquí para crear una clase. Todo —warmups, alumnos, sesiones— vive dentro de ella." },
+        { title: "Comparte el código", body: "Cada clase trae un código de 6 dígitos. Tus alumnos lo usan para entrar desde el móvil — sin cuentas ni correos." },
+      ],
+    },
+    classDetail: {
+      offer: "¿Te guío por tu clase? Te muestro cómo navegarla, crear una unidad e invitar a tus alumnos.",
+      steps: [
+        { title: "Navega tu clase", body: "Aquí cambias entre tu unidad actual, las pasadas, las próximas y el repaso general." },
+        { title: "Crea una unidad", body: "Una unidad es un tema (ej. 'Fracciones'). Los warmups y exit tickets de cada día viven dentro de ella. Empieza por aquí." },
+        { title: "Invita a tus alumnos", body: "Comparte este código con tu clase. Lo escriben en la app y entran al instante — sin cuentas." },
+        { title: "¡Eso es todo!", body: "Crea una unidad, agrégale los warmups del día y comparte el código. Cuando quieras, puedes volver a ver esta guía." },
+      ],
+    },
+    deckEditor: {
+      offer: "¿Te muestro cómo armar tu primer warmup? Es rápido.",
+      steps: [
+        { title: "Elige la sección", body: "Marca si es un warmup, un exit ticket o repaso general. Así aparece en el lugar correcto de tu clase." },
+        { title: "Agrega tus preguntas", body: "En la pestaña Preguntas puedes generarlas con IA o agregarlas a mano." },
+        { title: "Guarda y listo", body: "Pulsa Guardar. Tu deck queda listo para lanzarlo en vivo o imprimirlo." },
+      ],
+    },
+    pdfExport: {
+      offer: "¿Te muestro cómo llevar este deck a papel?",
+      steps: [
+        { title: "Imprime tus preguntas", body: "Exporta cualquier deck como PDF para repartir en clase o tomar un examen sin pantallas." },
+        { title: "Elige un estilo", body: "Hay varios diseños listos para imprimir. Elige el que prefieras." },
+        { title: "Descarga el PDF", body: "Pulsa aquí para descargarlo. Luego puedes corregir las hojas con el escáner desde tu móvil." },
+      ],
+    },
+    scanner: {
+      offer: "¿Te muestro cómo corregir exámenes en papel con la cámara?",
+      steps: [
+        { title: "Corrige con la cámara", body: "Toma una foto de la hoja de respuestas y el escáner la califica al instante." },
+        { title: "Escanea la hoja", body: "Elige el examen, enfoca la hoja de respuestas del alumno y el escáner hace el resto." },
+        { title: "Revisa y guarda", body: "Si alguna marca quedó dudosa, la resaltamos para que la confirmes. Luego guardas la nota." },
+      ],
+    },
+  },
+
   guestJoin: {
     joinSession: "Unirse a la sesión",
     enterCode: "Ingresa el código de 6 dígitos que te dio tu profe",
