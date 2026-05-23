@@ -270,6 +270,19 @@ const ko: Locale = {
     start: "준비됐나요? 첫 워밍업까지 2분이면 돼요.",
   },
 
+  // 앱 내 Cleo 도움 봇 (CleoChat.jsx) — "클레오에게 물어보기" 어시스턴트.
+  cleoChat: {
+    openAria: "클레오에게 물어보기",
+    title: "클레오에게 물어보기",
+    subtitle: "Clasloop 도우미",
+    close: "닫기",
+    greeting: "안녕하세요! 저는 클레오예요 👋 Clasloop에 대해 무엇이든 물어보세요 — 사용법이나 위치를요.",
+    placeholder: "Clasloop에 대해 물어보세요…",
+    send: "보내기",
+    error: "흠, 지금은 연결하지 못했어요. 잠시 후 다시 시도해 주세요.",
+    blocked: "그건 답하지 못했어요 — 다시 표현해 보거나 팀에 문의해 주세요.",
+  },
+
   guestJoin: {
     joinSession: "세션 참여",
     enterCode: "선생님이 알려준 6자리 코드를 입력하세요",

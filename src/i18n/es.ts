@@ -270,6 +270,19 @@ const es: Locale = {
     start: "¿Empezamos? Tu primer warmup está a dos minutos.",
   },
 
+  // Bot de ayuda Cleo dentro de la app (CleoChat.jsx) — asistente "Pregúntale a Cleo".
+  cleoChat: {
+    openAria: "Pregúntale a Cleo",
+    title: "Pregúntale a Cleo",
+    subtitle: "Tu ayudante de Clasloop",
+    close: "Cerrar",
+    greeting: "¡Hola! Soy Cleo 👋 Pregúntame lo que sea de Clasloop — cómo funciona algo o dónde encontrarlo.",
+    placeholder: "Pregunta sobre Clasloop…",
+    send: "Enviar",
+    error: "Mmm, no pude conectar ahora mismo. Inténtalo de nuevo en un momento.",
+    blocked: "No pude responder eso — prueba reformularlo o escribe al equipo.",
+  },
+
   guestJoin: {
     joinSession: "Unirse a la sesión",
     enterCode: "Ingresa el código de 6 dígitos que te dio tu profe",
