@@ -322,7 +322,7 @@ const en = {
         { title: "Pick the class", body: "Choose which class it belongs to. It takes that class's subject and grade automatically." },
         { title: "Session type", body: "Mark it as a warmup, exit ticket, or general review — that's where it shows up in your class." },
         { title: "Choose the language", body: "Pick the deck's language. The AI generates and checks questions in it." },
-        { title: "Add your questions", body: "On the Questions tab, generate them with AI or add them by hand." },
+        { title: "Generate with AI", body: "Drop in a file or topic and AI writes the questions, then double-checks them. Or add them by hand." },
         { title: "Save and you're set", body: "Hit Save. Your deck is ready to run live or print." },
       ],
     },

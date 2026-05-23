@@ -365,6 +365,11 @@ export default function MyClassesTeacher({ lang = "en", profile, onNavigateToSes
   };
 
   const handleClassCreated = async (newClass) => {
+    // First-ever class? Flow straight into building its first warmup — the deck
+    // editor's guided tour takes over from there. This restores the "create my
+    // first warmup" momentum the welcome used to kick off. Only fires for the
+    // very first class; later ones stay on this list.
+    const isFirstClass = classes.length === 0;
     // PR 18: new classes go at the END (max position + 1) so they don't
     // disturb the teacher's existing drag-ordered arrangement.
     patchClasses(prev => {
@@ -381,6 +386,10 @@ export default function MyClassesTeacher({ lang = "en", profile, onNavigateToSes
       return [...prev, patched];
     });
     setShowCreateModal(false);
+    if (isFirstClass) {
+      navigate(`${ROUTES.DECKS_NEW}?${QUERY.CLASS}=${encodeURIComponent(newClass.id)}`);
+      return;
+    }
     setJustCreatedId(newClass.id);
     setToast({
       message: `${t.classCreated} ${newClass.class_code}`,

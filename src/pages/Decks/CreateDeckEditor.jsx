@@ -1478,10 +1478,22 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
         {t.back}
       </button>
 
-      {/* First-visit guided tour — section → questions → save. Replaces the
-          old ?onboarding=1 inline coach; offers itself the first time a teacher
-          opens the editor. */}
-      <CleoTour tourId="deckEditor" lang={l} userId={userId} enabled={profile?.role === "teacher"} />
+      {/* First-visit guided tour — name → class → type → language → AI/manual
+          → save. The AI step lives on the Questions tab, so the tour switches
+          tabs for us (the overlay is modal — the user can't click there). */}
+      <CleoTour
+        tourId="deckEditor"
+        lang={l}
+        userId={userId}
+        enabled={profile?.role === "teacher"}
+        onStepChange={(_i, step) => {
+          if (step?.anchor === "ai-generate") setEditorTab("questions");
+          else if (
+            step?.anchor === "deck-title" || step?.anchor === "deck-class" ||
+            step?.anchor === "deck-section" || step?.anchor === "deck-language"
+          ) setEditorTab("general");
+        }}
+      />
 
       <div className="fade-up" style={{ background: C.bg, borderRadius: 14, border: `1px solid ${C.border}`, padding: 24, marginBottom: 16 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, gap: 12 }}>
@@ -1502,7 +1514,6 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
             <button
               key={tab.id}
               className="dk-editor-tab"
-              data-tour={tab.id === "questions" ? "add-questions" : undefined}
               onClick={() => setEditorTab(tab.id)}
               style={{
                 padding: "10px 14px",
@@ -1963,6 +1974,7 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             <button
               className="dk-btn"
+              data-tour="ai-generate"
               onClick={openAIPanel}
               disabled={showAIPanel || showTypeSelector}
               style={{

@@ -64,7 +64,7 @@ function bubblePosition(rect, placement, isMobile) {
   return { left, top: rect.top + rect.height + GAP, width: BUBBLE_W };
 }
 
-export default function CleoTour({ tourId, lang = "en", userId, enabled = true }) {
+export default function CleoTour({ tourId, lang = "en", userId, enabled = true, onStepChange }) {
   const t = useT("tours", lang);
   const isMobile = useIsMobile();
   const tour = getTour(tourId);
@@ -80,6 +80,16 @@ export default function CleoTour({ tourId, lang = "en", userId, enabled = true }
 
   // Expose replay() to the PageHeader "Ver guía" button (no-op without provider).
   useRegisterTour(tourId, replay);
+
+  // Let the host page react when the running step changes — e.g. the deck
+  // editor switches to the right tab so the step's anchor is on screen (the
+  // overlay is modal, so the user can't navigate there themselves). Kept in a
+  // ref so an inline callback doesn't churn the effect.
+  const onStepChangeRef = useRef(onStepChange);
+  onStepChangeRef.current = onStepChange;
+  useEffect(() => {
+    if (phase === "running") onStepChangeRef.current?.(index, steps[index]);
+  }, [phase, index, steps]);
 
   // ── Anchor measurement ────────────────────────────────────────────────────
   const [rect, setRect] = useState(null);

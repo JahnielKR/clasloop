@@ -44,7 +44,9 @@ export const TOURS = {
       { anchor: "deck-class", placement: "bottom", cleo: "thinking" },
       { anchor: "deck-section", placement: "bottom", cleo: "thinking" },
       { anchor: "deck-language", placement: "bottom", cleo: "happy" },
-      { anchor: "add-questions", placement: "bottom", cleo: "encouraging" },
+      // CleoTour fires onStepChange → the editor switches to the Questions tab
+      // so this AI button is on screen before we spotlight it.
+      { anchor: "ai-generate", placement: "bottom", cleo: "encouraging" },
       { anchor: "save-deck", placement: "top", cleo: "cheer" },
     ],
   },

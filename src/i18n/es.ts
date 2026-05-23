@@ -318,7 +318,7 @@ const es: Locale = {
         { title: "Elige la clase", body: "Selecciona a qué clase pertenece. Toma su materia y grado automáticamente." },
         { title: "Tipo de sesión", body: "Marca si es un warmup, un exit ticket o repaso general — así aparece en el lugar correcto de tu clase." },
         { title: "Elige el idioma", body: "Elige el idioma del deck. La IA genera y revisa las preguntas en ese idioma." },
-        { title: "Agrega tus preguntas", body: "En la pestaña Preguntas, genéralas con IA o agrégalas a mano." },
+        { title: "Genera con IA", body: "Sube un archivo o escribe un tema y la IA crea las preguntas y las revisa. O agrégalas a mano." },
         { title: "Guarda y listo", body: "Pulsa Guardar. Tu deck queda listo para lanzarlo en vivo o imprimirlo." },
       ],
     },
