@@ -15,6 +15,29 @@ landing redesign + Phase 2 onboarding: two prod/CI bugs (A, B) merged first,
 then two UX efforts (C teacher onboarding, D scroll-driven landing). Plan:
 `~/.claude/plans/rosy-tickling-allen.md`.
 
+## 2026-05-23 — Fix F — Celebration = two one-shot party poppers
+
+**Status:** ✅ done + merged to main (`d9f5a1c`). Gates green (typecheck · lint 0
+errors · build). Structure verified via `/__x` harness.
+
+**Problem (user, round 2):** the first-warmup celebration rained confetti on an
+infinite loop; the user wanted ~2 party poppers (like a reference image) on both
+sides that explode ONCE and stop.
+
+**Fix:** rewrote `OnboardingCelebration.jsx` — removed the infinite `oc-fall`
+background; added a `Popper` (striped red/yellow cone SVG via a clip pattern +
+burst of confetti ovals & streamer ribbons). Two poppers at the bottom corners
+(right mirrored with `scaleX(-1)`); particles use a one-shot `ocb-burst`
+keyframe (`animation-iteration-count: 1; fill-mode: forwards`) that launches from
+the cone mouth, arcs to a peak, and falls away. Honors reduced-motion (cones
+only, no burst).
+
+**Verification:** `/__x` harness DOM assertions — 2 cone paths + 2 stripe
+patterns + 44 burst pieces, sample piece `animationName: ocb-burst`,
+`iterationCount: 1`, `fillMode: forwards` (confirms one-shot, not the old
+infinite loop). Visual feel = user's eyeball (`preview_screenshot` times out —
+hidden tab, [[preview-hidden-raf]]).
+
 ## 2026-05-23 — Fix E — Scanner header consistency + android/apple icons
 
 **Status:** ✅ done + merged to main (`28f407c`). Gates green (typecheck · lint 0
