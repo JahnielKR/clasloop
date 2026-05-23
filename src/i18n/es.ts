@@ -308,7 +308,7 @@ const es: Locale = {
         { title: "Navega tu clase", body: "Aquí cambias entre tu unidad actual, las pasadas, las próximas y el repaso general." },
         { title: "Crea una unidad", body: "Una unidad es un tema (ej. 'Fracciones'). Los warmups y exit tickets de cada día viven dentro de ella. Empieza por aquí." },
         { title: "Invita a tus alumnos", body: "Comparte el código de la clase. Tus alumnos se unen con una cuenta gratis o con Google, y luego ingresan el código en la app." },
-        { title: "¡Eso es todo!", body: "Crea una unidad, agrégale los warmups del día y comparte el código. Cuando quieras, puedes volver a ver esta guía." },
+        { title: "Lánzalo en vivo", body: "Toca un warmup para iniciarlo: se proyecta en pantalla y tus alumnos responden desde el móvil." },
       ],
     },
     deckEditor: {

@@ -312,7 +312,7 @@ const en = {
         { title: "Navigate your class", body: "Switch between your current unit, past and upcoming units, and general review here." },
         { title: "Create a unit", body: "A unit is a theme (e.g. 'Fractions'). Each day's warmups and exit tickets live inside it. Start here." },
         { title: "Invite your students", body: "Share this class code. Students join with a free account or Google login, then enter the code in the app." },
-        { title: "That's it!", body: "Create a unit, add the day's warmups, and share the code. You can replay this guide anytime." },
+        { title: "Launch it live", body: "Tap a warmup to start it — it projects on screen and your students answer from their phones." },
       ],
     },
     deckEditor: {

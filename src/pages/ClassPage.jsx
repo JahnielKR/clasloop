@@ -411,8 +411,11 @@ function SortableDeckCard({ deck, accent, t, lang, units, onChangeUnit, onOpen }
 export default function ClassPage({ lang = "en", profile, classId, onLaunchPractice, onOpenMobileMenu }) {
   const t = useT("classPage", lang);
   const [searchParams, setSearchParams] = useSearchParams();
-  // ?celebrate=1 — the "fiesta" after a teacher saves their first warmup (the
-  // deck editor returns here). One-shot confetti, then we clear the param.
+  // ?celebrate=1 — set by the deck editor after a teacher saves their first
+  // warmup. Two things: a one-shot confetti "fiesta", and auto-run the class
+  // tour (what's next: create a unit, share the code, launch). Captured at
+  // mount so clearing the param (or a late class-data load) doesn't lose it.
+  const [autoStartClassTour] = useState(() => searchParams.get("celebrate") === "1");
   const [celebrate, setCelebrate] = useState(false);
   useEffect(() => {
     if (searchParams.get("celebrate") !== "1") return undefined;
@@ -891,8 +894,9 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
   // ── Render ────────────────────────────────────────────────────────────
   return (
     <div style={{ padding: isMobile ? "16px 14px 32px" : "20px 28px 40px", maxWidth: 760, margin: "0 auto" }}>
-      {/* "Fiesta" after the first warmup (one-shot, honors reduced-motion). */}
-      {celebrate && <Confetti zIndex={60} />}
+      {/* "Fiesta" after the first warmup (one-shot, honors reduced-motion).
+          Above the tour overlay (z 1400) so it rains over the guide. */}
+      {celebrate && <Confetti zIndex={1500} />}
 
       {/* Back link */}
       <button
@@ -1990,7 +1994,7 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
 
       {/* First-visit guided tour — units (the gap) + sharing the code with students. */}
       {classObj && !loading && (
-        <CleoTour tourId="classDetail" lang={lang} userId={profile?.id} enabled={profile?.role === "teacher"} />
+        <CleoTour tourId="classDetail" lang={lang} userId={profile?.id} enabled={profile?.role === "teacher"} autoStart={autoStartClassTour} />
       )}
 
       <style>{`
