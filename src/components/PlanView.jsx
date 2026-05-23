@@ -47,6 +47,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import SectionBadge, { sectionAccent } from "./SectionBadge";
+import Button from "./ui/Button";
 import AddToSlotModal from "./AddToSlotModal";
 import DayDateModal from "./DayDateModal";
 import { unitStatusLabel, getDayDate } from "../lib/class-hierarchy";
@@ -735,23 +736,14 @@ function Slot({ deck, slotKind, t, lang, onLaunch, onSlotClick, isUsed, onRemove
             <span>{qs.length} {t.questions}</span>
           </div>
         </div>
-        <button
+        <Button
+          variant="primary"
+          size="sm"
           onClick={(e) => { e.stopPropagation(); onLaunch(deck); }}
-          style={{
-            padding: "7px 14px",
-            borderRadius: 7,
-            background: C.accent,
-            color: "#fff",
-            border: "none",
-            fontFamily: "'Outfit', sans-serif",
-            fontSize: 13, fontWeight: 600,
-            cursor: "pointer",
-            display: "inline-flex", alignItems: "center", gap: 4,
-            flexShrink: 0,
-          }}
+          style={{ flexShrink: 0 }}
         >
           {t.launch} {"\u2192"}
-        </button>
+        </Button>
         {/* PR 24.9: kebab menu — only when the deck hasn't been used.
             Used decks lock in place because they have student responses
             tied to their unit position. */}
@@ -949,22 +941,14 @@ function GeneralReviewCard({ deck, t, lang, onLaunch }) {
           {qs.length} {t.questions}
         </div>
       </div>
-      <button
+      <Button
+        variant="primary"
+        size="sm"
         onClick={(e) => { e.stopPropagation(); onLaunch(deck); }}
-        style={{
-          padding: "6px 12px",
-          borderRadius: 7,
-          background: C.accent,
-          color: "#fff",
-          border: "none",
-          fontFamily: "'Outfit', sans-serif",
-          fontSize: 12.5, fontWeight: 600,
-          cursor: "pointer",
-          flexShrink: 0,
-        }}
+        style={{ flexShrink: 0 }}
       >
         {t.launch} {"\u2192"}
-      </button>
+      </Button>
     </div>
   );
 }
