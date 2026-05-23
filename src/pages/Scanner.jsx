@@ -35,6 +35,7 @@ import { Capacitor } from "@capacitor/core";
 import { supabase } from "../lib/supabase";
 import { C } from "../components/tokens";
 import { CIcon } from "../components/Icons";
+import PageHeader from "../components/PageHeader";
 import {
   scanDocument,
   readQRFromImage,
@@ -249,14 +250,8 @@ export default function Scanner({ lang = "en", profile, onOpenMobileMenu }) {
   // ─── Render ────────────────────────────────────────────────────────────
   return (
     <div style={{ maxWidth: 720, margin: "0 auto", padding: "20px 16px" }}>
+      <PageHeader title={t.pageTitle} lang={lang} maxWidth={720} onOpenMobileMenu={onOpenMobileMenu} />
       <div style={{ marginBottom: 20 }}>
-        <h1 style={{
-          fontFamily: "'Outfit',sans-serif",
-          fontSize: 28, fontWeight: 600, margin: 0, marginBottom: 6,
-          color: C.text,
-        }}>
-          {t.pageTitle}
-        </h1>
         <p style={{ fontSize: 14, color: C.textMuted, margin: 0 }}>
           {t.pageSubtitle}
         </p>
@@ -362,7 +357,7 @@ function WebFallbackStage({ t }) {
             display: "flex", alignItems: "center", gap: 8,
           }}
         >
-          <span>🤖</span>
+          <CIcon name="android" inline size={18} />
           {t.webAndroid} — Coming soon
         </button>
         <button
@@ -376,7 +371,7 @@ function WebFallbackStage({ t }) {
             display: "flex", alignItems: "center", gap: 8,
           }}
         >
-          <span>🍎</span>
+          <CIcon name="apple" inline size={18} />
           {t.webIos}
         </button>
       </div>

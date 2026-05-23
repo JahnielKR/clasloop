@@ -574,6 +574,17 @@ const ICON_DEFS = {
     <rect x="3.5" y="13.3" width="7.2" height="7.2" rx="2" fill={D.orange + "22"} stroke={D.orange} strokeWidth="1.5"/>
     <rect x="13.3" y="13.3" width="7.2" height="7.2" rx="2" fill={D.purple + "22"} stroke={D.purple} strokeWidth="1.5"/>
   </> },
+  android: { color: "#3DDC84", d: "", extra: (c) => <>
+    <path d="M5.5,12 a6.5,6.5 0 0 1 13,0 z" fill={c + "22"} stroke={c} strokeWidth="1.7" strokeLinejoin="round" strokeLinecap="round"/>
+    <line x1="8" y1="6.4" x2="6.7" y2="4.2" stroke={c} strokeWidth="1.6" strokeLinecap="round"/>
+    <line x1="16" y1="6.4" x2="17.3" y2="4.2" stroke={c} strokeWidth="1.6" strokeLinecap="round"/>
+    <circle cx="9.8" cy="9" r="1" fill={c}/>
+    <circle cx="14.2" cy="9" r="1" fill={c}/>
+  </> },
+  apple: { color: "#555", d: "", extra: (c) => <>
+    <path d="M15.6,12.4 c-0.9,-0.5 -0.9,-2.3 0.3,-3 c-0.7,-0.9 -1.7,-1.1 -2.2,-1.1 c-0.9,-0.1 -1.7,0.5 -2.3,0.5 c-0.6,0 -1.3,-0.5 -2.1,-0.5 c-1.2,0 -3,1 -3,3.5 c0,2.9 2.1,6 3.4,6 c0.6,0 1,-0.4 1.8,-0.4 c0.8,0 1.1,0.4 1.8,0.4 c1.3,0 2.7,-2.7 3.1,-4.1 z" fill={c + "22"} stroke={c} strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round"/>
+    <path d="M12.6,7.3 c0.1,-1.2 1.1,-2 2.1,-2 c0.1,1.1 -0.6,2.2 -2.1,2 z" fill={c} stroke="none"/>
+  </> },
 };
 
 export function CIcon({ name, size = 24, inline = false }) {
