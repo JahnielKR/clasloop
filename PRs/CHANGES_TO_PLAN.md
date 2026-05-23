@@ -15,6 +15,31 @@ landing redesign + Phase 2 onboarding: two prod/CI bugs (A, B) merged first,
 then two UX efforts (C teacher onboarding, D scroll-driven landing). Plan:
 `~/.claude/plans/rosy-tickling-allen.md`.
 
+## 2026-05-23 — Fix B — AI "model is not defined" (critical, all generation)
+
+**Status:** ✅ done + merged to main (`2dd5d5f`). **Needs prod deploy + user
+smoke-test** (api/ can't run under `vercel dev`).
+
+**Symptom:** AI generation failed with `model is not defined`.
+
+**Root cause:** `api/generate.js` gated the Haiku validator on
+`model === 'primary'`, but PR 94 stopped destructuring `model` from `req.body`
+(model is now fixed server-side to primary, `MODELS[DEFAULT_MODEL_KEY]`). The
+leftover bare reference threw `ReferenceError` on every request with
+`validate=true` — which the client always sends (`src/lib/ai.js:382`) — so the
+whole `try` block in step 4/6 blew up. Short-circuit means it only triggers when
+validation is requested, but that's the default path.
+
+**Fix:** drop `model === 'primary' &&` from the `shouldRunValidator` expression
+(`api/generate.js`). The model is always primary here, so the guard is dead; the
+validator runs whenever `validate`/`validateShadow` is set and there are parsed
+questions. Restores the pre-PR-94 validator behavior.
+
+**Verified:** `node --check api/generate.js` parses; grep confirms no remaining
+bare `model` identifier (only comments, `model: modelString`, `model:
+MODELS.validator`). End-to-end = user generates a warmup once deployed (api/ is
+not runnable locally — see plan/memory).
+
 ## 2026-05-23 — Fix A — CI `test` job missing Supabase env
 
 **Status:** ✅ done + merged to main (`cb9f090`).
