@@ -110,7 +110,8 @@ export default function PublicHome({ onSignIn, onSignUp }) {
         <header className="ph-header" style={{
           position: "sticky", top: 0, zIndex: 50,
           background: scrolled ? "rgba(255,255,255,0.97)" : "rgba(255,255,255,0.92)",
-          backdropFilter: "blur(8px)",
+          backdropFilter: scrolled ? "blur(6px)" : "none",
+          WebkitBackdropFilter: scrolled ? "blur(6px)" : "none",
           borderBottom: `1px solid ${C.border}`,
           padding: scrolled ? "10px 36px" : "16px 36px",
           boxShadow: scrolled ? "0 4px 20px rgba(0,0,0,0.06)" : "0 0 0 rgba(0,0,0,0)",
