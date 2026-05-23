@@ -29,6 +29,8 @@ import { C, css } from "./styles";
 import { SECTIONS, DEFAULT_SECTION, isValidSection, sectionLabels, resolveClassAccent, sectionToLessonContext } from "../../lib/class-hierarchy";
 import { useToast } from "../../lib/toast";
 import { SUBJECTS } from "../../lib/constants";
+import OnboardingCoach from "../../components/OnboardingCoach";
+import { getStrings } from "../../i18n";
 
 // Question type catalog — used by the type-selector grid and the per-question
 // header to render the right icon + label. Same definition Decks.jsx had
@@ -596,7 +598,7 @@ function AIGeneratePanel({
   );
 }
 
-function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existingDeck, prefilledClassId = null, prefilledSection = null, prefilledUnitId = null, prefilledPosition = null, profile = null }) {
+function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existingDeck, prefilledClassId = null, prefilledSection = null, prefilledUnitId = null, prefilledPosition = null, profile = null, onboarding = false, onNeedClass }) {
   const toast = useToast();
   const isMobile = useIsMobile();
   const [title, setTitle] = useState(existingDeck?.title || "");
@@ -1493,6 +1495,14 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
         {t.back}
       </button>
 
+      {/* Guided onboarding (step 2): coach the teacher through their first
+          warmup. Only shown when the editor was reached via the onboarding
+          flow (?onboarding=1); never for normal deck creation. */}
+      {onboarding && (() => {
+        const tOb = getStrings("onboarding", l);
+        return <OnboardingCoach title={tOb.warmupCoachTitle} body={tOb.warmupCoachBody} />;
+      })()}
+
       <div className="fade-up" style={{ background: C.bg, borderRadius: 14, border: `1px solid ${C.border}`, padding: 24, marginBottom: 16 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, gap: 12 }}>
           <h2 style={{ fontSize: 18, fontWeight: 700, fontFamily: "'Outfit'", margin: 0 }}>{existingDeck ? t.edit : t.create}</h2>
@@ -1608,6 +1618,25 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
               </option>
               {userClasses.map(c => <option key={c.id} value={c.id}>{c.name} ({c.subject} · {c.grade})</option>)}
             </select>
+            {/* Unblock a teacher who reached the editor with no class yet (e.g.
+                skipped the welcome): a warmup can't be saved without one, so
+                point them at where classes are created instead of dead-ending
+                on a disabled "No classes yet". */}
+            {userClasses.length === 0 && onNeedClass && (() => {
+              const tOb = getStrings("onboarding", l);
+              return (
+                <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                  <span style={{ fontSize: 12.5, color: C.textMuted, fontFamily: "'Outfit',sans-serif" }}>{tOb.needClassBody}</span>
+                  <button
+                    type="button"
+                    onClick={onNeedClass}
+                    style={{ padding: "6px 12px", borderRadius: 8, fontSize: 12.5, fontWeight: 600, color: C.accent, background: C.accentSoft, border: "none", cursor: "pointer", fontFamily: "'Outfit',sans-serif" }}
+                  >
+                    {tOb.needClassCta}
+                  </button>
+                </div>
+              );
+            })()}
           </div>
           {/* Section selector — only meaningful when a class is set. We still
               render it greyed out when no class so the teacher knows the

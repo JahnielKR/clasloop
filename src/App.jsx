@@ -3,6 +3,8 @@ import { useLocation, useNavigate, useMatch } from 'react-router-dom';
 import { Capacitor } from '@capacitor/core';
 import { ROUTES, PAGE_TO_ROUTE, pathToPage, defaultRouteForRole, buildRoute, buildPathWithOpts, isPageAllowedForRole } from './routes';
 import { supabase } from './lib/supabase';
+import { useQueryClient } from '@tanstack/react-query';
+import { DECKS_PAGE_KEY } from './hooks/useDecks';
 import { getStrings } from './i18n';
 import { resolveInitialLang } from './lib/locale';
 import { safeGet, safeSet, safeRemove } from './lib/safe-storage';
@@ -15,6 +17,12 @@ import PublicHome from './pages/PublicHome';
 import AvatarOnboarding from './pages/AvatarOnboarding';
 import RoleOnboarding from './pages/RoleOnboarding';
 import TeacherWelcome from './pages/TeacherWelcome';
+// Guided first-run onboarding for teachers (create class → warmup → celebrate).
+// Eagerly imported: they overlay the authed shell on a fresh signup, so a
+// Suspense flash would undercut the "welcome" moment. All three are tiny.
+import CreateClassModal from './components/CreateClassModal';
+import OnboardingCoach from './components/OnboardingCoach';
+import OnboardingCelebration from './components/OnboardingCelebration';
 // PR 112: AuthScreen + NotFoundScreen extracted to their own files.
 // Eagerly imported (no lazy) because they paint before the authed shell
 // loads — same rationale as the eager imports above.
@@ -161,6 +169,11 @@ export default function App() {
   // Phase 2: one-time first-run welcome for teachers, set only on a fresh role
   // pick (see handleRoleOnboardingCreated) so existing teachers never see it.
   const [showTeacherWelcome, setShowTeacherWelcome] = useState(false);
+  // Guided onboarding step 1: after the welcome, walk the teacher through
+  // creating their first class (a warmup can't be saved without one). Set from
+  // TeacherWelcome's CTA; the next steps (warmup, celebration) ride the URL.
+  const [creatingFirstClass, setCreatingFirstClass] = useState(false);
+  const queryClient = useQueryClient();
   // `page` mirrors the URL (kept in sync by an effect below). Initialised from
   // the current pathname so the very first render already shows the correct
   // page without a flash. Default to "sessions" when path is "/" — fetchProfile
@@ -893,7 +906,7 @@ export default function App() {
       <TeacherWelcome
         profile={profile}
         lang={lang}
-        onStart={() => { setShowTeacherWelcome(false); navigate(ROUTES.DECKS_NEW); }}
+        onStart={() => { setShowTeacherWelcome(false); setCreatingFirstClass(true); }}
         onSkip={() => setShowTeacherWelcome(false)}
       />
     );
@@ -931,6 +944,12 @@ export default function App() {
   // show a Not Found screen. /teacher/:id is a special case: pathToPage maps
   // it to "teacherProfile" so it counts as known.
   const isNotFound = !inPractice && pathToPage(location.pathname) === null && location.pathname !== "/";
+
+  // Guided-onboarding step 3 trigger: Decks routes to the class page with
+  // ?celebrate=<classId> right after the teacher saves their first warmup.
+  const celebrateClassId = profile?.role === "teacher"
+    ? new URLSearchParams(location.search).get("celebrate")
+    : null;
 
   return (
     <div style={{ display: "flex", minHeight: "100vh" }}>
@@ -1057,6 +1076,44 @@ export default function App() {
           )}
         </Suspense>
       </div>
+
+      {/* Guided teacher onboarding — overlays the dimmed dashboard. Step 1:
+          create the first class (a warmup can't be saved without one). Steps 2
+          (warmup coach) and 3 (celebration) ride the URL: ?onboarding=1 on
+          /decks/new and ?celebrate=<classId> after the first save. All gated so
+          existing teachers never see any of it. */}
+      {profile?.role === "teacher" && creatingFirstClass && (
+        <>
+          <OnboardingCoach
+            floating
+            title={getStrings("onboarding", lang).classCoachTitle}
+            body={getStrings("onboarding", lang).classCoachBody}
+          />
+          <CreateClassModal
+            userId={profile.id}
+            t={getStrings("myClassesTeacher", lang)}
+            onClose={() => setCreatingFirstClass(false)}
+            onCreated={(newClass) => {
+              setCreatingFirstClass(false);
+              // The new class must be visible to the Decks page query before we
+              // land on /decks/new?class=… (its prefill resolves the class from
+              // that list). Invalidate so it refetches fresh.
+              queryClient.invalidateQueries({ queryKey: DECKS_PAGE_KEY });
+              navigate(`${ROUTES.DECKS_NEW}?class=${encodeURIComponent(newClass.id)}&onboarding=1`);
+            }}
+          />
+        </>
+      )}
+
+      {/* Step 3: celebration after the first warmup saves. Decks routes here
+          with ?celebrate=<classId>; the class page renders dimmed behind. */}
+      {celebrateClassId && (
+        <OnboardingCelebration
+          lang={lang}
+          onStartSession={() => navigate(`${ROUTES.SESSIONS}?class=${encodeURIComponent(celebrateClassId)}`)}
+          onViewClass={() => navigate(buildRoute.classDetail(celebrateClassId))}
+        />
+      )}
 
       {/* PR 26: gating modal for students with no class membership.
           Renders on top of the dimmed app shell — the student CAN see

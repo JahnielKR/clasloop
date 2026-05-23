@@ -240,6 +240,25 @@ const en = {
     ctaSkip: "I'll explore on my own",
   },
 
+  onboarding: {
+    // Step 1 — coach shown over the "create your first class" modal
+    classCoachTitle: "First, let's set up your class",
+    classCoachBody: "A warmup lives inside a class. Create one now — you can add students anytime.",
+    // Step 2 — coach at the top of the deck editor
+    warmupCoachTitle: "Now build your first warmup",
+    warmupCoachBody: "Generate questions with AI or add them by hand, then hit Save. Your class is already set.",
+    warmupCoachDismiss: "Got it",
+    // Step 3 — celebration after the first warmup is saved
+    celebrateTitle: "You did it!",
+    celebrateBody: "Your first warmup is ready. Run it live so students join from their phones — or keep building.",
+    celebrateStartSession: "Start a live session",
+    celebrateViewClass: "View my class",
+    // Editor unblock for a teacher who skipped the welcome and has no class yet
+    needClassTitle: "Create a class first",
+    needClassBody: "Warmups live inside a class — make one to save this.",
+    needClassCta: "Create a class",
+  },
+
   guestJoin: {
     joinSession: "Join session",
     enterCode: "Enter the 6-digit code your teacher gave you",
