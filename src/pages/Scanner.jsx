@@ -44,6 +44,8 @@ import {
 } from "../lib/scanner-mlkit";
 // PR 76: i18n centralizado
 import { useT } from "../i18n";
+import TwoColPage from "../components/TwoColPage";
+import ScannerRail from "./Scanner.rail";
 import { useToast } from "../lib/toast";
 import { captureError } from "../lib/sentry";
 
@@ -249,7 +251,13 @@ export default function Scanner({ lang = "en", profile, onOpenMobileMenu }) {
 
   // ─── Render ────────────────────────────────────────────────────────────
   return (
-    <div style={{ maxWidth: 720, margin: "0 auto", padding: "20px 16px" }}>
+    <div style={{ padding: "20px 16px" }}>
+      <TwoColPage
+        mainMax={720}
+        maxWidth={1068}
+        collapseAt={1280}
+        rail={<ScannerRail t={t} scanCount={scanCount} deckTitle={selectedDeck?.title} />}
+      >
       <PageHeader title={t.pageTitle} lang={lang} maxWidth={720} onOpenMobileMenu={onOpenMobileMenu} />
       <div style={{ marginBottom: 20 }}>
         <p style={{ fontSize: 14, color: C.textMuted, margin: 0 }}>
@@ -322,6 +330,7 @@ export default function Scanner({ lang = "en", profile, onOpenMobileMenu }) {
           }}
         />
       )}
+      </TwoColPage>
     </div>
   );
 }

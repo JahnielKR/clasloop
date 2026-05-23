@@ -35,6 +35,7 @@ const ko: Locale = {
   },
 
   community: {
+    railSubjects: "과목",
     pageTitle: "커뮤니티",
     subtitle: "전 세계 교사들이 공유한 덱을 찾아보세요",
     search: "주제 검색...",
@@ -152,6 +153,7 @@ const ko: Locale = {
   },
 
   notifications: {
+    railHeading: "요약", railActive: "활성", railByType: "유형별",
     pageTitle: "알림", all: "전체", review: "복습", sessions: "세션", system: "시스템",
     noNotifications: "모두 확인했습니다!", loading: "로딩...",
     topicsNeedReview: "개 주제 복습 필요", belowRetention: "50% 미만",
@@ -506,6 +508,7 @@ const ko: Locale = {
   },
 
   settings: {
+    railHeading: "계정", railRoleTeacher: "교사", railRoleStudent: "학생", railSections: "섹션",
     pageTitle: "설정",
     profile: "프로필", appearance: "외관", account: "계정", notifications: "알림",
     fullName: "이름", email: "이메일", role: "역할", school: "학교", schoolPlaceholder: "학교 이름",
@@ -547,6 +550,7 @@ const ko: Locale = {
   // ─── PR 76 ───────────────────────────────────────────────────────────
 
   scanner: {
+    railHeading: "이번 세션", railScanned: "스캔됨", railNoScans: "아직 스캔 없음", railDeck: "덱", railHelpHeading: "사용 방법", railHelp: "답안지를 인쇄한 뒤 학생별 답안지를 스캔하면 즉시 채점됩니다.",
     pageTitle: "스캐너",
     pageSubtitle: "답안지를 스캔하고 즉시 점수를 확인하세요.",
     pickDeckLabel: "덱 선택",
@@ -683,6 +687,13 @@ const ko: Locale = {
     gradePartial: "부분 정답",
     gradeIncorrect: "오답",
     noAnswer: "(답변 없음)",
+    // Overview rail (fills the side space on wide screens — see TwoColPage)
+    railHeading: "개요",
+    railTotalLabel: "검토 대기",
+    railStudentsLabel: "명",
+    railGradedToday: "오늘 채점",
+    railWaitingLabel: "가장 오래 대기",
+    railByClassLabel: "수업별",
   },
 
   // ─── PR 77 ───────────────────────────────────────────────────────────
@@ -779,6 +790,15 @@ const ko: Locale = {
     import_errorTooManyDecks: "덱이 너무 많습니다 (한도: {max}).",
     import_errorInvalidGeneric: "파일 구조가 올바르지 않습니다.",
     importedToast: "\"{name}\" 가져옴 — 코드 {code}",
+    // Overview rail (wide screens — see TwoColPage)
+    railHeading: "학교 한눈에",
+    railClasses: "수업",
+    railStudents: "학생",
+    railDecks: "덱",
+    railPending: "검토 대기",
+    railAttentionHeading: "주의 필요",
+    railNoDecks: "자료 없음",
+    railNoStudents: "학생 없음",
     loading: "로딩 중...",
     grade: "학년",
     subject: "과목",
@@ -1120,6 +1140,7 @@ const ko: Locale = {
   // ─── PR 79 (final, segundo namespace) ────────────────────────────────
 
   decks: {
+    railHeading: "개요", railDecks: "덱", railNeverUsed: "미사용", railFavorites: "즐겨찾기", railByClass: "수업별", railMostUsed: "많이 사용됨", railNoUsage: "아직 사용된 덱 없음",
     pageTitle: "라이브러리", subtitle: "내 덱과 저장한 즐겨찾기 — 모두 검색하고 관리하세요",
     myDecks: "내 덱", favorites: "즐겨찾기", create: "+ 덱 만들기",
     search: "덱 검색...", filterAll: "전체", filterSubject: "과목", filterClass: "수업", filterAllSubjects: "모든 과목", filterAllClasses: "모든 수업", filterUnassigned: "미지정",

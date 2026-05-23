@@ -32,6 +32,9 @@ import { ROUTES } from "../routes";
 import { teacherGradeToPoints, describeCorrectAnswer } from "../lib/scoring";
 // PR 76: i18n centralizado
 import { useT } from "../i18n";
+import TwoColPage from "../components/TwoColPage";
+import ReviewRail from "./Review.rail";
+import { countGradedTodayForTeacher } from "../lib/notifications";
 
 // ─── i18n ────────────────────────────────────────────────────────────────
 // PR 76: el bloque i18n local fue movido a src/i18n/{en,es,ko}.js
@@ -94,6 +97,10 @@ export default function Review({ profile, lang = "en", onOpenMobileMenu }) {
   // Index of the "active" card for keyboard shortcuts. Defaults to 0
   // (the topmost / oldest pending). Updated when the user clicks a row.
   const [activeIdx, setActiveIdx] = useState(0);
+  // "Graded today" count for the overview rail. Global to the teacher (not
+  // class-scoped) — a small insight→action reward. Fetched on mount and
+  // refreshed after each grade / undo.
+  const [gradedToday, setGradedToday] = useState(0);
 
   // PR 28.4 / 28.6: three-level drilldown synced with the URL.
   //
@@ -237,6 +244,13 @@ export default function Review({ profile, lang = "en", onOpenMobileMenu }) {
     fetchPending();
   }, [fetchPending]);
 
+  // Overview-rail "graded today" counter. Cheap head-count query in lib/.
+  const refreshGradedToday = useCallback(() => {
+    if (!profile?.id) return;
+    countGradedTodayForTeacher(profile.id).then(setGradedToday).catch(() => {});
+  }, [profile?.id]);
+  useEffect(() => { refreshGradedToday(); }, [refreshGradedToday]);
+
   // ── Class filter computed list ────────────────────────────────────────
   // PR 28.6: filteredItems is now downstream of THREE filters:
   //   1. classFilter (class dropdown, top of page)
@@ -346,6 +360,25 @@ export default function Review({ profile, lang = "en", onOpenMobileMenu }) {
     }
     return Array.from(m.entries()).map(([id, name]) => ({ id, name }));
   }, [items]);
+
+  // Per-class pending counts for the overview rail's "By class" list. Built
+  // from ALL items (ignores the active class filter) so the teacher can switch
+  // classes from the rail. Sorted by pending count, descending.
+  const classBreakdown = useMemo(() => {
+    const m = new Map();
+    for (const it of items) {
+      if (!it.classId) continue;
+      const e = m.get(it.classId);
+      if (e) e.count += 1;
+      else m.set(it.classId, { classId: it.classId, className: it.className || t.classLabel, count: 1 });
+    }
+    return Array.from(m.values()).sort((a, b) => b.count - a.count);
+  }, [items, t.classLabel]);
+
+  // Oldest still-pending response within the current class scope. items arrive
+  // sorted oldest-first and the class filter preserves order, so the head row
+  // is the one waiting longest.
+  const oldestPendingAt = classFilteredItems[0]?.createdAt || null;
 
   // PR 28.4 (X) / PR 28.6: auto-return when the current drilldown
   // bucket runs out of pending responses.
@@ -468,6 +501,7 @@ export default function Review({ profile, lang = "en", onOpenMobileMenu }) {
       // Restore the feedback text the teacher had typed.
       setFeedbackById((p) => ({ ...p, [item.id]: undoSnapshot.prevFeedback }));
       fetchPending();
+      refreshGradedToday();
       setToast(null);
     };
     // PR 28.5: capture shownAt in a local before passing it to both
@@ -478,6 +512,8 @@ export default function Review({ profile, lang = "en", onOpenMobileMenu }) {
     // when a new grade replaced it.
     const shownAt = Date.now();
     setToast({ id: item.id, grade: gradeLabel, undoFn, shownAt });
+    // Reflect the just-saved grade in the rail's "graded today" stat.
+    refreshGradedToday();
     // Auto-dismiss toast after 5s. We compare shownAt to avoid clobbering
     // a newer toast that arrived in the meantime.
     setTimeout(() => {
@@ -533,14 +569,32 @@ export default function Review({ profile, lang = "en", onOpenMobileMenu }) {
         .rv-leaving { animation: rv-slideUp .22s ease forwards; overflow: hidden; }
       `}</style>
 
-      <PageHeader
-        title={t.title}
-        lang={lang}
-        maxWidth={760}
-        onOpenMobileMenu={onOpenMobileMenu}
-      />
+      <TwoColPage
+        maxWidth={1120}
+        collapseAt={1080}
+        rail={!loading && !error && globalPending > 0 ? (
+          <ReviewRail
+            t={t}
+            globalPending={globalPending}
+            studentCount={studentGroups.length}
+            gradedToday={gradedToday}
+            oldestCreatedAt={oldestPendingAt}
+            formatRelative={(iso) => relativeTime(iso, t)}
+            classBreakdown={classBreakdown}
+            allCount={items.length}
+            classFilter={classFilter}
+            setClassFilter={setClassFilter}
+          />
+        ) : null}
+      >
+        <PageHeader
+          title={t.title}
+          lang={lang}
+          maxWidth={760}
+          onOpenMobileMenu={onOpenMobileMenu}
+        />
 
-      <div style={{ maxWidth: 760, margin: "0 auto" }}>
+        <div style={{ maxWidth: 760, margin: "0 auto" }}>
         {/* PR 28.4 / 28.6: subtitle reads differently per level.
             L1 = "pick a student"
             L2 = "pick a test"
@@ -1103,6 +1157,7 @@ export default function Review({ profile, lang = "en", onOpenMobileMenu }) {
         </div>
       )}
       </div>
+      </TwoColPage>
     </div>
   );
 }

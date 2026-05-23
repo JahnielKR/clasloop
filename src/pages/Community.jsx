@@ -12,6 +12,8 @@ import { C as BASE_C } from "../components/tokens";
 // bajo el namespace "community".
 import { useT } from "../i18n";
 import { SUBJECTS } from "../lib/constants";
+import TwoColPage from "../components/TwoColPage";
+import CommunityRail from "./Community.rail";
 
 // Community-specific extension: yellow tints for highlighting popular/
 // featured community decks.
@@ -272,6 +274,22 @@ export default function Community({ lang: pageLang = "en", setLang: pageSetLang,
   return (
     <div style={{ padding: "28px 20px" }}>
       <style>{css}</style>
+      <TwoColPage
+        mainMax={900}
+        maxWidth={1248}
+        collapseAt={1460}
+        rail={!loading && decks.length > 0 ? (
+          <CommunityRail
+            t={t}
+            subjectCounts={SUBJECTS
+              .map((s) => ({ subject: s, count: decks.filter((d) => d.subject === s).length }))
+              .filter((s) => s.count > 0)}
+            total={decks.length}
+            subject={subject}
+            setSubject={setSubject}
+          />
+        ) : null}
+      >
       <PageHeader title={t.pageTitle} lang={l} setLang={setLang} maxWidth={900} onOpenMobileMenu={onOpenMobileMenu} />
 
       <div style={{ maxWidth: 900, margin: "0 auto" }}>
@@ -366,6 +384,7 @@ export default function Community({ lang: pageLang = "en", setLang: pageSetLang,
           </div>
         )}
       </div>
+      </TwoColPage>
     </div>
   );
 }

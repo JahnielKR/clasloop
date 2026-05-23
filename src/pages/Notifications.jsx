@@ -10,6 +10,8 @@ import Skeleton from "../components/ui/Skeleton";
 import { C } from "../components/tokens";
 // PR 74: i18n centralizado
 import { useT } from "../i18n";
+import TwoColPage from "../components/TwoColPage";
+import NotificationsRail from "./Notifications.rail";
 
 // PR 74: el bloque i18n local fue movido a src/i18n/{en,es,ko}.js
 // bajo el namespace "notifications".
@@ -256,10 +258,27 @@ export default function Notifications({ lang: pageLang = "en", setLang: pageSetL
 
   const filtered = filter === "all" ? notifications : notifications.filter(n => n.type === filter);
   const visibleNotifs = filtered.filter(n => !dismissed[n.id]);
+  // Per-type counts for the overview rail — visible (not dismissed), across all
+  // types regardless of the active filter.
+  const railVisible = notifications.filter(n => !dismissed[n.id]);
+  const railCounts = {
+    all: railVisible.length,
+    review: railVisible.filter(n => n.type === "review").length,
+    session: railVisible.filter(n => n.type === "session").length,
+    system: railVisible.filter(n => n.type === "system").length,
+  };
 
   return (
     <div style={{ padding: "28px 20px" }}>
       <style>{css}</style>
+      <TwoColPage
+        mainMax={600}
+        maxWidth={948}
+        collapseAt={1160}
+        rail={!loading && railCounts.all > 0 ? (
+          <NotificationsRail t={t} counts={railCounts} total={railCounts.all} filter={filter} setFilter={setFilter} />
+        ) : null}
+      >
       <PageHeader title={t.pageTitle} lang={l} setLang={setLang} onOpenMobileMenu={onOpenMobileMenu} />
 
       <div style={{ maxWidth: 600, margin: "0 auto" }}>
@@ -380,6 +399,7 @@ export default function Notifications({ lang: pageLang = "en", setLang: pageSetL
           </div>
         )}
       </div>
+      </TwoColPage>
     </div>
   );
 }
