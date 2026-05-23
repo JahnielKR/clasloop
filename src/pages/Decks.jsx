@@ -11,6 +11,7 @@ import SectionBadge, { sectionAccent } from "../components/SectionBadge";
 import EmptyState from "../components/EmptyState";
 import Skeleton from "../components/ui/Skeleton";
 import Button from "../components/ui/Button";
+import ConfirmDialog from "../components/ConfirmDialog";
 import { MONO } from "../components/tokens";
 import { C, css } from "./Decks/styles";
 import CreateDeckEditor from "./Decks/CreateDeckEditor";
@@ -234,10 +235,21 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
     navigate(buildRoute.deckEdit(inserted.id));
   };
 
-  const handleDelete = async (deckId) => {
-    if (!confirm(t.deleteConfirm)) return;
+  // Deck deletion uses a styled ConfirmDialog (not native confirm). handleDelete
+  // just opens it; performDelete does the work once the teacher confirms. (The
+  // tile/card delete buttons no longer confirm themselves — that double-prompt
+  // was the bug; the parent owns the single, styled confirm.)
+  const [pendingDeleteId, setPendingDeleteId] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+  const handleDelete = (deckId) => setPendingDeleteId(deckId);
+  const performDelete = async () => {
+    const deckId = pendingDeleteId;
+    if (!deckId) return;
+    setDeleting(true);
     await supabase.from("decks").delete().eq("id", deckId);
     patchMyDecks(prev => prev.filter(d => d.id !== deckId));
+    setDeleting(false);
+    setPendingDeleteId(null);
   };
 
   const handleTogglePublic = async (deck) => {
@@ -673,6 +685,18 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
     <div style={{ padding: "28px 20px" }}>
       <style>{css}</style>
       <PageHeader title={t.pageTitle} lang={l} setLang={setLang} maxWidth={900} onOpenMobileMenu={onOpenMobileMenu} />
+
+      {pendingDeleteId && (
+        <ConfirmDialog
+          title={t.deleteConfirm}
+          confirmLabel={t.delete}
+          cancelLabel={t.cancel}
+          variant="danger"
+          loading={deleting}
+          onConfirm={performDelete}
+          onCancel={() => { if (!deleting) setPendingDeleteId(null); }}
+        />
+      )}
 
       <div style={{ maxWidth: 900, margin: "0 auto" }}>
         {/* PR 7: Library — class tabs + drag-reorder grid by unit
