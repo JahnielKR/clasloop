@@ -149,3 +149,36 @@ export function useTilt(ref, max = 8) {
   }, [ref, max]);
   return transform;
 }
+
+// Scroll-spy: returns the id of the section currently crossing a thin band in
+// the upper-middle of the viewport — drives the Cleo guide narration and the
+// nav highlight. Returns null while above the first section (hero). Plain state
+// (not motion), so it's fine under reduced-motion; IntersectionObserver-based,
+// no-op when IO is unavailable. Pass `ids` in document order (topmost wins).
+export function useActiveSection(ids) {
+  const [active, setActive] = useState(null);
+  // Join to a stable string so an inline-array `ids` doesn't re-run the effect
+  // every render.
+  const key = Array.isArray(ids) ? ids.join(",") : "";
+  useEffect(() => {
+    if (typeof window === "undefined" || typeof IntersectionObserver === "undefined") return undefined;
+    const list = key ? key.split(",") : [];
+    const nodes = list.map((id) => document.getElementById(id)).filter(Boolean);
+    if (nodes.length === 0) return undefined;
+    const visible = new Set();
+    const obs = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((e) => {
+          if (e.isIntersecting) visible.add(e.target.id);
+          else visible.delete(e.target.id);
+        });
+        const next = list.find((id) => visible.has(id)) || null;
+        setActive((prev) => (prev === next ? prev : next));
+      },
+      { rootMargin: "-45% 0px -50% 0px", threshold: 0 }
+    );
+    nodes.forEach((n) => obs.observe(n));
+    return () => obs.disconnect();
+  }, [key]);
+  return active;
+}

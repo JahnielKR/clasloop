@@ -255,6 +255,21 @@ const es: Locale = {
     needClassCta: "Crear una clase",
   },
 
+  // Frases de Cleo como guía del tour en el landing público (mascota flotante
+  // que narra cada sección al scrollear). Las keys tras greeting/dismiss
+  // coinciden con los ids de sección (#generate, #print, …).
+  cleoGuide: {
+    greeting: "¡Hola! Soy Cleo 👋 Te muestro Clasloop.",
+    dismiss: "Ocultar a Cleo",
+    generate: "Sube cualquier archivo o tema — la IA escribe las preguntas y las verifica.",
+    print: "Las mismas preguntas, listas para imprimir en 4 estilos. Las corriges con el móvil.",
+    live: "Lánzalo en vivo — los alumnos entran desde el móvil, proyectado así.",
+    types: "Nueve tipos de pregunta, para que un warmup nunca se sienta igual.",
+    insights: "Tras cada uno, ves exactamente qué repasar — y con quién.",
+    why: "Unos minutos al día suman. Esa es toda la idea.",
+    start: "¿Empezamos? Tu primer warmup está a dos minutos.",
+  },
+
   guestJoin: {
     joinSession: "Unirse a la sesión",
     enterCode: "Ingresa el código de 6 dígitos que te dio tu profe",
