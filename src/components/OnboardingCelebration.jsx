@@ -97,7 +97,7 @@ export default function OnboardingCelebration({ lang = "en", onStartSession, onV
         boxShadow: "0 14px 44px rgba(0,0,0,0.10)", textAlign: "center",
       }}>
         <div className="ocb-cleo" aria-hidden="true" style={{ position: "absolute", top: -40, left: "50%", transform: "translateX(-50%)" }}>
-          <Cleo size={88} />
+          <Cleo size={88} expression="cheer" />
         </div>
 
         <h1 style={{ fontSize: 26, fontWeight: 700, color: C.text, margin: "0 0 8px", letterSpacing: "-0.01em" }}>
