@@ -18,7 +18,7 @@ import { useIsMobile } from "../components/MobileMenuButton";
 import { useT } from "../i18n";
 import { getTour } from "./tours";
 import { useFirstVisitTour } from "./useFirstVisitTour";
-import { useRegisterTour, useSetTourActive } from "./TourContext";
+import { useSetTourActive } from "./TourContext";
 
 const BUBBLE_W = 360;
 const GAP = 12;          // space between the spotlight and the bubble
@@ -82,11 +82,8 @@ export default function CleoTour({ tourId, lang = "en", userId, enabled = true, 
   const [reduced, setReduced] = useState(false);
   useEffect(() => { setReduced(prefersReduced()); }, []);
 
-  const { phase, index, accept, decline, close, next, back, replay } =
+  const { phase, index, accept, decline, close, next, back } =
     useFirstVisitTour({ tourId, total, enabled, userId, autoStart });
-
-  // Expose replay() to the PageHeader "Ver guía" button (no-op without provider).
-  useRegisterTour(tourId, replay);
 
   // Let the host page react when the running step changes — e.g. the deck
   // editor switches to the right tab so the step's anchor is on screen (the

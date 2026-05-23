@@ -242,8 +242,8 @@ const en = {
 
   onboarding: {
     // Step 1 — coach shown over the "create your first class" modal
-    classCoachTitle: "First, let's set up your class",
-    classCoachBody: "A warmup lives inside a class. Create one now — you can add students anytime.",
+    classCoachTitle: "First, your class",
+    classCoachBody: "Your warmup lives inside a class, so let's create one first. As soon as it's ready, I'll take you to build the warmup.",
     // Step 2 — coach at the top of the deck editor
     warmupCoachTitle: "Now build your first warmup",
     warmupCoachBody: "Generate questions with AI or add them by hand, then hit Save. Your class is already set.",

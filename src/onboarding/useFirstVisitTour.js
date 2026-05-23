@@ -5,9 +5,7 @@
 //   - On mount, if the tour is enabled, has steps, and the user hasn't seen it,
 //     we move to "offer" (Cleo slides in asking "¿te muestro cómo funciona?").
 //   - accept() starts the step-by-step walk; decline() / finishing the last
-//     step / skip() all mark it seen so it never auto-offers again.
-//   - replay() re-runs it on demand (from the PageHeader "Ver guía" button),
-//     bypassing the seen check.
+//     step / skip() all mark it seen so it never shows again (first-time only).
 //
 // "Seen" state is persisted per user in localStorage via safe-storage. There's
 // no DB column today (see plan) — clearing storage re-shows the tours, which is
@@ -56,7 +54,7 @@ export function useFirstVisitTour({ tourId, total = 0, enabled = true, userId, a
   }, []);
 
   // "Ahora no" — dismiss the offer without walking through; still mark seen so
-  // we don't nag on every visit. The replay button remains available.
+  // we don't nag on every visit (tours are first-time only).
   const decline = useCallback(() => {
     markTourSeen(userId, tourId);
     setPhase("idle");
@@ -77,11 +75,5 @@ export function useFirstVisitTour({ tourId, total = 0, enabled = true, userId, a
 
   const back = useCallback(() => setIndex((i) => Math.max(0, i - 1)), []);
 
-  // Re-run on demand, ignoring the seen flag (PageHeader "Ver guía").
-  const replay = useCallback(() => {
-    setIndex(0);
-    setPhase("running");
-  }, []);
-
-  return { phase, index, accept, decline, close, next, back, replay };
+  return { phase, index, accept, decline, close, next, back };
 }

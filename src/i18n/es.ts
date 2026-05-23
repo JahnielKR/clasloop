@@ -238,8 +238,8 @@ const es: Locale = {
 
   onboarding: {
     // Paso 1 — coach sobre el modal de "crea tu primera clase"
-    classCoachTitle: "Primero, configuremos tu clase",
-    classCoachBody: "Un warmup vive dentro de una clase. Crea una ahora — puedes agregar alumnos cuando quieras.",
+    classCoachTitle: "Empecemos por tu clase",
+    classCoachBody: "Tu warmup vive dentro de una clase, así que primero creamos una. En cuanto la tengas, te llevo a armar el warmup.",
     // Paso 2 — coach arriba del editor de decks
     warmupCoachTitle: "Ahora arma tu primer warmup",
     warmupCoachBody: "Genera preguntas con IA o agrégalas a mano, y pulsa Guardar. Tu clase ya está lista.",

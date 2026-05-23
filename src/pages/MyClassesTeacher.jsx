@@ -433,7 +433,6 @@ export default function MyClassesTeacher({ lang = "en", profile, onNavigateToSes
         subtitle={t.subtitle}
         maxWidth={1100}
         lang={lang}
-        tourId="home"
         onOpenMobileMenu={onOpenMobileMenu}
         actions={
           <>

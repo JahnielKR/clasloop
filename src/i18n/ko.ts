@@ -238,8 +238,8 @@ const ko: Locale = {
 
   onboarding: {
     // 1단계 — "첫 반 만들기" 모달 위에 표시되는 코치
-    classCoachTitle: "먼저 반을 만들어요",
-    classCoachBody: "워밍업은 반 안에 들어가요. 지금 하나 만들어 주세요 — 학생은 언제든 추가할 수 있어요.",
+    classCoachTitle: "먼저, 수업부터",
+    classCoachBody: "워밍업은 수업 안에 들어가요. 먼저 수업을 하나 만들면, 바로 워밍업을 만들러 안내할게요.",
     // 2단계 — 덱 편집기 상단의 코치
     warmupCoachTitle: "이제 첫 워밍업을 만들어요",
     warmupCoachBody: "AI로 문제를 생성하거나 직접 추가한 뒤 저장을 누르세요. 반은 이미 설정돼 있어요.",

@@ -20,6 +20,9 @@ import TeacherWelcome from './pages/TeacherWelcome';
 // First-warmup flow: the "Crear mi primer warmup" CTA opens this directly
 // (a warmup needs a class). Eager — it overlays the shell on a fresh signup.
 import CreateClassModal from './components/CreateClassModal';
+// Cleo speech bubble shown above the create-class modal in the first-warmup
+// flow ("first a class, then the warmup").
+import OnboardingCoach from './components/OnboardingCoach';
 // In-app Cleo help bot (floating "Ask Cleo"). Eager — it's tiny and renders in
 // the authed shell for teachers.
 import CleoChat from './components/CleoChat';
@@ -1099,18 +1102,26 @@ export default function App() {
           page (with a confetti celebration). Gated to teachers; existing
           teachers who skip the welcome never see it. */}
       {profile?.role === "teacher" && creatingFirstClass && (
-        <CreateClassModal
-          userId={profile.id}
-          t={getStrings("myClassesTeacher", lang)}
-          onClose={() => setCreatingFirstClass(false)}
-          onCreated={(newClass) => {
-            setCreatingFirstClass(false);
-            // The editor resolves subject/grade from the classes query, so make
-            // the new class visible there before we land on /decks/new.
-            queryClient.invalidateQueries({ queryKey: DECKS_PAGE_KEY });
-            navigate(`${ROUTES.DECKS_NEW}?class=${encodeURIComponent(newClass.id)}&tour=run`);
-          }}
-        />
+        <>
+          {/* Cleo explains the step before they fill the modal: a warmup needs
+              a class first, then we go build it. */}
+          <OnboardingCoach
+            title={getStrings("onboarding", lang).classCoachTitle}
+            body={getStrings("onboarding", lang).classCoachBody}
+          />
+          <CreateClassModal
+            userId={profile.id}
+            t={getStrings("myClassesTeacher", lang)}
+            onClose={() => setCreatingFirstClass(false)}
+            onCreated={(newClass) => {
+              setCreatingFirstClass(false);
+              // The editor resolves subject/grade from the classes query, so make
+              // the new class visible there before we land on /decks/new.
+              queryClient.invalidateQueries({ queryKey: DECKS_PAGE_KEY });
+              navigate(`${ROUTES.DECKS_NEW}?class=${encodeURIComponent(newClass.id)}&tour=run`);
+            }}
+          />
+        </>
       )}
 
       {/* In-app Cleo help bot — floating "Ask Cleo" for teachers (how things

@@ -26,9 +26,7 @@ import PlanView from "../components/PlanView";
 import { CloseUnitConfirmModal, CloseUnitSummary, ReopenUnitModal } from "../components/CloseUnitFlow";
 import { C, MONO } from "../components/tokens";
 import CleoTour from "../onboarding/CleoTour";
-import Cleo from "../components/Cleo";
 import Confetti from "../components/Confetti";
-import { useReplayTour } from "../onboarding/TourContext";
 import { ROUTES, QUERY, buildRoute } from "../routes";
 import {
   SECTIONS,
@@ -412,8 +410,6 @@ function SortableDeckCard({ deck, accent, t, lang, units, onChangeUnit, onOpen }
 // ─── Main export ────────────────────────────────────────────────────────
 export default function ClassPage({ lang = "en", profile, classId, onLaunchPractice, onOpenMobileMenu }) {
   const t = useT("classPage", lang);
-  const tours = useT("tours", lang);
-  const replayTour = useReplayTour();
   const [searchParams, setSearchParams] = useSearchParams();
   // ?celebrate=1 — the "fiesta" after a teacher saves their first warmup (the
   // deck editor returns here). One-shot confetti, then we clear the param.
@@ -898,8 +894,7 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
       {/* "Fiesta" after the first warmup (one-shot, honors reduced-motion). */}
       {celebrate && <Confetti zIndex={60} />}
 
-      {/* Back link + replay-tour button */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+      {/* Back link */}
       <button
         onClick={() => navigate(ROUTES.CLASSES)}
         style={{
@@ -927,24 +922,6 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
         </svg>
         {t.backToMyClasses}
       </button>
-      {replayTour && (
-        <button
-          type="button"
-          onClick={() => replayTour("classDetail")}
-          title={tours.replay}
-          aria-label={tours.replay}
-          style={{
-            display: "inline-flex", alignItems: "center", gap: 6, flexShrink: 0,
-            padding: "6px 10px", borderRadius: 8, marginBottom: 8,
-            background: "transparent", color: C.textSecondary,
-            border: `1px solid ${C.border}`, cursor: "pointer",
-            fontFamily: "'Outfit',sans-serif", fontSize: 12.5, fontWeight: 600,
-          }}
-        >
-          <Cleo size={16} animate={false} /> {tours.replay}
-        </button>
-      )}
-      </div>
 
       {/* Header card */}
       <div style={{

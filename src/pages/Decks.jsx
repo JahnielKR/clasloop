@@ -449,7 +449,7 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
     return (
       <div style={{ padding: "28px 20px" }}>
         <style>{css}</style>
-        <PageHeader title={editorTitle} lang={l} setLang={setLang} maxWidth={600} tourId="deckEditor" onOpenMobileMenu={onOpenMobileMenu} />
+        <PageHeader title={editorTitle} lang={l} setLang={setLang} maxWidth={600} onOpenMobileMenu={onOpenMobileMenu} />
         <CreateDeckEditor
           t={t} l={l}
           onBack={() => navigate(returnTo)}
