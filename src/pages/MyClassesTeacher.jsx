@@ -12,6 +12,7 @@ import { C, MONO } from "../components/tokens";
 import Button from "../components/ui/Button";
 import Skeleton from "../components/ui/Skeleton";
 import EmptyState from "../components/EmptyState";
+import PageHeader from "../components/PageHeader";
 import { ROUTES, QUERY, buildPathWithOpts, buildRoute } from "../routes";
 import { resolveClassAccent } from "../lib/class-hierarchy";
 import {
@@ -415,101 +416,49 @@ export default function MyClassesTeacher({ lang = "en", profile, onNavigateToSes
   );
 
   // ─── Render ─────────────────────────────────────────────────────────
-  // Header is custom (instead of <PageHeader>) because we need:
-  //   1) subtitle line under the title
-  //   2) action buttons on the right (New class + School analytics)
-  //   3) full 1100px max-width so it lines up with the cards grid below
-  //      (the shared PageHeader caps at 800px).
+  // Uses the shared PageHeader (subtitle + actions slot) at 1100px so it lines
+  // up with the cards grid below.
   return (
     <div style={{ padding: isMobile ? "16px 14px 32px" : "20px 28px 40px", maxWidth: 1100, margin: "0 auto" }}>
-      <div
-        style={{
-          display: "flex",
-          alignItems: "flex-start",
-          justifyContent: "space-between",
-          gap: 16,
-          paddingBottom: 18,
-          marginBottom: 22,
-          borderBottom: `1px solid ${C.border}`,
-          flexWrap: isMobile ? "wrap" : "nowrap",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "flex-start", gap: 10, minWidth: 0, flex: 1 }}>
-          {onOpenMobileMenu && (
-            <button
-              onClick={onOpenMobileMenu}
-              aria-label="Open menu"
-              style={{
-                marginTop: 2,
-                width: 32, height: 32, borderRadius: 8,
-                background: C.bgSoft, border: `1px solid ${C.border}`,
-                display: "inline-flex", alignItems: "center", justifyContent: "center",
-                cursor: "pointer", flexShrink: 0,
-              }}
+      <PageHeader
+        title={t.pageTitle}
+        subtitle={t.subtitle}
+        maxWidth={1100}
+        lang={lang}
+        onOpenMobileMenu={onOpenMobileMenu}
+        actions={
+          <>
+            <Button
+              variant="secondary"
+              size="sm"
+              title={t.schoolAnalytics}
+              onClick={() => navigate(ROUTES.SCHOOL)}
+              leftIcon={<CIcon name="chart" size={13} inline />}
             >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                <path d="M4 6h16M4 12h16M4 18h16" stroke={C.text} strokeWidth="2" strokeLinecap="round"/>
-              </svg>
-            </button>
-          )}
-          <div style={{ minWidth: 0 }}>
-            <h1
-              style={{
-                fontFamily: "'Outfit',sans-serif",
-                fontSize: isMobile ? 20 : 24,
-                fontWeight: 700,
-                color: C.text,
-                margin: 0,
-                lineHeight: 1.15,
-              }}
+              {isMobile ? null : t.schoolAnalytics}
+            </Button>
+            {/* Import — opens the real import modal (file picker → preview →
+                confirm). The flow lives in ImportClassModal + lib/class-import.js. */}
+            <Button
+              variant="secondary"
+              size="sm"
+              title={t.importClass}
+              onClick={() => setShowImportModal(true)}
+              leftIcon={
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
+                  <path d="M12 20V8m0 0l-4 4m4-4l4 4M4 4h16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              }
             >
-              {t.pageTitle}
-            </h1>
-            <p
-              style={{
-                fontFamily: "'Outfit',sans-serif",
-                fontSize: isMobile ? 13 : 14,
-                color: C.textSecondary,
-                margin: "4px 0 0",
-                lineHeight: 1.4,
-              }}
-            >
-              {t.subtitle}
-            </p>
-          </div>
-        </div>
-        <div style={{ display: "flex", gap: 8, alignItems: "center", flexShrink: 0 }}>
-          <Button
-            variant="secondary"
-            size="sm"
-            title={t.schoolAnalytics}
-            onClick={() => navigate(ROUTES.SCHOOL)}
-            leftIcon={<CIcon name="chart" size={13} inline />}
-          >
-            {isMobile ? null : t.schoolAnalytics}
-          </Button>
-          {/* Import — opens the real import modal (file picker → preview →
-              confirm). The actual flow lives in ImportClassModal +
-              lib/class-import.js. */}
-          <Button
-            variant="secondary"
-            size="sm"
-            title={t.importClass}
-            onClick={() => setShowImportModal(true)}
-            leftIcon={
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
-                <path d="M12 20V8m0 0l-4 4m4-4l4 4M4 4h16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            }
-          >
-            {isMobile ? null : t.importClass}
-          </Button>
-          {/* Brand signature CTA — the one gradient on this screen. */}
-          <Button variant="gradient" size="sm" onClick={handleNewClass}>
-            {t.newClass}
-          </Button>
-        </div>
-      </div>
+              {isMobile ? null : t.importClass}
+            </Button>
+            {/* Brand signature CTA — the one gradient on this screen. */}
+            <Button variant="gradient" size="sm" onClick={handleNewClass}>
+              {t.newClass}
+            </Button>
+          </>
+        }
+      />
 
       {loading ? (
         <div style={{
