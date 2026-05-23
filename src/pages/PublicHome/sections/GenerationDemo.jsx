@@ -1,6 +1,7 @@
 import { C, MONO } from "../../../components/tokens";
 import { CIcon } from "../../../components/Icons";
 import { useReveal } from "../useReveal";
+import { useElementProgress } from "../landing-motion";
 // Real in-app section theming so the generated warmup/exit-ticket cards match
 // what teachers actually see. forceDark=false → light values (landing is light).
 import { getSectionTheme, getSectionLabel } from "../../../lib/section-theme";
@@ -45,6 +46,13 @@ function Arrow() {
 export default function GenerationDemo({ t, lang }) {
   const [headRef, headVisible] = useReveal();
   const [flowRef, flowVisible] = useReveal({ threshold: 0.25 });
+  // Scroll-linked: the pipeline steps slide up into place as the section scrolls
+  // through — the "result" elements drift at increasing amplitudes for depth.
+  // Opacity stays owned by .ph-reveal (so content is never hidden if progress
+  // doesn't tick); this only adds transform. Reduced-motion → progress 1 → 0.
+  const progress = useElementProgress(flowRef);
+  const settle = Math.min(1, progress / 0.55);
+  const drift = (amp) => ({ transform: `translateY(${((1 - settle) * amp).toFixed(1)}px)`, willChange: "transform" });
 
   return (
     <section id="generate" className="ph-section ph-anchor" style={{ padding: "110px 32px" }}>
@@ -88,6 +96,7 @@ export default function GenerationDemo({ t, lang }) {
             background: C.bg, border: `1px solid ${C.border}`, borderRadius: 14,
             padding: "16px 18px", boxShadow: "0 4px 16px rgba(0,0,0,0.05)",
             display: "flex", flexDirection: "column", gap: 12,
+            ...drift(12),
           }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <span className="ph-pulse-dot" style={{ width: 12, height: 12, borderRadius: "50%", background: C.accent, flexShrink: 0 }} />
@@ -112,11 +121,10 @@ export default function GenerationDemo({ t, lang }) {
             return (
               <div
                 key={i}
-                className="ph-pop-in"
                 style={{
-                  animationDelay: `${0.15 + i * 0.18}s`,
                   background: th.tint, border: `1px solid ${th.accent}`, borderRadius: 12,
                   padding: "14px 16px", textAlign: "left", position: "relative",
+                  ...drift(18 + i * 8),
                 }}
               >
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
@@ -151,11 +159,11 @@ export default function GenerationDemo({ t, lang }) {
 
           {/* Ready pill */}
           <div style={{ marginTop: 8, display: "flex", justifyContent: "center" }}>
-            <span className="ph-pop-in" style={{
-              animationDelay: "0.55s",
+            <span style={{
               display: "inline-flex", alignItems: "center", gap: 7,
               background: C.accentSoft, color: C.accent, borderRadius: 100,
               padding: "9px 18px", fontSize: 14, fontWeight: 600,
+              ...drift(34),
             }}>
               <CIcon name="rocket" inline size={16} /> {t.genReady}
             </span>
