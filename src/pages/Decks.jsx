@@ -10,6 +10,7 @@ import PageHeader from "../components/PageHeader";
 import SectionBadge, { sectionAccent } from "../components/SectionBadge";
 import EmptyState from "../components/EmptyState";
 import Skeleton from "../components/ui/Skeleton";
+import Button from "../components/ui/Button";
 import { MONO } from "../components/tokens";
 import { C, css } from "./Decks/styles";
 import CreateDeckEditor from "./Decks/CreateDeckEditor";
@@ -652,11 +653,11 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
                     decks with zero responses — the page itself surfaces
                     "no data yet". The button is always discoverable so
                     teachers learn the affordance exists. */}
-                <button className="dk-btn-secondary" onClick={() => navigate(buildRoute.deckResults(dk.id))} title={t.results || "Results"} style={{ padding: "6px 12px", borderRadius: 6, fontSize: 12, fontWeight: 500, background: C.bg, color: C.textSecondary, border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: "'Outfit',sans-serif", display: "inline-flex", alignItems: "center", gap: 4 }}>
-                  <CIcon name="chart" size={11} inline /> {t.results || "Results"}
-                </button>
-                <button className="dk-btn-secondary" onClick={() => navigate(buildRoute.deckEdit(dk.id))} style={{ padding: "6px 12px", borderRadius: 6, fontSize: 12, fontWeight: 500, background: C.bg, color: C.textSecondary, border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: "'Outfit',sans-serif" }}>{t.edit}</button>
-                <button className="dk-btn-danger" onClick={() => handleDelete(dk.id)} style={{ padding: "6px 12px", borderRadius: 6, fontSize: 12, fontWeight: 500, background: C.bg, color: C.red, border: `1px solid ${C.redSoft}`, cursor: "pointer", fontFamily: "'Outfit',sans-serif" }}>{t.delete}</button>
+                <Button variant="secondary" size="sm" onClick={() => navigate(buildRoute.deckResults(dk.id))} title={t.results || "Results"} leftIcon={<CIcon name="chart" size={11} inline />}>
+                  {t.results || "Results"}
+                </Button>
+                <Button variant="secondary" size="sm" onClick={() => navigate(buildRoute.deckEdit(dk.id))}>{t.edit}</Button>
+                <Button variant="danger" size="sm" onClick={() => handleDelete(dk.id)}>{t.delete}</Button>
               </>
             )}
           </div>
