@@ -3,6 +3,7 @@ import { C, MONO } from "../../../components/tokens";
 import { CIcon } from "../../../components/Icons";
 import { useReveal } from "../useReveal";
 import { useTween, useScrollProgress } from "../landing-motion";
+import Eyebrow from "./Eyebrow";
 // Real retention thresholds (green ≥70, orange ≥40, else red) so the bars are
 // colored exactly like the in-app class views.
 import { retentionTier } from "../../../lib/scoring-thresholds";
@@ -56,13 +57,14 @@ export default function InsightsDemo({ t, lang }) {
   const setBodyRef = (n) => { bodyRef.current = n; insRef.current = n; };
 
   return (
-    <section id="insights" className="ph-section ph-anchor" style={{ padding: "110px 32px" }}>
+    <section id="insights" className="ph-section ph-anchor ph-seam-top" style={{ padding: "110px 32px" }}>
       <div style={{ maxWidth: 1080, margin: "0 auto" }}>
-        <div ref={headRef} className={`ph-reveal ${headVisible ? "is-visible" : ""}`} style={{ textAlign: "center" }}>
+        <div ref={headRef} className={`ph-reveal ${headVisible ? "is-visible" : ""}`} style={{ textAlign: "left" }}>
+          <Eyebrow num="04">{t.eyebrowInsights}</Eyebrow>
           <h2 className="ph-section-h2" style={{ fontSize: 52, fontWeight: 700, color: C.text, margin: "0 0 18px", letterSpacing: "-0.02em" }}>
             {t.insTitle}
           </h2>
-          <p className="ph-section-sub" style={{ fontSize: 21, color: C.textSecondary, margin: "0 auto 56px", maxWidth: 740, lineHeight: 1.5 }}>
+          <p className="ph-section-sub" style={{ fontSize: 21, color: C.textSecondary, margin: "0 0 56px", maxWidth: 740, lineHeight: 1.5 }}>
             {t.insSub}
           </p>
         </div>

@@ -3,6 +3,8 @@ import { C, MONO } from "../../../components/tokens";
 import { getTheme } from "../../../lib/themes";
 import { getSectionLabel } from "../../../lib/section-theme";
 import { useReveal } from "../useReveal";
+import { useTilt } from "../landing-motion";
+import Eyebrow from "./Eyebrow";
 
 // ─── LiveSessionDemo ───────────────────────────────────────────────────────
 // The shared wow: a real session as it's projected — a landscape "tablet"
@@ -137,6 +139,10 @@ export default function LiveSessionDemo({ t, lang }) {
   const [active, setActive] = useState(0);
   const [paused, setPaused] = useState(false);
 
+  // Subtle pointer tilt on the projected tablet (no-op on touch / reduced-motion).
+  const tabletRef = useRef(null);
+  const tabletTilt = useTilt(tabletRef, 5);
+
   // Scale the fixed-size session screen to the device width.
   const screenRef = useRef(null);
   const [scale, setScale] = useState(1);
@@ -164,9 +170,10 @@ export default function LiveSessionDemo({ t, lang }) {
   const activeId = THEME_ORDER[active];
 
   return (
-    <section id="live" className="ph-section ph-anchor" style={{ padding: "110px 32px" }}>
+    <section id="live" className="ph-section ph-anchor ph-seam-top" style={{ padding: "110px 32px" }}>
       <div style={{ maxWidth: 820, margin: "0 auto", textAlign: "center" }}>
         <div ref={headRef} className={`ph-reveal ${headVisible ? "is-visible" : ""}`}>
+          <Eyebrow num="03">{t.eyebrowLive}</Eyebrow>
           <h2 className="ph-section-h2" style={{ fontSize: 52, fontWeight: 700, color: C.text, margin: "0 0 18px", letterSpacing: "-0.02em" }}>
             {t.liveTitle}
           </h2>
@@ -177,10 +184,12 @@ export default function LiveSessionDemo({ t, lang }) {
 
         <div ref={bodyRef} className={`ph-reveal ${bodyVisible ? "is-visible" : ""}`}>
           {/* Landscape tablet */}
-          <div style={{
+          <div ref={tabletRef} style={{
             maxWidth: 680, margin: "0 auto",
             background: "#1B1E26", borderRadius: 26, padding: 12,
             boxShadow: "0 26px 60px rgba(0,0,0,0.26)",
+            transform: tabletTilt || undefined,
+            transition: "transform .12s ease-out",
           }}>
             <div ref={screenRef} style={{ position: "relative", borderRadius: 14, overflow: "hidden", width: "100%", aspectRatio: `${BASE_W} / ${BASE_H}`, background: "#000" }}>
               <div style={{ position: "absolute", top: 0, left: 0, width: BASE_W, height: BASE_H, transform: `scale(${scale})`, transformOrigin: "top left" }}>

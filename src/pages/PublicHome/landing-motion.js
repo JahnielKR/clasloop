@@ -97,6 +97,38 @@ export function useScrollProgress(onProgress) {
   return ref;
 }
 
+// Imperative WHOLE-PAGE scroll progress: `onProgress(p)` runs on each
+// rAF-throttled, passive scroll with p = 0→1 across the entire document
+// (0 at the very top, 1 once the page is scrolled to the bottom). NO React
+// state per frame — the consumer writes straight to the DOM (the journey rail
+// fill, the header progress line), so nothing re-renders ~60×/s. Calls once on
+// mount + on resize, and once with 1 under reduced-motion (end state).
+export function useScrollDocProgress(onProgress) {
+  const cbRef = useRef(onProgress);
+  cbRef.current = onProgress;
+  useEffect(() => {
+    if (typeof window === "undefined" || typeof document === "undefined") return undefined;
+    if (prefersReduced()) { cbRef.current(1); return undefined; }
+    let raf = 0;
+    const measure = () => {
+      raf = 0;
+      const doc = document.documentElement;
+      const max = (doc.scrollHeight - window.innerHeight) || 0;
+      const y = window.scrollY || window.pageYOffset || 0;
+      cbRef.current(max > 0 ? Math.min(1, Math.max(0, y / max)) : 0);
+    };
+    const onScroll = () => { if (!raf) raf = requestAnimationFrame(measure); };
+    measure();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+      if (raf) cancelAnimationFrame(raf);
+    };
+  }, []);
+}
+
 // Eased 0→1 tween that runs ONCE when `active` flips true (count-ups, bar
 // fills). Jumps straight to 1 under reduced-motion.
 export function useTween(active, duration = 900) {

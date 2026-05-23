@@ -46,4 +46,28 @@ test.describe("public landing", () => {
       page.getByText("Enter the 6-digit code your teacher gave you")
     ).toBeVisible();
   });
+
+  test("scroll redesign: journey rail shows on desktop, page logs no console errors", async ({ page }) => {
+    // The scroll redesign added an imperative scroll-progress rail + sticky
+    // scene; this guards against runtime errors from those hooks and confirms
+    // the guiding rail mounts on a desktop-width viewport (CSS-gated ≥1100px).
+    const errors: string[] = [];
+    page.on("console", (msg) => { if (msg.type() === "error") errors.push(msg.text()); });
+    page.on("pageerror", (err) => errors.push(String(err)));
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.goto("/");
+    await expect(page.getByText("60 seconds.")).toBeVisible();
+    await expect(page.getByRole("navigation", { name: "Section progress" })).toBeVisible();
+    // The four scene headings all render (generate → print → live → insights).
+    await expect(page.getByRole("heading", { name: "From any file to verified questions" })).toBeAttached();
+    await expect(page.getByRole("heading", { name: "See exactly who got it" })).toBeAttached();
+    expect(errors).toEqual([]);
+  });
+
+  test("scroll redesign: journey rail is hidden on mobile", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/");
+    await expect(page.getByText("60 seconds.")).toBeVisible();
+    await expect(page.getByRole("navigation", { name: "Section progress" })).toBeHidden();
+  });
 });

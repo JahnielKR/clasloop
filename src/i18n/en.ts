@@ -812,6 +812,17 @@ const en = {
     ctaPrimary: "Start free trial",
     ctaSubtext: "7 days free, all features unlocked. No credit card needed.",
     scrollCue: "See how it works",
+    // Landing — journey rail (left progress spine) + per-section eyebrows
+    railCreate: "Create",
+    railPrint: "Print",
+    railLive: "Go live",
+    railMeasure: "Measure",
+    eyebrowGen: "Generate",
+    eyebrowPrint: "Print & scan",
+    eyebrowLive: "Live session",
+    eyebrowTypes: "Question types",
+    eyebrowInsights: "Insights",
+    eyebrowWhy: "Daily routine",
     // Landing PR B — Generation demo
     genTitle: "From any file to verified questions",
     genSub: "Drop a PDF, slides or a doc — or just type a topic. The AI writes the questions, then double-checks every one for quality before you ever see them.",

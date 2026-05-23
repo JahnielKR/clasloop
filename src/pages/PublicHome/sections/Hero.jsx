@@ -3,7 +3,7 @@ import { C, MONO } from "../../../components/tokens";
 // warmup / exit-ticket cards on the landing look exactly like the product.
 // forceDark=false → always the light values (the landing is always light).
 import { getSectionTheme, getSectionLabel } from "../../../lib/section-theme";
-import { useRef } from "react";
+import { useRef, useEffect } from "react";
 import { useScrollValue } from "../landing-motion";
 
 // ─── Floating doc card data ────────────────────────────────
@@ -71,6 +71,20 @@ const floatClass = (id) => ["ph-float-a", "ph-float-b", "ph-float-c", "ph-float-
 // = outruns the scroll, positive = lags behind it.
 const PARALLAX = { 1: -0.10, 2: 0.07, 3: -0.14, 4: 0.09 };
 
+// Write each card's `translate` from BOTH the scroll offset (depth parallax)
+// and the pointer offset (a gentle "alive" follow). `translate` composes with
+// the float keyframes' `transform`, so the loop animation is untouched. Kept at
+// module scope so the scroll + pointer callbacks share one writer without hook
+// dependency churn. px/py are -0.5…0.5 (pointer position within the hero).
+function writeCardParallax(root, y, px, py) {
+  if (!root) return;
+  root.querySelectorAll("[data-card]").forEach((el) => {
+    const p = PARALLAX[el.getAttribute("data-card")] || 0;
+    const depth = p * 70; // pointer travel scales with each card's parallax factor
+    el.style.translate = `${(px * depth).toFixed(1)}px ${(y * p + py * depth).toFixed(1)}px`;
+  });
+}
+
 // The "question" face of a floating card, themed to look like a real warmup /
 // exit-ticket question (uses the in-app getSectionTheme). Keeps the
 // .ph-morph-to class so the doc↔question morph animation still works.
@@ -104,16 +118,39 @@ function MorphTo({ card, lang }) {
 export default function Hero({ t, lang, onSignUp, onOpenCode, onSeeHow }) {
   // Parallax written IMPERATIVELY (no per-frame re-render): each floating card
   // carries data-card; we set its `translate` (composes with the float's
-  // transform animation) straight on the DOM as the page scrolls.
+  // transform animation) straight on the DOM. Driven by BOTH scroll (depth) and
+  // the pointer (a gentle alive-follow) — combined via writeCardParallax so the
+  // two inputs don't clobber each other's `translate`.
   const heroRef = useRef(null);
+  const scrollYRef = useRef(0);
+  const pointerRef = useRef({ x: 0, y: 0 });
+
   useScrollValue((y) => {
-    const root = heroRef.current;
-    if (!root) return;
-    root.querySelectorAll("[data-card]").forEach((el) => {
-      const p = PARALLAX[el.getAttribute("data-card")] || 0;
-      el.style.translate = `0px ${(y * p).toFixed(1)}px`;
-    });
+    scrollYRef.current = y;
+    writeCardParallax(heroRef.current, y, pointerRef.current.x, pointerRef.current.y);
   });
+
+  // Pointer-follow — subtle, hover devices only, off under reduced-motion.
+  useEffect(() => {
+    const root = heroRef.current;
+    if (!root || typeof window === "undefined" || typeof window.matchMedia !== "function") return undefined;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return undefined;
+    if (window.matchMedia("(hover: none)").matches) return undefined;
+    let raf = 0;
+    const onMove = (e) => {
+      const r = root.getBoundingClientRect();
+      pointerRef.current = { x: (e.clientX - r.left) / r.width - 0.5, y: (e.clientY - r.top) / r.height - 0.5 };
+      if (!raf) raf = requestAnimationFrame(() => { raf = 0; writeCardParallax(root, scrollYRef.current, pointerRef.current.x, pointerRef.current.y); });
+    };
+    const onLeave = () => { pointerRef.current = { x: 0, y: 0 }; writeCardParallax(root, scrollYRef.current, 0, 0); };
+    root.addEventListener("mousemove", onMove);
+    root.addEventListener("mouseleave", onLeave);
+    return () => {
+      root.removeEventListener("mousemove", onMove);
+      root.removeEventListener("mouseleave", onLeave);
+      if (raf) cancelAnimationFrame(raf);
+    };
+  }, []);
   return (
     <section ref={heroRef} className="ph-section ph-hero ph-fade" style={{
       padding: "100px 32px 70px",
