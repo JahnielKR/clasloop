@@ -41,7 +41,15 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npm run test:run
+      - name: Run tests
+        env:
+          # Unit tests transitively import src/lib/supabase.ts, which throws at
+          # import time when these are missing (see PR 55). The tested code is
+          # all pure and never calls the client, so dummy values are enough —
+          # same fallback the e2e job uses below.
+          VITE_SUPABASE_URL: 'https://dummy.supabase.co'
+          VITE_SUPABASE_ANON_KEY: 'dummy-anon-key-for-unit-tests'
+        run: npm run test:run
 
   build:
     runs-on: ubuntu-latest
