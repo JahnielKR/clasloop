@@ -14,6 +14,41 @@ Not part of the sequenced 101→170 plan — issues the user hit after the landi
 redesign + onboarding, then iterative polish. Most recent first. Plan:
 `~/.claude/plans/rosy-tickling-allen.md`.
 
+## 2026-05-23 — Fix J — In-app Cleo help bot (Gemini Flash)
+
+**Status:** ✅ done + merged to main (`5aa8d64`). Gates green (typecheck · 164
+tests · lint 0 errors · build · api/ node --check). **Needs `GEMINI_API_KEY` in
+Vercel + a teacher login to work end-to-end** (user verifies).
+
+**Why:** the user wanted Cleo to also answer questions inside the app (how X
+works, where Y is, contact), powered by Gemini Flash (free tier). Scoped:
+in-app/teacher v1, no own rate-limit table, contact = placeholder, pricing =
+"free with minimal limits (freemium)" no numbers.
+
+**What:**
+- `api/cleo-chat.js`: serverless endpoint mirroring `api/generate.js` — POST,
+  `requireTeacher`, `GEMINI_API_KEY` server-side, calls `gemini-2.0-flash`
+  (`systemInstruction` + `contents`). Caps history (8) / msg length (1000) /
+  `maxOutputTokens` 400. No DB write, no rate-limit table v1. Graceful
+  `upstream_error` + `blocked` handling.
+- `api/_lib/cleo-knowledge.js`: `SYSTEM` = Cleo persona + guardrails (answer only
+  from the doc; never invent; reply in user's language) + a knowledge doc drafted
+  from the codebase. TODOs for real contact + pricing.
+- `src/components/CleoChat.jsx`: floating Cleo FAB → chat panel; local-state
+  conversation; `getSession` Bearer (like `ai.js:342`); reduced-motion + mobile;
+  loading + error states. (Renders its own `<style>` — didn't repeat the
+  CleoGuide miss.)
+- `App.jsx`: mounted teacher-gated in the authed shell. New `cleoChat` i18n ns
+  (en/es/ko).
+
+**Verified:** `/__x` harness — FAB opens panel with the Spanish greeting; type +
+send renders the user bubble then a response bubble (error path, since the
+standalone harness has no session → also proves graceful failure). Success path
+(reply) needs the key + auth → user.
+
+**Follow-ups:** per-teacher rate-limit table `cleo_chats` (if abused); students;
+streaming; fill real contact/pricing in the knowledge doc.
+
 ## 2026-05-23 — Fix I — Scroll-linked motion on GenerationDemo + InsightsDemo
 
 **Status:** ✅ done + merged to main (`e3bd972`). Gates green (typecheck · 164
