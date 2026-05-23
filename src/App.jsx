@@ -23,6 +23,9 @@ import TeacherWelcome from './pages/TeacherWelcome';
 import CreateClassModal from './components/CreateClassModal';
 import OnboardingCoach from './components/OnboardingCoach';
 import OnboardingCelebration from './components/OnboardingCelebration';
+// In-app Cleo help bot (floating "Ask Cleo"). Eager — it's tiny and renders in
+// the authed shell for teachers.
+import CleoChat from './components/CleoChat';
 // PR 112: AuthScreen + NotFoundScreen extracted to their own files.
 // Eagerly imported (no lazy) because they paint before the authed shell
 // loads — same rationale as the eager imports above.
@@ -1123,6 +1126,10 @@ export default function App() {
           onViewClass={() => navigate(buildRoute.classDetail(celebrateClassId))}
         />
       )}
+
+      {/* In-app Cleo help bot — floating "Ask Cleo" for teachers (how things
+          work / where to find them). Gated to teachers; the authed shell only. */}
+      {profile?.role === "teacher" && <CleoChat lang={lang} />}
 
       {/* PR 26: gating modal for students with no class membership.
           Renders on top of the dimmed app shell — the student CAN see

@@ -274,6 +274,19 @@ const en = {
     start: "Ready? Your first warmup is two minutes away.",
   },
 
+  // In-app Cleo help bot (CleoChat.jsx) — floating "Ask Cleo" assistant.
+  cleoChat: {
+    openAria: "Ask Cleo",
+    title: "Ask Cleo",
+    subtitle: "Your Clasloop helper",
+    close: "Close",
+    greeting: "Hi! I'm Cleo 👋 Ask me anything about Clasloop — how something works, or where to find it.",
+    placeholder: "Ask about Clasloop…",
+    send: "Send",
+    error: "Hmm, I couldn't reach my brain just now. Try again in a moment.",
+    blocked: "I couldn't answer that one — try rephrasing, or reach the team.",
+  },
+
   guestJoin: {
     joinSession: "Join session",
     enterCode: "Enter the 6-digit code your teacher gave you",
