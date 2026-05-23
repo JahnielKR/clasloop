@@ -341,9 +341,7 @@ export function DeckTile({ deck, t, lang, onEdit, onDelete, onTogglePublic, onDo
             {deck.is_public ? "●" : "○"}
           </button>
           <button
-            onClick={() => {
-              if (confirm(t.confirmDelete)) onDelete(deck.id);
-            }}
+            onClick={() => onDelete(deck.id)}
             title={t.delete}
             style={{
               flex: "0 0 auto",
