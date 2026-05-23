@@ -15,6 +15,40 @@ landing redesign + Phase 2 onboarding: two prod/CI bugs (A, B) merged first,
 then two UX efforts (C teacher onboarding, D scroll-driven landing). Plan:
 `~/.claude/plans/rosy-tickling-allen.md`.
 
+## 2026-05-23 — Fix D — Scroll-driven landing interactivity
+
+**Status:** ✅ done + merged to main (`5bc58c1`). Gates green (typecheck · 164
+tests · lint 0 errors · build · e2e/public 4/4). **Scroll-motion feel needs a
+visible-browser eyeball** (preview ran hidden this session — see below).
+
+**Problem:** the landing only had one-shot fade-up reveals; the user felt it was
+"muy duro" (static) and wanted things to move on scroll.
+
+**Fix — new `src/pages/PublicHome/landing-motion.js`** (useScrollY,
+useScrolledPast, useElementProgress, useTween, useTilt; all passive +
+rAF-throttled, no-op/end-state under `prefers-reduced-motion`, SSR-safe) +:
+- **Hero**: floating cards parallax at different rates via the CSS `translate`
+  property (composes with the float keyframes' `transform` — no conflict).
+- **index.jsx**: sticky header condenses (16→10px) + gains a shadow once
+  scrolled past the hero (`useScrolledPast`).
+- **InsightsDemo**: fail-% ring + per-student bars count up on reveal
+  (`useTween` triggered by the existing `useReveal`).
+- **PrintAndScanDemo**: print→answer→scan→graded loop lights up step by step as
+  it scrolls through the viewport (`useElementProgress` → activeStep); paper
+  preview tilts toward the pointer (`useTilt`, no-op on touch).
+- No new dependencies.
+
+**Verification:** typecheck/test/build/lint/e2e all green; the landing renders
+correctly at the top (verified via a temp `/__x` harness mounting `PublicHome`:
+ph-header 16px / no shadow / cards translate 0 at scrollY 0). **The scroll-driven
+motion could NOT be auto-observed** because the Claude preview tab runs with
+`document.hidden === true`, and browsers pause `requestAnimationFrame` in hidden
+tabs — so the rAF-throttled hooks don't tick and `preview_screenshot`/rAF-based
+evals time out. The motion is correct by construction; final visual/feel pass is
+the user's landing-review loop. (Reusable gotcha for future landing motion work:
+the preview tab is hidden → rAF is paused → scroll/animation effects aren't
+observable there; verify static render only, hand motion to the user.)
+
 ## 2026-05-23 — Fix C — Guided teacher onboarding (class → warmup → celebration)
 
 **Status:** ✅ done + merged to main (`212615d`). Gates green (typecheck · 164
