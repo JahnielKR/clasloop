@@ -18,7 +18,7 @@ import { useIsMobile } from "../components/MobileMenuButton";
 import { useT } from "../i18n";
 import { getTour } from "./tours";
 import { useFirstVisitTour } from "./useFirstVisitTour";
-import { useRegisterTour } from "./TourContext";
+import { useRegisterTour, useSetTourActive } from "./TourContext";
 
 const BUBBLE_W = 360;
 const GAP = 12;          // space between the spotlight and the bubble
@@ -35,10 +35,17 @@ function prefersReduced() {
 const css = `
   @keyframes ct-rise { from { opacity:0; transform:translateY(10px) } to { opacity:1; transform:translateY(0) } }
   @keyframes ct-bob  { 0%,100% { transform:translateY(0) } 50% { transform:translateY(-4px) } }
+  /* The offer grows out of the bottom-right corner (Cleo's home) and, on
+     dismiss, shrinks back into it — so it reads as one Cleo coming out to talk
+     and returning, not a second Cleo popping in. */
+  @keyframes ct-emerge  { from { opacity:0; transform:translate(18px,26px) scale(.45) } to { opacity:1; transform:none } }
+  @keyframes ct-retract { from { opacity:1; transform:none } to { opacity:0; transform:translate(18px,26px) scale(.45) } }
   .ct-card { animation: ct-rise .28s cubic-bezier(.16,1,.3,1) both }
+  .ct-emerge  { transform-origin: bottom right; animation: ct-emerge .42s cubic-bezier(.16,1,.3,1) both }
+  .ct-retract { transform-origin: bottom right; animation: ct-retract .26s ease-in both }
   .ct-cleo { animation: ct-bob 3s ease-in-out infinite }
   @media (prefers-reduced-motion: reduce) {
-    .ct-card, .ct-cleo { animation: none !important }
+    .ct-card, .ct-emerge, .ct-retract, .ct-cleo { animation: none !important }
   }
 `;
 
@@ -91,6 +98,25 @@ export default function CleoTour({ tourId, lang = "en", userId, enabled = true, 
     if (phase === "running") onStepChangeRef.current?.(index, steps[index]);
   }, [phase, index, steps]);
 
+  // Report when this tour is on screen so the floating "Ask Cleo" FAB hides —
+  // there should only ever be one Cleo. The offer emerges from / retracts to the
+  // bottom-right corner (where the FAB lives) and the FAB glides back when done,
+  // so it reads as the SAME Cleo coming out to talk and returning home.
+  const setTourActive = useSetTourActive();
+  useEffect(() => {
+    if (!setTourActive) return undefined;
+    setTourActive(tourId, phase === "offer" || phase === "running");
+    return () => setTourActive(tourId, false);
+  }, [setTourActive, tourId, phase]);
+
+  // Plays the retract-into-corner animation before actually dismissing the offer.
+  const [leaving, setLeaving] = useState(false);
+  const handleDecline = useCallback(() => {
+    if (reduced) { decline(); return; }
+    setLeaving(true);
+    setTimeout(() => { setLeaving(false); decline(); }, 280);
+  }, [reduced, decline]);
+
   // ── Anchor measurement ────────────────────────────────────────────────────
   const [rect, setRect] = useState(null);
   const scrolledForStep = useRef(-1);
@@ -137,31 +163,38 @@ export default function CleoTour({ tourId, lang = "en", userId, enabled = true, 
   // ── Render ─────────────────────────────────────────────────────────────────
   if (!tour || total === 0 || phase === "idle") return null;
 
-  // Offer — a non-blocking card; the teacher can ignore it and keep working.
+  // Offer — a non-blocking card anchored to Cleo's bottom-right corner. Cleo
+  // sits on the right (her home corner) with the message extending to her left,
+  // and the whole thing grows out of / shrinks back into the corner.
   if (phase === "offer") {
     const offerText = (t[tourId] && t[tourId].offer) || t.offerDefault || "";
     return createPortal(
-      <div style={{ position: "fixed", zIndex: 1300, ...(isMobile
-        ? { left: 12, right: 12, bottom: 12 }
-        : { right: 20, bottom: 20, width: 380 }) }}>
+      <div
+        className={leaving ? "ct-retract" : "ct-emerge"}
+        role="dialog"
+        aria-label={offerText}
+        style={{ position: "fixed", zIndex: 1300, ...(isMobile
+          ? { left: 12, right: 12, bottom: 12 }
+          : { right: 20, bottom: 20, width: 380 }) }}
+      >
         <style>{css}</style>
-        <div className="ct-card" role="dialog" aria-label={offerText} style={{
-          display: "flex", alignItems: "center", gap: 14,
+        <div style={{
+          display: "flex", alignItems: "center", gap: 12,
           background: C.bg, border: `1px solid ${C.border}`, borderRadius: 16,
           padding: "14px 16px", boxShadow: "0 12px 36px rgba(0,0,0,0.16)",
           fontFamily: "'Outfit', sans-serif",
         }}>
-          <div className="ct-cleo" aria-hidden="true" style={{ flexShrink: 0 }}>
-            <Cleo size={52} expression="encouraging" />
-          </div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 14, color: C.text, lineHeight: 1.4, marginBottom: 10 }}>
               {offerText}
             </div>
             <div style={{ display: "flex", gap: 8 }}>
               <Button variant="gradient" size="sm" onClick={accept}>{t.offerYes || "Sí, guíame"}</Button>
-              <Button variant="ghost" size="sm" onClick={decline}>{t.offerNo || "Ahora no"}</Button>
+              <Button variant="ghost" size="sm" onClick={handleDecline}>{t.offerNo || "Ahora no"}</Button>
             </div>
+          </div>
+          <div className="ct-cleo" aria-hidden="true" style={{ flexShrink: 0 }}>
+            <Cleo size={52} expression="encouraging" />
           </div>
         </div>
       </div>,

@@ -10,13 +10,17 @@ import { C } from "./tokens";
 import { CIcon } from "./Icons";
 import { useT } from "../i18n";
 import { supabase } from "../lib/supabase";
+import { useTourActive } from "../onboarding/TourContext";
 
 const css = `
   @keyframes clc-pop  { from { opacity:0; transform:translateY(12px) scale(.96) } to { opacity:1; transform:none } }
   @keyframes clc-bob  { 0%,100% { transform:translateY(0) } 50% { transform:translateY(-3px) } }
   @keyframes clc-dot  { 0%,80%,100% { opacity:.3; transform:translateY(0) } 40% { opacity:1; transform:translateY(-3px) } }
+  @keyframes clc-fab-in { from { opacity:0; transform:translateY(16px) scale(.8) } to { opacity:1; transform:translateY(0) scale(1) } }
   .clc-panel { animation: clc-pop .26s cubic-bezier(.16,1,.3,1) both; }
-  .clc-fab   { transition: transform .15s, box-shadow .15s; }
+  /* The FAB glides up into the corner when it (re)appears — e.g. when a tour
+     ends and Cleo "returns home". No fill-mode so the hover transform still works. */
+  .clc-fab   { animation: clc-fab-in .4s cubic-bezier(.16,1,.3,1); transition: transform .15s, box-shadow .15s; }
   .clc-fab:hover { transform: translateY(-2px); box-shadow: 0 12px 30px rgba(35,131,226,0.34); }
   .clc-fab-cleo { animation: clc-bob 3.2s ease-in-out infinite; }
   .clc-dot { width:6px; height:6px; border-radius:50%; background:${C.textMuted}; display:inline-block; animation: clc-dot 1.2s infinite; }
@@ -26,13 +30,16 @@ const css = `
   }
   @media (prefers-reduced-motion: reduce) {
     .clc-panel, .clc-fab-cleo { animation: none !important; }
-    .clc-fab { transition: none !important; }
+    .clc-fab { animation: none !important; transition: none !important; }
     .clc-dot { animation: none !important; opacity:.6 !important; }
   }
 `;
 
 export default function CleoChat({ lang = "en" }) {
   const t = useT("cleoChat", lang);
+  // Hide this FAB while a guided tour is on screen — there's only one Cleo, and
+  // she's "out" giving the tour. She glides back into this corner when it ends.
+  const tourActive = useTourActive();
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState([{ role: "model", text: t.greeting, ui: true }]);
   const [input, setInput] = useState("");
@@ -94,7 +101,7 @@ export default function CleoChat({ lang = "en" }) {
     <>
       <style>{css}</style>
 
-      {!open && (
+      {!open && !tourActive && (
         <button
           className="clc-fab"
           onClick={() => setOpen(true)}
