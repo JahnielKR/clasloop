@@ -1305,6 +1305,7 @@ function ClassDecksView({
 // no inline edit (you can't edit someone else's deck — you "customize"
 // which copies it to your own decks).
 function FavoritesGrid({ decks, search, t, lang, onCustomize, onRemove }) {
+  const [pendingRemove, setPendingRemove] = useState(null);
   const q = (search || "").trim().toLowerCase();
   const filtered = q
     ? decks.filter(d => {
@@ -1332,6 +1333,7 @@ function FavoritesGrid({ decks, search, t, lang, onCustomize, onRemove }) {
   }
 
   return (
+    <>
     <div style={{
       display: "grid",
       gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))",
@@ -1394,9 +1396,7 @@ function FavoritesGrid({ decks, search, t, lang, onCustomize, onRemove }) {
                 {t.customizeFav}
               </button>
               <button
-                onClick={() => {
-                  if (confirm(t.confirmRemoveFav)) onRemove(deck.id);
-                }}
+                onClick={() => setPendingRemove(deck)}
                 title={t.removeFav}
                 style={{
                   flex: "0 0 auto",
@@ -1426,5 +1426,16 @@ function FavoritesGrid({ decks, search, t, lang, onCustomize, onRemove }) {
         );
       })}
     </div>
+    {pendingRemove && (
+      <ConfirmDialog
+        title={t.confirmRemoveFav}
+        confirmLabel={t.removeFav}
+        cancelLabel={t.cancel}
+        variant="danger"
+        onConfirm={() => { onRemove(pendingRemove.id); setPendingRemove(null); }}
+        onCancel={() => setPendingRemove(null)}
+      />
+    )}
+    </>
   );
 }

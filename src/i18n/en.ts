@@ -485,6 +485,7 @@ const en = {
     editDeck: "Edit deck",
     removeConfirm: "Remove \"{title}\" from this unit? The deck stays in this class — you can re-attach it to another unit later.",
     removeError: "Could not remove the deck. Try again.",
+    cancel: "Cancel",
     questions: "questions",
     statusActive: "Active",
     statusPlanned: "Planned",

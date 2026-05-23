@@ -481,6 +481,7 @@ const ko: Locale = {
     editDeck: "덱 편집",
     removeConfirm: "이 유닛에서 \"{title}\"을(를) 빼시겠습니까? 덱은 이 수업에 남아 있으며, 나중에 다른 유닛에 다시 연결할 수 있습니다.",
     removeError: "덱을 뺄 수 없습니다. 다시 시도하세요.",
+    cancel: "취소",
     questions: "문제",
     statusActive: "진행 중",
     statusPlanned: "예정",
