@@ -15,7 +15,42 @@ landing redesign + Phase 2 onboarding: two prod/CI bugs (A, B) merged first,
 then two UX efforts (C teacher onboarding, D scroll-driven landing). Plan:
 `~/.claude/plans/rosy-tickling-allen.md`.
 
-## 2026-05-23 — Fix F — Celebration = two one-shot party poppers
+## 2026-05-23 — Fix G — Celebration confetti (ribbons) + launch the warmup directly
+
+**Status:** ✅ done + merged to main (`4be8bdc`). Gates green (typecheck · lint 0
+errors · build). Confetti verified one-shot via `/__x` harness; authed launch =
+user eyeball.
+
+**Round 3 feedback after the user tried the celebration:**
+
+1. **The corner party-popper cones (Fix F) looked bad** — replaced them. The
+   celebration now rains **thin ribbon confetti strips that fall once** over the
+   modal (`ocb-fall`, `iteration-count: 1`, `fill-mode: forwards`) and stop. No
+   poppers, no looping. (Supersedes Fix F's `Popper`.) Verified via `/__x`: 46
+   `.ocb-strip`, 0 cone paths, animation one-shot.
+
+2. **"Start a live session" dead-ended on the Today view.** It routed to
+   `/sessions?class=`, but SessionFlow's Today plan only lists *scheduled units*
+   (`getScheduledPlan` filters by `units.day_dates`) — a brand-new teacher's
+   just-made warmup isn't in a unit, so it wasn't there. **Key finding:** a deck
+   does NOT need a unit to go live — the `sessions` INSERT only needs
+   `class_id` + `deck_id` (`SessionFlow.jsx:2252`); units only drive the
+   Today/scheduled discovery view. Fix: carry the warmup id through
+   `?celebrate=<classId>&warmup=<deckId>` (`Decks.jsx`) and route the CTA to
+   `buildRoute.sessionsOptions(deckId)` (`App.jsx`) — the existing
+   `/sessions/options/:deckId` deep link loads the deck and shows SessionOptions,
+   bound to its class, ready to launch. No extra "make a unit" onboarding step
+   needed.
+
+**Item 3 (no code change):** user asked whether Haiku still filters after Sonnet.
+Yes — `src/lib/ai.js:382` sends `validate: true` + `model:"primary"`;
+`api/generate.js` runs `validateWithHaiku` and replaces the output with the kept
+set (`:219`). Same Sonnet→Haiku pipeline as before; Fix B restored it (PR 94 had
+broken it entirely). Getting all 10 questions just means Haiku approved all 10.
+Shadow mode (`validateShadow`, logs-only, no filter) is NOT what the client
+sends.
+
+## 2026-05-23 — Fix F — Celebration = two one-shot party poppers (SUPERSEDED by Fix G)
 
 **Status:** ✅ done + merged to main (`d9f5a1c`). Gates green (typecheck · lint 0
 errors · build). Structure verified via `/__x` harness.
