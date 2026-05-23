@@ -40,7 +40,10 @@ export const TOURS = {
   // inline coach: build questions (AI or manual), pick a section, save.
   deckEditor: {
     steps: [
+      { anchor: "deck-title", placement: "bottom", cleo: "happy" },
+      { anchor: "deck-class", placement: "bottom", cleo: "thinking" },
       { anchor: "deck-section", placement: "bottom", cleo: "thinking" },
+      { anchor: "deck-language", placement: "bottom", cleo: "happy" },
       { anchor: "add-questions", placement: "bottom", cleo: "encouraging" },
       { anchor: "save-deck", placement: "top", cleo: "cheer" },
     ],
@@ -50,6 +53,7 @@ export const TOURS = {
   pdfExport: {
     steps: [
       { placement: "center", cleo: "happy" },
+      { anchor: "pdf-variant", placement: "bottom", cleo: "thinking" },
       { anchor: "pdf-style", placement: "bottom", cleo: "thinking" },
       { anchor: "pdf-download", placement: "top", cleo: "cheer" },
     ],

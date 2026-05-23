@@ -299,7 +299,7 @@ const es: Locale = {
       offer: "¡Bienvenido! ¿Te ayudo a dejar tu primera clase lista en un minuto?",
       steps: [
         { title: "Crea tu primera clase", body: "Pulsa aquí para crear una clase. Todo —warmups, alumnos, sesiones— vive dentro de ella." },
-        { title: "Comparte el código", body: "Cada clase trae un código de 6 dígitos. Tus alumnos lo usan para entrar desde el móvil — sin cuentas ni correos." },
+        { title: "Comparte el código", body: "Cada clase tiene un código. Tus alumnos lo ingresan en la app —con una cuenta gratis o con Google— para unirse a la clase." },
       ],
     },
     classDetail: {
@@ -307,15 +307,18 @@ const es: Locale = {
       steps: [
         { title: "Navega tu clase", body: "Aquí cambias entre tu unidad actual, las pasadas, las próximas y el repaso general." },
         { title: "Crea una unidad", body: "Una unidad es un tema (ej. 'Fracciones'). Los warmups y exit tickets de cada día viven dentro de ella. Empieza por aquí." },
-        { title: "Invita a tus alumnos", body: "Comparte este código con tu clase. Lo escriben en la app y entran al instante — sin cuentas." },
+        { title: "Invita a tus alumnos", body: "Comparte el código de la clase. Tus alumnos se unen con una cuenta gratis o con Google, y luego ingresan el código en la app." },
         { title: "¡Eso es todo!", body: "Crea una unidad, agrégale los warmups del día y comparte el código. Cuando quieras, puedes volver a ver esta guía." },
       ],
     },
     deckEditor: {
       offer: "¿Te muestro cómo armar tu primer warmup? Es rápido.",
       steps: [
-        { title: "Elige la sección", body: "Marca si es un warmup, un exit ticket o repaso general. Así aparece en el lugar correcto de tu clase." },
-        { title: "Agrega tus preguntas", body: "En la pestaña Preguntas puedes generarlas con IA o agregarlas a mano." },
+        { title: "Ponle un nombre", body: "Dale un nombre al deck — sin nombre no podrás guardarlo." },
+        { title: "Elige la clase", body: "Selecciona a qué clase pertenece. Toma su materia y grado automáticamente." },
+        { title: "Tipo de sesión", body: "Marca si es un warmup, un exit ticket o repaso general — así aparece en el lugar correcto de tu clase." },
+        { title: "Elige el idioma", body: "Elige el idioma del deck. La IA genera y revisa las preguntas en ese idioma." },
+        { title: "Agrega tus preguntas", body: "En la pestaña Preguntas, genéralas con IA o agrégalas a mano." },
         { title: "Guarda y listo", body: "Pulsa Guardar. Tu deck queda listo para lanzarlo en vivo o imprimirlo." },
       ],
     },
@@ -323,6 +326,7 @@ const es: Locale = {
       offer: "¿Te muestro cómo llevar este deck a papel?",
       steps: [
         { title: "Imprime tus preguntas", body: "Exporta cualquier deck como PDF para repartir en clase o tomar un examen sin pantallas." },
+        { title: "Elige el tipo", body: "Examen, clave de respuestas, o un examen con hoja escaneable que corriges con tu móvil." },
         { title: "Elige un estilo", body: "Hay varios diseños listos para imprimir. Elige el que prefieras." },
         { title: "Descarga el PDF", body: "Pulsa aquí para descargarlo. Luego puedes corregir las hojas con el escáner desde tu móvil." },
       ],

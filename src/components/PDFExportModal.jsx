@@ -325,7 +325,7 @@ export default function PDFExportModal({
               Exam y Exam+scan toman el espacio principal (flex: 1 cada
               uno), AK queda a la derecha con tamaño natural — chiquito
               pero al mismo nivel. */}
-          <div style={{ marginBottom: 18 }}>
+          <div data-tour="pdf-variant" style={{ marginBottom: 18 }}>
             <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: C.textSecondary, marginBottom: 6, textTransform: "uppercase", letterSpacing: 0.4 }}>
               {t.variantLabel}
             </label>

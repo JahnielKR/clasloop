@@ -1530,7 +1530,7 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           <div>
             <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: C.textSecondary, marginBottom: 5 }}>{t.title} *</label>
-            <input className="dk-input" value={title} onChange={e => setTitle(e.target.value)} placeholder={t.titlePlaceholder} style={inp} />
+            <input className="dk-input" data-tour="deck-title" value={title} onChange={e => setTitle(e.target.value)} placeholder={t.titlePlaceholder} style={inp} />
           </div>
           <div>
             <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: C.textSecondary, marginBottom: 5 }}>{t.description}</label>
@@ -1584,7 +1584,7 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
           })()}
           <div>
             <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: C.textSecondary, marginBottom: 5 }}>{t.addToClass} *</label>
-            <select className="dk-input" value={classId} onChange={e => {
+            <select className="dk-input" data-tour="deck-class" value={classId} onChange={e => {
               const id = e.target.value;
               setClassId(id);
               if (id) {
@@ -1675,7 +1675,7 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
             </div>
             <div>
               <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: C.textSecondary, marginBottom: 5 }}>{t.language}</label>
-              <select className="dk-input" value={deckLang || ""} onChange={e => setDeckLang(e.target.value)} style={sel}>
+              <select className="dk-input" data-tour="deck-language" value={deckLang || ""} onChange={e => setDeckLang(e.target.value)} style={sel}>
                 <option value="" disabled hidden>{t.aiLanguagePlaceholder}</option>
                 <option value="en">English</option><option value="es">Español</option><option value="ko">한국어</option>
               </select>

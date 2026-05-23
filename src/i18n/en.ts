@@ -303,7 +303,7 @@ const en = {
       offer: "Welcome! Want me to help you get your first class ready in a minute?",
       steps: [
         { title: "Create your first class", body: "Tap here to create a class. Everything — warmups, students, sessions — lives inside it." },
-        { title: "Share the code", body: "Every class gets a 6-digit code. Students use it to join from their phones — no accounts or emails." },
+        { title: "Share the code", body: "Every class has a join code. Students enter it in the app — with a free account or Google login — to join the class." },
       ],
     },
     classDetail: {
@@ -311,15 +311,18 @@ const en = {
       steps: [
         { title: "Navigate your class", body: "Switch between your current unit, past and upcoming units, and general review here." },
         { title: "Create a unit", body: "A unit is a theme (e.g. 'Fractions'). Each day's warmups and exit tickets live inside it. Start here." },
-        { title: "Invite your students", body: "Share this code with your class. They type it into the app and join instantly — no accounts." },
+        { title: "Invite your students", body: "Share this class code. Students join with a free account or Google login, then enter the code in the app." },
         { title: "That's it!", body: "Create a unit, add the day's warmups, and share the code. You can replay this guide anytime." },
       ],
     },
     deckEditor: {
       offer: "Want me to show you how to build your first warmup? It's quick.",
       steps: [
-        { title: "Pick the section", body: "Mark it as a warmup, exit ticket, or general review. That's where it shows up in your class." },
-        { title: "Add your questions", body: "On the Questions tab you can generate them with AI or add them by hand." },
+        { title: "Name your deck", body: "Give it a name — you can't save without one." },
+        { title: "Pick the class", body: "Choose which class it belongs to. It takes that class's subject and grade automatically." },
+        { title: "Session type", body: "Mark it as a warmup, exit ticket, or general review — that's where it shows up in your class." },
+        { title: "Choose the language", body: "Pick the deck's language. The AI generates and checks questions in it." },
+        { title: "Add your questions", body: "On the Questions tab, generate them with AI or add them by hand." },
         { title: "Save and you're set", body: "Hit Save. Your deck is ready to run live or print." },
       ],
     },
@@ -327,6 +330,7 @@ const en = {
       offer: "Want me to show you how to take this deck to paper?",
       steps: [
         { title: "Print your questions", body: "Export any deck as a PDF to hand out in class or run a screen-free exam." },
+        { title: "Pick the type", body: "Exam, answer key, or an exam with a scannable sheet you grade with your phone." },
         { title: "Pick a style", body: "There are several print-ready designs. Choose the one you like." },
         { title: "Download the PDF", body: "Tap here to download it. Later you can grade the sheets with the scanner on your phone." },
       ],
