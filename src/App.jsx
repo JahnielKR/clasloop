@@ -946,10 +946,11 @@ export default function App() {
   const isNotFound = !inPractice && pathToPage(location.pathname) === null && location.pathname !== "/";
 
   // Guided-onboarding step 3 trigger: Decks routes to the class page with
-  // ?celebrate=<classId> right after the teacher saves their first warmup.
-  const celebrateClassId = profile?.role === "teacher"
-    ? new URLSearchParams(location.search).get("celebrate")
-    : null;
+  // ?celebrate=<classId>&warmup=<deckId> right after the teacher saves their
+  // first warmup. The warmup id lets "start live session" launch that deck.
+  const celebrateParams = new URLSearchParams(location.search);
+  const celebrateClassId = profile?.role === "teacher" ? celebrateParams.get("celebrate") : null;
+  const celebrateWarmupId = celebrateClassId ? celebrateParams.get("warmup") : null;
 
   return (
     <div style={{ display: "flex", minHeight: "100vh" }}>
@@ -1110,7 +1111,15 @@ export default function App() {
       {celebrateClassId && (
         <OnboardingCelebration
           lang={lang}
-          onStartSession={() => navigate(`${ROUTES.SESSIONS}?class=${encodeURIComponent(celebrateClassId)}`)}
+          onStartSession={() => navigate(
+            celebrateWarmupId
+              // Launch the just-created warmup directly (SessionOptions deep
+              // link) — a deck doesn't need a unit to go live; only the "Today"
+              // plan view requires scheduled units, which a brand-new teacher
+              // hasn't set up yet.
+              ? buildRoute.sessionsOptions(celebrateWarmupId)
+              : `${ROUTES.SESSIONS}?class=${encodeURIComponent(celebrateClassId)}`
+          )}
           onViewClass={() => navigate(buildRoute.classDetail(celebrateClassId))}
         />
       )}

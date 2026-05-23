@@ -433,7 +433,9 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
             // to the celebration (the class page renders behind it). d.class_id
             // is the class we pre-created. Otherwise the normal destination.
             if (onboarding && d?.class_id) {
-              navigate(`${buildRoute.classDetail(d.class_id)}?celebrate=${encodeURIComponent(d.class_id)}`);
+              // Carry the new warmup's id so the celebration's "start live
+              // session" can launch THIS deck directly (no unit needed).
+              navigate(`${buildRoute.classDetail(d.class_id)}?celebrate=${encodeURIComponent(d.class_id)}&warmup=${encodeURIComponent(d.id)}`);
             } else {
               navigate(returnTo);
             }
