@@ -512,6 +512,8 @@ const es: Locale = {
     language: "Idioma", languageDesc: "Elige tu idioma preferido",
     theme: "Tema", themeDesc: "Elige tu apariencia preferida",
     light: "Claro", dark: "Oscuro", system: "Sistema",
+    sound: "Efectos de sonido", soundDesc: "Reproducir sonidos en sesiones en vivo (apagado por defecto)",
+    haptics: "Vibración", hapticsDesc: "Vibración sutil al tocar (móvil)",
     changePassword: "Cambiar contraseña", currentPassword: "Contraseña actual",
     newPassword: "Nueva contraseña", confirmPassword: "Confirmar contraseña", updatePassword: "Actualizar",
     updatingPassword: "Actualizando...", passwordUpdated: "¡Contraseña actualizada!", passwordError: "Error al actualizar",
