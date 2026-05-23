@@ -15,6 +15,29 @@ landing redesign + Phase 2 onboarding: two prod/CI bugs (A, B) merged first,
 then two UX efforts (C teacher onboarding, D scroll-driven landing). Plan:
 `~/.claude/plans/rosy-tickling-allen.md`.
 
+## 2026-05-23 — Fix E — Scanner header consistency + android/apple icons
+
+**Status:** ✅ done + merged to main (`28f407c`). Gates green (typecheck · lint 0
+errors · build). Authed page → user eyeballs; new icons verified to render
+(structure) via `/__x` harness.
+
+**Problem (user, round 2):** (1) the Scanner page header didn't match other
+pages; (3) the Android/iOS "coming soon" buttons used 🤖 / 🍎 emojis.
+
+**Fix:**
+- `Scanner.jsx`: replaced its bespoke `<h1>` header with the shared
+  `<PageHeader>` (it already received `onOpenMobileMenu` but never used it — so
+  on mobile there was no way to open the nav drawer from Scanner). Subtitle +
+  scan count now render just below the header.
+- `Icons.jsx`: added `android` (green dome + antennae + eyes) and `apple`
+  (silhouette + leaf) to `ICON_DEFS`; Scanner's two buttons now use
+  `<CIcon name="android|apple" inline />`.
+
+**Verification:** typecheck/lint/build green; icons render with the right SVG
+structure on the temp `/__x` harness (`preview_screenshot` still times out this
+session — hidden tab, see [[preview-hidden-raf]]). Final visual (esp. the
+hand-drawn apple) is the user's eyeball.
+
 ## 2026-05-23 — Fix D — Scroll-driven landing interactivity
 
 **Status:** ✅ done + merged to main (`5bc58c1`). Gates green (typecheck · 164
