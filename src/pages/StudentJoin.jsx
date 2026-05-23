@@ -9,6 +9,9 @@ import { C, MONO } from "../components/tokens";
 import { resolveTimeLimit } from "../lib/time-limits";
 import { getPracticeTimerPref, setPracticeTimerPref } from "../lib/practice-timer-pref";
 import { evaluateAnswer, describeCorrectAnswer, formatStudentAnswer } from "../lib/scoring";
+import { sound } from "../lib/sound";
+import { haptics } from "../lib/haptics";
+import Confetti from "../components/Confetti";
 import { QUERY } from "../routes";
 import { getSectionTheme, getSectionLabel, SectionIconSVG } from "../lib/section-theme";
 // PR 78: i18n centralizado
@@ -493,6 +496,26 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
   // a 0 se cierra la sesión y se muestran resultados.
   const [totalTimeLeft, setTotalTimeLeft] = useState(null);
   const [lastIsCorrect, setLastIsCorrect] = useState(false);
+  // #1 live feedback: one-shot celebration when the student reaches the results
+  // screen — a haptic pulse + (opt-in) fanfare, plus confetti for a strong
+  // score. Fires once per results entry.
+  const [celebrate, setCelebrate] = useState(false);
+  const celebratedRef = useRef(false);
+  useEffect(() => {
+    if (step !== "results" || celebratedRef.current) return;
+    celebratedRef.current = true;
+    const graded = answers.filter(a => a?.isCorrect !== null && a?.isCorrect !== undefined);
+    const correctCount = graded.filter(a => a.isCorrect).length;
+    const pct = graded.length ? Math.round((correctCount / graded.length) * 100) : 0;
+    // Celebrate a strong score (fanfare + confetti + a happy haptic). Lower
+    // scores finish quietly — the per-question cues already gave feedback.
+    if (pct >= 70) {
+      haptics.celebrate();
+      sound.fanfare();
+      setCelebrate(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- one-shot on entering results; answers is final by then
+  }, [step]);
   // True when the teacher ends the live session (status → completed/cancelled)
   // while the student is still in lobby/quiz. Used to show a banner on results.
   const [endedByTeacher, setEndedByTeacher] = useState(false);
@@ -1435,6 +1458,10 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
     // Animation: bounce on correct OR ungraded-submitted (positive feedback either way),
     // shake only on actual incorrect.
     setResultAnim(isCorrect === false ? "shake" : "bounce");
+    // #1 live feedback: sound + haptics on the verdict (both no-op unless the
+    // user enabled them; sound is opt-in/off by default).
+    if (isCorrect === false) { sound.wrong(); haptics.error(); }
+    else { sound.correct(); haptics.success(); }
     // Keep the full scoring tuple in local state so the end-of-session
     // "see correct answers" view can show "3 / 4 pairs correct" without
     // re-grading.
@@ -3761,6 +3788,7 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
       return (
         <>
           <style>{css}</style>
+          {celebrate && <Confetti zIndex={300} />}
           <div className="stage-page">
             <div className="stage-wrap">
               <div className="stage" data-theme={themeForResults}>
