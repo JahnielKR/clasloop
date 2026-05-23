@@ -131,7 +131,7 @@ export default function CleoChat({ lang = "en" }) {
             display: "flex", alignItems: "center", gap: 10,
             padding: "12px 14px", borderBottom: `1px solid ${C.border}`, background: C.bgSoft,
           }}>
-            <Cleo size={34} />
+            <Cleo size={34} expression={loading ? "thinking" : "happy"} />
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 15, fontWeight: 700, color: C.text }}>{t.title}</div>
               <div style={{ fontSize: 11.5, color: C.textMuted }}>{t.subtitle}</div>

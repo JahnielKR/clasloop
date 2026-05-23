@@ -15,6 +15,7 @@ export default function EmptyState({
   emoji,           // string emoji (fallback visual)
   icon,            // custom node (e.g. <CIcon name="..." size={48} />)
   cleo = false,    // show the Cleo mascot (student-facing warmth)
+  cleoExpression = "encouraging",   // her mood when shown (default: a warm "you got this")
   title,
   body,
   actionLabel,
@@ -38,7 +39,7 @@ export default function EmptyState({
     }}>
       {(cleo || icon || emoji) && (
         <div style={{ marginBottom: 16, lineHeight: 1 }}>
-          {cleo ? <Cleo size={88} /> : icon || <span style={{ fontSize: 42 }}>{emoji}</span>}
+          {cleo ? <Cleo size={88} expression={cleoExpression} /> : icon || <span style={{ fontSize: 42 }}>{emoji}</span>}
         </div>
       )}
       {title && (
