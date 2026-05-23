@@ -11,7 +11,9 @@
 import { requireTeacher } from './_lib/auth.js';
 import { SYSTEM } from './_lib/cleo-knowledge.js';
 
-const MODEL = 'gemini-2.0-flash';   // free-tier Flash; swap the id to change model
+// Model id confirmed by the user from their Google AI Studio. If this exact id
+// ever 404s, the likely-valid Flash ids are gemini-2.5-flash / gemini-2.0-flash.
+const MODEL = 'gemini-3.5-flash';
 const MAX_HISTORY = 8;              // keep the last N turns (context + cost cap)
 const MAX_MSG_CHARS = 1000;         // per-message length cap (anti-abuse)
 

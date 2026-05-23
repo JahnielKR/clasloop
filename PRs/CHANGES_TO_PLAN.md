@@ -27,7 +27,7 @@ in-app/teacher v1, no own rate-limit table, contact = placeholder, pricing =
 
 **What:**
 - `api/cleo-chat.js`: serverless endpoint mirroring `api/generate.js` — POST,
-  `requireTeacher`, `GEMINI_API_KEY` server-side, calls `gemini-2.0-flash`
+  `requireTeacher`, `GEMINI_API_KEY` server-side, calls `gemini-3.5-flash`
   (`systemInstruction` + `contents`). Caps history (8) / msg length (1000) /
   `maxOutputTokens` 400. No DB write, no rate-limit table v1. Graceful
   `upstream_error` + `blocked` handling.
