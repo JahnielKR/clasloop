@@ -5,6 +5,7 @@ import { CIcon } from "../components/Icons";
 import { DeckCover, colorTint } from "../lib/deck-cover";
 import { useIsMobile } from "../components/MobileMenuButton";
 import PageHeader from "../components/PageHeader";
+import Skeleton from "../components/ui/Skeleton";
 import SectionBadge from "../components/SectionBadge";
 import { C as BASE_C } from "../components/tokens";
 // PR 73: i18n centralizado — strings en src/i18n/{en,es,ko}.js
@@ -302,7 +303,11 @@ export default function Community({ lang: pageLang = "en", setLang: pageSetLang,
           </div>
         </div>
 
-        {loading ? <p style={{ textAlign: "center", color: C.textMuted, padding: 40 }}>Loading...</p> :
+        {loading ? (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 14 }}>
+            {Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} height={180} radius={14} />)}
+          </div>
+        ) :
         filtered.length === 0 ? (
           <div className="fade-up" style={{ textAlign: "center", padding: 48 }}><CIcon name="other" size={36} /><p style={{ fontSize: 15, color: C.textMuted, marginTop: 12 }}>{t.noResults}</p></div>
         ) : (

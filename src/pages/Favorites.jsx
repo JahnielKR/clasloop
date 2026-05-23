@@ -20,6 +20,7 @@ import { useFavorites, useFavoritesCache } from "../hooks/useFavorites";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import PageHeader from "../components/PageHeader";
+import Skeleton from "../components/ui/Skeleton";
 import { C, MONO } from "../components/tokens";
 import { ROUTES } from "../routes";
 import { SavedDeckCard } from "./MyClasses";
@@ -146,8 +147,8 @@ export default function Favorites({
 
         {/* States: loading → empty (no favorites at all) → no-results (filter empty) → grid */}
         {loading ? (
-          <div style={{ padding: 40, textAlign: "center", color: C.textMuted, fontFamily: "'Outfit',sans-serif" }}>
-            {t.loading}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 12 }}>
+            {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} height={150} radius={12} />)}
           </div>
         ) : totalFavorites === 0 ? (
           <div style={{

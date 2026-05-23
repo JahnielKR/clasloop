@@ -6,6 +6,7 @@ import { getReviewSuggestions } from "../lib/spaced-repetition";
 import { loadDismissed, saveDismissed, fetchGradedSessionsForStudent } from "../lib/notifications";
 import { CIcon } from "../components/Icons";
 import PageHeader from "../components/PageHeader";
+import Skeleton from "../components/ui/Skeleton";
 import { C } from "../components/tokens";
 // PR 74: i18n centralizado
 import { useT } from "../i18n";
@@ -301,7 +302,9 @@ export default function Notifications({ lang: pageLang = "en", setLang: pageSetL
         </div>
 
         {loading ? (
-          <p style={{ textAlign: "center", color: C.textMuted, padding: 40 }}>{t.loading}</p>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} height={64} radius={12} />)}
+          </div>
         ) : visibleNotifs.length === 0 ? (
           <div className="fade-up" style={{ textAlign: "center", padding: 48 }}>
             <div style={{ marginBottom: 12 }}><CIcon name="check" size={36} /></div>
