@@ -8,6 +8,8 @@ import PageHeader from "../components/PageHeader";
 import { C } from "../components/tokens";
 import DeleteAccountModal from "../components/DeleteAccountModal";
 import useTheme from "../hooks/useTheme";
+import { soundEnabled, setSoundEnabled } from "../lib/sound";
+import { hapticsEnabled, setHapticsEnabled } from "../lib/haptics";
 // PR 75: i18n centralizado
 import { useT } from "../i18n";
 
@@ -70,6 +72,10 @@ export default function Settings({ lang: pageLang = "en", setLang: pageSetLang, 
   const l = pageLang || lang;
   const [tab, setTab] = useState("profile");
   const [theme, setTheme] = useTheme();
+  const [sound, setSoundState] = useState(() => soundEnabled());
+  const [hap, setHapState] = useState(() => hapticsEnabled());
+  const toggleSound = () => setSoundState(v => { const nv = !v; setSoundEnabled(nv); return nv; });
+  const toggleHap = () => setHapState(v => { const nv = !v; setHapticsEnabled(nv); return nv; });
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -587,6 +593,8 @@ export default function Settings({ lang: pageLang = "en", setLang: pageSetLang, 
                   })}
                 </div>
               } />
+              <SettingRow label={t.sound} desc={t.soundDesc} right={<Toggle on={sound} onToggle={toggleSound} />} />
+              <SettingRow label={t.haptics} desc={t.hapticsDesc} right={<Toggle on={hap} onToggle={toggleHap} />} />
             </Section>
           </div>
         )}

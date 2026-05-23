@@ -516,6 +516,8 @@ const en = {
     language: "Language", languageDesc: "Choose your preferred language",
     theme: "Theme", themeDesc: "Choose your preferred appearance",
     light: "Light", dark: "Dark", system: "System",
+    sound: "Sound effects", soundDesc: "Play sounds during live sessions (off by default)",
+    haptics: "Haptics", hapticsDesc: "Subtle vibration feedback on tap (mobile)",
     changePassword: "Change password", currentPassword: "Current password",
     newPassword: "New password", confirmPassword: "Confirm password", updatePassword: "Update password",
     updatingPassword: "Updating...", passwordUpdated: "Password updated!", passwordError: "Error updating password",

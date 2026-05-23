@@ -512,6 +512,8 @@ const ko: Locale = {
     language: "언어", languageDesc: "선호 언어를 선택하세요",
     theme: "테마", themeDesc: "선호 외관을 선택하세요",
     light: "라이트", dark: "다크", system: "시스템",
+    sound: "효과음", soundDesc: "라이브 세션 중 사운드 재생 (기본값 꺼짐)",
+    haptics: "햅틱", hapticsDesc: "탭할 때 미세한 진동 피드백 (모바일)",
     changePassword: "비밀번호 변경", currentPassword: "현재 비밀번호",
     newPassword: "새 비밀번호", confirmPassword: "비밀번호 확인", updatePassword: "업데이트",
     updatingPassword: "업데이트 중...", passwordUpdated: "비밀번호 업데이트됨!", passwordError: "업데이트 오류",
