@@ -12,7 +12,7 @@
 // listing, which is enough to validate the model.
 
 import { useState, useEffect, useMemo, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { useClassPage, useClassPageCache, useTeacherClassesCache } from "../hooks/useClasses";
 import { formatSupabaseError } from "../lib/supabase-errors";
@@ -27,6 +27,7 @@ import { CloseUnitConfirmModal, CloseUnitSummary, ReopenUnitModal } from "../com
 import { C, MONO } from "../components/tokens";
 import CleoTour from "../onboarding/CleoTour";
 import Cleo from "../components/Cleo";
+import Confetti from "../components/Confetti";
 import { useReplayTour } from "../onboarding/TourContext";
 import { ROUTES, QUERY, buildRoute } from "../routes";
 import {
@@ -413,6 +414,19 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
   const t = useT("classPage", lang);
   const tours = useT("tours", lang);
   const replayTour = useReplayTour();
+  const [searchParams, setSearchParams] = useSearchParams();
+  // ?celebrate=1 — the "fiesta" after a teacher saves their first warmup (the
+  // deck editor returns here). One-shot confetti, then we clear the param.
+  const [celebrate, setCelebrate] = useState(false);
+  useEffect(() => {
+    if (searchParams.get("celebrate") !== "1") return undefined;
+    setCelebrate(true);
+    const next = new URLSearchParams(searchParams);
+    next.delete("celebrate");
+    setSearchParams(next, { replace: true });
+    const timer = setTimeout(() => setCelebrate(false), 5000);
+    return () => clearTimeout(timer);
+  }, [searchParams, setSearchParams]);
   const sLabels = sectionLabels(lang);
   const navigate = useNavigate();
   const isMobile = useIsMobile();
@@ -881,6 +895,9 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
   // ── Render ────────────────────────────────────────────────────────────
   return (
     <div style={{ padding: isMobile ? "16px 14px 32px" : "20px 28px 40px", maxWidth: 760, margin: "0 auto" }}>
+      {/* "Fiesta" after the first warmup (one-shot, honors reduced-motion). */}
+      {celebrate && <Confetti zIndex={60} />}
+
       {/* Back link + replay-tour button */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
       <button

@@ -467,7 +467,13 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
             if (editing) patchMyDecks(prev => prev.map(dk => dk.id === d.id ? d : dk));
             else patchMyDecks(prev => [d, ...prev]);
             invalidateClassCaches(d?.class_id);
-            navigate(returnTo);
+            // First-warmup flow → land on the class page with a celebration so
+            // they can see + launch their new warmup. Otherwise normal return.
+            if (autoStartTour && d?.class_id) {
+              navigate(`${buildRoute.classDetail(d.class_id)}?celebrate=1`);
+            } else {
+              navigate(returnTo);
+            }
           }}
         />
       </div>
