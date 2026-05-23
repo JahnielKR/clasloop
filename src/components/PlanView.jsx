@@ -1207,6 +1207,9 @@ export default function PlanView({
   //     to creating a deck — when the date saves, we open AddToSlotModal
   //     with pendingSlot. If null, this is just a date edit.
   const [dateModal, setDateModal] = useState(null);
+  // Deck pending removal-from-unit — drives the styled ConfirmDialog. Declared
+  // here with the other hooks (some early returns follow → rules-of-hooks).
+  const [pendingRemove, setPendingRemove] = useState(null);
 
   // PR6 follow-up: animate unit transitions. When activeUnit.id changes
   // (the teacher hit prev/next or jumped from Past/Upcoming/Search),
@@ -1280,8 +1283,7 @@ export default function PlanView({
   //
   // Only allowed when the deck has NEVER been used (usedDeckIds gate
   // is enforced in the Slot UI; this handler is just the mutation).
-  // Remove-from-unit uses a styled ConfirmDialog (not native confirm).
-  const [pendingRemove, setPendingRemove] = useState(null);
+  // Remove-from-unit uses a styled ConfirmDialog (pendingRemove declared up top).
   const handleRemoveDeck = (deck) => setPendingRemove(deck);
   const performRemoveDeck = async () => {
     const deck = pendingRemove;
