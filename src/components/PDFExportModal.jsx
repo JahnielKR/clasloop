@@ -52,6 +52,7 @@ import { useToast } from "../lib/toast";
 // Landing PR B: the style thumbnails moved to their own dep-free module so the
 // marketing landing can reuse the exact same SVGs without importing jsPDF.
 import { STYLE_THUMBS } from "./PdfStyleThumbs";
+import Button from "./ui/Button";
 
 // PR 46: scanner ya no es un "estilo" — es una página opcional que se
 // preempts al examen cuando variant === "exam_with_scan". El style
@@ -552,33 +553,8 @@ export default function PDFExportModal({
           display: "flex", justifyContent: "flex-end", gap: 10,
           background: C.bgSoft,
         }}>
-          <button
-            onClick={onClose}
-            style={{
-              padding: "9px 16px",
-              borderRadius: 8,
-              border: `1px solid ${C.border}`,
-              background: C.bg,
-              color: C.textSecondary,
-              fontWeight: 600, fontSize: 13,
-              cursor: "pointer",
-              fontFamily: "inherit",
-            }}
-          >{t.cancel}</button>
-          <button
-            onClick={handleDownload}
-            disabled={downloading}
-            style={{
-              padding: "9px 20px",
-              borderRadius: 8,
-              border: "none",
-              background: downloading ? C.textMuted : C.accent,
-              color: "#fff",
-              fontWeight: 600, fontSize: 13,
-              cursor: downloading ? "default" : "pointer",
-              fontFamily: "inherit",
-            }}
-          >{t.download}</button>
+          <Button variant="secondary" size="sm" onClick={onClose}>{t.cancel}</Button>
+          <Button variant="primary" size="sm" loading={downloading} onClick={handleDownload}>{t.download}</Button>
         </div>
       </div>
     </div>
