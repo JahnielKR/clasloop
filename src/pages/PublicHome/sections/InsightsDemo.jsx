@@ -1,7 +1,7 @@
 import { C, MONO } from "../../../components/tokens";
 import { CIcon } from "../../../components/Icons";
 import { useReveal } from "../useReveal";
-import { useTween } from "../landing-motion";
+import { useTween, useElementProgress } from "../landing-motion";
 // Real retention thresholds (green ≥70, orange ≥40, else red) so the bars are
 // colored exactly like the in-app class views.
 import { retentionTier } from "../../../lib/scoring-thresholds";
@@ -40,6 +40,13 @@ export default function InsightsDemo({ t, lang }) {
   const failNow = Math.round(FAIL_PCT * p);
   const failDash = ((FAIL_PCT * p) / 100) * CIRC;
 
+  // Scroll-linked parallax: the two cards drift up at slightly different rates
+  // as the section scrolls through (transform only; opacity stays with
+  // .ph-reveal). Reduced-motion → progress 1 → 0.
+  const insProgress = useElementProgress(bodyRef);
+  const insSettle = Math.min(1, insProgress / 0.55);
+  const insDrift = (amp) => ({ transform: `translateY(${((1 - insSettle) * amp).toFixed(1)}px)`, willChange: "transform" });
+
   return (
     <section id="insights" className="ph-section ph-anchor" style={{ padding: "110px 32px" }}>
       <div style={{ maxWidth: 1080, margin: "0 auto" }}>
@@ -61,6 +68,7 @@ export default function InsightsDemo({ t, lang }) {
           <div style={{
             background: C.bg, border: `1px solid ${C.border}`, borderLeft: `3px solid ${C.orange}`,
             borderRadius: 12, padding: "20px 22px", boxShadow: "0 4px 16px rgba(0,0,0,0.05)",
+            ...insDrift(14),
           }}>
             <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
               <div style={{ width: 30, height: 30, borderRadius: 8, background: C.orangeSoft, color: C.orange, display: "grid", placeItems: "center", flexShrink: 0 }}>
@@ -98,7 +106,7 @@ export default function InsightsDemo({ t, lang }) {
           </div>
 
           {/* Per-student retention — real tier colors */}
-          <div style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 12, padding: "20px 22px", boxShadow: "0 4px 16px rgba(0,0,0,0.05)" }}>
+          <div style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 12, padding: "20px 22px", boxShadow: "0 4px 16px rgba(0,0,0,0.05)", ...insDrift(26) }}>
             <div style={{ fontSize: 10.5, fontWeight: 700, color: C.textMuted, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 16 }}>
               {t.insRetention}
             </div>
