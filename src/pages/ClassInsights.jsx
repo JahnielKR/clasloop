@@ -23,6 +23,7 @@ import { supabase } from "../lib/supabase";
 import { C } from "../components/tokens";
 import { ROUTES, buildRoute } from "../routes";
 import PageHeader from "../components/PageHeader";
+import Skeleton from "../components/ui/Skeleton";
 import { fetchClassDecksSummary, groupRowsBySection, pctColor } from "../lib/class-insights";
 import { sectionLabels, resolveClassAccent } from "../lib/class-hierarchy";
 // PR 75: i18n centralizado
@@ -176,8 +177,11 @@ export default function ClassInsights({ profile, lang = "en", setLang, onOpenMob
 
       {/* Loading / error */}
       {loading && (
-        <div style={{ textAlign: "center", color: C.textMuted, padding: "40px 0", fontSize: 14 }}>
-          {t.loading}
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: 12 }}>
+            {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} height={80} radius={12} />)}
+          </div>
+          <Skeleton height={240} radius={12} />
         </div>
       )}
       {!loading && error && (
