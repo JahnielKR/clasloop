@@ -22,3 +22,10 @@ ios/App/build/
 /test-results/
 /playwright-report/
 /playwright/.cache/
+
+# Android release signing — NEVER commit the keystore or its passwords.
+# Losing the keystore means you can't update the app on Play; back it up
+# securely (password manager / encrypted storage), outside the repo.
+android/keystore.properties
+*.jks
+*.keystore
