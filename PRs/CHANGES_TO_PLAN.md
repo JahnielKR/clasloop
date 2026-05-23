@@ -10,10 +10,37 @@ Entries are appended chronologically. Most recent at the top.
 
 # Post-landing fixes (2026-05-23)
 
-Not part of the sequenced 101→170 plan. Four issues the user hit after the
-landing redesign + Phase 2 onboarding: two prod/CI bugs (A, B) merged first,
-then two UX efforts (C teacher onboarding, D scroll-driven landing). Plan:
+Not part of the sequenced 101→170 plan — issues the user hit after the landing
+redesign + onboarding, then iterative polish. Most recent first. Plan:
 `~/.claude/plans/rosy-tickling-allen.md`.
+
+## 2026-05-23 — Fix H — Cleo as a public landing tour guide + scroll-spy nav
+
+**Status:** ✅ done + merged to main (`f1afedb`). Gates green (typecheck · 164
+tests incl. locale-parity · lint 0 errors · build). Static render verified via
+`/__x`; scroll narration = user eyeball.
+
+**Why:** the user wanted Cleo (the onboarding mascot) to also guide the *public*
+landing before signup, so the same character is present outside → inside.
+
+**What:**
+- `landing-motion.js`: new `useActiveSection(ids)` — IntersectionObserver
+  scroll-spy (thin trigger band) returning the section in view. Drives the Cleo
+  narration AND a new active-nav-link highlight.
+- New `src/pages/PublicHome/CleoGuide.jsx`: floating Cleo + speech bubble
+  (bottom-left, reuses `OnboardingCoach`'s look). Greeting at the top → per-
+  section line on scroll. Dismissible (persisted via `safe-storage`
+  `clasloop_cleo_guide_dismissed`), reduced-motion-safe, mobile-shrunk,
+  `aria-live`.
+- New `cleoGuide` i18n namespace (en/es/ko): greeting + dismiss + one benefit
+  line per section id (`generate/print/live/types/insights/why/start`).
+- `index.jsx`: `useActiveSection(SECTION_IDS)` once → highlights the matching
+  header nav link (`navLinkActiveStyle`) + mounts `<CleoGuide>`.
+
+**Verified:** `/__x` harness — guide mounts, greeting "Hi! I'm Cleo 👋…" shows,
+dismiss hides + persists (`localStorage` = "true"). Scroll-spy narration + nav
+highlight not auto-observable (hidden preview tab → IO paused, see
+[[preview-hidden-raf]]) → user's visible-browser review.
 
 ## 2026-05-23 — Fix G — Celebration confetti (ribbons) + launch the warmup directly
 
