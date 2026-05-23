@@ -14,6 +14,27 @@ Not part of the sequenced 101→170 plan — issues the user hit after the landi
 redesign + onboarding, then iterative polish. Most recent first. Plan:
 `~/.claude/plans/rosy-tickling-allen.md`.
 
+## 2026-05-23 — Fix I — Scroll-linked motion on GenerationDemo + InsightsDemo
+
+**Status:** ✅ done + merged to main (`e3bd972`). Gates green (typecheck · 164
+tests · lint 0 errors · build · e2e/public 4/4).
+
+**Why:** the two demos only faded in once; the user wanted more scroll motion.
+
+**What:** reuse `useElementProgress` for a subtle slide-up parallax (staggered
+amplitudes, `transform`-only).
+- `GenerationDemo.jsx`: AI card + verified-question cards + "ready" pill drift up
+  (replaced the fixed-delay `ph-pop-in` with the scroll-driven slide).
+- `InsightsDemo.jsx`: the two cards drift at slightly different rates; Fix-D
+  count-up unchanged.
+
+**Safety:** opacity stays owned by `.ph-reveal` (content never hidden if scroll
+progress is stuck); reduced-motion → progress 1 → 0 offset. Verified via `/__x`:
+both sections render full content; hero opacity 1; the opacity-0 on the demos in
+the harness is the pre-existing `.ph-reveal` IO-gating (the hidden preview tab
+pauses IntersectionObserver, like rAF — [[preview-hidden-raf]]), NOT the drift.
+Live motion = user's visible-browser review.
+
 ## 2026-05-23 — Fix H — Cleo as a public landing tour guide + scroll-spy nav
 
 **Status:** ✅ done + merged to main (`f1afedb`). Gates green (typecheck · 164
