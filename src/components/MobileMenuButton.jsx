@@ -5,6 +5,7 @@
 // App.jsx re-exports `useIsMobile` from the same place to keep one source.
 import { useState, useEffect } from "react";
 import { useT } from "../i18n";
+import { C } from "./tokens";
 
 export function useIsMobile() {
   const [isMobile, setIsMobile] = useState(() => {
@@ -37,13 +38,13 @@ export default function MobileMenuButton({ onOpen, lang }) {
       aria-label={t.openMenu}
       style={{
         width: 40, height: 40, borderRadius: 10,
-        background: "#FFFFFF", border: "1px solid #E8E8E4",
+        background: C.bg, border: `1px solid ${C.border}`,
         display: "flex", alignItems: "center", justifyContent: "center",
         cursor: "pointer", flexShrink: 0, padding: 0,
       }}
     >
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-        <path d="M4 7h16M4 12h16M4 17h16" stroke="#191919" strokeWidth="1.8" strokeLinecap="round"/>
+        <path d="M4 7h16M4 12h16M4 17h16" stroke={C.text} strokeWidth="1.8" strokeLinecap="round"/>
       </svg>
     </button>
   );

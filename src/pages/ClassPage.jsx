@@ -14,7 +14,7 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
-import { useClassPage, useClassPageCache } from "../hooks/useClasses";
+import { useClassPage, useClassPageCache, useTeacherClassesCache } from "../hooks/useClasses";
 import { formatSupabaseError } from "../lib/supabase-errors";
 import { CIcon } from "../components/Icons";
 import { DeckCover, resolveColor as resolveDeckColor } from "../lib/deck-cover";
@@ -424,6 +424,10 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
   const notFound = cp?.notFound ?? false;
   const { patchClassObj, patchDecks, patchUnits, invalidate: invalidateClassPage } =
     useClassPageCache(classId);
+  // Keep the teacher's Classes-list cache (a separate query) in sync when we
+  // mutate the class row here — otherwise the list shows stale color/name until
+  // its staleTime expires or a hard refresh. See useClasses.js (patchClasses).
+  const { patchClasses } = useTeacherClassesCache(userId);
   // Which tab to open first when a teacher lands on the class. Warmups —
   // it's the most-used section in real classroom rhythm (start of every
   // class), so it's the right thing to surface. NOT to be confused with
@@ -552,12 +556,14 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
     // sluggish, especially over slow connections.
     const previous = classObj.color_id;
     patchClassObj({ ...classObj, color_id: newColorId });
+    patchClasses(prev => prev.map(c => c.id === classObj.id ? { ...c, color_id: newColorId } : c));
     const { error } = await supabase
       .from("classes")
       .update({ color_id: newColorId })
       .eq("id", classObj.id);
     if (error) {
       patchClassObj({ ...classObj, color_id: previous });
+      patchClasses(prev => prev.map(c => c.id === classObj.id ? { ...c, color_id: previous } : c));
     }
   };
 
@@ -588,6 +594,7 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
   // felt broken, not intentional.
   const handleClassSaved = (updated) => {
     patchClassObj(prev => ({ ...prev, ...updated }));
+    patchClasses(prev => prev.map(c => c.id === updated.id ? { ...c, ...updated } : c));
     setShowEditModal(false);
   };
 
@@ -596,6 +603,7 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
   // teacher on the list, which will refetch on mount.
   const handleClassDeleted = () => {
     setShowEditModal(false);
+    patchClasses(prev => prev.filter(c => c.id !== classObj.id));
     navigate(ROUTES.CLASSES);
   };
 
