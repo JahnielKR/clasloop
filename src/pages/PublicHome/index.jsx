@@ -6,7 +6,6 @@ import { useT } from "../../i18n";
 
 import { landingCss } from "./landing-css";
 import { useScrolledPast, useActiveSection } from "./landing-motion";
-import CleoGuide from "./CleoGuide";
 import Hero from "./sections/Hero";
 import GenerationDemo from "./sections/GenerationDemo";
 import PrintAndScanDemo from "./sections/PrintAndScanDemo";
@@ -32,7 +31,7 @@ import CodeDialog from "./sections/CodeDialog";
 // "publicHome".
 
 // Section ids in document order. Feeds the scroll-spy (useActiveSection) that
-// drives both the Cleo guide's narration and the active nav-link highlight.
+// drives the active nav-link highlight.
 const SECTION_IDS = ["generate", "print", "live", "types", "insights", "why", "start"];
 
 // Smooth-scroll a una sección por id (nav del header + scroll cue del hero).
@@ -227,10 +226,6 @@ export default function PublicHome({ onSignIn, onSignUp }) {
 
         {/* PR 43: el dialog auth-select fue eliminado en el rediseño OAuth.
             El rol se elige post-signup en RoleOnboarding.jsx, no acá. */}
-
-        {/* Cleo as the public tour guide — greets on load, narrates each
-            section as the visitor scrolls (driven by the scroll-spy above). */}
-        <CleoGuide lang={lang} active={activeSection} />
 
       </div>
     </>
