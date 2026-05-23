@@ -48,7 +48,7 @@ const css = `
   .mc-deck-card { transition: all .15s ease; cursor: pointer; }
   .mc-deck-card:hover { background: var(--c-bg-soft) !important; transform: translateY(-2px); box-shadow: 0 4px 14px rgba(35,131,226,0.10); }
   .mc-deck-card:active { transform: translateY(0) scale(.99); }
-  .mc-tab:hover { color: #2383E2 !important; }
+  .mc-tab:hover { color: var(--c-accent) !important; }
   .mc-join-btn:not(:disabled):hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(35,131,226,0.25); }
   .mc-join-btn:not(:disabled):active { transform: translateY(0) scale(.97); }
   .mc-scroll-x { overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; -ms-overflow-style: none; }
@@ -303,8 +303,8 @@ export default function MyClasses({ lang: pageLang = "en", setLang: pageSetLang,
             FRQ length — could refine later if Jota wants). */}
         {totalReviewsDue > 0 && (
           <div style={{
-            background: "#FFF3E0",
-            border: "1px solid #F5C892",
+            background: C.orangeSoft,
+            border: `1px solid ${C.orange}`,
             borderRadius: 12,
             padding: "14px 16px",
             marginBottom: 22,
@@ -312,10 +312,10 @@ export default function MyClasses({ lang: pageLang = "en", setLang: pageSetLang,
           }}>
             <div style={{ flexShrink: 0, fontSize: 24, lineHeight: 1 }}>⏱️</div>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <p style={{ fontSize: 14, fontWeight: 600, color: "#854F0B", margin: "0 0 2px", fontFamily: "'Outfit',sans-serif" }}>
+              <p style={{ fontSize: 14, fontWeight: 600, color: C.orange, margin: "0 0 2px", fontFamily: "'Outfit',sans-serif" }}>
                 {t.reviewBannerTitle.replace("{n}", String(totalReviewsDue))}
               </p>
-              <p style={{ fontSize: 12, color: "#BA7517", margin: 0 }}>
+              <p style={{ fontSize: 12, color: C.textSecondary, margin: 0 }}>
                 {t.reviewBannerSub.replace("{min}", String(Math.max(1, Math.round(totalReviewsDue * 1.5))))}
               </p>
             </div>
@@ -323,7 +323,7 @@ export default function MyClasses({ lang: pageLang = "en", setLang: pageSetLang,
               onClick={handleReviewClick}
               style={{
                 padding: "8px 16px", borderRadius: 7,
-                background: "#854F0B", color: "#fff", border: "none",
+                background: C.orange, color: "#fff", border: "none",
                 fontSize: 13, fontWeight: 600, cursor: "pointer",
                 fontFamily: "'Outfit',sans-serif",
                 flexShrink: 0,
