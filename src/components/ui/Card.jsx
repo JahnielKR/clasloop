@@ -12,7 +12,8 @@
 // `accent`  draws a 4px left border in that color.
 // `padding` overrides the default (SP.lg). Pass any extra style via `style`.
 
-import { C, R, SP, SH } from "../tokens";
+import { C, R, SH } from "../tokens";
+import { useDensity } from "./density";
 
 export default function Card({
   as: Tag = "div",
@@ -24,12 +25,13 @@ export default function Card({
   children,
   ...rest
 }) {
+  const { space } = useDensity();
   const base = {
     background: C.bg,
     border: `1px solid ${C.border}`,
     borderRadius: R.lg,
     boxShadow: SH.sm,
-    padding: padding != null ? padding : SP.lg,
+    padding: padding != null ? padding : space.lg,
     ...(accent ? { borderLeft: `4px solid ${accent}` } : null),
     ...style,
   };

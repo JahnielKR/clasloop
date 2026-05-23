@@ -92,6 +92,7 @@ import { useIsMobile } from './components/MobileMenuButton';
 import { countVisibleNotifications, countPendingReviewsForTeacher } from './lib/notifications';
 import { C } from './components/tokens';
 import Sidebar from './components/Sidebar';
+import { DensityProvider } from './components/ui/density';
 import ClassCodeModal from './components/ClassCodeModal';
 import MobileBlockedScreen from './components/MobileBlockedScreen';
 import { captureError } from "./lib/sentry";
@@ -122,6 +123,10 @@ function MyClassesByRole(props) {
 }
 
 const COMPONENTS = { sessions: SessionFlow, studentJoin: StudentJoin, community: Community, achievements: Achievements, settings: Settings, director: Director, notifications: Notifications, decks: Decks, myClasses: MyClassesByRole, teacherProfile: TeacherProfile, adminAIStats: AdminAIStats, review: Review, deckResults: DeckResults, classInsights: ClassInsights, myResults: MyResults, sessionRecap: SessionRecap, favorites: Favorites, scan: Scanner };
+
+// Data-dense surfaces render in "compact" density (TradingView/Sheets-like);
+// everything else stays "comfortable" (Notion-like). One system, two rhythms.
+const COMPACT_PAGES = new Set(["director", "classInsights", "notifications", "adminAIStats"]);
 
 
 // PR 28.17.3: MobileBlockedScreen extracted to src/components so GuestJoin
@@ -1029,7 +1034,9 @@ export default function App() {
               lang={lang}
             />
           ) : (
-            P && <P
+            P && (
+            <DensityProvider value={COMPACT_PAGES.has(page) ? "compact" : "comfortable"}>
+            <P
               key={page === "teacherProfile" ? `teacher-${viewingTeacherId}` : pageKey}
               lang={lang}
               setLang={setLang}
@@ -1077,6 +1084,8 @@ export default function App() {
                 navigate(buildPathWithOpts(path, opts, targetPage));
               }}
             />
+            </DensityProvider>
+            )
           )}
         </Suspense>
       </div>
