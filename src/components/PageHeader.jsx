@@ -9,7 +9,7 @@
 // instead of using PageHeader.
 
 import MobileMenuButton, { useIsMobile } from "./MobileMenuButton";
-import { C } from "./tokens";
+import { C, TYPE } from "./tokens";
 
 export default function PageHeader({
   title,
@@ -39,9 +39,8 @@ export default function PageHeader({
         <MobileMenuButton onOpen={onOpenMobileMenu} lang={lang} />
         <h1
           style={{
-            fontFamily: "'Outfit',sans-serif",
-            fontSize: isMobile ? 18 : 22,
-            fontWeight: 700,
+            ...TYPE.h1,
+            fontSize: isMobile ? 18 : TYPE.h1.fontSize,
             color: C.text,
           }}
         >

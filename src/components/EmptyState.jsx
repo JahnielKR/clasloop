@@ -9,7 +9,7 @@
 //     actionLabel="Join a class" onAction={openJoinForm} />
 import Cleo from "./Cleo";
 import Button from "./ui/Button";
-import { C } from "./tokens";
+import { C, TYPE } from "./tokens";
 
 export default function EmptyState({
   emoji,           // string emoji (fallback visual)
@@ -42,12 +42,12 @@ export default function EmptyState({
         </div>
       )}
       {title && (
-        <h3 style={{ fontSize: 18, fontWeight: 700, color: C.text, margin: "0 0 6px", fontFamily: "'Outfit', sans-serif" }}>
+        <h3 style={{ ...TYPE.h2, color: C.text, margin: "0 0 6px" }}>
           {title}
         </h3>
       )}
       {body && (
-        <p style={{ fontSize: 14, color: C.textSecondary, lineHeight: 1.55, margin: "0 0 20px", maxWidth: 380 }}>
+        <p style={{ ...TYPE.body, color: C.textSecondary, margin: "0 0 20px", maxWidth: 380 }}>
           {body}
         </p>
       )}
