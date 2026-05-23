@@ -8,6 +8,34 @@ Entries are appended chronologically. Most recent at the top.
 
 ---
 
+# Post-landing fixes (2026-05-23)
+
+Not part of the sequenced 101→170 plan. Four issues the user hit after the
+landing redesign + Phase 2 onboarding: two prod/CI bugs (A, B) merged first,
+then two UX efforts (C teacher onboarding, D scroll-driven landing). Plan:
+`~/.claude/plans/rosy-tickling-allen.md`.
+
+## 2026-05-23 — Fix A — CI `test` job missing Supabase env
+
+**Status:** ✅ done + merged to main (`cb9f090`).
+
+**Symptom (GitHub CI only):** `Test Files 1 failed | 15 passed (16)` —
+`Error: Missing Supabase credentials — see overlay or console`.
+
+**Root cause:** `src/lib/__tests__/spaced-repetition.test.js` imports
+`_internal` from `src/lib/spaced-repetition.ts`, which at its top does
+`import { supabase } from "./supabase"`. `src/lib/supabase.ts:49` throws at
+import time when `VITE_SUPABASE_URL/ANON_KEY` are absent (intentional, PR 55).
+The CI `test` job set no env (only the `e2e` job did), so the import threw —
+fails only in CI; locally `.env` is present. The tested SM-2 helpers are pure
+and never touch the client.
+
+**Fix:** `.github/workflows/ci.yml` `test` job — pass dummy
+`VITE_SUPABASE_URL/ANON_KEY` (same fallback pattern as the `e2e` job).
+
+**Verified:** reproduced locally by moving `.env` aside → 1 file fails with the
+exact error; re-ran with the dummy vars → 26 tests pass; restored `.env`.
+
 ## 2026-05-22 — PR 170 — student pages (MyClasses + Favorites) → React Query. **170 COMPLETE; PR PLAN 101→170 DONE.** 🎉
 
 **Status:** ✅ done + merged to main (`9c56881`). **User-verified LIVE** (student
