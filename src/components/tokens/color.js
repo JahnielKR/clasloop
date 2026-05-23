@@ -1,26 +1,27 @@
-// ─── Clasloop Design Tokens ──────────────────────────────────────────────
+// ─── Clasloop Color Tokens ───────────────────────────────────────────────
 // Theme-aware palette using CSS variables. Pages use `C.bg`, `C.text` etc.
-// the same way as before — but these now resolve to CSS variables that
-// switch between light and dark theme automatically.
+// which resolve to CSS variables that switch between light and dark theme
+// automatically.
 //
 // HOW IT WORKS:
-//   - The CSS injected via THEME_CSS declares :root (light) and
-//     [data-theme="dark"] (dark) variable sets.
+//   - The CSS injected via THEME_CSS (see ./theme.js → ensureThemeCss)
+//     declares :root (light) and [data-theme="dark"] (dark) variable sets.
 //   - The C object below contains var() references — when the theme
 //     attribute on <html> changes, every component using C.bg etc.
 //     re-renders with the new color.
 //   - This is the ONLY place to add/modify theme colors.
 //
 // HOW TO ADD A NEW COLOR:
-//   1. Add to LIGHT_VARS and DARK_VARS in THEME_CSS below
+//   1. Add to LIGHT and DARK sets in THEME_CSS below
 //   2. Add to the C object as `var(--color-xxx)`
 //
 // USED BY: 12+ pages directly, and indirectly by every page through the
 // design system. Adding new keys is fine; renaming requires sweeping.
+//
+// Spacing / radius / shadow / type / motion tokens live in sibling modules
+// (./scale, ./typography, ./motion) and are re-exported from ./index.js.
 
-import { captureError } from "../lib/sentry";
-
-// ─── Theme CSS — injected once at app boot ──────────────────────────────
+// ─── Theme CSS — injected once at app boot (see ./theme.js) ──────────────
 export const THEME_CSS = `
 :root {
   /* color-scheme tells the browser to render native widgets (option lists,
@@ -128,7 +129,7 @@ html.theme-ready, html.theme-ready * {
 }
 `;
 
-// ─── C object — drop-in replacement, now theme-aware ────────────────────
+// ─── C object — drop-in, theme-aware color reference ────────────────────
 // Every key resolves to a CSS variable. Components don't need to change.
 export const C = {
   // Surfaces
@@ -150,10 +151,6 @@ export const C = {
   purpleSoft: "var(--c-purple-soft)",
 
   // Section badge foregrounds — theme-aware, used by SectionBadge.
-  // The badge's bg comes from C.orangeSoft / C.purpleSoft (already
-  // theme-aware) and its accent from sectionAccent() (which uses
-  // C.orange / C.purple, also theme-aware). What was missing was a
-  // theme-aware foreground for the label text — that's these.
   sectionWarmupFg: "var(--c-section-warmup-fg)",
   sectionExitFg: "var(--c-section-exit-fg)",
   sectionGeneralFg: "var(--c-section-general-fg)",
@@ -174,66 +171,12 @@ export const C = {
   yellowSoft: "var(--c-yellow-soft)",
   pink: "var(--c-pink)",
   pinkSoft: "var(--c-pink-soft)",
+
+  // Brand signature gradient — theme-aware (resolves accent/purple per theme).
+  // Use SPARINGLY: at most one per screen (hero, primary CTA), never on every
+  // button. It's a signal, not a default surface.
+  brandGradient: "linear-gradient(135deg, var(--c-accent), var(--c-purple))",
 };
 
 // Mono font stack — used for deck PINs, codes, code-like values.
 export const MONO = "'JetBrains Mono', monospace";
-
-// ─── Theme runtime helpers ──────────────────────────────────────────────
-// These intentionally avoid React hooks so they can be called from anywhere
-// (including BEFORE React mounts, to prevent flash of wrong theme).
-
-const THEME_KEY = "clasloop_theme";
-
-/**
- * Read the persisted theme from localStorage. Returns "light" | "dark".
- * Defaults to "light" if nothing stored or storage unavailable.
- */
-export function getStoredTheme() {
-  try {
-    const v = localStorage.getItem(THEME_KEY);
-    return v === "dark" ? "dark" : "light";
-  } catch (_) {
-    return "light";
-  }
-}
-
-/**
- * Apply theme to <html> data-theme attribute. Call this on init AND whenever
- * the user toggles. Does NOT persist — call setStoredTheme() for that.
- */
-export function applyTheme(theme) {
-  if (typeof document === "undefined") return;
-  const t = theme === "dark" ? "dark" : "light";
-  document.documentElement.setAttribute("data-theme", t);
-}
-
-/**
- * Persist theme to localStorage AND apply to <html>. The all-in-one toggle
- * helper for UI components.
- */
-export function setStoredTheme(theme) {
-  const t = theme === "dark" ? "dark" : "light";
-  try {
-    localStorage.setItem(THEME_KEY, t);
-  } catch (err) {
-    // PR 136: persisting the theme can fail (private mode, quota). Not
-    // blocking — applyTheme still applies it for this session — but we want
-    // to know how often users lose theme persistence.
-    captureError(err, { kind: "localstorage_write", key: "theme" });
-  }
-  applyTheme(t);
-}
-
-/**
- * Inject the theme CSS into the document <head> if not already present.
- * Idempotent — safe to call multiple times. Call once at app boot.
- */
-export function ensureThemeCss() {
-  if (typeof document === "undefined") return;
-  if (document.getElementById("clasloop-theme-css")) return;
-  const style = document.createElement("style");
-  style.id = "clasloop-theme-css";
-  style.textContent = THEME_CSS;
-  document.head.appendChild(style);
-}
