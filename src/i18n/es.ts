@@ -808,6 +808,17 @@ const es: Locale = {
     ctaPrimary: "Empezar prueba gratis",
     ctaSubtext: "7 días gratis, todas las funciones. Sin tarjeta de crédito.",
     scrollCue: "Mira cómo funciona",
+    // Landing — journey rail (left progress spine) + per-section eyebrows
+    railCreate: "Crea",
+    railPrint: "Imprime",
+    railLive: "En vivo",
+    railMeasure: "Mide",
+    eyebrowGen: "Genera",
+    eyebrowPrint: "Imprime y escanea",
+    eyebrowLive: "Sesión en vivo",
+    eyebrowTypes: "Tipos de pregunta",
+    eyebrowInsights: "Resultados",
+    eyebrowWhy: "Rutina diaria",
     // Landing PR B — Generation demo
     genTitle: "De cualquier archivo a preguntas verificadas",
     genSub: "Suelta un PDF, diapositivas o un documento — o solo escribe un tema. La IA redacta las preguntas y revisa cada una antes de que las veas.",

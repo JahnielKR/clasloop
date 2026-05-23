@@ -808,6 +808,17 @@ const ko: Locale = {
     ctaPrimary: "무료 체험 시작",
     ctaSubtext: "7일 무료, 모든 기능 잠금 해제. 신용카드 필요 없음.",
     scrollCue: "작동 방식 보기",
+    // Landing — journey rail (left progress spine) + per-section eyebrows
+    railCreate: "생성",
+    railPrint: "인쇄",
+    railLive: "라이브",
+    railMeasure: "분석",
+    eyebrowGen: "생성",
+    eyebrowPrint: "인쇄 & 스캔",
+    eyebrowLive: "라이브 세션",
+    eyebrowTypes: "문제 유형",
+    eyebrowInsights: "결과 분석",
+    eyebrowWhy: "매일 루틴",
     // Landing PR B — Generation demo
     genTitle: "어떤 파일이든 검증된 문제로",
     genSub: "PDF, 슬라이드, 문서를 올리거나 주제만 입력하세요. AI가 문제를 만들고, 보여주기 전에 하나하나 품질을 다시 확인합니다.",

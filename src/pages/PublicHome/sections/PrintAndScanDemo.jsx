@@ -5,60 +5,116 @@ import { CIcon } from "../../../components/Icons";
 import { useT } from "../../../i18n";
 import { useReveal } from "../useReveal";
 import { useScrollProgress, useTilt } from "../landing-motion";
+import Eyebrow from "./Eyebrow";
 
 // ─── PrintAndScanDemo ──────────────────────────────────────────────────────
-// Teacher "wow" #2 — the differentiator no live-quiz app has: the same
-// AI-generated questions become a polished printable test in 4 styles (reusing
-// the EXACT thumbnails from the export modal, via the shared PdfStyleThumbs
-// module), with an answer key + a scannable sheet you grade with your phone.
-//
-// Interactive: click a style to swap the paper preview; the variant chips and
-// the print→answer→scan→graded loop tell the rest of the story. The real PDF
-// rendering needs jsPDF (heavy) so the landing shows faithful HTML/SVG mockups.
+// Teacher "wow" #2 — the differentiator no live-quiz app has. The PINNED scene
+// shows a REAL exam sheet (the same PdfStyleThumbs the export modal renders)
+// physically going through the paper pipeline as you scroll: printed → answered
+// by hand → scanned by phone → auto-graded. Each stage cross-fades overlays on
+// top of the sheet, so it reads like the actual product flow — not abstract
+// icons. You can still pick any of the 4 print styles. Pure HTML/CSS/SVG, no
+// screenshots / image weight. Degrades to a static stacked sheet (graded state)
+// on short/narrow screens + reduced-motion (see landing-scroll-css.js).
+
+const STEPS = [
+  { icon: "printer", key: "printLoop1" },
+  { icon: "handwrite", key: "printLoop2" },
+  { icon: "scan", key: "printLoop3" },
+  { icon: "graded", key: "printLoop4" },
+];
+
+// Ink-blue handwriting — student answers. Style-agnostic marks placed in generic
+// spots (the 4 thumb layouts differ) so they read as "answered by hand" on any.
+function AnswersOverlay({ visible }) {
+  const ink = "#2B59C3";
+  return (
+    <svg
+      viewBox="0 0 140 190"
+      preserveAspectRatio="none"
+      aria-hidden="true"
+      style={{ position: "absolute", inset: 0, width: "100%", height: "100%", opacity: visible ? 1 : 0, transition: "opacity .45s ease", pointerEvents: "none" }}
+    >
+      <ellipse cx="44" cy="111" rx="13" ry="5" fill="none" stroke={ink} strokeWidth="1.2" transform="rotate(-4 44 111)" />
+      <path d="M103 95 l2.6 3 l5.4 -7.5" fill="none" stroke={ink} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M103 152 l2.6 3 l5.4 -7.5" fill="none" stroke={ink} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M40 169 q10 -3 20 0 t20 0" fill="none" stroke={ink} strokeWidth="1" strokeLinecap="round" opacity="0.85" />
+    </svg>
+  );
+}
+
+// Phone-scan — a camera viewfinder over the page + the sweeping scan line.
+function ScanOverlay({ visible }) {
+  return (
+    <div aria-hidden="true" style={{ position: "absolute", inset: 0, opacity: visible ? 1 : 0, transition: "opacity .35s ease", pointerEvents: "none" }}>
+      <div style={{ position: "absolute", inset: 0, background: "rgba(20,30,45,0.10)", borderRadius: 8 }} />
+      <div style={{ position: "absolute", inset: "9% 11%" }}>
+        {[["top", "left"], ["top", "right"], ["bottom", "left"], ["bottom", "right"]].map(([v, h]) => (
+          <span
+            key={`${v}${h}`}
+            style={{
+              position: "absolute", [v]: 0, [h]: 0, width: 20, height: 20,
+              borderTop: v === "top" ? `2.5px solid ${C.accent}` : "none",
+              borderBottom: v === "bottom" ? `2.5px solid ${C.accent}` : "none",
+              borderLeft: h === "left" ? `2.5px solid ${C.accent}` : "none",
+              borderRight: h === "right" ? `2.5px solid ${C.accent}` : "none",
+              [`border${v === "top" ? "Top" : "Bottom"}${h === "left" ? "Left" : "Right"}Radius`]: 4,
+            }}
+          />
+        ))}
+        {visible && (
+          <div className="ph-scanline" style={{ position: "absolute", left: 0, right: 0, height: 3, background: `linear-gradient(90deg, transparent, ${C.accent}, transparent)`, boxShadow: `0 0 12px 2px ${C.accent}` }} />
+        )}
+      </div>
+      <div style={{ position: "absolute", bottom: 12, left: "50%", transform: "translateX(-50%)", display: "flex", alignItems: "center", gap: 6, background: "rgba(27,30,38,0.92)", color: "#fff", borderRadius: 100, padding: "4px 11px", fontSize: 10, fontWeight: 700, fontFamily: MONO, letterSpacing: "0.06em" }}>
+        <span className="ph-pulse-dot" style={{ width: 6, height: 6, borderRadius: "50%", background: C.accent }} /> SCAN
+      </div>
+    </div>
+  );
+}
+
+// Graded — green ticks + one cross, and a score badge clipped to the corner.
+function GradedOverlay({ visible, t }) {
+  return (
+    <div aria-hidden="true" style={{ position: "absolute", inset: 0, opacity: visible ? 1 : 0, transition: "opacity .45s ease", pointerEvents: "none" }}>
+      <svg viewBox="0 0 140 190" preserveAspectRatio="none" style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }}>
+        <path d="M118 95 l3 4 l6.5 -9" fill="none" stroke="#1D9E75" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M118 123 l3 4 l6.5 -9" fill="none" stroke="#1D9E75" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M119 150 l7 7 M126 150 l-7 7" stroke="#E03E3E" strokeWidth="2" strokeLinecap="round" />
+      </svg>
+      <div style={{ position: "absolute", top: -14, right: -12, background: "#0F7B6C", color: "#fff", borderRadius: 13, padding: "7px 13px", boxShadow: "0 8px 22px rgba(15,123,108,0.38)", fontFamily: MONO, display: "flex", flexDirection: "column", alignItems: "center", lineHeight: 1.05 }}>
+        <span style={{ fontSize: 17, fontWeight: 700 }}>18/20</span>
+        <span style={{ fontSize: 7.5, fontWeight: 700, letterSpacing: "0.1em", opacity: 0.9 }}>{(t.printLoop4 || "GRADED").toUpperCase()}</span>
+      </div>
+    </div>
+  );
+}
 
 export default function PrintAndScanDemo({ t, lang }) {
   const pdf = useT("pdfExportModal", lang);
   const [headRef, headVisible] = useReveal();
-  const [bodyRef, bodyVisible] = useReveal({ threshold: 0.2 });
-  const [loopRef, loopVisible] = useReveal({ threshold: 0.3 });
+  const [sceneRef, sceneVisible] = useReveal({ threshold: 0.15 });
 
-  // Scrollytelling: the print → answer → scan → graded loop lights up step by
-  // step as it travels through the viewport (same node the reveal observes).
-  // Discrete active step (0-3) updated IMPERATIVELY — setActiveStep no-ops when
-  // the step is unchanged, so the loop re-renders only on the 4 step crossings,
-  // not on every scroll frame.
+  // The sheet advances through 4 stages as the tall sticky track scrolls past.
+  // Discrete step updated only on crossings; reduced-motion → progress 1 → step 3
+  // (graded), the natural end state for a static fallback.
   const [activeStep, setActiveStep] = useState(0);
-  const loopProgressRef = useScrollProgress((p) => {
+  const sceneProgressRef = useScrollProgress((p) => {
     const step = Math.max(0, Math.min(3, Math.floor(p * 4.5)));
     setActiveStep((prev) => (prev === step ? prev : step));
   });
-  const setLoopRef = (n) => { loopRef.current = n; loopProgressRef.current = n; };
 
-  // Pointer tilt on the paper preview (no-op on touch / reduced-motion).
+  // Subtle pointer tilt on the sheet (no-op on touch / reduced-motion).
   const paperRef = useRef(null);
-  const tilt = useTilt(paperRef, 7);
+  const tilt = useTilt(paperRef, 6);
 
   const [style, setStyle] = useState("classic");
-  const [variant, setVariant] = useState("exam");
-
   const STYLES = [
     { id: "classic", name: pdf.classicName },
     { id: "modern", name: pdf.modernName },
     { id: "editorial", name: pdf.editorialName },
     { id: "framed", name: pdf.framedName },
   ];
-  const VARIANTS = [
-    { id: "exam", label: t.printVariantExam },
-    { id: "answer_key", label: t.printVariantKey },
-    { id: "scan", label: t.printVariantScan },
-  ];
-  const LOOP = [
-    { icon: "printer", label: t.printLoop1 },
-    { icon: "handwrite", label: t.printLoop2 },
-    { icon: "scan", label: t.printLoop3 },
-    { icon: "graded", label: t.printLoop4 },
-  ];
-
   const Thumb = STYLE_THUMBS[style] || STYLE_THUMBS.classic;
 
   return (
@@ -70,6 +126,7 @@ export default function PrintAndScanDemo({ t, lang }) {
     }}>
       <div style={{ maxWidth: 1100, margin: "0 auto" }}>
         <div ref={headRef} className={`ph-reveal ${headVisible ? "is-visible" : ""}`} style={{ textAlign: "center" }}>
+          <Eyebrow num="02">{t.eyebrowPrint}</Eyebrow>
           <h2 className="ph-section-h2" style={{ fontSize: 52, fontWeight: 700, color: C.text, margin: "0 0 18px", letterSpacing: "-0.02em" }}>
             {t.printTitle}
           </h2>
@@ -78,131 +135,104 @@ export default function PrintAndScanDemo({ t, lang }) {
           </p>
         </div>
 
-        <div
-          ref={bodyRef}
-          className={`ph-print-grid ph-reveal ${bodyVisible ? "is-visible" : ""}`}
-          style={{ display: "grid", gridTemplateColumns: "minmax(220px, 300px) 1fr", gap: 44, alignItems: "center" }}
-        >
-          {/* Paper preview with scan line */}
-          <div style={{ position: "relative", justifySelf: "center", width: "100%", maxWidth: 300 }}>
-            <div ref={paperRef} style={{
-              position: "relative",
-              background: "#fff",
-              borderRadius: 8,
-              border: `1px solid ${C.border}`,
-              boxShadow: "0 14px 40px rgba(0,0,0,0.13)",
-              overflow: "hidden",
-              transform: tilt || undefined,
-              transition: "transform .12s ease-out",
-            }}>
-              <Thumb />
-              {/* Scan line — conveys "grade it by camera" */}
-              <div className="ph-scanline" aria-hidden="true" style={{
-                position: "absolute", left: 0, right: 0, height: 3,
-                background: `linear-gradient(90deg, transparent, ${C.accent}, transparent)`,
-                boxShadow: `0 0 12px 2px ${C.accent}`,
-              }} />
-            </div>
-          </div>
-
-          {/* Controls */}
-          <div>
-            <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: C.textMuted, marginBottom: 12 }}>
-              {t.printStyleLabel}
-            </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10, marginBottom: 24 }}>
-              {STYLES.map(s => {
-                const SThumb = STYLE_THUMBS[s.id];
-                const selected = style === s.id;
-                return (
-                  <button
-                    key={s.id}
-                    onClick={() => setStyle(s.id)}
-                    aria-pressed={selected}
-                    style={{
-                      display: "flex", flexDirection: "column", alignItems: "center", gap: 6,
-                      background: C.bg, cursor: "pointer", padding: 6,
-                      border: `2px solid ${selected ? C.accent : C.border}`,
-                      borderRadius: 10, fontFamily: "'Outfit',sans-serif",
-                      transition: "border-color .15s, transform .15s",
-                      transform: selected ? "translateY(-2px)" : "none",
-                      boxShadow: selected ? "0 6px 16px rgba(35,131,226,0.16)" : "none",
-                    }}
-                  >
-                    <div style={{ width: "100%", borderRadius: 4, overflow: "hidden", background: "#fff" }}>
-                      <SThumb />
-                    </div>
-                    <span style={{ fontSize: 12, fontWeight: 600, color: selected ? C.accent : C.textSecondary }}>{s.name}</span>
-                  </button>
-                );
-              })}
-            </div>
-
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              {VARIANTS.map(v => {
-                const selected = variant === v.id;
-                return (
-                  <button
-                    key={v.id}
-                    onClick={() => setVariant(v.id)}
-                    aria-pressed={selected}
-                    style={{
-                      padding: "9px 16px", borderRadius: 100,
-                      border: `1.5px solid ${selected ? C.accent : C.border}`,
-                      background: selected ? C.accentSoft : C.bg,
-                      color: selected ? C.accent : C.textSecondary,
-                      fontSize: 13.5, fontWeight: 600, cursor: "pointer",
-                      fontFamily: "'Outfit',sans-serif", transition: "all .15s",
-                    }}
-                  >{v.label}</button>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-
-        {/* Print → answer → scan → graded loop */}
-        <div
-          ref={setLoopRef}
-          className={`ph-reveal ${loopVisible ? "is-visible" : ""}`}
-          style={{ marginTop: 64 }}
-        >
-          <div style={{ textAlign: "center", fontSize: 14, fontWeight: 700, color: C.text, marginBottom: 22 }}>
-            {t.printLoopTitle}
-          </div>
-          <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-            {LOOP.map((step, i) => {
-              // Scrollytelling: the current step is emphasized, earlier steps
-              // read as "done", later ones stay neutral. The sweep advances
-              // with scroll (activeStep); under reduced-motion it resolves to
-              // the last step (progress = 1) — still legible, just not animated.
-              const isActive = i === activeStep;
-              const isDone = i < activeStep;
-              const lit = isActive || isDone;
-              return (
-                <div key={i} style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <div className="ph-pop-in" style={{
-                    animationDelay: `${0.1 + i * 0.14}s`,
-                    display: "flex", flexDirection: "column", alignItems: "center", gap: 8,
-                    background: isActive ? C.accentSoft : C.bg,
-                    border: `${isActive ? 2 : 1}px solid ${lit ? C.accent : C.border}`,
-                    borderRadius: 14,
-                    padding: "16px 14px", width: 132, minHeight: 104, justifyContent: "center",
-                    boxShadow: isActive ? "0 10px 26px rgba(35,131,226,0.18)" : "0 2px 10px rgba(0,0,0,0.04)",
-                    transform: isActive ? "translateY(-4px)" : "none",
-                    transition: "transform .25s ease, box-shadow .25s ease, background .25s ease, border-color .25s ease",
-                  }}>
-                    <CIcon name={step.icon} size={46} />
-                    <span style={{ fontSize: 12.5, fontWeight: 600, color: lit ? C.accent : C.textSecondary, textAlign: "center", lineHeight: 1.3, transition: "color .25s ease" }}>
-                      {step.label}
-                    </span>
+        {/* PINNED scrollytelling scene: the real sheet transforms through the
+            paper pipeline as you scroll. Sticky is CSS-gated off on short/narrow
+            screens (→ stacked, graded state). */}
+        <div ref={sceneProgressRef} className="ph-scene" style={{ minHeight: "min(220vh, 1600px)" }}>
+          <div className="ph-scene-stick">
+            <div
+              ref={sceneRef}
+              className={`ph-print-grid ph-reveal ${sceneVisible ? "is-visible" : ""}`}
+              style={{ display: "grid", gridTemplateColumns: "minmax(240px, 300px) 1fr", gap: 48, alignItems: "center" }}
+            >
+              {/* LEFT — the transforming sheet */}
+              <div style={{ position: "relative", justifySelf: "center", width: "100%", maxWidth: 300 }}>
+                <div
+                  ref={paperRef}
+                  style={{
+                    position: "relative",
+                    background: "#fff",
+                    borderRadius: 8,
+                    border: `1px solid ${C.border}`,
+                    boxShadow: "0 18px 48px rgba(0,0,0,0.16)",
+                    overflow: "visible",
+                    transform: tilt || undefined,
+                    transition: "transform .12s ease-out",
+                  }}
+                >
+                  <div style={{ borderRadius: 8, overflow: "hidden" }}>
+                    <Thumb />
                   </div>
-                  {i < LOOP.length - 1 && (
-                    <span aria-hidden="true" style={{ color: isDone ? C.accent : C.textMuted, fontSize: 18, fontFamily: MONO, transition: "color .25s ease" }}>→</span>
-                  )}
+                  <AnswersOverlay visible={activeStep >= 1} />
+                  <ScanOverlay visible={activeStep === 2} />
+                  <GradedOverlay visible={activeStep === 3} t={t} />
                 </div>
-              );
-            })}
+              </div>
+
+              {/* RIGHT — style picker + vertical stage tracker */}
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: C.textMuted, marginBottom: 12 }}>
+                  {t.printStyleLabel}
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10, marginBottom: 30 }}>
+                  {STYLES.map((s) => {
+                    const SThumb = STYLE_THUMBS[s.id];
+                    const selected = style === s.id;
+                    return (
+                      <button
+                        key={s.id}
+                        onClick={() => setStyle(s.id)}
+                        aria-pressed={selected}
+                        className="ph-springy"
+                        style={{
+                          display: "flex", flexDirection: "column", alignItems: "center", gap: 6,
+                          background: C.bg, cursor: "pointer", padding: 6,
+                          border: `2px solid ${selected ? C.accent : C.border}`,
+                          borderRadius: 10, fontFamily: "'Outfit',sans-serif",
+                          boxShadow: selected ? "0 6px 16px rgba(35,131,226,0.16)" : "none",
+                        }}
+                      >
+                        <div style={{ width: "100%", borderRadius: 4, overflow: "hidden", background: "#fff" }}>
+                          <SThumb />
+                        </div>
+                        <span style={{ fontSize: 12, fontWeight: 600, color: selected ? C.accent : C.textSecondary }}>{s.name}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Vertical stage tracker — mirrors the journey rail; lit by scroll. */}
+                <div style={{ position: "relative", paddingLeft: 4 }}>
+                  {STEPS.map((step, i) => {
+                    const isActive = i === activeStep;
+                    const isDone = i < activeStep;
+                    const lit = isActive || isDone;
+                    return (
+                      <div key={step.key} style={{ display: "flex", alignItems: "center", gap: 14, position: "relative", paddingBottom: i < STEPS.length - 1 ? 18 : 0 }}>
+                        {/* connector segment */}
+                        {i < STEPS.length - 1 && (
+                          <span style={{ position: "absolute", left: 20, top: 40, width: 2, height: 18, background: isDone ? C.accent : C.border, transition: "background .3s ease" }} />
+                        )}
+                        <span style={{
+                          width: 40, height: 40, borderRadius: 11, flexShrink: 0,
+                          display: "grid", placeItems: "center",
+                          background: isActive ? C.accentSoft : C.bg,
+                          border: `${isActive ? 2 : 1}px solid ${lit ? C.accent : C.border}`,
+                          boxShadow: isActive ? "0 8px 20px rgba(35,131,226,0.18)" : "none",
+                          transform: isActive ? "scale(1.06)" : "none",
+                          transition: "transform .25s ease, box-shadow .25s ease, background .25s ease, border-color .25s ease",
+                        }}>
+                          <CIcon name={step.icon} size={22} />
+                        </span>
+                        <span style={{ fontSize: 15, fontWeight: isActive ? 700 : 600, color: lit ? C.text : C.textMuted, transition: "color .25s ease" }}>
+                          {t[step.key]}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>

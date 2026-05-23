@@ -1,7 +1,7 @@
 import { C, MONO } from "../../../components/tokens";
 import { CIcon } from "../../../components/Icons";
 import { useReveal } from "../useReveal";
-import { useScrollProgress } from "../landing-motion";
+import Eyebrow from "./Eyebrow";
 // Real in-app section theming so the generated warmup/exit-ticket cards match
 // what teachers actually see. forceDark=false → light values (landing is light).
 import { getSectionTheme, getSectionLabel } from "../../../lib/section-theme";
@@ -45,28 +45,16 @@ function Arrow() {
 
 export default function GenerationDemo({ t, lang }) {
   const [headRef, headVisible] = useReveal();
+  // The pipeline ASSEMBLES top-to-bottom when it scrolls into view: each piece
+  // (inputs → AI card → verified questions → ready) staggers in via .ph-seq, so
+  // the visitor watches it build rather than seeing the whole thing at once.
   const [flowRef, flowVisible] = useReveal({ threshold: 0.25 });
-  // Scroll-linked: the pipeline steps slide up into place as the section scrolls
-  // through — the "result" elements drift at increasing amplitudes for depth.
-  // Opacity stays owned by .ph-reveal (so content is never hidden if progress
-  // doesn't tick); this only adds transform. Reduced-motion → progress 1 → 0.
-  // Transform written IMPERATIVELY per frame (no re-render). Each drifting
-  // element carries data-drift="<amplitude>"; the callback reads them off the
-  // tracked container node.
-  const flowProgressRef = useScrollProgress((p, root) => {
-    const settle = Math.min(1, p / 0.55);
-    root.querySelectorAll("[data-drift]").forEach((el) => {
-      const amp = Number(el.dataset.drift) || 0;
-      el.style.transform = `translateY(${((1 - settle) * amp).toFixed(1)}px)`;
-    });
-  });
-  // Merge the reveal ref + the scroll-progress tracker onto the flow container.
-  const setFlowRef = (n) => { flowRef.current = n; flowProgressRef.current = n; };
 
   return (
-    <section id="generate" className="ph-section ph-anchor" style={{ padding: "110px 32px" }}>
+    <section id="generate" className="ph-section ph-anchor ph-seam-top" style={{ padding: "110px 32px" }}>
       <div style={{ maxWidth: 1000, margin: "0 auto", textAlign: "center" }}>
         <div ref={headRef} className={`ph-reveal ${headVisible ? "is-visible" : ""}`}>
+          <Eyebrow num="01">{t.eyebrowGen}</Eyebrow>
           <h2 className="ph-section-h2" style={{ fontSize: 52, fontWeight: 700, color: C.text, margin: "0 0 18px", letterSpacing: "-0.02em" }}>
             {t.genTitle}
           </h2>
@@ -76,8 +64,8 @@ export default function GenerationDemo({ t, lang }) {
         </div>
 
         <div
-          ref={setFlowRef}
-          className={`ph-reveal ${flowVisible ? "is-visible" : ""}`}
+          ref={flowRef}
+          className={`ph-seq ${flowVisible ? "is-visible" : ""}`}
           style={{ maxWidth: 540, margin: "0 auto", display: "flex", flexDirection: "column", gap: 12 }}
         >
           {/* Input — file chips */}
@@ -101,11 +89,10 @@ export default function GenerationDemo({ t, lang }) {
           <Arrow />
 
           {/* AI working card */}
-          <div data-drift="12" style={{
+          <div style={{
             background: C.bg, border: `1px solid ${C.border}`, borderRadius: 14,
             padding: "16px 18px", boxShadow: "0 4px 16px rgba(0,0,0,0.05)",
             display: "flex", flexDirection: "column", gap: 12,
-            willChange: "transform",
           }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <span className="ph-pulse-dot" style={{ width: 12, height: 12, borderRadius: "50%", background: C.accent, flexShrink: 0 }} />
@@ -130,11 +117,9 @@ export default function GenerationDemo({ t, lang }) {
             return (
               <div
                 key={i}
-                data-drift={18 + i * 8}
                 style={{
                   background: th.tint, border: `1px solid ${th.accent}`, borderRadius: 12,
                   padding: "14px 16px", textAlign: "left", position: "relative",
-                  willChange: "transform",
                 }}
               >
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
@@ -169,11 +154,10 @@ export default function GenerationDemo({ t, lang }) {
 
           {/* Ready pill */}
           <div style={{ marginTop: 8, display: "flex", justifyContent: "center" }}>
-            <span data-drift="34" style={{
+            <span style={{
               display: "inline-flex", alignItems: "center", gap: 7,
               background: C.accentSoft, color: C.accent, borderRadius: 100,
               padding: "9px 18px", fontSize: 14, fontWeight: 600,
-              willChange: "transform",
             }}>
               <CIcon name="rocket" inline size={16} /> {t.genReady}
             </span>

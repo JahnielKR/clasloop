@@ -1,11 +1,13 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { LogoMark } from "../../components/Icons";
 import { C } from "../../components/tokens";
 // PR 77: i18n centralizado
 import { useT } from "../../i18n";
 
 import { landingCss } from "./landing-css";
-import { useScrolledPast, useActiveSection } from "./landing-motion";
+import { landingScrollCss } from "./landing-scroll-css";
+import { useScrolledPast, useActiveSection, useScrollDocProgress } from "./landing-motion";
+import JourneyRail from "./sections/JourneyRail";
 import Hero from "./sections/Hero";
 import GenerationDemo from "./sections/GenerationDemo";
 import PrintAndScanDemo from "./sections/PrintAndScanDemo";
@@ -65,8 +67,14 @@ export default function PublicHome({ onSignIn, onSignUp }) {
 
   // Reactive header: condense + lift it once the visitor scrolls off the hero.
   const scrolled = useScrolledPast(12);
-  // Scroll-spy: which section is in view — drives Cleo's narration + nav highlight.
+  // Scroll-spy: which section is in view — drives the journey rail + nav highlight.
   const activeSection = useActiveSection(SECTION_IDS);
+  // Thin accent progress line under the header, filling 0→100% with page scroll.
+  // Written imperatively (scaleX straight to the DOM) — no per-frame re-render.
+  const headerProgRef = useRef(null);
+  useScrollDocProgress((p) => {
+    if (headerProgRef.current) headerProgRef.current.style.transform = `scaleX(${p.toFixed(3)})`;
+  });
 
   // ─── Code dialog (estudiante con código de profe) ────────
   const [codeDialogOpen, setCodeDialogOpen] = useState(false);
@@ -104,6 +112,7 @@ export default function PublicHome({ onSignIn, onSignUp }) {
   return (
     <>
       <style>{landingCss}</style>
+      <style>{landingScrollCss}</style>
       <div className="ph-root" data-theme="light" style={{ background: "#fff", minHeight: "100vh" }}>
 
         {/* HEADER — sticky con logo, nav, acciones */}
@@ -191,7 +200,20 @@ export default function PublicHome({ onSignIn, onSignUp }) {
               ))}
             </div>
           </div>
+          {/* Scroll-progress line — fills with overall page progress. */}
+          <div
+            ref={headerProgRef}
+            className="ph-headerprog"
+            aria-hidden="true"
+            style={{
+              position: "absolute", left: 0, right: 0, bottom: -1, height: 2,
+              background: C.accent, transform: "scaleX(0)",
+            }}
+          />
         </header>
+
+        {/* Journey rail — fixed left progress spine (desktop ≥1100px, CSS-gated). */}
+        <JourneyRail t={t} activeSection={activeSection} onNavigate={scrollToId} />
 
         {/* Top anchor for the logo "scroll to top" */}
         <div id="top" />
@@ -207,7 +229,7 @@ export default function PublicHome({ onSignIn, onSignUp }) {
         <GenerationDemo t={t} lang={lang} />
         <PrintAndScanDemo t={t} lang={lang} />
         <LiveSessionDemo t={t} lang={lang} />
-        <QuestionTypes t={t} />
+        <QuestionTypes t={t} lang={lang} />
         <InsightsDemo t={t} lang={lang} />
         <WhyDaily t={t} />
         <FinalCTA t={t} onSignUp={handleSignUp} />
