@@ -9,6 +9,9 @@ import { useIsMobile } from "../components/MobileMenuButton";
 import PageHeader from "../components/PageHeader";
 import SectionBadge from "../components/SectionBadge";
 import EmptyState from "../components/EmptyState";
+import Button from "../components/ui/Button";
+import UICard from "../components/ui/Card";
+import Skeleton from "../components/ui/Skeleton";
 import { C, MONO } from "../components/tokens";
 import { getPracticeTimerPref, setPracticeTimerPref } from "../lib/practice-timer-pref";
 import { ROUTES, buildRoute } from "../routes";
@@ -52,10 +55,10 @@ const css = `
   .mc-scroll-x::-webkit-scrollbar { display: none; }
 `;
 
+// Local Card kept as a thin alias so existing call sites are unchanged, but it
+// now delegates to the shared ui/Card so the student home shares the system.
 const Card = ({ children, style = {}, onClick, className = "" }) => (
-  <div className={className} onClick={onClick} style={{ background: C.bg, borderRadius: 12, border: `1px solid ${C.border}`, padding: 16, ...style }}>
-    {children}
-  </div>
+  <UICard onClick={onClick} className={className} style={style}>{children}</UICard>
 );
 
 const retCol = (r) => r >= 80 ? C.green : r >= 60 ? C.orange : C.red;
@@ -219,7 +222,15 @@ export default function MyClasses({ lang: pageLang = "en", setLang: pageSetLang,
     <div style={{ padding: "28px 20px" }}>
       <style>{css}</style>
       <PageHeader title={t.pageTitle} lang={l} setLang={setLang} maxWidth={720} onOpenMobileMenu={onOpenMobileMenu} />
-      <div style={{ maxWidth: 720, margin: "0 auto", padding: 40, textAlign: "center", color: C.textMuted, fontFamily: "'Outfit',sans-serif" }}>{t.loading}</div>
+      <div style={{ maxWidth: 720, margin: "0 auto" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18, gap: 12 }}>
+          <Skeleton width={180} height={26} radius={8} />
+          <Skeleton width={96} height={34} radius={8} />
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} height={84} radius={14} />)}
+        </div>
+      </div>
     </div>
   );
 
@@ -277,23 +288,14 @@ export default function MyClasses({ lang: pageLang = "en", setLang: pageSetLang,
             </h2>
             <p style={{ fontSize: 13, color: C.textSecondary, margin: 0 }}>{t.greetingSub}</p>
           </div>
-          <button
-            className="mc-join-btn"
+          {/* Brand signature CTA — the one gradient on this screen. */}
+          <Button
+            variant="gradient"
+            size="sm"
             onClick={openJoinForm}
             disabled={showJoinForm}
-            style={{
-              padding: "9px 16px", borderRadius: 8,
-              fontSize: 13, fontWeight: 600,
-              background: showJoinForm ? C.bgSoft : `linear-gradient(135deg, ${C.accent}, ${C.purple})`,
-              color: showJoinForm ? C.textMuted : "#fff",
-              border: showJoinForm ? `1px solid ${C.border}` : "none",
-              cursor: showJoinForm ? "default" : "pointer",
-              opacity: showJoinForm ? 0.6 : 1,
-              fontFamily: "'Outfit',sans-serif",
-              flexShrink: 0, whiteSpace: "nowrap",
-              transition: "all .15s ease",
-            }}
-          >{t.joinClass}</button>
+            style={{ flexShrink: 0 }}
+          >{t.joinClass}</Button>
         </div>
 
         {/* PR 28.14: reviews-due banner. Estimated minutes = roughly
@@ -391,10 +393,7 @@ export default function MyClasses({ lang: pageLang = "en", setLang: pageSetLang,
                 <h3 style={{ fontSize: 14, fontWeight: 700, margin: 0, color: C.accent, display: "flex", alignItems: "center", gap: 6 }}>
                   <CIcon name="plus" size={16} inline /> {t.joinClassTitle}
                 </h3>
-                <button
-                  onClick={() => { setShowJoinForm(false); setJoinCode(""); setJoinError(""); }}
-                  style={{ padding: "5px 10px", borderRadius: 6, fontSize: 12, fontWeight: 500, background: "transparent", color: C.textMuted, border: "none", cursor: "pointer", fontFamily: "'Outfit',sans-serif" }}
-                >{t.cancel}</button>
+                <Button variant="ghost" size="sm" onClick={() => { setShowJoinForm(false); setJoinCode(""); setJoinError(""); }}>{t.cancel}</Button>
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                 <input
@@ -408,17 +407,12 @@ export default function MyClasses({ lang: pageLang = "en", setLang: pageSetLang,
                 {joinError && (
                   <div style={{ fontSize: 12, color: C.red, padding: "6px 10px", background: C.redSoft, borderRadius: 6 }}>{joinError}</div>
                 )}
-                <button
+                <Button
                   onClick={handleJoinClass}
-                  disabled={!joinCode.trim() || joining}
-                  style={{
-                    padding: "10px 16px", borderRadius: 8, fontSize: 14, fontWeight: 600,
-                    background: joinCode.trim() && !joining ? C.accent : C.border,
-                    color: "#fff", border: "none",
-                    cursor: joinCode.trim() && !joining ? "pointer" : "default",
-                    fontFamily: "'Outfit',sans-serif",
-                  }}
-                >{joining ? t.joining : t.join}</button>
+                  disabled={!joinCode.trim()}
+                  loading={joining}
+                  fullWidth
+                >{joining ? t.joining : t.join}</Button>
               </div>
             </Card>
           </div>
