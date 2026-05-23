@@ -1,0 +1,243 @@
+// ─── CleoTour ────────────────────────────────────────────────────────────────
+// The renderer for a page's first-visit guided tour. Cleo offers to walk the
+// teacher through the page; on accept she steps through it, spotlighting real
+// buttons (hybrid: anchored highlight when a step targets a `data-tour` element,
+// a centered card otherwise).
+//
+//   <CleoTour tourId="home" lang={lang} userId={profile?.id}
+//             enabled={profile?.role === "teacher"} />
+//
+// Copy comes from i18n "tours" namespace; geometry/anchors from ./tours.js.
+// Persistence + the offer/step state machine live in ./useFirstVisitTour.js.
+import { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } from "react";
+import { createPortal } from "react-dom";
+import Cleo from "../components/Cleo";
+import Button from "../components/ui/Button";
+import { C } from "../components/tokens";
+import { useIsMobile } from "../components/MobileMenuButton";
+import { useT } from "../i18n";
+import { getTour } from "./tours";
+import { useFirstVisitTour } from "./useFirstVisitTour";
+import { useRegisterTour } from "./TourContext";
+
+const BUBBLE_W = 360;
+const GAP = 12;          // space between the spotlight and the bubble
+const PAD = 6;           // breathing room around the highlighted element
+
+function prefersReduced() {
+  return (
+    typeof window !== "undefined" &&
+    typeof window.matchMedia === "function" &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  );
+}
+
+const css = `
+  @keyframes ct-rise { from { opacity:0; transform:translateY(10px) } to { opacity:1; transform:translateY(0) } }
+  @keyframes ct-bob  { 0%,100% { transform:translateY(0) } 50% { transform:translateY(-4px) } }
+  .ct-card { animation: ct-rise .28s cubic-bezier(.16,1,.3,1) both }
+  .ct-cleo { animation: ct-bob 3s ease-in-out infinite }
+  @media (prefers-reduced-motion: reduce) {
+    .ct-card, .ct-cleo { animation: none !important }
+  }
+`;
+
+// Where the step bubble sits. Centered when there's no anchored rect; otherwise
+// below (or flipped above) the highlighted element, clamped to the viewport.
+function bubblePosition(rect, placement, isMobile) {
+  if (isMobile) {
+    return { left: 12, right: 12, bottom: 12, maxWidth: "none" };
+  }
+  if (!rect) {
+    return { left: "50%", top: "50%", transform: "translate(-50%,-50%)", width: BUBBLE_W };
+  }
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const left = Math.max(16, Math.min(rect.left + rect.width / 2 - BUBBLE_W / 2, vw - BUBBLE_W - 16));
+  const wantTop = placement === "top";
+  const spaceBelow = vh - (rect.top + rect.height);
+  // Flip to top if "bottom" won't fit (~200px needed), or if explicitly asked.
+  const placeTop = wantTop || spaceBelow < 220;
+  if (placeTop) {
+    return { left, top: Math.max(16, rect.top - GAP), transform: "translateY(-100%)", width: BUBBLE_W };
+  }
+  return { left, top: rect.top + rect.height + GAP, width: BUBBLE_W };
+}
+
+export default function CleoTour({ tourId, lang = "en", userId, enabled = true }) {
+  const t = useT("tours", lang);
+  const isMobile = useIsMobile();
+  const tour = getTour(tourId);
+  // Stable ref so the measurement effect's deps don't churn every render.
+  const steps = useMemo(() => tour?.steps || [], [tour]);
+  const total = steps.length;
+
+  const [reduced, setReduced] = useState(false);
+  useEffect(() => { setReduced(prefersReduced()); }, []);
+
+  const { phase, index, accept, decline, close, next, back, replay } =
+    useFirstVisitTour({ tourId, total, enabled, userId });
+
+  // Expose replay() to the PageHeader "Ver guía" button (no-op without provider).
+  useRegisterTour(tourId, replay);
+
+  // ── Anchor measurement ────────────────────────────────────────────────────
+  const [rect, setRect] = useState(null);
+  const scrolledForStep = useRef(-1);
+
+  useLayoutEffect(() => {
+    if (phase !== "running") { setRect(null); return undefined; }
+    const step = steps[index];
+    if (!step?.anchor) { setRect(null); return undefined; }
+
+    let raf = 0;
+    let tries = 0;
+    const read = (doScroll) => {
+      const el = document.querySelector(`[data-tour="${step.anchor}"]`);
+      if (el) {
+        if (doScroll && scrolledForStep.current !== index) {
+          scrolledForStep.current = index;
+          el.scrollIntoView({ block: "center", inline: "nearest", behavior: reduced ? "auto" : "smooth" });
+        }
+        const r = el.getBoundingClientRect();
+        setRect({ top: r.top, left: r.left, width: r.width, height: r.height });
+      } else if (tries++ < 24) {
+        raf = requestAnimationFrame(() => read(doScroll));
+      } else {
+        setRect(null); // element never appeared → centered fallback
+      }
+    };
+    read(true);
+
+    const reread = () => read(false);
+    window.addEventListener("resize", reread);
+    window.addEventListener("scroll", reread, true);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener("resize", reread);
+      window.removeEventListener("scroll", reread, true);
+    };
+  }, [phase, index, steps, reduced]);
+
+  const onNext = useCallback(() => {
+    if (index + 1 >= total) close();
+    else next();
+  }, [index, total, close, next]);
+
+  // ── Render ─────────────────────────────────────────────────────────────────
+  if (!tour || total === 0 || phase === "idle") return null;
+
+  // Offer — a non-blocking card; the teacher can ignore it and keep working.
+  if (phase === "offer") {
+    const offerText = (t[tourId] && t[tourId].offer) || t.offerDefault || "";
+    return createPortal(
+      <div style={{ position: "fixed", zIndex: 1300, ...(isMobile
+        ? { left: 12, right: 12, bottom: 12 }
+        : { right: 20, bottom: 20, width: 380 }) }}>
+        <style>{css}</style>
+        <div className="ct-card" role="dialog" aria-label={offerText} style={{
+          display: "flex", alignItems: "center", gap: 14,
+          background: C.bg, border: `1px solid ${C.border}`, borderRadius: 16,
+          padding: "14px 16px", boxShadow: "0 12px 36px rgba(0,0,0,0.16)",
+          fontFamily: "'Outfit', sans-serif",
+        }}>
+          <div className="ct-cleo" aria-hidden="true" style={{ flexShrink: 0 }}>
+            <Cleo size={52} expression="encouraging" />
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 14, color: C.text, lineHeight: 1.4, marginBottom: 10 }}>
+              {offerText}
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <Button variant="gradient" size="sm" onClick={accept}>{t.offerYes || "Sí, guíame"}</Button>
+              <Button variant="ghost" size="sm" onClick={decline}>{t.offerNo || "Ahora no"}</Button>
+            </div>
+          </div>
+        </div>
+      </div>,
+      document.body,
+    );
+  }
+
+  // Running — blocking overlay + spotlight + step bubble.
+  const stepText = (t[tourId] && t[tourId].steps && t[tourId].steps[index]) || {};
+  const step = steps[index];
+  const isLast = index + 1 >= total;
+  const pos = bubblePosition(rect, step?.placement, isMobile);
+  const moveTransition = reduced ? "none" : "all .25s cubic-bezier(.16,1,.3,1)";
+
+  return createPortal(
+    <div
+      role="dialog"
+      aria-modal="true"
+      style={{ position: "fixed", inset: 0, zIndex: 1400, pointerEvents: "auto" }}
+    >
+      <style>{css}</style>
+
+      {/* Spotlight: a transparent box whose huge outset shadow dims everything
+          else. When there's no rect, a plain dim backdrop. */}
+      {rect ? (
+        <div aria-hidden="true" style={{
+          position: "fixed",
+          top: rect.top - PAD, left: rect.left - PAD,
+          width: rect.width + PAD * 2, height: rect.height + PAD * 2,
+          borderRadius: 10, pointerEvents: "none",
+          boxShadow: "0 0 0 9999px rgba(0,0,0,0.55)",
+          transition: moveTransition,
+        }} />
+      ) : (
+        <div aria-hidden="true" style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)" }} />
+      )}
+
+      {/* Step bubble */}
+      <div className="ct-card" style={{
+        position: "fixed", ...pos,
+        background: C.bg, border: `1px solid ${C.border}`, borderRadius: 16,
+        padding: 18, boxShadow: "0 16px 44px rgba(0,0,0,0.22)",
+        fontFamily: "'Outfit', sans-serif", pointerEvents: "auto",
+        transition: rect ? moveTransition : "none",
+      }}>
+        <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+          <div className="ct-cleo" aria-hidden="true" style={{ flexShrink: 0 }}>
+            <Cleo size={48} expression={step?.cleo || "happy"} />
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            {stepText.title && (
+              <div style={{ fontSize: 15.5, fontWeight: 700, color: C.text, marginBottom: 4 }}>
+                {stepText.title}
+              </div>
+            )}
+            {stepText.body && (
+              <div style={{ fontSize: 13.5, color: C.textSecondary, lineHeight: 1.5 }}>
+                {stepText.body}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Footer: progress dots + controls */}
+        <div style={{ display: "flex", alignItems: "center", marginTop: 16, gap: 8 }}>
+          <div style={{ display: "flex", gap: 5, flex: 1 }} aria-hidden="true">
+            {steps.map((_, i) => (
+              <span key={i} style={{
+                width: i === index ? 18 : 6, height: 6, borderRadius: 3,
+                background: i === index ? C.accent : C.border,
+                transition: reduced ? "none" : "width .2s ease, background .2s ease",
+              }} />
+            ))}
+          </div>
+          {index > 0 && (
+            <Button variant="ghost" size="sm" onClick={back}>{t.back || "Atrás"}</Button>
+          )}
+          {!isLast && (
+            <Button variant="ghost" size="sm" onClick={close}>{t.skip || "Saltar"}</Button>
+          )}
+          <Button variant="gradient" size="sm" onClick={onNext}>
+            {isLast ? (t.done || "Listo") : (t.next || "Siguiente")}
+          </Button>
+        </div>
+      </div>
+    </div>,
+    document.body,
+  );
+}

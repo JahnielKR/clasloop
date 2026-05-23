@@ -36,6 +36,7 @@ import { supabase } from "../lib/supabase";
 import { C } from "../components/tokens";
 import { CIcon } from "../components/Icons";
 import PageHeader from "../components/PageHeader";
+import CleoTour from "../onboarding/CleoTour";
 import {
   scanDocument,
   readQRFromImage,
@@ -250,7 +251,7 @@ export default function Scanner({ lang = "en", profile, onOpenMobileMenu }) {
   // ─── Render ────────────────────────────────────────────────────────────
   return (
     <div style={{ maxWidth: 720, margin: "0 auto", padding: "20px 16px" }}>
-      <PageHeader title={t.pageTitle} lang={lang} maxWidth={720} onOpenMobileMenu={onOpenMobileMenu} />
+      <PageHeader title={t.pageTitle} lang={lang} maxWidth={720} tourId="scanner" onOpenMobileMenu={onOpenMobileMenu} />
       <div style={{ marginBottom: 20 }}>
         <p style={{ fontSize: 14, color: C.textMuted, margin: 0 }}>
           {t.pageSubtitle}
@@ -322,6 +323,9 @@ export default function Scanner({ lang = "en", profile, onOpenMobileMenu }) {
           }}
         />
       )}
+
+      {/* First-visit guided tour — how to grade paper exams with the camera. */}
+      <CleoTour tourId="scanner" lang={lang} userId={profile?.id} enabled={profile?.role === "teacher"} />
     </div>
   );
 }

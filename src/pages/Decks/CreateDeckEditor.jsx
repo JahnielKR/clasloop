@@ -30,7 +30,7 @@ import { C, css } from "./styles";
 import { SECTIONS, DEFAULT_SECTION, isValidSection, sectionLabels, resolveClassAccent, sectionToLessonContext } from "../../lib/class-hierarchy";
 import { useToast } from "../../lib/toast";
 import { SUBJECTS } from "../../lib/constants";
-import OnboardingCoach from "../../components/OnboardingCoach";
+import CleoTour from "../../onboarding/CleoTour";
 import { getStrings } from "../../i18n";
 
 // Question type catalog — used by the type-selector grid and the per-question
@@ -581,7 +581,7 @@ function AIGeneratePanel({
   );
 }
 
-function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existingDeck, prefilledClassId = null, prefilledSection = null, prefilledUnitId = null, prefilledPosition = null, profile = null, onboarding = false, onNeedClass }) {
+function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existingDeck, prefilledClassId = null, prefilledSection = null, prefilledUnitId = null, prefilledPosition = null, profile = null, onNeedClass }) {
   const toast = useToast();
   const isMobile = useIsMobile();
   const [title, setTitle] = useState(existingDeck?.title || "");
@@ -1478,13 +1478,10 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
         {t.back}
       </button>
 
-      {/* Guided onboarding (step 2): coach the teacher through their first
-          warmup. Only shown when the editor was reached via the onboarding
-          flow (?onboarding=1); never for normal deck creation. */}
-      {onboarding && (() => {
-        const tOb = getStrings("onboarding", l);
-        return <OnboardingCoach title={tOb.warmupCoachTitle} body={tOb.warmupCoachBody} />;
-      })()}
+      {/* First-visit guided tour — section → questions → save. Replaces the
+          old ?onboarding=1 inline coach; offers itself the first time a teacher
+          opens the editor. */}
+      <CleoTour tourId="deckEditor" lang={l} userId={userId} enabled={profile?.role === "teacher"} />
 
       <div className="fade-up" style={{ background: C.bg, borderRadius: 14, border: `1px solid ${C.border}`, padding: 24, marginBottom: 16 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, gap: 12 }}>
@@ -1505,6 +1502,7 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
             <button
               key={tab.id}
               className="dk-editor-tab"
+              data-tour={tab.id === "questions" ? "add-questions" : undefined}
               onClick={() => setEditorTab(tab.id)}
               style={{
                 padding: "10px 14px",
@@ -1630,6 +1628,7 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
             </label>
             <select
               className="dk-input"
+              data-tour="deck-section"
               value={section}
               onChange={e => setSection(e.target.value)}
               disabled={!classId}
@@ -2843,7 +2842,7 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
 
       {/* Save */}
       <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
-        <button className="dk-btn" onClick={handleSave} disabled={!canSave || saving} style={{
+        <button className="dk-btn" data-tour="save-deck" onClick={handleSave} disabled={!canSave || saving} style={{
           flex: 1, padding: 14, borderRadius: 10, fontSize: 15, fontWeight: 600,
           background: canSave ? `linear-gradient(135deg, ${C.accent}, ${C.purple})` : C.border,
           color: "#fff", opacity: canSave && !saving ? 1 : 0.4,
