@@ -39,6 +39,7 @@ const en = {
   },
 
   community: {
+    railSubjects: "Subjects",
     pageTitle: "Community",
     subtitle: "Browse decks shared by teachers worldwide",
     search: "Search topics...",
@@ -156,6 +157,7 @@ const en = {
   },
 
   notifications: {
+    railHeading: "Summary", railActive: "active", railByType: "By type",
     pageTitle: "Notifications", all: "All", review: "Review", sessions: "Sessions", system: "System",
     noNotifications: "You're all caught up!", loading: "Loading...",
     topicsNeedReview: "topics need review", belowRetention: "below 50% retention",
@@ -568,6 +570,7 @@ const en = {
   },
 
   settings: {
+    railHeading: "Account", railRoleTeacher: "Teacher", railRoleStudent: "Student", railSections: "Sections",
     pageTitle: "Settings",
     profile: "Profile", appearance: "Appearance", account: "Account", notifications: "Notifications",
     fullName: "Full name", email: "Email", role: "Role", school: "School", schoolPlaceholder: "Your school name",
@@ -609,6 +612,7 @@ const en = {
   // ─── PR 76 ───────────────────────────────────────────────────────────
 
   scanner: {
+    railHeading: "This session", railScanned: "scanned", railNoScans: "No scans yet", railDeck: "Deck", railHelpHeading: "How it works", railHelp: "Print the answer sheet, then scan each student's sheet to grade it instantly.",
     pageTitle: "Scanner",
     pageSubtitle: "Scan student answer sheets and see the score instantly.",
     pickDeckLabel: "Choose a deck",
@@ -745,6 +749,13 @@ const en = {
     gradePartial: "partial",
     gradeIncorrect: "incorrect",
     noAnswer: "(no answer submitted)",
+    // Overview rail (fills the side space on wide screens — see TwoColPage)
+    railHeading: "Overview",
+    railTotalLabel: "to review",
+    railStudentsLabel: "students",
+    railGradedToday: "graded today",
+    railWaitingLabel: "Waiting longest",
+    railByClassLabel: "By class",
   },
 
   // ─── PR 77 ───────────────────────────────────────────────────────────
@@ -841,6 +852,15 @@ const en = {
     import_errorTooManyDecks: "This export has too many decks (limit: {max}).",
     import_errorInvalidGeneric: "The file structure isn't valid.",
     importedToast: "Imported \"{name}\" — code {code}",
+    // Overview rail (wide screens — see TwoColPage)
+    railHeading: "School at a glance",
+    railClasses: "classes",
+    railStudents: "students",
+    railDecks: "decks",
+    railPending: "Pending review",
+    railAttentionHeading: "Needs attention",
+    railNoDecks: "no material",
+    railNoStudents: "no students",
     loading: "Loading...",
     grade: "Grade",
     subject: "Subject",
@@ -1182,6 +1202,7 @@ const en = {
   // ─── PR 79 (final, segundo namespace) ────────────────────────────────
 
   decks: {
+    railHeading: "Overview", railDecks: "decks", railNeverUsed: "never used", railFavorites: "favorites", railByClass: "By class", railMostUsed: "Most used", railNoUsage: "No decks used yet",
     pageTitle: "Library", subtitle: "Browse, search, and manage all your decks — yours and saved favorites",
     myDecks: "My Decks", favorites: "Favorites", create: "+ Create deck",
     search: "Search decks...", filterAll: "All", filterSubject: "Subject", filterClass: "Class", filterAllSubjects: "All subjects", filterAllClasses: "All classes", filterUnassigned: "Unassigned",

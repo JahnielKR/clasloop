@@ -33,6 +33,9 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 // PR 77: i18n centralizado
 import { useT } from "../i18n";
+import TwoColPage from "../components/TwoColPage";
+import MyClassesRail from "./MyClasses.rail";
+import { countPendingReviewsForTeacher } from "../lib/notifications";
 import CleoTour from "../onboarding/CleoTour";
 
 // ─── i18n ────────────────────────────────────────────────────────────────
@@ -280,6 +283,18 @@ export default function MyClassesTeacher({ lang = "en", profile, onNavigateToSes
   const deckCounts = classesData?.deckCounts ?? {};
   const studentCounts = classesData?.studentCounts ?? {};
   const { patchClasses } = useTeacherClassesCache(userId);
+  // Pending free-text reviews across the teacher's classes — surfaced in the
+  // rail with a shortcut to /review. Reuses the same lib helper as the sidebar
+  // badge (cheap head-count, RLS-scoped).
+  const [pendingReviews, setPendingReviews] = useState(0);
+  useEffect(() => {
+    if (!userId) return;
+    let cancelled = false;
+    countPendingReviewsForTeacher(userId)
+      .then((n) => { if (!cancelled) setPendingReviews(n); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [userId]);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
   // PR 22: when non-null, the LobbyThemeSelector modal is open for this class
@@ -425,9 +440,40 @@ export default function MyClassesTeacher({ lang = "en", profile, onNavigateToSes
 
   // ─── Render ─────────────────────────────────────────────────────────
   // Uses the shared PageHeader (subtitle + actions slot) at 1100px so it lines
-  // up with the cards grid below.
+  // up with the cards grid below. On wide screens TwoColPage adds an overview
+  // rail in the right gutter — the cards stay capped at 1100, unchanged.
+  const studentTotal = Object.values(studentCounts).reduce((a, b) => a + b, 0);
+  const deckTotal = Object.values(deckCounts).reduce((a, b) => a + b, 0);
+  // Classes missing material (no decks) or members (no students) feed the rail's
+  // "needs attention" list. Decks-empty takes priority when both are empty.
+  const needsAttention = classes
+    .filter((c) => (deckCounts[c.id] || 0) === 0 || (studentCounts[c.id] || 0) === 0)
+    .map((c) => ({
+      id: c.id,
+      name: c.name,
+      reasonText: (deckCounts[c.id] || 0) === 0 ? t.railNoDecks : t.railNoStudents,
+    }));
+
   return (
-    <div style={{ padding: isMobile ? "16px 14px 32px" : "20px 28px 40px", maxWidth: 1100, margin: "0 auto" }}>
+    <div style={{ padding: isMobile ? "16px 14px 32px" : "20px 28px 40px" }}>
+      <TwoColPage
+        mainMax={1100}
+        railWidth={320}
+        maxWidth={1448}
+        collapseAt={1660}
+        rail={!loading && classes.length > 0 ? (
+          <MyClassesRail
+            t={t}
+            classCount={classes.length}
+            studentTotal={studentTotal}
+            deckTotal={deckTotal}
+            pendingReviews={pendingReviews}
+            onOpenReview={() => navigate(ROUTES.REVIEW)}
+            needsAttention={needsAttention}
+            onOpenClass={(id) => navigate(buildRoute.classDetail(id))}
+          />
+        ) : null}
+      >
       <PageHeader
         title={t.pageTitle}
         subtitle={t.subtitle}
@@ -514,6 +560,7 @@ export default function MyClassesTeacher({ lang = "en", profile, onNavigateToSes
           </SortableContext>
         </DndContext>
       )}
+      </TwoColPage>
 
       {/* Create class modal — lives here so the create flow stays in the
           teacher's home (no detour to Sessions). */}

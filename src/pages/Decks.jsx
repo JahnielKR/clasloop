@@ -32,6 +32,8 @@ import { ROUTES, QUERY, buildRoute } from "../routes";
 const PDFExportModal = lazy(() => import("../components/PDFExportModal"));
 // PR 79: i18n centralizado
 import { useT } from "../i18n";
+import TwoColPage from "../components/TwoColPage";
+import LibraryRail from "./Decks.rail";
 // PR 7: drag-to-reorder decks within a unit. Same dnd-kit setup as the
 // old All-decks view in ClassPage (which is still in the file as dead
 // code from PR 5). We re-implement here rather than extracting into a
@@ -695,6 +697,27 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
   return (
     <div style={{ padding: "28px 20px" }}>
       <style>{css}</style>
+      <TwoColPage
+        mainMax={900}
+        maxWidth={1248}
+        collapseAt={1460}
+        rail={!loading && (myDecks.length > 0 || favoriteDecks.length > 0) ? (
+          <LibraryRail
+            t={t}
+            totalDecks={myDecks.length}
+            neverUsed={myDecks.filter((d) => !(d.uses_count > 0)).length}
+            favoritesCount={favoriteDecks.length}
+            topDecks={[...myDecks]
+              .filter((d) => d.uses_count > 0)
+              .sort((a, b) => (b.uses_count || 0) - (a.uses_count || 0))
+              .slice(0, 4)
+              .map((d) => ({ id: d.id, title: d.title, uses: d.uses_count }))}
+            classCounts={userClasses.map((c) => ({ id: c.id, name: c.name, count: myDecks.filter((d) => d.class_id === c.id).length }))}
+            activeClassTab={activeClassTab}
+            onPickClass={setActiveClassTab}
+          />
+        ) : null}
+      >
       <PageHeader title={t.pageTitle} lang={l} setLang={setLang} maxWidth={900} onOpenMobileMenu={onOpenMobileMenu} />
 
       {pendingDeleteId && (
@@ -881,6 +904,7 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
           </>
         )}
       </div>
+      </TwoColPage>
 
       {/* Customize favorite modal — class picker. The user is taken into the
           editor immediately after picking a class (or "no class"), so this is

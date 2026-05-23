@@ -12,6 +12,8 @@ import { soundEnabled, setSoundEnabled } from "../lib/sound";
 import { hapticsEnabled, setHapticsEnabled } from "../lib/haptics";
 // PR 75: i18n centralizado
 import { useT } from "../i18n";
+import TwoColPage from "../components/TwoColPage";
+import SettingsRail from "./Settings.rail";
 
 // PR 75: el bloque i18n local fue movido a src/i18n/{en,es,ko}.js
 // bajo el namespace "settings".
@@ -306,6 +308,14 @@ export default function Settings({ lang: pageLang = "en", setLang: pageSetLang, 
   return (
     <div style={{ padding: "28px 20px" }}>
       <style>{css}</style>
+      <TwoColPage
+        mainMax={700}
+        maxWidth={1048}
+        collapseAt={1260}
+        rail={profile ? (
+          <SettingsRail t={t} profile={profile} name={name} email={email} avatarUrl={avatarUrl} avatarId={avatarId} isTeacher={isTeacher} tabs={tabs} tab={tab} setTab={setTab} />
+        ) : null}
+      >
       <PageHeader title={t.pageTitle} lang={l} setLang={setLang} maxWidth={700} onOpenMobileMenu={onOpenMobileMenu} />
 
       <div style={{ maxWidth: 700, margin: "0 auto" }}>
@@ -642,6 +652,7 @@ export default function Settings({ lang: pageLang = "en", setLang: pageSetLang, 
           </div>
         )}
       </div>
+      </TwoColPage>
 
       {/* PR 28: Delete account modal — opens from the Danger zone
           button above. Renders only when triggered, lives outside

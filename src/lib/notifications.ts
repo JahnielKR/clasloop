@@ -61,6 +61,30 @@ export async function countPendingReviewsForTeacher(
   }
 }
 
+// Count of free-text responses the teacher has graded since local midnight.
+// Powers the "graded today" stat in the /review overview rail — a small bit of
+// insight→action feedback. graded_by is stamped with the teacher's id on every
+// grade (see Review.jsx gradeResponse), so we filter on it directly; RLS
+// already scopes responses to the teacher's own sessions.
+export async function countGradedTodayForTeacher(
+  teacherId: string | null | undefined
+): Promise<number> {
+  if (!teacherId) return 0;
+  try {
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+    const { count, error } = await supabase
+      .from("responses")
+      .select("id", { count: "exact", head: true })
+      .eq("graded_by", teacherId)
+      .gte("graded_at", startOfToday.toISOString());
+    if (error) return 0;
+    return count || 0;
+  } catch {
+    return 0;
+  }
+}
+
 // Fetch graded free-text responses for a student, grouped by session.
 // Used by Notifications.jsx to render "Tu sesión X tiene feedback nuevo"
 // notifications. Returns an array of { sessionId, sessionTopic, classId,

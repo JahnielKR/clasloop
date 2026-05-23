@@ -35,6 +35,7 @@ const es: Locale = {
   },
 
   community: {
+    railSubjects: "Materias",
     pageTitle: "Comunidad",
     subtitle: "Busca decks compartidos por profesores",
     search: "Buscar temas...",
@@ -152,6 +153,7 @@ const es: Locale = {
   },
 
   notifications: {
+    railHeading: "Resumen", railActive: "activas", railByType: "Por tipo",
     pageTitle: "Notificaciones", all: "Todas", review: "Repaso", sessions: "Sesiones", system: "Sistema",
     noNotifications: "¡Estás al día!", loading: "Cargando...",
     topicsNeedReview: "temas necesitan repaso", belowRetention: "debajo del 50%",
@@ -564,6 +566,7 @@ const es: Locale = {
   },
 
   settings: {
+    railHeading: "Cuenta", railRoleTeacher: "Profesor", railRoleStudent: "Estudiante", railSections: "Secciones",
     pageTitle: "Ajustes",
     profile: "Perfil", appearance: "Apariencia", account: "Cuenta", notifications: "Notificaciones",
     fullName: "Nombre completo", email: "Correo", role: "Rol", school: "Escuela", schoolPlaceholder: "Nombre de tu escuela",
@@ -605,6 +608,7 @@ const es: Locale = {
   // ─── PR 76 ───────────────────────────────────────────────────────────
 
   scanner: {
+    railHeading: "Esta sesión", railScanned: "escaneadas", railNoScans: "Sin escaneos aún", railDeck: "Examen", railHelpHeading: "Cómo funciona", railHelp: "Imprimí la hoja de respuestas, luego escaneá la de cada alumno para calificarla al instante.",
     pageTitle: "Escáner",
     pageSubtitle: "Escaneá las hojas de respuestas y mirá el puntaje al instante.",
     pickDeckLabel: "Elegí un deck",
@@ -741,6 +745,13 @@ const es: Locale = {
     gradePartial: "parcial",
     gradeIncorrect: "incorrecta",
     noAnswer: "(sin respuesta)",
+    // Overview rail (fills the side space on wide screens — see TwoColPage)
+    railHeading: "Resumen",
+    railTotalLabel: "por revisar",
+    railStudentsLabel: "alumnos",
+    railGradedToday: "corregidas hoy",
+    railWaitingLabel: "Esperando hace más",
+    railByClassLabel: "Por clase",
   },
 
   // ─── PR 77 ───────────────────────────────────────────────────────────
@@ -837,6 +848,15 @@ const es: Locale = {
     import_errorTooManyDecks: "Este export tiene demasiados decks (límite: {max}).",
     import_errorInvalidGeneric: "La estructura del archivo no es válida.",
     importedToast: "Importada \"{name}\" — código {code}",
+    // Overview rail (wide screens — see TwoColPage)
+    railHeading: "Tu escuela",
+    railClasses: "clases",
+    railStudents: "alumnos",
+    railDecks: "decks",
+    railPending: "Por revisar",
+    railAttentionHeading: "Necesita atención",
+    railNoDecks: "sin material",
+    railNoStudents: "sin alumnos",
     loading: "Cargando...",
     grade: "Grado",
     subject: "Materia",
@@ -1178,6 +1198,7 @@ const es: Locale = {
   // ─── PR 79 (final, segundo namespace) ────────────────────────────────
 
   decks: {
+    railHeading: "Resumen", railDecks: "decks", railNeverUsed: "sin usar", railFavorites: "favoritos", railByClass: "Por clase", railMostUsed: "Más usados", railNoUsage: "Aún sin uso",
     pageTitle: "Biblioteca", subtitle: "Explora, busca y gestiona todos tus decks — los tuyos y los favoritos guardados",
     myDecks: "Mis Decks", favorites: "Favoritos", create: "+ Crear deck",
     search: "Buscar decks...", filterAll: "Todos", filterSubject: "Materia", filterClass: "Clase", filterAllSubjects: "Todas las materias", filterAllClasses: "Todas las clases", filterUnassigned: "Sin clase",
