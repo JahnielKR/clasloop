@@ -25,6 +25,9 @@ import SectionBadge, { sectionAccent } from "../components/SectionBadge";
 import PlanView from "../components/PlanView";
 import { CloseUnitConfirmModal, CloseUnitSummary, ReopenUnitModal } from "../components/CloseUnitFlow";
 import { C, MONO } from "../components/tokens";
+import CleoTour from "../onboarding/CleoTour";
+import Cleo from "../components/Cleo";
+import { useReplayTour } from "../onboarding/TourContext";
 import { ROUTES, QUERY, buildRoute } from "../routes";
 import {
   SECTIONS,
@@ -408,6 +411,8 @@ function SortableDeckCard({ deck, accent, t, lang, units, onChangeUnit, onOpen }
 // ─── Main export ────────────────────────────────────────────────────────
 export default function ClassPage({ lang = "en", profile, classId, onLaunchPractice, onOpenMobileMenu }) {
   const t = useT("classPage", lang);
+  const tours = useT("tours", lang);
+  const replayTour = useReplayTour();
   const sLabels = sectionLabels(lang);
   const navigate = useNavigate();
   const isMobile = useIsMobile();
@@ -876,7 +881,8 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
   // ── Render ────────────────────────────────────────────────────────────
   return (
     <div style={{ padding: isMobile ? "16px 14px 32px" : "20px 28px 40px", maxWidth: 760, margin: "0 auto" }}>
-      {/* Back link */}
+      {/* Back link + replay-tour button */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
       <button
         onClick={() => navigate(ROUTES.CLASSES)}
         style={{
@@ -904,6 +910,24 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
         </svg>
         {t.backToMyClasses}
       </button>
+      {replayTour && (
+        <button
+          type="button"
+          onClick={() => replayTour("classDetail")}
+          title={tours.replay}
+          aria-label={tours.replay}
+          style={{
+            display: "inline-flex", alignItems: "center", gap: 6, flexShrink: 0,
+            padding: "6px 10px", borderRadius: 8, marginBottom: 8,
+            background: "transparent", color: C.textSecondary,
+            border: `1px solid ${C.border}`, cursor: "pointer",
+            fontFamily: "'Outfit',sans-serif", fontSize: 12.5, fontWeight: 600,
+          }}
+        >
+          <Cleo size={16} animate={false} /> {tours.replay}
+        </button>
+      )}
+      </div>
 
       {/* Header card */}
       <div style={{
@@ -943,6 +967,7 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
                   onClick={handleCopyCode}
                   title={t.copyCode}
                   aria-label={t.copyCode}
+                  data-tour="class-code"
                   style={{
                     fontFamily: MONO,
                     fontSize: 12,
@@ -1151,7 +1176,7 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
         ) : null;
 
         return (
-          <div style={{
+          <div data-tour="section-tabs" style={{
             display: "flex",
             alignItems: "center",
             gap: 6,
@@ -1198,6 +1223,7 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
                 {!showNewUnit ? (
                   <button
                     onClick={() => { setShowNewUnit(true); setNewUnitError(""); }}
+                    data-tour="create-unit"
                     style={{
                       padding: "6px 11px",
                       borderRadius: 7,
@@ -1838,6 +1864,7 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
           {!showNewUnit ? (
             <button
               onClick={() => { setShowNewUnit(true); setNewUnitError(""); }}
+              data-tour="create-unit"
               style={{
                 padding: "10px 20px",
                 borderRadius: 8,
@@ -1965,6 +1992,11 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
           lang={lang}
           onClose={() => setShowStudentsModal(false)}
         />
+      )}
+
+      {/* First-visit guided tour — units (the gap) + sharing the code with students. */}
+      {classObj && !loading && (
+        <CleoTour tourId="classDetail" lang={lang} userId={profile?.id} enabled={profile?.role === "teacher"} />
       )}
 
       <style>{`

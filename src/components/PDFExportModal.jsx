@@ -53,6 +53,7 @@ import { useToast } from "../lib/toast";
 // marketing landing can reuse the exact same SVGs without importing jsPDF.
 import { STYLE_THUMBS } from "./PdfStyleThumbs";
 import Button from "./ui/Button";
+import CleoTour from "../onboarding/CleoTour";
 
 // PR 46: scanner ya no es un "estilo" — es una página opcional que se
 // preempts al examen cuando variant === "exam_with_scan". El style
@@ -138,6 +139,8 @@ export default function PDFExportModal({
   onClose,
   // Theme tokens for consistency with the rest of the app
   C,
+  // For the first-visit tour's "seen" state (per teacher).
+  userId,
 }) {
   const toast = useToast();
   const t = useT("pdfExportModal", lang);
@@ -374,7 +377,7 @@ export default function PDFExportModal({
               hasta VISIBLE_STYLES (3) opciones a la vez. Las flechas se
               deshabilitan en los extremos. Si total <= VISIBLE_STYLES,
               las flechas no se renderizan (siempre vemos todo). */}
-          <div style={{ marginBottom: 18 }}>
+          <div data-tour="pdf-style" style={{ marginBottom: 18 }}>
             <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: C.textSecondary, marginBottom: 6, textTransform: "uppercase", letterSpacing: 0.4 }}>
               {t.styleLabel}
             </label>
@@ -554,8 +557,11 @@ export default function PDFExportModal({
           background: C.bgSoft,
         }}>
           <Button variant="secondary" size="sm" onClick={onClose}>{t.cancel}</Button>
-          <Button variant="primary" size="sm" loading={downloading} onClick={handleDownload}>{t.download}</Button>
+          <Button variant="primary" size="sm" loading={downloading} onClick={handleDownload} data-tour="pdf-download">{t.download}</Button>
         </div>
+
+        {/* First-visit guided tour — pick a style → download. */}
+        <CleoTour tourId="pdfExport" lang={lang} userId={userId} enabled />
       </div>
     </div>
   );
