@@ -4,7 +4,7 @@ import { STYLE_THUMBS } from "../../../components/PdfStyleThumbs";
 import { CIcon } from "../../../components/Icons";
 import { useT } from "../../../i18n";
 import { useReveal } from "../useReveal";
-import { useElementProgress, useTilt } from "../landing-motion";
+import { useScrollProgress, useTilt } from "../landing-motion";
 
 // ─── PrintAndScanDemo ──────────────────────────────────────────────────────
 // Teacher "wow" #2 — the differentiator no live-quiz app has: the same
@@ -24,8 +24,15 @@ export default function PrintAndScanDemo({ t, lang }) {
 
   // Scrollytelling: the print → answer → scan → graded loop lights up step by
   // step as it travels through the viewport (same node the reveal observes).
-  const loopProgress = useElementProgress(loopRef);
-  const activeStep = Math.max(0, Math.min(3, Math.floor(loopProgress * 4.5)));
+  // Discrete active step (0-3) updated IMPERATIVELY — setActiveStep no-ops when
+  // the step is unchanged, so the loop re-renders only on the 4 step crossings,
+  // not on every scroll frame.
+  const [activeStep, setActiveStep] = useState(0);
+  const loopProgressRef = useScrollProgress((p) => {
+    const step = Math.max(0, Math.min(3, Math.floor(p * 4.5)));
+    setActiveStep((prev) => (prev === step ? prev : step));
+  });
+  const setLoopRef = (n) => { loopRef.current = n; loopProgressRef.current = n; };
 
   // Pointer tilt on the paper preview (no-op on touch / reduced-motion).
   const paperRef = useRef(null);
@@ -156,7 +163,7 @@ export default function PrintAndScanDemo({ t, lang }) {
 
         {/* Print → answer → scan → graded loop */}
         <div
-          ref={loopRef}
+          ref={setLoopRef}
           className={`ph-reveal ${loopVisible ? "is-visible" : ""}`}
           style={{ marginTop: 64 }}
         >

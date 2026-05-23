@@ -15,28 +15,27 @@ function prefersReduced() {
   );
 }
 
-// Live window.scrollY (rAF-throttled, passive). Stays 0 under reduced-motion so
-// any parallax derived from it collapses to no movement.
-export function useScrollY() {
-  const [y, setY] = useState(0);
+// Imperative window-scroll subscription: calls `onValue(scrollY)` on each
+// rAF-throttled, passive scroll — WITHOUT React state, so the consumer writes
+// transforms straight to the DOM and never triggers a per-frame re-render
+// (that per-frame re-render is what made the landing feel un-fluid). Calls once
+// with 0 under reduced-motion (no movement).
+export function useScrollValue(onValue) {
+  const cbRef = useRef(onValue);
+  cbRef.current = onValue;
   useEffect(() => {
-    if (prefersReduced() || typeof window === "undefined") return undefined;
+    if (typeof window === "undefined") return undefined;
+    if (prefersReduced()) { cbRef.current(0); return undefined; }
     let raf = 0;
-    const onScroll = () => {
-      if (raf) return;
-      raf = requestAnimationFrame(() => {
-        raf = 0;
-        setY(window.scrollY || window.pageYOffset || 0);
-      });
-    };
-    onScroll();
+    const tick = () => { raf = 0; cbRef.current(window.scrollY || window.pageYOffset || 0); };
+    const onScroll = () => { if (!raf) raf = requestAnimationFrame(tick); };
+    tick();
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => {
       window.removeEventListener("scroll", onScroll);
       if (raf) cancelAnimationFrame(raf);
     };
   }, []);
-  return y;
 }
 
 // Boolean that flips when the page is scrolled past `threshold` px. Only
@@ -61,14 +60,21 @@ export function useScrolledPast(threshold = 8) {
   return past;
 }
 
-// 0→1 progress as `ref` travels through the viewport: 0 when its top reaches the
-// bottom of the viewport, 1 once its bottom clears the top. For scroll-linked
-// reveals / scrollytelling. Returns 1 under reduced-motion (end state).
-export function useElementProgress(ref) {
-  const [p, setP] = useState(() => (prefersReduced() ? 1 : 0));
+// Imperative scroll-linked progress: attach the returned ref to the tracked
+// element; `onProgress(p)` runs on each rAF-throttled, passive scroll with
+// p = 0→1 as the element travels the viewport (0 when its top hits the viewport
+// bottom, 1 once its bottom clears the top). NO React state per frame — the
+// consumer writes transforms straight to its own element refs, so heavy sections
+// no longer re-render ~60×/s while scrolling. Calls once with 1 under
+// reduced-motion (end state).
+export function useScrollProgress(onProgress) {
+  const ref = useRef(null);
+  const cbRef = useRef(onProgress);
+  cbRef.current = onProgress;
   useEffect(() => {
     const node = ref.current;
-    if (!node || prefersReduced() || typeof window === "undefined") return undefined;
+    if (!node || typeof window === "undefined") return undefined;
+    if (prefersReduced()) { cbRef.current(1, node); return undefined; }
     let raf = 0;
     const measure = () => {
       raf = 0;
@@ -76,7 +82,7 @@ export function useElementProgress(ref) {
       const vh = window.innerHeight || 0;
       const total = vh + r.height;
       const passed = vh - r.top;
-      setP(total > 0 ? Math.min(1, Math.max(0, passed / total)) : 0);
+      cbRef.current(total > 0 ? Math.min(1, Math.max(0, passed / total)) : 0, node);
     };
     const onScroll = () => { if (!raf) raf = requestAnimationFrame(measure); };
     measure();
@@ -87,8 +93,8 @@ export function useElementProgress(ref) {
       window.removeEventListener("resize", onScroll);
       if (raf) cancelAnimationFrame(raf);
     };
-  }, [ref]);
-  return p;
+  }, []);
+  return ref;
 }
 
 // Eased 0→1 tween that runs ONCE when `active` flips true (count-ups, bar

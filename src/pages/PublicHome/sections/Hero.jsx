@@ -3,7 +3,8 @@ import { C, MONO } from "../../../components/tokens";
 // warmup / exit-ticket cards on the landing look exactly like the product.
 // forceDark=false → always the light values (the landing is always light).
 import { getSectionTheme, getSectionLabel } from "../../../lib/section-theme";
-import { useScrollY } from "../landing-motion";
+import { useRef } from "react";
+import { useScrollValue } from "../landing-motion";
 
 // ─── Floating doc card data ────────────────────────────────
 // 4 cards animan en el hero. Cada card representa un input típico (PDF,
@@ -101,9 +102,20 @@ function MorphTo({ card, lang }) {
 }
 
 export default function Hero({ t, lang, onSignUp, onOpenCode, onSeeHow }) {
-  const scrollY = useScrollY();
+  // Parallax written IMPERATIVELY (no per-frame re-render): each floating card
+  // carries data-card; we set its `translate` (composes with the float's
+  // transform animation) straight on the DOM as the page scrolls.
+  const heroRef = useRef(null);
+  useScrollValue((y) => {
+    const root = heroRef.current;
+    if (!root) return;
+    root.querySelectorAll("[data-card]").forEach((el) => {
+      const p = PARALLAX[el.getAttribute("data-card")] || 0;
+      el.style.translate = `0px ${(y * p).toFixed(1)}px`;
+    });
+  });
   return (
-    <section className="ph-section ph-hero ph-fade" style={{
+    <section ref={heroRef} className="ph-section ph-hero ph-fade" style={{
       padding: "100px 32px 70px",
       position: "relative",
       textAlign: "center",
@@ -121,8 +133,9 @@ export default function Hero({ t, lang, onSignUp, onOpenCode, onSeeHow }) {
             right: card.pos.right, bottom: card.pos.bottom,
             width: card.size.w, height: card.size.h,
             animationDelay: `${card.floatDelay}s`,
-            // Parallax via `translate` (composes with the float's `transform`).
-            translate: `0px ${(scrollY * (PARALLAX[card.id] || 0)).toFixed(1)}px`,
+            // Parallax `translate` is set imperatively in useScrollValue above
+            // (composes with the float animation's `transform`).
+            willChange: "translate",
             zIndex: 1,
           }}
         >

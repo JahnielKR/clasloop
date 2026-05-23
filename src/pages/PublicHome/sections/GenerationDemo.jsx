@@ -1,7 +1,7 @@
 import { C, MONO } from "../../../components/tokens";
 import { CIcon } from "../../../components/Icons";
 import { useReveal } from "../useReveal";
-import { useElementProgress } from "../landing-motion";
+import { useScrollProgress } from "../landing-motion";
 // Real in-app section theming so the generated warmup/exit-ticket cards match
 // what teachers actually see. forceDark=false → light values (landing is light).
 import { getSectionTheme, getSectionLabel } from "../../../lib/section-theme";
@@ -50,9 +50,18 @@ export default function GenerationDemo({ t, lang }) {
   // through — the "result" elements drift at increasing amplitudes for depth.
   // Opacity stays owned by .ph-reveal (so content is never hidden if progress
   // doesn't tick); this only adds transform. Reduced-motion → progress 1 → 0.
-  const progress = useElementProgress(flowRef);
-  const settle = Math.min(1, progress / 0.55);
-  const drift = (amp) => ({ transform: `translateY(${((1 - settle) * amp).toFixed(1)}px)`, willChange: "transform" });
+  // Transform written IMPERATIVELY per frame (no re-render). Each drifting
+  // element carries data-drift="<amplitude>"; the callback reads them off the
+  // tracked container node.
+  const flowProgressRef = useScrollProgress((p, root) => {
+    const settle = Math.min(1, p / 0.55);
+    root.querySelectorAll("[data-drift]").forEach((el) => {
+      const amp = Number(el.dataset.drift) || 0;
+      el.style.transform = `translateY(${((1 - settle) * amp).toFixed(1)}px)`;
+    });
+  });
+  // Merge the reveal ref + the scroll-progress tracker onto the flow container.
+  const setFlowRef = (n) => { flowRef.current = n; flowProgressRef.current = n; };
 
   return (
     <section id="generate" className="ph-section ph-anchor" style={{ padding: "110px 32px" }}>
@@ -67,7 +76,7 @@ export default function GenerationDemo({ t, lang }) {
         </div>
 
         <div
-          ref={flowRef}
+          ref={setFlowRef}
           className={`ph-reveal ${flowVisible ? "is-visible" : ""}`}
           style={{ maxWidth: 540, margin: "0 auto", display: "flex", flexDirection: "column", gap: 12 }}
         >
@@ -92,11 +101,11 @@ export default function GenerationDemo({ t, lang }) {
           <Arrow />
 
           {/* AI working card */}
-          <div style={{
+          <div data-drift="12" style={{
             background: C.bg, border: `1px solid ${C.border}`, borderRadius: 14,
             padding: "16px 18px", boxShadow: "0 4px 16px rgba(0,0,0,0.05)",
             display: "flex", flexDirection: "column", gap: 12,
-            ...drift(12),
+            willChange: "transform",
           }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <span className="ph-pulse-dot" style={{ width: 12, height: 12, borderRadius: "50%", background: C.accent, flexShrink: 0 }} />
@@ -121,10 +130,11 @@ export default function GenerationDemo({ t, lang }) {
             return (
               <div
                 key={i}
+                data-drift={18 + i * 8}
                 style={{
                   background: th.tint, border: `1px solid ${th.accent}`, borderRadius: 12,
                   padding: "14px 16px", textAlign: "left", position: "relative",
-                  ...drift(18 + i * 8),
+                  willChange: "transform",
                 }}
               >
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
@@ -159,11 +169,11 @@ export default function GenerationDemo({ t, lang }) {
 
           {/* Ready pill */}
           <div style={{ marginTop: 8, display: "flex", justifyContent: "center" }}>
-            <span style={{
+            <span data-drift="34" style={{
               display: "inline-flex", alignItems: "center", gap: 7,
               background: C.accentSoft, color: C.accent, borderRadius: 100,
               padding: "9px 18px", fontSize: 14, fontWeight: 600,
-              ...drift(34),
+              willChange: "transform",
             }}>
               <CIcon name="rocket" inline size={16} /> {t.genReady}
             </span>
