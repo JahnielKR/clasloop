@@ -8,6 +8,7 @@
 //     body="Got a code from your teacher? Join your first class."
 //     actionLabel="Join a class" onAction={openJoinForm} />
 import Cleo from "./Cleo";
+import Button from "./ui/Button";
 import { C } from "./tokens";
 
 export default function EmptyState({
@@ -18,6 +19,7 @@ export default function EmptyState({
   body,
   actionLabel,
   onAction,
+  actionVariant = "primary",   // "gradient" for the one signature CTA on a screen
   secondaryLabel,
   onSecondary,
   style = {},
@@ -52,25 +54,10 @@ export default function EmptyState({
       {(actionLabel || secondaryLabel) && (
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "center" }}>
           {actionLabel && (
-            <button
-              onClick={onAction}
-              style={{
-                padding: "11px 22px", borderRadius: 10, fontSize: 14, fontWeight: 600,
-                background: C.accent, color: "#fff", border: "none", cursor: "pointer",
-                fontFamily: "'Outfit', sans-serif",
-              }}
-            >{actionLabel}</button>
+            <Button variant={actionVariant} onClick={onAction}>{actionLabel}</Button>
           )}
           {secondaryLabel && (
-            <button
-              onClick={onSecondary}
-              style={{
-                padding: "11px 18px", borderRadius: 10, fontSize: 14, fontWeight: 600,
-                background: "transparent", color: C.textSecondary,
-                border: `1px solid ${C.border}`, cursor: "pointer",
-                fontFamily: "'Outfit', sans-serif",
-              }}
-            >{secondaryLabel}</button>
+            <Button variant="secondary" onClick={onSecondary}>{secondaryLabel}</Button>
           )}
         </div>
       )}

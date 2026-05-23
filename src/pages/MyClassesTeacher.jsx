@@ -9,6 +9,9 @@ import ImportClassModal from "../components/ImportClassModal";
 // PR 22: theme selector modal launched from each class card
 import LobbyThemeSelector from "../components/LobbyThemeSelector";
 import { C, MONO } from "../components/tokens";
+import Button from "../components/ui/Button";
+import Skeleton from "../components/ui/Skeleton";
+import EmptyState from "../components/EmptyState";
 import { ROUTES, QUERY, buildPathWithOpts, buildRoute } from "../routes";
 import { resolveClassAccent } from "../lib/class-hierarchy";
 import {
@@ -399,49 +402,15 @@ export default function MyClassesTeacher({ lang = "en", profile, onNavigateToSes
 
   // ─── Empty state ────────────────────────────────────────────────────
   const renderEmpty = () => (
-    <div
-      className="ns-fade"
-      style={{
-        background: C.bg,
-        border: `1px dashed ${C.border}`,
-        borderRadius: 14,
-        padding: "60px 24px",
-        textAlign: "center",
-        maxWidth: 520,
-        margin: "40px auto",
-      }}
-    >
-      <div style={{
-        width: 56, height: 56, borderRadius: 14,
-        background: C.accentSoft,
-        display: "inline-flex", alignItems: "center", justifyContent: "center",
-        marginBottom: 16,
-      }}>
-        <SchoolIcon size={32} active={true} />
-      </div>
-      <h3 style={{ fontSize: 18, fontWeight: 700, color: C.text, margin: "0 0 6px", fontFamily: "'Outfit',sans-serif" }}>
-        {t.noClassesYet}
-      </h3>
-      <p style={{ fontSize: 14, color: C.textSecondary, margin: "0 auto 22px", maxWidth: 360, lineHeight: 1.5 }}>
-        {t.noClassesSub}
-      </p>
-      <button
-        onClick={handleNewClass}
-        style={{
-          padding: "11px 22px",
-          borderRadius: 10,
-          background: `linear-gradient(135deg, ${C.accent}, ${C.purple})`,
-          color: "#fff",
-          border: "none",
-          fontSize: 14,
-          fontWeight: 600,
-          cursor: "pointer",
-          fontFamily: "'Outfit',sans-serif",
-          boxShadow: `0 3px 10px ${C.accent}33`,
-        }}
-      >
-        {t.createFirst}
-      </button>
+    <div className="ns-fade" style={{ maxWidth: 520, margin: "40px auto" }}>
+      <EmptyState
+        icon={<SchoolIcon size={40} active={true} />}
+        title={t.noClassesYet}
+        body={t.noClassesSub}
+        actionLabel={t.createFirst}
+        onAction={handleNewClass}
+        actionVariant="gradient"
+      />
     </div>
   );
 
@@ -510,80 +479,48 @@ export default function MyClassesTeacher({ lang = "en", profile, onNavigateToSes
           </div>
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center", flexShrink: 0 }}>
-          <button
+          <Button
+            variant="secondary"
+            size="sm"
+            title={t.schoolAnalytics}
             onClick={() => navigate(ROUTES.SCHOOL)}
-            style={{
-              padding: "8px 14px",
-              borderRadius: 8,
-              background: "transparent",
-              color: C.textSecondary,
-              border: `1px solid ${C.border}`,
-              fontSize: 13,
-              fontWeight: 500,
-              cursor: "pointer",
-              fontFamily: "'Outfit',sans-serif",
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 6,
-              whiteSpace: "nowrap",
-            }}
+            leftIcon={<CIcon name="chart" size={13} inline />}
           >
-            <CIcon name="chart" size={13} inline />
-            {!isMobile && t.schoolAnalytics}
-          </button>
+            {isMobile ? null : t.schoolAnalytics}
+          </Button>
           {/* Import — opens the real import modal (file picker → preview →
               confirm). The actual flow lives in ImportClassModal +
-              lib/class-import.js. Header chrome here just hosts the entry
-              point. */}
-          <button
-            onClick={() => setShowImportModal(true)}
+              lib/class-import.js. */}
+          <Button
+            variant="secondary"
+            size="sm"
             title={t.importClass}
-            style={{
-              padding: "8px 14px",
-              borderRadius: 8,
-              background: "transparent",
-              color: C.textSecondary,
-              border: `1px solid ${C.border}`,
-              fontSize: 13,
-              fontWeight: 500,
-              cursor: "pointer",
-              fontFamily: "'Outfit',sans-serif",
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 6,
-              whiteSpace: "nowrap",
-            }}
+            onClick={() => setShowImportModal(true)}
+            leftIcon={
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
+                <path d="M12 20V8m0 0l-4 4m4-4l4 4M4 4h16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            }
           >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
-              <path d="M12 20V8m0 0l-4 4m4-4l4 4M4 4h16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-            {!isMobile && t.importClass}
-          </button>
-          <button
-            onClick={handleNewClass}
-            className="clp-lift"
-            style={{
-              padding: "9px 16px",
-              borderRadius: 8,
-              background: `linear-gradient(135deg, ${C.accent}, ${C.purple})`,
-              color: "#fff",
-              border: "none",
-              fontSize: 13,
-              fontWeight: 600,
-              cursor: "pointer",
-              fontFamily: "'Outfit',sans-serif",
-              boxShadow: `0 2px 8px ${C.accent}33`,
-              whiteSpace: "nowrap",
-            }}
-          >
+            {isMobile ? null : t.importClass}
+          </Button>
+          {/* Brand signature CTA — the one gradient on this screen. */}
+          <Button variant="gradient" size="sm" onClick={handleNewClass}>
             {t.newClass}
-          </button>
+          </Button>
         </div>
       </div>
 
       {loading ? (
-        <div style={{ textAlign: "center", color: C.textMuted, padding: 60, fontSize: 14 }}>
-          {t.loading}
+        <div style={{
+          display: "grid",
+          gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fill, minmax(300px, 1fr))",
+          gap: 16,
+          marginTop: 12,
+        }}>
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Skeleton key={i} height={150} radius={12} />
+          ))}
         </div>
       ) : classes.length === 0 ? (
         renderEmpty()

@@ -9,6 +9,7 @@ import { useIsMobile } from "../components/MobileMenuButton";
 import PageHeader from "../components/PageHeader";
 import SectionBadge, { sectionAccent } from "../components/SectionBadge";
 import EmptyState from "../components/EmptyState";
+import Skeleton from "../components/ui/Skeleton";
 import { MONO } from "../components/tokens";
 import { C, css } from "./Decks/styles";
 import CreateDeckEditor from "./Decks/CreateDeckEditor";
@@ -362,7 +363,12 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
         <div style={{ padding: "28px 20px" }}>
           <style>{css}</style>
           <PageHeader title={t.pageTitle} lang={l} setLang={setLang} maxWidth={600} onOpenMobileMenu={onOpenMobileMenu} />
-          <div style={{ maxWidth: 600, margin: "0 auto", padding: 40, textAlign: "center", color: C.textMuted, fontFamily: "'Outfit',sans-serif" }}>{t.loading || "Loading…"}</div>
+          <div style={{ maxWidth: 600, margin: "0 auto", display: "flex", flexDirection: "column", gap: 14 }}>
+            <Skeleton height={40} radius={10} />
+            <Skeleton height={120} radius={12} />
+            <Skeleton height={120} radius={12} />
+            <Skeleton height={44} width={160} radius={10} />
+          </div>
         </div>
       );
     }
@@ -375,7 +381,12 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
         <div style={{ padding: "28px 20px" }}>
           <style>{css}</style>
           <PageHeader title={t.pageTitle} lang={l} setLang={setLang} maxWidth={600} onOpenMobileMenu={onOpenMobileMenu} />
-          <div style={{ maxWidth: 600, margin: "0 auto", padding: 40, textAlign: "center", color: C.textMuted, fontFamily: "'Outfit',sans-serif" }}>{t.loading || "Loading…"}</div>
+          <div style={{ maxWidth: 600, margin: "0 auto", display: "flex", flexDirection: "column", gap: 14 }}>
+            <Skeleton height={40} radius={10} />
+            <Skeleton height={120} radius={12} />
+            <Skeleton height={120} radius={12} />
+            <Skeleton height={44} width={160} radius={10} />
+          </div>
         </div>
       );
     }
@@ -677,7 +688,18 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
             another bucket of decks). Search input on the far right
             filters whatever class tab is active. */}
 
-        {userClasses.length === 0 && favoriteDecks.length === 0 ? (
+        {loading ? (
+          // Skeleton placeholder while the library loads — without this the
+          // hard-empty state below flashes for a frame before data resolves.
+          <>
+            <div style={{ display: "flex", gap: 6, marginBottom: 18 }}>
+              {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} width={90} height={34} radius={8} />)}
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 14 }}>
+              {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} height={150} radius={12} />)}
+            </div>
+          </>
+        ) : userClasses.length === 0 && favoriteDecks.length === 0 ? (
           // Hard empty state — no classes AND no favorites. Surface a
           // primary action to nudge the teacher to create their first
           // class (which is where decks come from).
