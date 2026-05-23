@@ -7,7 +7,11 @@
          o capacitor:// (sucede en Android 8-11). Sin esto, chars Unicode
          multibyte como ×, →, — pueden renderizarse como Ã, â†', etc. -->
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- viewport-fit=cover: required for env(safe-area-inset-*) to report
+         real values on notched / rounded-corner devices. Without it the WebView
+         reports 0 for every inset and all the safe-area CSS (themes.css,
+         Sidebar, the quiz Next button) is inert. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>Clasloop — Your daily warmups & exit tickets</title>
 
     <!-- SEO + social sharing. Previously the page had only a <title>: sharing
