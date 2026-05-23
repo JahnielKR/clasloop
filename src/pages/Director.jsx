@@ -4,6 +4,7 @@ import { useDirector } from "../hooks/useDirector";
 import { CIcon } from "../components/Icons";
 import { useIsMobile } from "../components/MobileMenuButton";
 import PageHeader from "../components/PageHeader";
+import Skeleton from "../components/ui/Skeleton";
 import { C as BASE_C, MONO } from "../components/tokens";
 import { ROUTES } from "../routes";
 // PR 74: i18n centralizado
@@ -104,7 +105,13 @@ export default function Director({ lang: pageLang = "en", setLang: pageSetLang, 
       <style>{css}</style>
       {backBar}
       <PageHeader title={t.pageTitle} lang={l} setLang={setLang} maxWidth={860} onOpenMobileMenu={onOpenMobileMenu} />
-      <p style={{ textAlign: "center", color: C.textMuted, padding: 40 }}>{t.loading}</p>
+      <div style={{ maxWidth: 860, margin: "0 auto" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 12, marginBottom: 16 }}>
+          {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} height={88} radius={12} />)}
+        </div>
+        <Skeleton height={220} radius={12} style={{ marginBottom: 12 }} />
+        <Skeleton height={160} radius={12} />
+      </div>
     </div>
   );
 
