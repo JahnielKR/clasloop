@@ -581,7 +581,7 @@ function AIGeneratePanel({
   );
 }
 
-function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existingDeck, prefilledClassId = null, prefilledSection = null, prefilledUnitId = null, prefilledPosition = null, profile = null, onNeedClass }) {
+function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existingDeck, prefilledClassId = null, prefilledSection = null, prefilledUnitId = null, prefilledPosition = null, profile = null, onNeedClass, autoStartTour = false }) {
   const toast = useToast();
   const isMobile = useIsMobile();
   const [title, setTitle] = useState(existingDeck?.title || "");
@@ -1486,6 +1486,7 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
         lang={l}
         userId={userId}
         enabled={profile?.role === "teacher"}
+        autoStart={autoStartTour}
         onStepChange={(_i, step) => {
           if (step?.anchor === "ai-generate") setEditorTab("questions");
           else if (

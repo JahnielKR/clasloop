@@ -387,7 +387,8 @@ export default function MyClassesTeacher({ lang = "en", profile, onNavigateToSes
     });
     setShowCreateModal(false);
     if (isFirstClass) {
-      navigate(`${ROUTES.DECKS_NEW}?${QUERY.CLASS}=${encodeURIComponent(newClass.id)}`);
+      // tour=run → the editor auto-starts its guided tour (their first warmup).
+      navigate(`${ROUTES.DECKS_NEW}?${QUERY.CLASS}=${encodeURIComponent(newClass.id)}&tour=run`);
       return;
     }
     setJustCreatedId(newClass.id);

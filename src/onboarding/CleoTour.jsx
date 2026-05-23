@@ -71,7 +71,7 @@ function bubblePosition(rect, placement, isMobile) {
   return { left, top: rect.top + rect.height + GAP, width: BUBBLE_W };
 }
 
-export default function CleoTour({ tourId, lang = "en", userId, enabled = true, onStepChange }) {
+export default function CleoTour({ tourId, lang = "en", userId, enabled = true, onStepChange, autoStart = false }) {
   const t = useT("tours", lang);
   const isMobile = useIsMobile();
   const tour = getTour(tourId);
@@ -83,7 +83,7 @@ export default function CleoTour({ tourId, lang = "en", userId, enabled = true, 
   useEffect(() => { setReduced(prefersReduced()); }, []);
 
   const { phase, index, accept, decline, close, next, back, replay } =
-    useFirstVisitTour({ tourId, total, enabled, userId });
+    useFirstVisitTour({ tourId, total, enabled, userId, autoStart });
 
   // Expose replay() to the PageHeader "Ver guía" button (no-op without provider).
   useRegisterTour(tourId, replay);

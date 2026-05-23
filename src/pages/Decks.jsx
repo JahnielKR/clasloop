@@ -360,6 +360,10 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
     // "+ Create deck" inside an empty class group). On /decks/:id/edit the
     // existing deck's class wins, so we ignore the param.
     const prefilledClassId = view === "create" ? (searchParams.get(QUERY.CLASS) || null) : null;
+    // ?tour=run on /decks/new auto-starts the editor's guided tour (no "want a
+    // tour?" prompt). Set by the first-class → first-warmup chain so a brand-new
+    // teacher is walked through the deck editor the first real time they see it.
+    const autoStartTour = view === "create" && searchParams.get("tour") === "run";
     // ?section= on /decks/new pre-fills the deck's section, used when the
     // teacher clicks "+ New warmup" / "+ New exit ticket" / "+ New review"
     // from inside ClassPage. On edit, existing deck's section wins.
@@ -457,6 +461,7 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
           prefilledUnitId={prefilledUnitId}
           prefilledPosition={prefilledPosition}
           profile={profile}
+          autoStartTour={autoStartTour}
           onNeedClass={() => navigate(ROUTES.CLASSES)}
           onCreated={(d) => {
             if (editing) patchMyDecks(prev => prev.map(dk => dk.id === d.id ? d : dk));
