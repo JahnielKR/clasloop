@@ -21,6 +21,7 @@ import CleoChat from './components/CleoChat';
 // Per-page first-visit tours ("Cleo te guía"). The provider lets each page's
 // PageHeader replay its tour ("Ver guía"); pages mount <CleoTour> themselves.
 import { TourProvider } from './onboarding/TourContext';
+import { markTourSeen } from './onboarding/useFirstVisitTour';
 // PR 112: AuthScreen + NotFoundScreen extracted to their own files.
 // Eagerly imported (no lazy) because they paint before the authed shell
 // loads — same rationale as the eager imports above.
@@ -904,9 +905,16 @@ export default function App() {
       <TeacherWelcome
         profile={profile}
         lang={lang}
-        // Both CTAs just close the welcome and drop the teacher on their home
-        // (/classes), where the first-visit "home" tour offers to guide them.
-        onStart={() => setShowTeacherWelcome(false)}
+        // "Create my first warmup" → straight into creating their first class
+        // (a warmup needs one). Creating it chains to the deck editor, whose
+        // tour auto-runs (?tour=run). Mark the "home" tour seen so its corner
+        // offer doesn't compete with the create-class modal — still replayable
+        // via "Ver guía". Skip just lands them on My Classes to explore.
+        onStart={() => {
+          markTourSeen(profile?.id, "home");
+          setShowTeacherWelcome(false);
+          navigate(`${ROUTES.CLASSES}?createClass=1`);
+        }}
         onSkip={() => setShowTeacherWelcome(false)}
       />
     );
