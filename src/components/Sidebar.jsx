@@ -24,36 +24,25 @@
 // (240px wide, slides in from the left). Width math is exactly the
 // same as before so App.jsx's marginLeft calc doesn't change.
 //
-// Why ASCII/Unicode glyphs instead of the old SVG icons:
-//   1. They scale with font-size automatically — one knob to tune.
-//   2. They're already legible in the collapsed (56px) mode without any
-//      extra container/padding gymnastics.
-//   3. The old icons are still exported from Icons.jsx and used in deck
-//      covers, achievement screens, etc. — we don't lose them, we just
-//      stop using them in the sidebar.
+// Nav icons: a small MONOCHROME line-icon set (src/components/NavIcons.jsx,
+// rendered via <NavGlyph/>) using currentColor + a consistent 1.8 stroke, so
+// every item shares one calm voice and reads cleanly even in the collapsed
+// (56px) mode. This replaced an earlier set of Unicode glyphs (▥/▤/▢ were
+// nearly indistinguishable). Deliberately monochrome + separate from the
+// colorful CIcon set, which stays for decorative / feature marks.
 
 import { LogoMark, TeacherAvatar, StudentAvatar } from "./Icons";
 import { Avatar as ProfileAvatar } from "./Avatars";
+import NavGlyph from "./NavIcons";
 import { C } from "./tokens";
 import { useNavigate } from "react-router-dom";
 import { buildRoute } from "../routes";
 import { useT } from "../i18n";
 
 // ─── Nav config ────────────────────────────────────────────────────────
-// Glyph chosen per role: each is a single Unicode char that reads at any
-// size. Picked for distinctiveness (you don't want two items that look
-// alike in the collapsed view).
-//
-//   ●  Today        — solid dot. The "now" item.
-//   ▥  Decks        — book / file
-//   ▤  Classes      — table / grid
-//   ✎  To review    — pencil (grading)
-//   ◇  Community    — open diamond (loose, unowned content)
-//   ○  Notifs       — open circle (event)
-//   ⚙  Settings     — gear (universal)
-//   ★  Achievements — star (student-side gamification)
-//   ⊕  Join         — circled plus (join action)
-//   ⚡  AI stats     — admin only
+// Each item names an icon from NavIcons.jsx (today / review / classes /
+// library / scanner / community / notifications / settings / join /
+// achievements / aiStats).
 //
 // The nav is structured as GROUPS, not a flat list. Each group reflects
 // a different mental mode the teacher is in:
@@ -84,33 +73,33 @@ const TEACHER_NAV_GROUPS = [
   {
     title: "today",
     items: [
-      { id: "sessions", glyph: "●", label: "today" },
-      { id: "review",   glyph: "✎", label: "toReview", showBadge: "review" },
+      { id: "sessions", icon: "today", label: "today" },
+      { id: "review",   icon: "review", label: "toReview", showBadge: "review" },
     ],
   },
   {
     title: "teach",
     items: [
-      { id: "myClasses", glyph: "▤", label: "myClasses" },
-      { id: "decks",     glyph: "▥", label: "library" },
+      { id: "myClasses", icon: "classes", label: "myClasses" },
+      { id: "decks",     icon: "library", label: "library" },
       // PR 57.3: reactivado. El scanner ahora corre con ML Kit nativo.
       // En web muestra banner "Descargá la app", en native abre la cámara
       // ML Kit del sistema.
-      { id: "scan",      glyph: "▢", label: "scanner" },
+      { id: "scan",      icon: "scanner", label: "scanner" },
     ],
   },
   {
     title: "discover",
     items: [
-      { id: "community", glyph: "◇", label: "community" },
+      { id: "community", icon: "community", label: "community" },
     ],
   },
   {
     title: "account",
     divided: true,
     items: [
-      { id: "notifications", glyph: "○", label: "notifications", showBadge: "notifs" },
-      { id: "settings",      glyph: "⚙", label: "settings" },
+      { id: "notifications", icon: "notifications", label: "notifications", showBadge: "notifs" },
+      { id: "settings",      icon: "settings", label: "settings" },
     ],
   },
 ];
@@ -120,28 +109,28 @@ const STUDENT_NAV_GROUPS = [
   {
     title: "learn",
     items: [
-      { id: "myClasses",   glyph: "▤", label: "myClasses" },
-      { id: "studentJoin", glyph: "⊕", label: "joinSession" },
+      { id: "myClasses",   icon: "classes", label: "myClasses" },
+      { id: "studentJoin", icon: "join", label: "joinSession" },
     ],
   },
   {
     title: "progress",
     items: [
-      { id: "achievements", glyph: "★", label: "achievements" },
+      { id: "achievements", icon: "achievements", label: "achievements" },
     ],
   },
   {
     title: "discover",
     items: [
-      { id: "community", glyph: "◇", label: "community" },
+      { id: "community", icon: "community", label: "community" },
     ],
   },
   {
     title: "account",
     divided: true,
     items: [
-      { id: "notifications", glyph: "○", label: "notifications", showBadge: "notifs" },
-      { id: "settings",      glyph: "⚙", label: "settings" },
+      { id: "notifications", icon: "notifications", label: "notifications", showBadge: "notifs" },
+      { id: "settings",      icon: "settings", label: "settings" },
     ],
   },
 ];
@@ -153,7 +142,7 @@ const ADMIN_GROUP = {
   title: "admin",
   divided: true,
   items: [
-    { id: "adminAIStats", glyph: "⚡", label: "aiStats" },
+    { id: "adminAIStats", icon: "aiStats", label: "aiStats" },
   ],
 };
 
@@ -235,15 +224,15 @@ function NavItem({ item, active, showLabels, badgeCount, onClick }) {
       <span
         aria-hidden="true"
         style={{
-          width: 16,
-          textAlign: "center",
-          fontSize: showLabels ? 13 : 16,
-          opacity: active ? 1 : 0.75,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          width: showLabels ? 18 : 20,
+          opacity: active ? 1 : 0.7,
           flexShrink: 0,
-          lineHeight: 1,
         }}
       >
-        {item.glyph}
+        <NavGlyph name={item.icon} size={showLabels ? 17 : 19} />
       </span>
       {showLabels && (
         <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
