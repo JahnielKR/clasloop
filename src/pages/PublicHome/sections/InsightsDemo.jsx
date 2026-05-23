@@ -1,6 +1,7 @@
 import { C, MONO } from "../../../components/tokens";
 import { CIcon } from "../../../components/Icons";
 import { useReveal } from "../useReveal";
+import { useTween } from "../landing-motion";
 // Real retention thresholds (green ≥70, orange ≥40, else red) so the bars are
 // colored exactly like the in-app class views.
 import { retentionTier } from "../../../lib/scoring-thresholds";
@@ -34,6 +35,10 @@ function initials(name) {
 export default function InsightsDemo({ t, lang }) {
   const [headRef, headVisible] = useReveal();
   const [bodyRef, bodyVisible] = useReveal({ threshold: 0.2 });
+  // Count up the numbers (fail ring + retention bars) once the cards reveal.
+  const p = useTween(bodyVisible);
+  const failNow = Math.round(FAIL_PCT * p);
+  const failDash = ((FAIL_PCT * p) / 100) * CIRC;
 
   return (
     <section id="insights" className="ph-section ph-anchor" style={{ padding: "110px 32px" }}>
@@ -75,11 +80,11 @@ export default function InsightsDemo({ t, lang }) {
                         <circle cx="18" cy="18" r="15" fill="none" stroke={C.border} strokeWidth="4" />
                         <circle
                           cx="18" cy="18" r="15" fill="none" stroke={C.orange} strokeWidth="4" strokeLinecap="round"
-                          strokeDasharray={`${(FAIL_PCT / 100) * CIRC} ${CIRC}`} transform="rotate(-90 18 18)"
+                          strokeDasharray={`${failDash} ${CIRC}`} transform="rotate(-90 18 18)"
                         />
                       </svg>
                       <span style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", fontSize: 10, fontWeight: 700, color: C.text, fontFamily: MONO }}>
-                        {FAIL_PCT}%
+                        {failNow}%
                       </span>
                     </span>
                     <span style={{ fontSize: 12.5, color: C.textSecondary, fontWeight: 500 }}>{t.insFailed}</span>
@@ -109,10 +114,10 @@ export default function InsightsDemo({ t, lang }) {
                       {s.name}
                     </span>
                     <span style={{ flex: 1, height: 8, borderRadius: 4, background: C.bgSoft, overflow: "hidden" }}>
-                      <span style={{ display: "block", height: "100%", width: `${s.pct}%`, background: col, borderRadius: 4 }} />
+                      <span style={{ display: "block", height: "100%", width: `${(s.pct * p).toFixed(1)}%`, background: col, borderRadius: 4 }} />
                     </span>
                     <span style={{ width: 38, textAlign: "right", fontSize: 12.5, fontWeight: 700, color: col, fontFamily: MONO, flexShrink: 0 }}>
-                      {s.pct}%
+                      {Math.round(s.pct * p)}%
                     </span>
                   </div>
                 );

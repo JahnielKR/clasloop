@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { C, MONO } from "../../../components/tokens";
 import { STYLE_THUMBS } from "../../../components/PdfStyleThumbs";
 import { CIcon } from "../../../components/Icons";
 import { useT } from "../../../i18n";
 import { useReveal } from "../useReveal";
+import { useElementProgress, useTilt } from "../landing-motion";
 
 // ─── PrintAndScanDemo ──────────────────────────────────────────────────────
 // Teacher "wow" #2 — the differentiator no live-quiz app has: the same
@@ -20,6 +21,15 @@ export default function PrintAndScanDemo({ t, lang }) {
   const [headRef, headVisible] = useReveal();
   const [bodyRef, bodyVisible] = useReveal({ threshold: 0.2 });
   const [loopRef, loopVisible] = useReveal({ threshold: 0.3 });
+
+  // Scrollytelling: the print → answer → scan → graded loop lights up step by
+  // step as it travels through the viewport (same node the reveal observes).
+  const loopProgress = useElementProgress(loopRef);
+  const activeStep = Math.max(0, Math.min(3, Math.floor(loopProgress * 4.5)));
+
+  // Pointer tilt on the paper preview (no-op on touch / reduced-motion).
+  const paperRef = useRef(null);
+  const tilt = useTilt(paperRef, 7);
 
   const [style, setStyle] = useState("classic");
   const [variant, setVariant] = useState("exam");
@@ -68,13 +78,15 @@ export default function PrintAndScanDemo({ t, lang }) {
         >
           {/* Paper preview with scan line */}
           <div style={{ position: "relative", justifySelf: "center", width: "100%", maxWidth: 300 }}>
-            <div style={{
+            <div ref={paperRef} style={{
               position: "relative",
               background: "#fff",
               borderRadius: 8,
               border: `1px solid ${C.border}`,
               boxShadow: "0 14px 40px rgba(0,0,0,0.13)",
               overflow: "hidden",
+              transform: tilt || undefined,
+              transition: "transform .12s ease-out",
             }}>
               <Thumb />
               {/* Scan line — conveys "grade it by camera" */}
@@ -152,25 +164,38 @@ export default function PrintAndScanDemo({ t, lang }) {
             {t.printLoopTitle}
           </div>
           <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-            {LOOP.map((step, i) => (
-              <div key={i} style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <div className="ph-pop-in" style={{
-                  animationDelay: `${0.1 + i * 0.14}s`,
-                  display: "flex", flexDirection: "column", alignItems: "center", gap: 8,
-                  background: C.bg, border: `1px solid ${C.border}`, borderRadius: 14,
-                  padding: "16px 14px", width: 132, minHeight: 104, justifyContent: "center",
-                  boxShadow: "0 2px 10px rgba(0,0,0,0.04)",
-                }}>
-                  <CIcon name={step.icon} size={46} />
-                  <span style={{ fontSize: 12.5, fontWeight: 600, color: C.textSecondary, textAlign: "center", lineHeight: 1.3 }}>
-                    {step.label}
-                  </span>
+            {LOOP.map((step, i) => {
+              // Scrollytelling: the current step is emphasized, earlier steps
+              // read as "done", later ones stay neutral. The sweep advances
+              // with scroll (activeStep); under reduced-motion it resolves to
+              // the last step (progress = 1) — still legible, just not animated.
+              const isActive = i === activeStep;
+              const isDone = i < activeStep;
+              const lit = isActive || isDone;
+              return (
+                <div key={i} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <div className="ph-pop-in" style={{
+                    animationDelay: `${0.1 + i * 0.14}s`,
+                    display: "flex", flexDirection: "column", alignItems: "center", gap: 8,
+                    background: isActive ? C.accentSoft : C.bg,
+                    border: `${isActive ? 2 : 1}px solid ${lit ? C.accent : C.border}`,
+                    borderRadius: 14,
+                    padding: "16px 14px", width: 132, minHeight: 104, justifyContent: "center",
+                    boxShadow: isActive ? "0 10px 26px rgba(35,131,226,0.18)" : "0 2px 10px rgba(0,0,0,0.04)",
+                    transform: isActive ? "translateY(-4px)" : "none",
+                    transition: "transform .25s ease, box-shadow .25s ease, background .25s ease, border-color .25s ease",
+                  }}>
+                    <CIcon name={step.icon} size={46} />
+                    <span style={{ fontSize: 12.5, fontWeight: 600, color: lit ? C.accent : C.textSecondary, textAlign: "center", lineHeight: 1.3, transition: "color .25s ease" }}>
+                      {step.label}
+                    </span>
+                  </div>
+                  {i < LOOP.length - 1 && (
+                    <span aria-hidden="true" style={{ color: isDone ? C.accent : C.textMuted, fontSize: 18, fontFamily: MONO, transition: "color .25s ease" }}>→</span>
+                  )}
                 </div>
-                {i < LOOP.length - 1 && (
-                  <span aria-hidden="true" style={{ color: C.textMuted, fontSize: 18, fontFamily: MONO }}>→</span>
-                )}
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </div>

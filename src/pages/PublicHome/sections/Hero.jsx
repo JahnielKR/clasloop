@@ -3,6 +3,7 @@ import { C, MONO } from "../../../components/tokens";
 // warmup / exit-ticket cards on the landing look exactly like the product.
 // forceDark=false → always the light values (the landing is always light).
 import { getSectionTheme, getSectionLabel } from "../../../lib/section-theme";
+import { useScrollY } from "../landing-motion";
 
 // ─── Floating doc card data ────────────────────────────────
 // 4 cards animan en el hero. Cada card representa un input típico (PDF,
@@ -63,6 +64,12 @@ const SECTION_GLYPH = { warmup: "☀", exit_ticket: "⤓" };
 // Helper para float class por id
 const floatClass = (id) => ["ph-float-a", "ph-float-b", "ph-float-c", "ph-float-d"][(id - 1) % 4];
 
+// Per-card parallax speed. Applied via the CSS `translate` property (which
+// composes with the float keyframes' `transform`), so cards drift at different
+// rates as the hero scrolls — depth without fighting the float loop. Negative
+// = outruns the scroll, positive = lags behind it.
+const PARALLAX = { 1: -0.10, 2: 0.07, 3: -0.14, 4: 0.09 };
+
 // The "question" face of a floating card, themed to look like a real warmup /
 // exit-ticket question (uses the in-app getSectionTheme). Keeps the
 // .ph-morph-to class so the doc↔question morph animation still works.
@@ -94,6 +101,7 @@ function MorphTo({ card, lang }) {
 }
 
 export default function Hero({ t, lang, onSignUp, onOpenCode, onSeeHow }) {
+  const scrollY = useScrollY();
   return (
     <section className="ph-section ph-hero ph-fade" style={{
       padding: "100px 32px 70px",
@@ -113,6 +121,8 @@ export default function Hero({ t, lang, onSignUp, onOpenCode, onSeeHow }) {
             right: card.pos.right, bottom: card.pos.bottom,
             width: card.size.w, height: card.size.h,
             animationDelay: `${card.floatDelay}s`,
+            // Parallax via `translate` (composes with the float's `transform`).
+            translate: `0px ${(scrollY * (PARALLAX[card.id] || 0)).toFixed(1)}px`,
             zIndex: 1,
           }}
         >

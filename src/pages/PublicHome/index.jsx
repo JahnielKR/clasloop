@@ -5,6 +5,7 @@ import { C } from "../../components/tokens";
 import { useT } from "../../i18n";
 
 import { landingCss } from "./landing-css";
+import { useScrolledPast } from "./landing-motion";
 import Hero from "./sections/Hero";
 import GenerationDemo from "./sections/GenerationDemo";
 import PrintAndScanDemo from "./sections/PrintAndScanDemo";
@@ -58,6 +59,9 @@ export default function PublicHome({ onSignIn, onSignUp }) {
   };
   const t = useT("publicHome", lang);
 
+  // Reactive header: condense + lift it once the visitor scrolls off the hero.
+  const scrolled = useScrolledPast(12);
+
   // ─── Code dialog (estudiante con código de profe) ────────
   const [codeDialogOpen, setCodeDialogOpen] = useState(false);
   const [code, setCode] = useState("");
@@ -99,10 +103,12 @@ export default function PublicHome({ onSignIn, onSignUp }) {
         {/* HEADER — sticky con logo, nav, acciones */}
         <header className="ph-header" style={{
           position: "sticky", top: 0, zIndex: 50,
-          background: "rgba(255,255,255,0.92)",
+          background: scrolled ? "rgba(255,255,255,0.97)" : "rgba(255,255,255,0.92)",
           backdropFilter: "blur(8px)",
           borderBottom: `1px solid ${C.border}`,
-          padding: "16px 36px",
+          padding: scrolled ? "10px 36px" : "16px 36px",
+          boxShadow: scrolled ? "0 4px 20px rgba(0,0,0,0.06)" : "0 0 0 rgba(0,0,0,0)",
+          transition: "padding .25s ease, box-shadow .25s ease, background .25s ease",
           display: "flex", alignItems: "center", justifyContent: "space-between",
         }}>
           <div style={{ display: "flex", alignItems: "center", gap: 40 }}>
