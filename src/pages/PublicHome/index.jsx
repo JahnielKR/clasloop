@@ -5,7 +5,8 @@ import { C } from "../../components/tokens";
 import { useT } from "../../i18n";
 
 import { landingCss } from "./landing-css";
-import { useScrolledPast } from "./landing-motion";
+import { useScrolledPast, useActiveSection } from "./landing-motion";
+import CleoGuide from "./CleoGuide";
 import Hero from "./sections/Hero";
 import GenerationDemo from "./sections/GenerationDemo";
 import PrintAndScanDemo from "./sections/PrintAndScanDemo";
@@ -29,6 +30,10 @@ import CodeDialog from "./sections/CodeDialog";
 //
 // El copy de las secciones vive en src/i18n/{en,es,ko}.ts bajo el namespace
 // "publicHome".
+
+// Section ids in document order. Feeds the scroll-spy (useActiveSection) that
+// drives both the Cleo guide's narration and the active nav-link highlight.
+const SECTION_IDS = ["generate", "print", "live", "types", "insights", "why", "start"];
 
 // Smooth-scroll a una sección por id (nav del header + scroll cue del hero).
 function scrollToId(id) {
@@ -61,6 +66,8 @@ export default function PublicHome({ onSignIn, onSignUp }) {
 
   // Reactive header: condense + lift it once the visitor scrolls off the hero.
   const scrolled = useScrolledPast(12);
+  // Scroll-spy: which section is in view — drives Cleo's narration + nav highlight.
+  const activeSection = useActiveSection(SECTION_IDS);
 
   // ─── Code dialog (estudiante con código de profe) ────────
   const [codeDialogOpen, setCodeDialogOpen] = useState(false);
@@ -131,9 +138,9 @@ export default function PublicHome({ onSignIn, onSignUp }) {
                 refinarán cuando lleguen los demos del producto (Features →
                 GenerationDemo). */}
             <nav className="ph-nav-links" style={{ display: "flex", gap: 28 }}>
-              <button className="ph-nav-link" onClick={() => scrollToId("generate")} style={navLinkStyle}>{t.navFeatures}</button>
-              <button className="ph-nav-link" onClick={() => scrollToId("why")} style={navLinkStyle}>{t.navSchools}</button>
-              <button className="ph-nav-link" onClick={() => scrollToId("start")} style={navLinkStyle}>{t.navPricing}</button>
+              <button className="ph-nav-link" onClick={() => scrollToId("generate")} style={["generate", "print", "live", "types", "insights"].includes(activeSection) ? navLinkActiveStyle : navLinkStyle}>{t.navFeatures}</button>
+              <button className="ph-nav-link" onClick={() => scrollToId("why")} style={activeSection === "why" ? navLinkActiveStyle : navLinkStyle}>{t.navSchools}</button>
+              <button className="ph-nav-link" onClick={() => scrollToId("start")} style={activeSection === "start" ? navLinkActiveStyle : navLinkStyle}>{t.navPricing}</button>
             </nav>
           </div>
           <div className="ph-header-actions" style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -221,6 +228,10 @@ export default function PublicHome({ onSignIn, onSignUp }) {
         {/* PR 43: el dialog auth-select fue eliminado en el rediseño OAuth.
             El rol se elige post-signup en RoleOnboarding.jsx, no acá. */}
 
+        {/* Cleo as the public tour guide — greets on load, narrates each
+            section as the visitor scrolls (driven by the scroll-spy above). */}
+        <CleoGuide lang={lang} active={activeSection} />
+
       </div>
     </>
   );
@@ -237,4 +248,11 @@ const navLinkStyle = {
   cursor: "pointer",
   padding: 0,
   fontFamily: "'Outfit',sans-serif",
+};
+
+// Active variant — the section the visitor is currently in (scroll-spy).
+const navLinkActiveStyle = {
+  ...navLinkStyle,
+  color: C.accent,
+  fontWeight: 600,
 };

@@ -259,6 +259,21 @@ const en = {
     needClassCta: "Create a class",
   },
 
+  // Cleo's lines as the public landing tour guide (floating mascot that
+  // narrates each section as you scroll). Keys after greeting/dismiss match the
+  // section ids (#generate, #print, …) so the narration follows the scroll.
+  cleoGuide: {
+    greeting: "Hi! I'm Cleo 👋 Let me show you around.",
+    dismiss: "Hide Cleo",
+    generate: "Drop in any file or topic — the AI writes the questions and double-checks them.",
+    print: "Same questions, print-ready in 4 styles. Grade the sheets with your phone.",
+    live: "Run it live — students join on their phones, projected just like this.",
+    types: "Nine question types, so a warmup never feels the same twice.",
+    insights: "After each one, see exactly what to reteach — and to whom.",
+    why: "A few minutes a day adds up. That's the whole idea.",
+    start: "Ready? Your first warmup is two minutes away.",
+  },
+
   guestJoin: {
     joinSession: "Join session",
     enterCode: "Enter the 6-digit code your teacher gave you",
