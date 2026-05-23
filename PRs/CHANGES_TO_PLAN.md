@@ -15,6 +15,40 @@ landing redesign + Phase 2 onboarding: two prod/CI bugs (A, B) merged first,
 then two UX efforts (C teacher onboarding, D scroll-driven landing). Plan:
 `~/.claude/plans/rosy-tickling-allen.md`.
 
+## 2026-05-23 — Fix C — Guided teacher onboarding (class → warmup → celebration)
+
+**Status:** ✅ done + merged to main (`212615d`). Gates green (typecheck · 164
+tests incl. locale-parity · lint 0 errors · build). **Authed end-to-end needs a
+teacher login** (user's loop); new components verified login-free (see below).
+
+**Problem:** `TeacherWelcome` CTA went straight to `/decks/new`, but a deck
+can't be saved without a class (`CreateDeckEditor.jsx` `canSave` requires
+`classId`; the picker showed a disabled "No classes yet"). A brand-new teacher
+dead-ended on their first warmup.
+
+**Fix — first-run state flows welcome → class → warmup → celebration:**
+- `App.jsx`: welcome CTA now sets `creatingFirstClass` (instead of navigating to
+  the editor). That renders a coached step over the dimmed shell: `OnboardingCoach`
+  (floating) + the reused `CreateClassModal`. On create → invalidate
+  `DECKS_PAGE_KEY` + `navigate(/decks/new?class=<id>&onboarding=1)`. A
+  `?celebrate=<classId>` URL flag renders `OnboardingCelebration` over the class
+  page.
+- `Decks.jsx`: reads `?onboarding=1`, passes `onboarding`/`onNeedClass` to the
+  editor, and on the first save routes to `classDetail?celebrate=<classId>`
+  instead of the normal return.
+- `CreateDeckEditor.jsx`: shows the inline warmup coach when `onboarding`; when
+  `userClasses` is empty it now offers a "create a class" CTA (`onNeedClass` →
+  `/classes`) instead of dead-ending (covers a teacher who skipped the welcome).
+- New `src/components/OnboardingCoach.jsx` + `OnboardingCelebration.jsx`
+  (dependency-free CSS confetti, honors reduced-motion). New `onboarding` i18n
+  namespace in en/es/ko. All gated so existing teachers see nothing new.
+
+**Verified:** typecheck/test/build/lint green. New components mounted on a temp
+public `/__x` harness (reverted): both coaches render, celebration shows with
+Spanish i18n + 26 confetti pieces + both CTAs. (preview_screenshot timed out in
+this session — verified via DOM assertions instead.) Full create-class →
+warmup → celebrate path needs a teacher login.
+
 ## 2026-05-23 — Fix B — AI "model is not defined" (critical, all generation)
 
 **Status:** ✅ done + merged to main (`2dd5d5f`). **Needs prod deploy + user
