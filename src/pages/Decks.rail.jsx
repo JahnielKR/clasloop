@@ -22,7 +22,15 @@ export default function LibraryRail({
         <div style={{ display: "flex", gap: 16, justifyContent: "space-between", alignItems: "flex-end" }}>
           <RailStat value={totalDecks} label={t.railDecks} />
           <RailStat value={neverUsed} label={t.railNeverUsed} color={neverUsed > 0 ? C.orange : undefined} />
-          <RailStat value={favoritesCount} label={t.railFavorites} icon="star" />
+          <RailStat
+            value={
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+                <span style={{ color: C.yellow, fontSize: 18, lineHeight: 1 }}>★</span>
+                {favoritesCount}
+              </span>
+            }
+            label={t.railFavorites}
+          />
         </div>
       </RailCard>
 
