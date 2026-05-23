@@ -134,33 +134,30 @@ function ClassCard({ cls, t, lang, onOpen, onOpenThemeSelector, deckCount = 0, s
         <button
           onClick={handleCopy}
           aria-label={t.copyCode}
-          title={t.copyCode}
+          title={copied ? t.copied : t.copyCode}
           style={{
             flexShrink: 0,
-            padding: "6px 10px",
+            width: 32,
+            height: 32,
             borderRadius: 8,
             background: copied ? C.green : C.bg,
             color: copied ? "#fff" : accent,
             border: copied ? "none" : `1px solid ${accent}55`,
-            fontSize: 12,
-            fontWeight: 600,
             cursor: "pointer",
-            fontFamily: "'Outfit',sans-serif",
             transition: "background .15s ease, color .15s ease",
             display: "inline-flex",
             alignItems: "center",
-            gap: 5,
+            justifyContent: "center",
           }}
         >
           {copied ? (
-            <CIcon name="check" size={12} inline />
+            <CIcon name="check" size={14} inline />
           ) : (
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" style={{ display: "inline-block", verticalAlign: "middle" }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style={{ display: "inline-block", verticalAlign: "middle" }}>
               <rect x="9" y="9" width="11" height="11" rx="2" stroke="currentColor" strokeWidth="2"/>
               <path d="M5 15V5a2 2 0 0 1 2-2h10" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
             </svg>
           )}
-          {copied ? t.copied : t.copyCode}
         </button>
       </div>
 
