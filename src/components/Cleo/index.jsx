@@ -6,8 +6,8 @@
 //
 // She is expression-driven: the body, crown, shadow and highlight are constant;
 // the eyes, brows, mouth, cheeks, arms and a small extra change per `expression`
-// (see ./expressions.js + ./parts.jsx). The default `happy` is the original
-// look, so existing callers are unchanged.
+// (recipes in ./expressions.js, drawn by ./parts/*). The default `happy` is the
+// original look, so existing callers are unchanged.
 //
 // Usage:
 //   <Cleo />                          // 96px, happy (default)
@@ -15,14 +15,15 @@
 //   <Cleo expression="thinking" />    // reacts to context
 //   <Cleo expression="sad" animate={false} />  // static (e.g. rasterized OG)
 //
-// Motion (opt-in via `animate`, default on): a subtle auto-blink, plus a soft
-// "pop" when the expression changes at runtime — never on first mount, so it
-// won't fight a container's entrance animation. Both are disabled under
-// prefers-reduced-motion (the face still changes; only the motion stops).
+// Motion (opt-in via `animate`, default on): a subtle auto-blink, a soft "pop"
+// when the expression changes at runtime (never on first mount, so it won't
+// fight a container's entrance animation), and per-mood idle limb gestures — she
+// actually waves, taps her chin while thinking, etc. (the ./motion library). All
+// disabled under prefers-reduced-motion (the face still changes; only motion stops).
 import { useId, useState, useEffect, useRef } from "react";
-import { MOTION } from "../tokens";
-import { Eyes, Brows, Mouth, Arms, Extras, armsInFront } from "./parts";
+import { Eyes, Brows, Mouth, Arms, Extras } from "./parts";
 import { EXPRESSIONS } from "./expressions";
+import { buildCleoCSS, MOOD_GESTURES } from "./motion";
 
 // Eyes that read as "open" — only these blink.
 const BLINK_EYES = new Set(["wide", "surprised", "sad", "wink"]);
@@ -34,8 +35,10 @@ export default function Cleo({ size = 96, expression = "happy", animate = true, 
   const crownGrad = `cleo-crown-${uid}`;
 
   const spec = EXPRESSIONS[expression] || EXPRESSIONS.happy;
-  const front = armsInFront(spec.arms);
   const canBlink = animate && BLINK_EYES.has(spec.eyes);
+  // Idle limb gesture for this mood (undefined → arms stay static, e.g. surprised
+  // or any animate={false} instance). See ./motion.
+  const gesture = animate ? MOOD_GESTURES[expression] : undefined;
 
   // A one-shot "pop" when the expression changes — skipped on first mount.
   const mounted = useRef(false);
@@ -48,13 +51,7 @@ export default function Cleo({ size = 96, expression = "happy", animate = true, 
     return () => clearTimeout(id);
   }, [expression, animate]);
 
-  const css = `
-    @keyframes cleo-blink-${uid}{0%,90%,100%{transform:scaleY(1)}95%{transform:scaleY(.12)}}
-    @keyframes cleo-pop-${uid}{0%{transform:scale(1)}42%{transform:scale(1.05)}100%{transform:scale(1)}}
-    .cleo-eyes-${uid}{transform-box:fill-box;transform-origin:center;animation:cleo-blink-${uid} 5.4s infinite}
-    .cleo-pop-${uid}{transform-box:fill-box;transform-origin:center;animation:cleo-pop-${uid} .46s ${MOTION.spring}}
-    @media (prefers-reduced-motion:reduce){.cleo-eyes-${uid},.cleo-pop-${uid}{animation:none!important}}
-  `;
+  const css = buildCleoCSS(uid);
 
   return (
     <svg
@@ -83,8 +80,8 @@ export default function Cleo({ size = 96, expression = "happy", animate = true, 
       <ellipse cx="50" cy="90" rx="24" ry="4.5" fill="#20425E" opacity="0.12" />
 
       <g className={popping ? `cleo-pop-${uid}` : ""}>
-        {/* arms behind the body (wave / up / down / point / chin) */}
-        {!front && <Arms variant={spec.arms} />}
+        {/* arms behind the body */}
+        <Arms variant={spec.arms} gesture={gesture?.arms} layer="back" />
 
         {/* crown (brand signature) */}
         <g>
@@ -104,8 +101,8 @@ export default function Cleo({ size = 96, expression = "happy", animate = true, 
         />
         <ellipse cx="38" cy="48" rx="12" ry="8" fill="#FFFFFF" opacity="0.35" />
 
-        {/* arms folded in front (annoyed) */}
-        {front && <Arms variant={spec.arms} />}
+        {/* arms in front of the body (folded, hands on face, chin, wiping…) */}
+        <Arms variant={spec.arms} gesture={gesture?.arms} layer="front" />
 
         {/* cheeks (strength varies by mood) */}
         {spec.cheeks > 0 && (
@@ -121,8 +118,8 @@ export default function Cleo({ size = 96, expression = "happy", animate = true, 
         </g>
 
         <Brows variant={spec.brows} />
-        <Mouth variant={spec.mouth} />
-        <Extras variant={spec.extras} />
+        <Mouth variant={spec.mouth} gesture={gesture?.mouth} />
+        <Extras variant={spec.extras} gesture={gesture?.extras} />
       </g>
     </svg>
   );
