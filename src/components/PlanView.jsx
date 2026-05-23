@@ -48,6 +48,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import SectionBadge, { sectionAccent } from "./SectionBadge";
 import Button from "./ui/Button";
+import ConfirmDialog from "./ConfirmDialog";
 import AddToSlotModal from "./AddToSlotModal";
 import DayDateModal from "./DayDateModal";
 import { unitStatusLabel, getDayDate } from "../lib/class-hierarchy";
@@ -1279,13 +1280,17 @@ export default function PlanView({
   //
   // Only allowed when the deck has NEVER been used (usedDeckIds gate
   // is enforced in the Slot UI; this handler is just the mutation).
-  const handleRemoveDeck = async (deck) => {
-    const ok = window.confirm(t.removeConfirm.replace("{title}", deck.title));
-    if (!ok) return;
+  // Remove-from-unit uses a styled ConfirmDialog (not native confirm).
+  const [pendingRemove, setPendingRemove] = useState(null);
+  const handleRemoveDeck = (deck) => setPendingRemove(deck);
+  const performRemoveDeck = async () => {
+    const deck = pendingRemove;
+    if (!deck) return;
     const { error } = await supabase
       .from("decks")
       .update({ unit_id: null, position: 0 })
       .eq("id", deck.id);
+    setPendingRemove(null);
     if (error) {
       console.error("[clasloop] removeDeck failed:", error);
       toast.error(t.removeError, { reportError: error, context: { source: "PlanView.removeDeck" } });
@@ -1728,6 +1733,17 @@ export default function PlanView({
         onClose={() => setDateModal(null)}
         onSaved={handleDateSaved}
       />
+
+      {pendingRemove && (
+        <ConfirmDialog
+          title={t.removeConfirm.replace("{title}", pendingRemove.title)}
+          confirmLabel={t.removeFromUnit}
+          cancelLabel={t.cancel}
+          variant="danger"
+          onConfirm={performRemoveDeck}
+          onCancel={() => setPendingRemove(null)}
+        />
+      )}
     </div>
   );
 }

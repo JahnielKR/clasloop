@@ -481,6 +481,7 @@ const es: Locale = {
     editDeck: "Editar deck",
     removeConfirm: "¿Quitar \"{title}\" de esta unidad? El deck queda en la clase — podés volver a adjuntarlo a otra unidad después.",
     removeError: "No se pudo quitar el deck. Intenta de nuevo.",
+    cancel: "Cancelar",
     questions: "preguntas",
     statusActive: "Activa",
     statusPlanned: "Planeada",
