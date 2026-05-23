@@ -13,6 +13,8 @@
 // `variant`: primary | secondary | ghost | danger | gradient
 // `size`:    sm | md | lg
 
+import { haptics } from "../../lib/haptics";
+
 const VARIANTS = new Set(["primary", "secondary", "ghost", "danger", "gradient"]);
 const SIZES = new Set(["sm", "md", "lg"]);
 
@@ -27,6 +29,7 @@ export default function Button({
   type = "button",
   className = "",
   style,
+  onClick,
   children,
   ...rest
 }) {
@@ -47,6 +50,7 @@ export default function Button({
       disabled={disabled || loading}
       aria-busy={loading || undefined}
       style={style}
+      onClick={onClick ? (e) => { haptics.tap(); onClick(e); } : undefined}
       {...rest}
     >
       {loading && <span className="ui-btn__spinner" aria-hidden="true" />}
