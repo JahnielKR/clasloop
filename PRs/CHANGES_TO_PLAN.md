@@ -63,6 +63,15 @@ dismiss hides + persists (`localStorage` = "true"). Scroll-spy narration + nav
 highlight not auto-observable (hidden preview tab → IO paused, see
 [[preview-hidden-raf]]) → user's visible-browser review.
 
+**Follow-up (`de998be`, same session, pre-deploy):** the user wanted Cleo to feel
+more dynamic — she now **hops between safe edge spots** (bottom-left →
+bottom-right → top-right, in the side margins so the bubble never covers centered
+content; bubble flips inward) as the active section changes, with a `clg-hop`
+pop. Locks to bottom-left (no hop) on narrow screens + reduced-motion. Also fixed
+a latent bug in the merged guide: it defined `css` but never injected
+`<style>{css}</style>` (so the hop/bob/fade never applied) — now injected.
+Harness confirms `animationName: clg-hop` (style live).
+
 ## 2026-05-23 — Fix G — Celebration confetti (ribbons) + launch the warmup directly
 
 **Status:** ✅ done + merged to main (`4be8bdc`). Gates green (typecheck · lint 0
