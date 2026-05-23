@@ -25,6 +25,7 @@ import { analyzeDerivation } from "../../lib/deck-derivation";
 import { useIsMobile } from "../../components/MobileMenuButton";
 import { MONO } from "../../components/tokens";
 import AIIcon from "../../components/AIIcon";
+import Button from "../../components/ui/Button";
 import { C, css } from "./styles";
 import { SECTIONS, DEFAULT_SECTION, isValidSection, sectionLabels, resolveClassAccent, sectionToLessonContext } from "../../lib/class-hierarchy";
 import { useToast } from "../../lib/toast";
@@ -565,35 +566,17 @@ function AIGeneratePanel({
         </div>
       )}
 
-      <button
+      <Button
         type="button"
-        onClick={handleGenerate}
+        variant="primary"
+        fullWidth
+        loading={generating}
         disabled={!canGenerate}
-        style={{
-          width: "100%", padding: "11px 16px", borderRadius: 8,
-          fontSize: 14, fontWeight: 600,
-          background: canGenerate ? C.accent : C.bgSoft,
-          color: canGenerate ? "#fff" : C.textMuted,
-          border: "none", cursor: canGenerate ? "pointer" : "not-allowed",
-          fontFamily: "'Outfit',sans-serif",
-          display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-        }}
+        onClick={handleGenerate}
+        leftIcon={<AIIcon size={13} />}
       >
-        {generating ? (
-          <>
-            <span style={{
-              width: 14, height: 14, borderRadius: "50%",
-              border: "2px solid rgba(255,255,255,0.3)",
-              borderTopColor: "#fff",
-              animation: "dk-spin 0.7s linear infinite",
-              display: "inline-block",
-            }} />
-            {t.aiGenerating}
-          </>
-        ) : (
-          <><AIIcon size={13} style={{ marginRight: 6 }} />{t.aiGenerateCta}</>
-        )}
-      </button>
+        {generating ? t.aiGenerating : t.aiGenerateCta}
+      </Button>
     </div>
   );
 }
