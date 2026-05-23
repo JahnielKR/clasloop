@@ -163,17 +163,18 @@ export default async function handler(req, res) {
 
     // ── 6. Validación semántica con Haiku (Bloque 4) ─────
     // Solo si:
-    //   - el cliente lo pidió (validate=true)
-    //   - el modelo principal era "primary" (validar la salida del validator
-    //     no tiene sentido)
+    //   - el cliente lo pidió (validate=true o validateShadow=true)
     //   - tenemos un array de preguntas parseable (sin él Haiku no tiene
     //     nada que evaluar)
+    // Antes había un guard `model === 'primary'`, pero desde PR 94 el modelo se
+    // fija server-side a primary y `model` dejó de existir en este scope — el
+    // guard tiraba "model is not defined" y rompía toda generación con
+    // validate=true. El modelo aquí siempre es primary, así que se elimina.
     let validationResult = null;
     // Run the validator if either flag is on. validateShadow gives us the
     // logs without applying the filter (used while we re-tune Haiku for
     // Sonnet 4.6).
     const shouldRunValidator = (validate || validateShadow) &&
-      model === 'primary' &&
       Array.isArray(outputRaw) &&
       outputRaw.length > 0;
     if (shouldRunValidator) {
