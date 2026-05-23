@@ -189,52 +189,60 @@ export default function CleoTour({ tourId, lang = "en", userId, enabled = true }
         <div aria-hidden="true" style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)" }} />
       )}
 
-      {/* Step bubble */}
-      <div className="ct-card" style={{
-        position: "fixed", ...pos,
-        background: C.bg, border: `1px solid ${C.border}`, borderRadius: 16,
-        padding: 18, boxShadow: "0 16px 44px rgba(0,0,0,0.22)",
-        fontFamily: "'Outfit', sans-serif", pointerEvents: "auto",
+      {/* Step bubble. The OUTER div owns positioning (including the translateY
+          that lifts a "top"-placed bubble above its anchor); the INNER .ct-card
+          owns the entrance animation. They MUST be separate elements: ct-rise
+          animates `transform`, which would otherwise clobber the positioning
+          transform and drop a bottom-anchored bubble off the bottom of the
+          screen (its buttons unreachable). */}
+      <div style={{
+        position: "fixed", ...pos, pointerEvents: "auto",
         transition: rect ? moveTransition : "none",
       }}>
-        <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
-          <div className="ct-cleo" aria-hidden="true" style={{ flexShrink: 0 }}>
-            <Cleo size={48} expression={step?.cleo || "happy"} />
+        <div className="ct-card" style={{
+          background: C.bg, border: `1px solid ${C.border}`, borderRadius: 16,
+          padding: 18, boxShadow: "0 16px 44px rgba(0,0,0,0.22)",
+          fontFamily: "'Outfit', sans-serif",
+        }}>
+          <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+            <div className="ct-cleo" aria-hidden="true" style={{ flexShrink: 0 }}>
+              <Cleo size={48} expression={step?.cleo || "happy"} />
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              {stepText.title && (
+                <div style={{ fontSize: 15.5, fontWeight: 700, color: C.text, marginBottom: 4 }}>
+                  {stepText.title}
+                </div>
+              )}
+              {stepText.body && (
+                <div style={{ fontSize: 13.5, color: C.textSecondary, lineHeight: 1.5 }}>
+                  {stepText.body}
+                </div>
+              )}
+            </div>
           </div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            {stepText.title && (
-              <div style={{ fontSize: 15.5, fontWeight: 700, color: C.text, marginBottom: 4 }}>
-                {stepText.title}
-              </div>
-            )}
-            {stepText.body && (
-              <div style={{ fontSize: 13.5, color: C.textSecondary, lineHeight: 1.5 }}>
-                {stepText.body}
-              </div>
-            )}
-          </div>
-        </div>
 
-        {/* Footer: progress dots + controls */}
-        <div style={{ display: "flex", alignItems: "center", marginTop: 16, gap: 8 }}>
-          <div style={{ display: "flex", gap: 5, flex: 1 }} aria-hidden="true">
-            {steps.map((_, i) => (
-              <span key={i} style={{
-                width: i === index ? 18 : 6, height: 6, borderRadius: 3,
-                background: i === index ? C.accent : C.border,
-                transition: reduced ? "none" : "width .2s ease, background .2s ease",
-              }} />
-            ))}
+          {/* Footer: progress dots + controls */}
+          <div style={{ display: "flex", alignItems: "center", marginTop: 16, gap: 8 }}>
+            <div style={{ display: "flex", gap: 5, flex: 1 }} aria-hidden="true">
+              {steps.map((_, i) => (
+                <span key={i} style={{
+                  width: i === index ? 18 : 6, height: 6, borderRadius: 3,
+                  background: i === index ? C.accent : C.border,
+                  transition: reduced ? "none" : "width .2s ease, background .2s ease",
+                }} />
+              ))}
+            </div>
+            {index > 0 && (
+              <Button variant="ghost" size="sm" onClick={back}>{t.back || "Atrás"}</Button>
+            )}
+            {!isLast && (
+              <Button variant="ghost" size="sm" onClick={close}>{t.skip || "Saltar"}</Button>
+            )}
+            <Button variant="gradient" size="sm" onClick={onNext}>
+              {isLast ? (t.done || "Listo") : (t.next || "Siguiente")}
+            </Button>
           </div>
-          {index > 0 && (
-            <Button variant="ghost" size="sm" onClick={back}>{t.back || "Atrás"}</Button>
-          )}
-          {!isLast && (
-            <Button variant="ghost" size="sm" onClick={close}>{t.skip || "Saltar"}</Button>
-          )}
-          <Button variant="gradient" size="sm" onClick={onNext}>
-            {isLast ? (t.done || "Listo") : (t.next || "Siguiente")}
-          </Button>
         </div>
       </div>
     </div>,
