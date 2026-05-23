@@ -236,6 +236,25 @@ const es: Locale = {
     ctaSkip: "Prefiero explorar por mi cuenta",
   },
 
+  onboarding: {
+    // Paso 1 — coach sobre el modal de "crea tu primera clase"
+    classCoachTitle: "Primero, configuremos tu clase",
+    classCoachBody: "Un warmup vive dentro de una clase. Crea una ahora — puedes agregar alumnos cuando quieras.",
+    // Paso 2 — coach arriba del editor de decks
+    warmupCoachTitle: "Ahora arma tu primer warmup",
+    warmupCoachBody: "Genera preguntas con IA o agrégalas a mano, y pulsa Guardar. Tu clase ya está lista.",
+    warmupCoachDismiss: "Entendido",
+    // Paso 3 — celebración tras guardar el primer warmup
+    celebrateTitle: "¡Lo lograste!",
+    celebrateBody: "Tu primer warmup está listo. Lánzalo en vivo para que los alumnos entren desde el móvil — o sigue creando.",
+    celebrateStartSession: "Iniciar sesión en vivo",
+    celebrateViewClass: "Ver mi clase",
+    // Desbloqueo del editor para un profe que se saltó el welcome y aún no tiene clase
+    needClassTitle: "Crea una clase primero",
+    needClassBody: "Los warmups viven dentro de una clase — crea una para guardar esto.",
+    needClassCta: "Crear una clase",
+  },
+
   guestJoin: {
     joinSession: "Unirse a la sesión",
     enterCode: "Ingresa el código de 6 dígitos que te dio tu profe",

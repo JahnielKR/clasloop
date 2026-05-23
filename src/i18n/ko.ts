@@ -236,6 +236,25 @@ const ko: Locale = {
     ctaSkip: "직접 둘러볼게요",
   },
 
+  onboarding: {
+    // 1단계 — "첫 반 만들기" 모달 위에 표시되는 코치
+    classCoachTitle: "먼저 반을 만들어요",
+    classCoachBody: "워밍업은 반 안에 들어가요. 지금 하나 만들어 주세요 — 학생은 언제든 추가할 수 있어요.",
+    // 2단계 — 덱 편집기 상단의 코치
+    warmupCoachTitle: "이제 첫 워밍업을 만들어요",
+    warmupCoachBody: "AI로 문제를 생성하거나 직접 추가한 뒤 저장을 누르세요. 반은 이미 설정돼 있어요.",
+    warmupCoachDismiss: "알겠어요",
+    // 3단계 — 첫 워밍업 저장 후 축하
+    celebrateTitle: "해냈어요!",
+    celebrateBody: "첫 워밍업이 준비됐어요. 라이브로 진행하면 학생들이 휴대폰으로 참여해요 — 계속 만들어도 좋아요.",
+    celebrateStartSession: "라이브 세션 시작",
+    celebrateViewClass: "내 반 보기",
+    // 환영 화면을 건너뛰고 아직 반이 없는 교사를 위한 편집기 안내
+    needClassTitle: "먼저 반을 만드세요",
+    needClassBody: "워밍업은 반 안에 있어요 — 저장하려면 반을 하나 만드세요.",
+    needClassCta: "반 만들기",
+  },
+
   guestJoin: {
     joinSession: "세션 참여",
     enterCode: "선생님이 알려준 6자리 코드를 입력하세요",
