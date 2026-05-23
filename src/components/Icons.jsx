@@ -464,7 +464,10 @@ const ICON_DEFS = {
   comet: { color: D.orange, d: "M20,4 C16,4 10,8 6,14 C4,17 8,20 11,18 C15,14 18,8 20,4 Z", extra: (c) => <circle cx="8" cy="16" r="2" fill="#fff" opacity="0.5"/> },
 
   // ── Status & Progress ──
-  check: { color: D.green, d: "M12,2 A10,10 0 1,0 12,22 A10,10 0 1,0 12,2", extra: () => <path d="M8,12 L11,15 L17,9" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" fill="none"/> },
+  // The circle is drawn here as a SOLID fill (not via the shared `d` path,
+  // which renders fill="none" in inline mode) so the white checkmark always
+  // has a colored backing — otherwise it's invisible on light backgrounds.
+  check: { color: D.green, d: "", extra: (c) => <><circle cx="12" cy="12" r="10" fill={c}/><path d="M8,12 L11,15 L17,9" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" fill="none"/></> },
   cross: { color: D.red, d: "M12,2 A10,10 0 1,0 12,22 A10,10 0 1,0 12,2", extra: () => <path d="M8,8 L16,16 M16,8 L8,16" stroke="#fff" strokeWidth="2" strokeLinecap="round" fill="none"/> },
   warning: { color: D.orange, d: "M12,3 L22,20 L2,20 Z", extra: () => <><line x1="12" y1="10" x2="12" y2="14" stroke="#fff" strokeWidth="2" strokeLinecap="round"/><circle cx="12" cy="17" r="1" fill="#fff"/></> },
   chart: { color: D.blue, d: "", extra: (c) => <><rect x="3" y="14" width="4.5" height="7" rx="1" fill={c} opacity="0.5"/><rect x="9.5" y="9" width="4.5" height="12" rx="1" fill={c} opacity="0.7"/><rect x="16" y="4" width="4.5" height="17" rx="1" fill={c} opacity="0.9"/></> },

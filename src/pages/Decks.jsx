@@ -1,5 +1,7 @@
 import { useState, useEffect, useMemo, useRef, lazy, Suspense } from "react";
 import { useDecksPage, useDecksCache } from "../hooks/useDecks";
+import { useQueryClient } from "@tanstack/react-query";
+import { classPageKey, teacherClassesKey } from "../hooks/useClasses";
 import { useSearchParams, useNavigate, useMatch } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { CIcon } from "../components/Icons";
@@ -105,6 +107,16 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
   const allUnits = useMemo(() => pageData?.allUnits ?? [], [pageData]);
   const favoriteDecks = useMemo(() => pageData?.favoriteDecks ?? [], [pageData]);
   const { patchMyDecks, patchFavorites } = useDecksCache();
+  const queryClient = useQueryClient();
+  // Creating/editing a deck that belongs to a class makes that class's ClassPage
+  // deck list and the Classes-list deck count (separate cached queries) stale.
+  // Invalidate both so returning to either view reflects the change instead of
+  // serving cache for up to its staleTime (~30s). No-op for class-less decks.
+  const invalidateClassCaches = (classId) => {
+    if (!classId) return;
+    queryClient.invalidateQueries({ queryKey: classPageKey(classId) });
+    queryClient.invalidateQueries({ queryKey: teacherClassesKey(userId) });
+  };
   // The editing deck object. Derived from editingId + the loaded myDecks list.
   // This used to be standalone state; now it's a function of the URL + data.
   const editing = editingId ? (myDecks.find(d => d.id === editingId) || null) : null;
@@ -227,6 +239,7 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
     // Add the new copy to MyDecks state so the user sees it in My Decks
     // immediately without a refetch.
     patchMyDecks(prev => [inserted, ...prev]);
+    invalidateClassCaches(inserted.class_id);
     setCustomizingFav(null);
     setTab("myDecks"); // bounce them into My Decks where their copy lives now
     // Open the editor on the fresh copy so they can immediately personalize it.
@@ -453,6 +466,7 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
           onCreated={(d) => {
             if (editing) patchMyDecks(prev => prev.map(dk => dk.id === d.id ? d : dk));
             else patchMyDecks(prev => [d, ...prev]);
+            invalidateClassCaches(d?.class_id);
             // Guided onboarding: after the first warmup saves, send the teacher
             // to the celebration (the class page renders behind it). d.class_id
             // is the class we pre-created. Otherwise the normal destination.
