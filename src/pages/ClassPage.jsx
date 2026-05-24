@@ -11,8 +11,8 @@
 // deferred to a follow-up turn — this iteration covers create + assign +
 // listing, which is enough to validate the model.
 
-import { useState, useEffect, useMemo, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { useClassPage, useClassPageCache, useTeacherClassesCache } from "../hooks/useClasses";
 import { formatSupabaseError } from "../lib/supabase-errors";
@@ -26,8 +26,9 @@ import PlanView from "../components/PlanView";
 import { CloseUnitConfirmModal, CloseUnitSummary, ReopenUnitModal } from "../components/CloseUnitFlow";
 import { C, MONO } from "../components/tokens";
 import CleoTour from "../onboarding/CleoTour";
-import Cleo from "../components/Cleo";
-import { useReplayTour } from "../onboarding/TourContext";
+import Confetti from "../components/Confetti";
+import { useJourney } from "../onboarding/useJourney";
+import { setJourneyLeg, finishJourney, isJourneyActive, journeyLeg } from "../onboarding/journey";
 import { ROUTES, QUERY, buildRoute } from "../routes";
 import {
   SECTIONS,
@@ -411,8 +412,29 @@ function SortableDeckCard({ deck, accent, t, lang, units, onChangeUnit, onOpen }
 // ─── Main export ────────────────────────────────────────────────────────
 export default function ClassPage({ lang = "en", profile, classId, onLaunchPractice, onOpenMobileMenu }) {
   const t = useT("classPage", lang);
-  const tours = useT("tours", lang);
-  const replayTour = useReplayTour();
+  const [searchParams, setSearchParams] = useSearchParams();
+  // ?celebrate=1 — set by the deck editor after a teacher saves their first
+  // warmup. Two things: a one-shot confetti "fiesta", and auto-run the class
+  // tour (what's next: create a unit, share the code, launch). Captured at
+  // mount so clearing the param (or a late class-data load) doesn't lose it.
+  const [autoStartClassTour] = useState(() => searchParams.get("celebrate") === "1");
+  const [celebrate, setCelebrate] = useState(false);
+  // Guided journey: jUnit (create a unit) → jWarmup (add a warmup) → jFinale
+  // (launch + confetti) all live on this page, armed by the journey pointer.
+  const { leg: journeyLegId } = useJourney(profile?.id);
+  const fireConfetti = useCallback(() => {
+    setCelebrate(true);
+    setTimeout(() => setCelebrate(false), 5000);
+  }, []);
+  useEffect(() => {
+    if (searchParams.get("celebrate") !== "1") return undefined;
+    setCelebrate(true);
+    const next = new URLSearchParams(searchParams);
+    next.delete("celebrate");
+    setSearchParams(next, { replace: true });
+    const timer = setTimeout(() => setCelebrate(false), 5000);
+    return () => clearTimeout(timer);
+  }, [searchParams, setSearchParams]);
   const sLabels = sectionLabels(lang);
   const navigate = useNavigate();
   const isMobile = useIsMobile();
@@ -687,6 +709,11 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
     // Auto-focus the freshly-created unit so the teacher can immediately see
     // its bucket (empty, but ready to receive decks via the Move-to picker).
     setUnitFilter(data.id);
+    // Guided journey: first unit created → advance to the warmup leg so jWarmup
+    // arms and points at "add a warmup inside this unit".
+    if (journeyLeg(profile?.id) === "unit") {
+      setJourneyLeg(profile?.id, "warmup", { unitId: data.id });
+    }
   };
 
   // Reassign a deck to a different unit (or to no unit at all when newUnitId
@@ -881,8 +908,11 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
   // ── Render ────────────────────────────────────────────────────────────
   return (
     <div style={{ padding: isMobile ? "16px 14px 32px" : "20px 28px 40px", maxWidth: 760, margin: "0 auto" }}>
-      {/* Back link + replay-tour button */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+      {/* "Fiesta" after the first warmup (one-shot, honors reduced-motion).
+          Above the tour overlay (z 1400) so it rains over the guide. */}
+      {celebrate && <Confetti zIndex={1500} />}
+
+      {/* Back link */}
       <button
         onClick={() => navigate(ROUTES.CLASSES)}
         style={{
@@ -910,24 +940,6 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
         </svg>
         {t.backToMyClasses}
       </button>
-      {replayTour && (
-        <button
-          type="button"
-          onClick={() => replayTour("classDetail")}
-          title={tours.replay}
-          aria-label={tours.replay}
-          style={{
-            display: "inline-flex", alignItems: "center", gap: 6, flexShrink: 0,
-            padding: "6px 10px", borderRadius: 8, marginBottom: 8,
-            background: "transparent", color: C.textSecondary,
-            border: `1px solid ${C.border}`, cursor: "pointer",
-            fontFamily: "'Outfit',sans-serif", fontSize: 12.5, fontWeight: 600,
-          }}
-        >
-          <Cleo size={16} animate={false} /> {tours.replay}
-        </button>
-      )}
-      </div>
 
       {/* Header card */}
       <div style={{
@@ -1994,9 +2006,53 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
         />
       )}
 
-      {/* First-visit guided tour — units (the gap) + sharing the code with students. */}
+      {/* Guided journey legs that live on the class page (clase → unidad →
+          warmup → lanzar). Each is armed only while on its leg; the real action
+          (create unit, create warmup, launch) advances the pointer. */}
+      {classObj && !loading && profile?.role === "teacher" && (
+        <>
+          <CleoTour
+            tourId="jUnit"
+            lang={lang}
+            userId={profile?.id}
+            enabled={journeyLegId === "unit"}
+            autoStart={journeyLegId === "unit"}
+            force
+            onComplete={() => setShowNewUnit(true)}
+            onSkip={() => finishJourney(profile?.id)}
+          />
+          <CleoTour
+            tourId="jWarmup"
+            lang={lang}
+            userId={profile?.id}
+            enabled={journeyLegId === "warmup" && units.length > 0}
+            autoStart={journeyLegId === "warmup" && units.length > 0}
+            force
+            onSkip={() => finishJourney(profile?.id)}
+          />
+          <CleoTour
+            tourId="jFinale"
+            lang={lang}
+            userId={profile?.id}
+            enabled={journeyLegId === "finale"}
+            autoStart={journeyLegId === "finale"}
+            force
+            onComplete={() => { fireConfetti(); finishJourney(profile?.id); }}
+            onSkip={() => finishJourney(profile?.id)}
+          />
+        </>
+      )}
+
+      {/* Standalone first-visit tour (non-journey teachers + chat replay).
+          Suppressed during the journey so the legs don't compete. */}
       {classObj && !loading && (
-        <CleoTour tourId="classDetail" lang={lang} userId={profile?.id} enabled={profile?.role === "teacher"} />
+        <CleoTour
+          tourId="classDetail"
+          lang={lang}
+          userId={profile?.id}
+          enabled={profile?.role === "teacher" && !isJourneyActive(profile?.id)}
+          autoStart={autoStartClassTour && !isJourneyActive(profile?.id)}
+        />
       )}
 
       <style>{`

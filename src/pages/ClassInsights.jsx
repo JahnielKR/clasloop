@@ -28,6 +28,7 @@ import { fetchClassDecksSummary, groupRowsBySection, pctColor } from "../lib/cla
 import { sectionLabels, resolveClassAccent } from "../lib/class-hierarchy";
 // PR 75: i18n centralizado
 import { useT } from "../i18n";
+import CleoTour from "../onboarding/CleoTour";
 
 // ─── i18n ────────────────────────────────────────────────────────────────
 // PR 75: el bloque i18n local fue movido a src/i18n/{en,es,ko}.js
@@ -220,7 +221,7 @@ export default function ClassInsights({ profile, lang = "en", setLang, onOpenMob
             (c) totalDecksInSection === 0 {"\u2192"} "No decks in this section"
           (b) and (c) sit inside the expanded body; the header is always
           clickable so the teacher can peek inside without surprises. */}
-      {hasAnyDeckInClass && grouped.map(({ sectionId, decksWithData, totalDecksInSection }) => {
+      {hasAnyDeckInClass && grouped.map(({ sectionId, decksWithData, totalDecksInSection }, sIdx) => {
         const sectionLabel = sLabels[sectionId]?.name || sectionId;
         const isOpen = openSections[sectionId];
         const noUsageString = (
@@ -251,6 +252,7 @@ export default function ClassInsights({ profile, lang = "en", setLang, onOpenMob
           >
             <summary
               className="ci-section-summary"
+              data-tour={sIdx === 0 ? "insights-section" : undefined}
               style={{
                 padding: "14px 16px",
                 display: "flex",
@@ -280,12 +282,13 @@ export default function ClassInsights({ profile, lang = "en", setLang, onOpenMob
             <div style={{ borderTop: `1px solid ${C.border}` }}>
               {decksWithData.length > 0 ? (
                 // Mode (a): list of deck rows with bars
-                decksWithData.map((deck) => (
+                decksWithData.map((deck, dIdx) => (
                   <DeckRow
                     key={deck.deckId}
                     deck={deck}
                     accent={accent}
                     t={t}
+                    anchor={sIdx === 0 && dIdx === 0 ? "insights-row" : undefined}
                     onClick={() => navigate(buildRoute.deckResults(deck.deckId))}
                   />
                 ))
@@ -307,6 +310,9 @@ export default function ClassInsights({ profile, lang = "en", setLang, onOpenMob
         );
       })}
       </div>
+
+      {/* First-visit tour — how to read the retention bars; replayable from chat. */}
+      <CleoTour tourId="insights" lang={lang} userId={profile?.id} enabled={profile?.role === "teacher"} />
     </div>
   );
 }
@@ -314,7 +320,7 @@ export default function ClassInsights({ profile, lang = "en", setLang, onOpenMob
 // ─── DeckRow ─────────────────────────────────────────────────────────────
 // One row per deck inside an expanded section. Clickable — navigates to
 // /decks/:id/results for the per-question drilldown.
-function DeckRow({ deck, accent, t, onClick }) {
+function DeckRow({ deck, accent, t, onClick, anchor }) {
   const pct = deck.pctCorrect;
   const barColor = pctColor(pct, C);
   const widthPct = pct == null ? 0 : Math.max(2, pct); // floor at 2% so a 0% bar is still visible
@@ -323,6 +329,7 @@ function DeckRow({ deck, accent, t, onClick }) {
     <button
       onClick={onClick}
       className="ci-row"
+      data-tour={anchor}
       style={{
         width: "100%",
         textAlign: "left",

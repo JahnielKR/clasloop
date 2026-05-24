@@ -238,14 +238,14 @@ const en = {
     point2Body: "Launch a live session students join on their phones, or print a polished test.",
     point3Title: "See who needs a hand",
     point3Body: "After each one you get the weak spots and per-student retention — they resurface on their own.",
-    ctaPrimary: "Create my first warmup",
+    ctaPrimary: "Walk me through it",
     ctaSkip: "I'll explore on my own",
   },
 
   onboarding: {
     // Step 1 — coach shown over the "create your first class" modal
-    classCoachTitle: "First, let's set up your class",
-    classCoachBody: "A warmup lives inside a class. Create one now — you can add students anytime.",
+    classCoachTitle: "First, your class",
+    classCoachBody: "Your warmup lives inside a class, so let's create one first. As soon as it's ready, I'll take you to build the warmup.",
     // Step 2 — coach at the top of the deck editor
     warmupCoachTitle: "Now build your first warmup",
     warmupCoachBody: "Generate questions with AI or add them by hand, then hit Save. Your class is already set.",
@@ -282,9 +282,10 @@ const en = {
     title: "Ask Cleo",
     subtitle: "Your Clasloop helper",
     close: "Close",
-    greeting: "Hi! I'm Cleo 👋 Ask me anything about Clasloop — how something works, or where to find it.",
+    greeting: "Hi! I'm Cleo 👋 Ask me anything about Clasloop — how something works, or where to find it. And if you like, ask me for a tour (\"show me the library\") and I'll walk you through it live.",
     placeholder: "Ask about Clasloop…",
     send: "Send",
+    tourLaunch: "On it! Let me show you 👇",
     error: "Hmm, I couldn't reach my brain just now. Try again in a moment.",
     blocked: "I couldn't answer that one — try rephrasing, or reach the team.",
   },
@@ -300,45 +301,112 @@ const en = {
     next: "Next",
     done: "Done",
     skip: "Skip",
-    replay: "View guide",
     home: {
       offer: "Welcome! Want me to help you get your first class ready in a minute?",
       steps: [
-        { title: "Create your first class", body: "Tap here to create a class. Everything — warmups, students, sessions — lives inside it." },
-        { title: "Share the code", body: "Every class gets a 6-digit code. Students use it to join from their phones — no accounts or emails." },
+        { title: "Create a class", body: "A class is the container for everything — its students, warmups and results. Make one per group you teach and the rest falls into place." },
+        { title: "Share the code", body: "Each class has a join code. Students enter it once (free account or Google) and they're in all your sessions. Tip: project it on day one." },
       ],
     },
     classDetail: {
       offer: "Want a tour of your class? I'll show you how to navigate it, create a unit, and invite students.",
       steps: [
-        { title: "Navigate your class", body: "Switch between your current unit, past and upcoming units, and general review here." },
-        { title: "Create a unit", body: "A unit is a theme (e.g. 'Fractions'). Each day's warmups and exit tickets live inside it. Start here." },
-        { title: "Invite your students", body: "Share this code with your class. They type it into the app and join instantly — no accounts." },
-        { title: "That's it!", body: "Create a unit, add the day's warmups, and share the code. You can replay this guide anytime." },
+        { title: "Navigate your class", body: "These tabs keep your current unit apart from past ones and review. Your day-to-day lives in the current one; the rest stays handy without clutter." },
+        { title: "Create a unit", body: "A unit is a theme (e.g. 'Fractions'): give it dates and its warmups show up on their own under 'Today'. Tip: make the unit before the decks and each lands in place." },
+        { title: "Invite your students", body: "They share one code per class: enter it once (free account or Google) and they're in all your sessions. Project it on day one." },
+        { title: "Launch it live", body: "Tap a warmup and it projects on screen while students answer from their phones — you see results in real time." },
       ],
     },
     deckEditor: {
       offer: "Want me to show you how to build your first warmup? It's quick.",
       steps: [
-        { title: "Pick the section", body: "Mark it as a warmup, exit ticket, or general review. That's where it shows up in your class." },
-        { title: "Add your questions", body: "On the Questions tab you can generate them with AI or add them by hand." },
-        { title: "Save and you're set", body: "Hit Save. Your deck is ready to run live or print." },
+        { title: "Name your deck", body: "A clear name (e.g. 'Fractions — Day 1') makes it easy to find again. You can't save without one." },
+        { title: "Pick the class", body: "It inherits the class's subject and grade, so the AI generates at the right level without you spelling it out." },
+        { title: "Session type", body: "Warmup, exit ticket or review: it decides where it sits in your class and when you use it — start, close, or revision." },
+        { title: "Choose the language", body: "The AI writes and reviews in this language. Key if you teach a language or your room is bilingual." },
+        { title: "Generate with AI", body: "Upload your PDF or slides and the AI pulls questions from YOUR material — and a second pass checks them before you see them. Tip: a focused file means better questions." },
+        { title: "Save and you're set", body: "Your deck is ready to run live or print. You'll see it in its class right after." },
+      ],
+    },
+    library: {
+      offer: "Want a quick tour of your library and what the download button does?",
+      steps: [
+        { title: "Your deck library", body: "Every warmup, exit ticket and review you make lives here — searchable and grouped by class. Reuse a deck in another class without rebuilding it." },
+        { title: "Take it to paper", body: "The Download button turns any deck into a printable test — with an answer key and a scannable sheet you grade with your camera. Great for screen-free days." },
       ],
     },
     pdfExport: {
       offer: "Want me to show you how to take this deck to paper?",
       steps: [
-        { title: "Print your questions", body: "Export any deck as a PDF to hand out in class or run a screen-free exam." },
-        { title: "Pick a style", body: "There are several print-ready designs. Choose the one you like." },
-        { title: "Download the PDF", body: "Tap here to download it. Later you can grade the sheets with the scanner on your phone." },
+        { title: "Print your questions", body: "Any deck becomes a paper exam — handy for screen-free days or a formal test. The same deck works live and on paper." },
+        { title: "Pick the type", body: "Exam to hand out, answer key for you, or an exam with a scannable sheet you grade with your camera. Choose by how you'll grade." },
+        { title: "Pick a style", body: "Several print-ready designs; the content is the same, only the presentation changes. Pick what fits your class." },
+        { title: "Download the PDF", body: "Downloads instantly. If you chose the scannable sheet, print it and grade the answers with the scanner — no grading by hand." },
       ],
     },
     scanner: {
       offer: "Want me to show you how to grade paper exams with the camera?",
       steps: [
-        { title: "Grade with the camera", body: "Snap a photo of the answer sheet and the scanner grades it instantly." },
-        { title: "Scan the sheet", body: "Pick the exam, frame the student's answer sheet, and the scanner does the rest." },
-        { title: "Review and save", body: "If any mark looks unsure, we highlight it so you can confirm. Then save the score." },
+        { title: "Grade with the camera", body: "Point at the answer sheet and the scanner grades it in seconds — paper flows into your results with no grading by hand." },
+        { title: "Scan the sheet", body: "Pick the exam and frame the sheet; the printed code tells the scanner which deck it is, so you never mix up exams." },
+        { title: "Review and save", body: "If a mark looks unsure I flag it for you to confirm — you have the final say. Then the score saves alongside the rest of the class." },
+      ],
+    },
+
+    insights: {
+      offer: "Want me to show you how to read your class results?",
+      steps: [
+        { title: "What should I reteach?", body: "This page answers exactly that: at a glance you see what your class mastered and what they didn't — no opening every response." },
+        { title: "Compared, not mixed", body: "I keep warmups, exit tickets and review apart because they measure different moments — comparing a warmup to a final would mislead you." },
+        { title: "The bar is mastery", body: "Each bar is the class's % correct on that deck. Tap a row to see which questions dragged it down." },
+        { title: "Start with the red", body: "Red decks are tomorrow's best warmup — that's where review pays off most. Tip: 2–3 questions are plenty." },
+      ],
+    },
+
+    student: {
+      offer: "Want me to show you around?",
+      steps: [
+        { title: "Join a class", body: "Ask your teacher for the class code and paste it here. You can be in several classes at once." },
+        { title: "Your classes", body: "Each class your teacher runs shows up here. Open one to practice its decks at your own pace — no grade pressure." },
+        { title: "Reviews that stick", body: "Whatever you missed comes back at just the right time so it sticks — spaced practice, a few minutes is enough." },
+        { title: "Win as you learn", body: "You earn avatars and little wins as you practice. Learning feels like leveling up, not homework." },
+      ],
+    },
+
+    // ── The guided journey (class → unit → warmup → editor → launch) ──
+    // Auto-runs leg by leg; no "offer". Step counts match the geometry in
+    // onboarding/tours.js (jHome 2, jUnit 2, jWarmup 1, jEditor 6, jFinale 2).
+    jHome: {
+      steps: [
+        { title: "Let's set up your first class", body: "I'll walk you through a few steps: class, unit, warmup, and launching it. You set the pace — skip the tour whenever you want." },
+        { title: "Start with the class", body: "A class is the root of everything — students, warmups and results all hang off it. Make the one you teach most and the rest falls into place." },
+      ],
+    },
+    jUnit: {
+      steps: [
+        { title: "Create your first unit", body: "A unit is a topic (e.g. 'Fractions'). Give it dates and its warmups show up on their own under 'Today' — that's why it's worth making before the decks." },
+        { title: "Share the code", body: "Students join from their phone with this code (free account or Google). Tip: project it on day one and they're in within seconds." },
+      ],
+    },
+    jWarmup: {
+      steps: [
+        { title: "Add your first warmup", body: "A warmup lives inside the unit: a quick 2–3 minute check at the start of class. Tap it and we'll build it together." },
+      ],
+    },
+    jEditor: {
+      steps: [
+        { title: "Give it a name", body: "A clear name (e.g. 'Fractions — Day 1') makes it easy to find again. You can't save without one." },
+        { title: "Pick the class", body: "It inherits the class's subject and grade, so the AI generates at the right level without you spelling it out." },
+        { title: "Session type", body: "Warmup, exit ticket or review: it decides where it sits in your unit and when you use it — start, close, or revision." },
+        { title: "Choose the language", body: "The AI writes and reviews in this language. Key if you teach a language or your room is bilingual." },
+        { title: "Generate with AI", body: "Upload your PDF or slides and the AI pulls questions from YOUR material — and a second pass checks them before you see them. Tip: a focused file means better questions." },
+        { title: "Save", body: "Your warmup is ready to launch live or print. You'll see it in your class in a second." },
+      ],
+    },
+    jFinale: {
+      steps: [
+        { title: "Launch it live", body: "Tap Launch and it projects on screen while students answer from their phones with the code. You'll see their answers in real time." },
+        { title: "You did it! 🎉", body: "You've got your class, your unit and your first warmup. Want another tour later? Just ask me in the chat — I'm down in the corner." },
       ],
     },
   },

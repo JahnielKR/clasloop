@@ -5,18 +5,25 @@
 // (Gemini Flash, grounded server-side). Conversation lives only in local state —
 // nothing is persisted.
 import { useState, useRef, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import Cleo from "./Cleo";
 import { C } from "./tokens";
 import { CIcon } from "./Icons";
 import { useT } from "../i18n";
 import { supabase } from "../lib/supabase";
+import { useTourActive } from "../onboarding/TourContext";
+import { detectTourIntent } from "../onboarding/chatTourIntent";
+import { resolveTourRoute } from "../onboarding/tourRoutes";
 
 const css = `
   @keyframes clc-pop  { from { opacity:0; transform:translateY(12px) scale(.96) } to { opacity:1; transform:none } }
   @keyframes clc-bob  { 0%,100% { transform:translateY(0) } 50% { transform:translateY(-3px) } }
   @keyframes clc-dot  { 0%,80%,100% { opacity:.3; transform:translateY(0) } 40% { opacity:1; transform:translateY(-3px) } }
+  @keyframes clc-fab-in { from { opacity:0; transform:translateY(16px) scale(.8) } to { opacity:1; transform:translateY(0) scale(1) } }
   .clc-panel { animation: clc-pop .26s cubic-bezier(.16,1,.3,1) both; }
-  .clc-fab   { transition: transform .15s; }
+  /* The FAB glides up into the corner when it (re)appears — e.g. when a tour
+     ends and Cleo "returns home". No fill-mode so the hover transform still works. */
+  .clc-fab   { animation: clc-fab-in .4s cubic-bezier(.16,1,.3,1); transition: transform .15s; }
   .clc-fab:hover { transform: translateY(-2px); }
   .clc-fab-cleo { animation: clc-bob 3.2s ease-in-out infinite; filter: drop-shadow(0 5px 8px rgba(20,66,94,0.28)); transition: filter .15s; }
   .clc-fab:hover .clc-fab-cleo { filter: drop-shadow(0 9px 14px rgba(20,66,94,0.34)); }
@@ -27,13 +34,17 @@ const css = `
   }
   @media (prefers-reduced-motion: reduce) {
     .clc-panel, .clc-fab-cleo { animation: none !important; }
-    .clc-fab { transition: none !important; }
+    .clc-fab { animation: none !important; transition: none !important; }
     .clc-dot { animation: none !important; opacity:.6 !important; }
   }
 `;
 
 export default function CleoChat({ lang = "en" }) {
   const t = useT("cleoChat", lang);
+  // Hide this FAB while a guided tour is on screen — there's only one Cleo, and
+  // she's "out" giving the tour. She glides back into this corner when it ends.
+  const tourActive = useTourActive();
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState([{ role: "model", text: t.greeting, ui: true }]);
   const [input, setInput] = useState("");
@@ -57,6 +68,22 @@ export default function CleoChat({ lang = "en" }) {
   const send = async () => {
     const text = input.trim();
     if (!text || loading) return;
+
+    // Tour request? Launch the matching guided tour instead of asking the AI.
+    // If we can't launch it cold (needs an open class, or it's the student
+    // view) we fall through and let the AI explain the feature in words.
+    const tourId = detectTourIntent(text);
+    if (tourId) {
+      const url = resolveTourRoute(tourId);
+      if (url) {
+        setMessages((m) => [...m, { role: "user", text }, { role: "model", text: t.tourLaunch }]);
+        setInput("");
+        setOpen(false);
+        navigate(url);
+        return;
+      }
+    }
+
     const next = [...messages, { role: "user", text }];
     setMessages(next);
     setInput("");
@@ -95,7 +122,7 @@ export default function CleoChat({ lang = "en" }) {
     <>
       <style>{css}</style>
 
-      {!open && (
+      {!open && !tourActive && (
         <button
           className="clc-fab"
           onClick={() => setOpen(true)}

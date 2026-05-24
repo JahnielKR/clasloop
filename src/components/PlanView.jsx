@@ -57,6 +57,7 @@ import { buildRoute, ROUTES, QUERY } from "../routes";
 // PR 75: i18n centralizado
 import { useT } from "../i18n";
 import { useToast } from "../lib/toast";
+import { setJourneyLeg, journeyLeg } from "../onboarding/journey";
 
 // ─── i18n ──────────────────────────────────────────────────────────────
 // PR 75: el bloque i18n local fue movido a src/i18n/{en,es,ko}.js
@@ -742,6 +743,8 @@ function Slot({ deck, slotKind, t, lang, onLaunch, onSlotClick, isUsed, onRemove
           size="sm"
           onClick={(e) => { e.stopPropagation(); onLaunch(deck); }}
           style={{ flexShrink: 0 }}
+          // Journey finale spotlights the warmup's launch button.
+          data-tour={slotKind === "warmup" ? "launch-deck" : undefined}
         >
           {t.launch} {"\u2192"}
         </Button>
@@ -1353,6 +1356,11 @@ export default function PlanView({
     if (typeof dayNumber === "number" && dayNumber > 0) {
       params.set(QUERY.POSITION, String(dayNumber));
     }
+    // Guided journey: creating the first warmup from inside the unit advances
+    // to the editor leg so jEditor auto-runs in CreateDeckEditor.
+    if (journeyLeg(userId) === "warmup") {
+      setJourneyLeg(userId, "editor", { classId, unitId: renderUnit.id });
+    }
     navigate(`${ROUTES.DECKS_NEW}?${params.toString()}`);
   };
   // Modal "Pick from library" path — the modal already wrote unit_id
@@ -1615,6 +1623,7 @@ export default function PlanView({
           <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
             <button
               onClick={() => handleSlotClick("warmup", 1)}
+              data-tour="new-warmup"
               style={{
                 padding: "8px 14px",
                 borderRadius: 7,

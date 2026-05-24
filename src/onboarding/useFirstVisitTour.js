@@ -5,14 +5,12 @@
 //   - On mount, if the tour is enabled, has steps, and the user hasn't seen it,
 //     we move to "offer" (Cleo slides in asking "¿te muestro cómo funciona?").
 //   - accept() starts the step-by-step walk; decline() / finishing the last
-//     step / skip() all mark it seen so it never auto-offers again.
-//   - replay() re-runs it on demand (from the PageHeader "Ver guía" button),
-//     bypassing the seen check.
+//     step / skip() all mark it seen so it never shows again (first-time only).
 //
 // "Seen" state is persisted per user in localStorage via safe-storage. There's
 // no DB column today (see plan) — clearing storage re-shows the tours, which is
 // acceptable for v1 and avoids a migration.
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { safeGetJSON, safeSetJSON } from "../lib/safe-storage";
 
 const seenKey = (userId) => `cl.tours.seen.${userId || "anon"}`;
@@ -32,18 +30,25 @@ export function markTourSeen(userId, tourId) {
   safeSetJSON(seenKey(userId), [...seen, tourId]);
 }
 
-export function useFirstVisitTour({ tourId, total = 0, enabled = true, userId }) {
+export function useFirstVisitTour({ tourId, total = 0, enabled = true, userId, autoStart = false, force = false }) {
   const [phase, setPhase] = useState("idle"); // idle | offer | running
   const [index, setIndex] = useState(0);
+  // Fire the first-visit trigger exactly once (the gating inputs — enabled,
+  // userId — can flip from false/null to true as the profile loads; without
+  // this guard the re-run would reset an already-started tour to step 0).
+  const startedRef = useRef(false);
 
-  // Auto-offer on first visit. Re-checks when the gating inputs change (e.g.
-  // the profile finishes loading and userId/enabled flip from false → true).
+  // On first visit: `autoStart` walks the teacher straight through (used for the
+  // guided journey); otherwise Cleo offers first. `force` re-runs a tour the
+  // user has already seen — used when they ask for it again from the chat, and
+  // by the journey legs (gated by the leg pointer, not seen-state).
   useEffect(() => {
-    if (!enabled || !tourId || total === 0) return;
-    if (hasSeenTour(userId, tourId)) return;
-    setPhase("offer");
+    if (!enabled || !tourId || total === 0 || startedRef.current) return;
+    if (!force && hasSeenTour(userId, tourId)) return;
+    startedRef.current = true;
+    setPhase(autoStart ? "running" : "offer");
     setIndex(0);
-  }, [enabled, tourId, total, userId]);
+  }, [enabled, tourId, total, userId, autoStart, force]);
 
   const accept = useCallback(() => {
     setIndex(0);
@@ -51,7 +56,7 @@ export function useFirstVisitTour({ tourId, total = 0, enabled = true, userId })
   }, []);
 
   // "Ahora no" — dismiss the offer without walking through; still mark seen so
-  // we don't nag on every visit. The replay button remains available.
+  // we don't nag on every visit (tours are first-time only).
   const decline = useCallback(() => {
     markTourSeen(userId, tourId);
     setPhase("idle");
@@ -72,11 +77,5 @@ export function useFirstVisitTour({ tourId, total = 0, enabled = true, userId })
 
   const back = useCallback(() => setIndex((i) => Math.max(0, i - 1)), []);
 
-  // Re-run on demand, ignoring the seen flag (PageHeader "Ver guía").
-  const replay = useCallback(() => {
-    setIndex(0);
-    setPhase("running");
-  }, []);
-
-  return { phase, index, accept, decline, close, next, back, replay };
+  return { phase, index, accept, decline, close, next, back };
 }

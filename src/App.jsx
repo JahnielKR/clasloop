@@ -3,6 +3,8 @@ import { useLocation, useNavigate, useMatch } from 'react-router-dom';
 import { Capacitor } from '@capacitor/core';
 import { ROUTES, PAGE_TO_ROUTE, pathToPage, defaultRouteForRole, buildRoute, buildPathWithOpts, isPageAllowedForRole } from './routes';
 import { supabase } from './lib/supabase';
+import { useQueryClient } from '@tanstack/react-query';
+import { DECKS_PAGE_KEY } from './hooks/useDecks';
 import { getStrings } from './i18n';
 import { resolveInitialLang } from './lib/locale';
 import { safeGet, safeSet, safeRemove } from './lib/safe-storage';
@@ -15,12 +17,21 @@ import PublicHome from './pages/PublicHome';
 import AvatarOnboarding from './pages/AvatarOnboarding';
 import RoleOnboarding from './pages/RoleOnboarding';
 import TeacherWelcome from './pages/TeacherWelcome';
+// First-warmup flow: the "Crear mi primer warmup" CTA opens this directly
+// (a warmup needs a class). Eager — it overlays the shell on a fresh signup.
+import CreateClassModal from './components/CreateClassModal';
+// Cleo speech bubble shown above the create-class modal in the first-warmup
+// flow ("first a class, then the warmup").
 // In-app Cleo help bot (floating "Ask Cleo"). Eager — it's tiny and renders in
 // the authed shell for teachers.
 import CleoChat from './components/CleoChat';
-// Per-page first-visit tours ("Cleo te guía"). The provider lets each page's
-// PageHeader replay its tour ("Ver guía"); pages mount <CleoTour> themselves.
+// Per-page first-visit tours + the guided journey ("Cleo te guía"). The provider
+// coordinates a single on-screen Cleo and lets the chat re-launch a tour on
+// request; pages mount <CleoTour> themselves. Tours are replayed from the chat
+// ("muéstrame la biblioteca"), not a header button.
 import { TourProvider } from './onboarding/TourContext';
+import { markTourSeen } from './onboarding/useFirstVisitTour';
+import { startJourney } from './onboarding/journey';
 // PR 112: AuthScreen + NotFoundScreen extracted to their own files.
 // Eagerly imported (no lazy) because they paint before the authed shell
 // loads — same rationale as the eager imports above.
@@ -172,6 +183,7 @@ export default function App() {
   // Phase 2: one-time first-run welcome for teachers, set only on a fresh role
   // pick (see handleRoleOnboardingCreated) so existing teachers never see it.
   const [showTeacherWelcome, setShowTeacherWelcome] = useState(false);
+  const queryClient = useQueryClient();
   // `page` mirrors the URL (kept in sync by an effect below). Initialised from
   // the current pathname so the very first render already shows the correct
   // page without a flash. Default to "sessions" when path is "/" — fetchProfile
@@ -904,9 +916,17 @@ export default function App() {
       <TeacherWelcome
         profile={profile}
         lang={lang}
-        // Both CTAs just close the welcome and drop the teacher on their home
-        // (/classes), where the first-visit "home" tour offers to guide them.
-        onStart={() => setShowTeacherWelcome(false)}
+        // "Empezar" → kick off the guided journey on My Classes, where Cleo
+        // spotlights "create a class" and walks them clase → unidad → warmup →
+        // editor → lanzar. The journey uses its own jHome/jUnit/… legs, so mark
+        // the standalone page tours seen (they'd otherwise re-offer once the
+        // journey ends). Skip just lands them on My Classes to explore.
+        onStart={() => {
+          startJourney(profile?.id);
+          ["home", "classDetail", "deckEditor"].forEach((id) => markTourSeen(profile?.id, id));
+          setShowTeacherWelcome(false);
+          navigate(defaultRouteForRole("teacher"));
+        }}
         onSkip={() => setShowTeacherWelcome(false)}
       />
     );
@@ -1075,10 +1095,6 @@ export default function App() {
           )}
         </Suspense>
       </div>
-
-      {/* First-run teacher guidance now lives in the per-page first-visit tours
-          ("Cleo te guía", src/onboarding). TeacherWelcome (above) still greets a
-          brand-new teacher once; from there the home tour takes over. */}
 
       {/* In-app Cleo help bot — floating "Ask Cleo" for teachers (how things
           work / where to find them). Gated to teachers; the authed shell only. */}

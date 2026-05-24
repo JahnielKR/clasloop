@@ -21,6 +21,9 @@ import CreateDeckEditor from "./Decks/CreateDeckEditor";
 // Only DeckRow is consumed here (by ClassDecksView).
 import { DeckRow } from "./Decks/DeckTiles";
 import { ROUTES, QUERY, buildRoute } from "../routes";
+import { isJourneyActive, setJourneyLeg } from "../onboarding/journey";
+import CleoTour from "../onboarding/CleoTour";
+import { useTourLaunch } from "../onboarding/useTourLaunch";
 // PR 98: lazy-load PDFExportModal. El modal solo se renderiza cuando el
 // teacher clickea "Download PDF" en una tarjeta — antes el chunk de
 // Decks arrastraba jsPDF + 4 archivos pdf-styles + qrcode + (a través de
@@ -142,6 +145,7 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
   // PR 7: search input for the new Library top bar. Filters across all
   // visible decks of the active class (title, tags, subject).
   const [librarySearch, setLibrarySearch] = useState("");
+  const libraryLaunch = useTourLaunch("library"); // chat: "show me the library"
   // PR 7: dragging deck id (for DragOverlay rendering during drag)
   const [activeDragDeckId, setActiveDragDeckId] = useState(null);
   // PR 7.1: which unit groups are collapsed in Library. Default empty
@@ -362,6 +366,10 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
     // "+ Create deck" inside an empty class group). On /decks/:id/edit the
     // existing deck's class wins, so we ignore the param.
     const prefilledClassId = view === "create" ? (searchParams.get(QUERY.CLASS) || null) : null;
+    // ?tour=run on /decks/new auto-starts the editor's guided tour (no "want a
+    // tour?" prompt). Set by the first-class → first-warmup chain so a brand-new
+    // teacher is walked through the deck editor the first real time they see it.
+    const autoStartTour = view === "create" && searchParams.get("tour") === "run";
     // ?section= on /decks/new pre-fills the deck's section, used when the
     // teacher clicks "+ New warmup" / "+ New exit ticket" / "+ New review"
     // from inside ClassPage. On edit, existing deck's section wins.
@@ -447,7 +455,7 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
     return (
       <div style={{ padding: "28px 20px" }}>
         <style>{css}</style>
-        <PageHeader title={editorTitle} lang={l} setLang={setLang} maxWidth={600} tourId="deckEditor" onOpenMobileMenu={onOpenMobileMenu} />
+        <PageHeader title={editorTitle} lang={l} setLang={setLang} maxWidth={600} onOpenMobileMenu={onOpenMobileMenu} />
         <CreateDeckEditor
           t={t} l={l}
           onBack={() => navigate(returnTo)}
@@ -459,12 +467,24 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
           prefilledUnitId={prefilledUnitId}
           prefilledPosition={prefilledPosition}
           profile={profile}
+          autoStartTour={autoStartTour}
           onNeedClass={() => navigate(ROUTES.CLASSES)}
           onCreated={(d) => {
             if (editing) patchMyDecks(prev => prev.map(dk => dk.id === d.id ? d : dk));
             else patchMyDecks(prev => [d, ...prev]);
             invalidateClassCaches(d?.class_id);
-            navigate(returnTo);
+            // Guided journey: saving the first warmup advances to the finale leg
+            // and lands on the class page, where jFinale spotlights launch and
+            // then fires the confetti. No ?celebrate=1 — the finale owns the
+            // celebration now (it used to fire too early, right on save).
+            if (isJourneyActive(userId) && d?.class_id) {
+              setJourneyLeg(userId, "finale", { classId: d.class_id });
+              navigate(buildRoute.classDetail(d.class_id));
+            } else if (autoStartTour && d?.class_id) {
+              navigate(`${buildRoute.classDetail(d.class_id)}?celebrate=1`);
+            } else {
+              navigate(returnTo);
+            }
           }}
         />
       </div>
@@ -992,6 +1012,18 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
           />
         </Suspense>
       )}
+
+      {/* Library tour — what the library is + the Download button (first visit,
+          and replayable from the chat). Clicking Download opens the pdfExport
+          tour inside the modal. */}
+      <CleoTour
+        tourId="library"
+        lang={l}
+        userId={profile?.id}
+        enabled={profile?.role === "teacher"}
+        autoStart={libraryLaunch.autoStart}
+        force={libraryLaunch.force}
+      />
     </div>
   );
 }

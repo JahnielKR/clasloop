@@ -2,7 +2,7 @@
 // No auth / Supabase — exercises offer → accept → step → close and the
 // per-user "seen" persistence (localStorage via safe-storage).
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { render, screen, fireEvent, cleanup } from "@testing-library/react";
+import { render, screen, fireEvent, cleanup, waitFor } from "@testing-library/react";
 import CleoTour from "../CleoTour";
 import { getStrings } from "../../i18n";
 
@@ -25,9 +25,10 @@ describe("CleoTour", () => {
     // The offer slides in (set in an effect, so wait for it).
     expect(await screen.findByText(t.offerYes)).toBeTruthy();
 
-    // "Ahora no" dismisses + marks the tour seen.
+    // "Ahora no" plays a brief retract-into-corner animation, then dismisses +
+    // marks the tour seen.
     fireEvent.click(screen.getByText(t.offerNo));
-    expect(screen.queryByText(t.offerYes)).toBeNull();
+    await waitFor(() => expect(screen.queryByText(t.offerYes)).toBeNull());
     expect(localStorage.getItem("cl.tours.seen.u1")).toContain("home");
 
     // A fresh mount for the same user no longer offers.
@@ -62,5 +63,30 @@ describe("CleoTour", () => {
     localStorage.setItem("cl.tours.seen.u1", JSON.stringify(["home"]));
     renderHomeTour();
     expect(screen.queryByText(t.offerYes)).toBeNull();
+  });
+
+  it("force + autoStart replays a tour the user already saw (chat 'show me' path)", async () => {
+    localStorage.setItem("cl.tours.seen.u1", JSON.stringify(["home"]));
+    renderHomeTour({ autoStart: true, force: true });
+    // No offer — autoStart jumps straight to the first running step, and force
+    // bypasses the "seen" gate so the replay actually runs.
+    expect(await screen.findByText(t.home.steps[0].title)).toBeTruthy();
+  });
+
+  it("fires onComplete when the last step's 'Listo' is tapped", async () => {
+    let completed = false;
+    renderHomeTour({ autoStart: true, force: true, onComplete: () => { completed = true; } });
+    await screen.findByText(t.home.steps[0].title);
+    fireEvent.click(screen.getByText(t.next)); // → last step
+    fireEvent.click(screen.getByText(t.done)); // finish
+    expect(completed).toBe(true);
+  });
+
+  it("fires onSkip when 'Saltar' is tapped (journey abandon)", async () => {
+    let skipped = false;
+    renderHomeTour({ autoStart: true, force: true, onSkip: () => { skipped = true; } });
+    await screen.findByText(t.home.steps[0].title);
+    fireEvent.click(screen.getByText(t.skip));
+    expect(skipped).toBe(true);
   });
 });

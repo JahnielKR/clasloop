@@ -31,6 +31,9 @@ import { SECTIONS, DEFAULT_SECTION, isValidSection, sectionLabels, resolveClassA
 import { useToast } from "../../lib/toast";
 import { SUBJECTS } from "../../lib/constants";
 import CleoTour from "../../onboarding/CleoTour";
+import { useJourney } from "../../onboarding/useJourney";
+import { finishJourney } from "../../onboarding/journey";
+import { useTourLaunch } from "../../onboarding/useTourLaunch";
 import { getStrings } from "../../i18n";
 
 // Question type catalog — used by the type-selector grid and the per-question
@@ -581,9 +584,15 @@ function AIGeneratePanel({
   );
 }
 
-function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existingDeck, prefilledClassId = null, prefilledSection = null, prefilledUnitId = null, prefilledPosition = null, profile = null, onNeedClass }) {
+function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existingDeck, prefilledClassId = null, prefilledSection = null, prefilledUnitId = null, prefilledPosition = null, profile = null, onNeedClass, autoStartTour = false }) {
   const toast = useToast();
   const isMobile = useIsMobile();
+  // Guided journey: when the pointer is on the "editor" leg, run the jEditor
+  // walkthrough (same anchors as deckEditor, journey copy). Saving advances the
+  // journey to the finale (see Decks.jsx onCreated).
+  const { leg: journeyLegId } = useJourney(userId);
+  const inEditorLeg = journeyLegId === "editor";
+  const editorLaunch = useTourLaunch("deckEditor"); // chat: "how does the deck editor work"
   const [title, setTitle] = useState(existingDeck?.title || "");
   const [desc, setDesc] = useState(existingDeck?.description || "");
   // If we're creating fresh AND a class was pre-selected (came from "Add deck"
@@ -1478,10 +1487,25 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
         {t.back}
       </button>
 
-      {/* First-visit guided tour — section → questions → save. Replaces the
-          old ?onboarding=1 inline coach; offers itself the first time a teacher
-          opens the editor. */}
-      <CleoTour tourId="deckEditor" lang={l} userId={userId} enabled={profile?.role === "teacher"} />
+      {/* First-visit guided tour — name → class → type → language → AI/manual
+          → save. The AI step lives on the Questions tab, so the tour switches
+          tabs for us (the overlay is modal — the user can't click there). */}
+      <CleoTour
+        tourId={inEditorLeg ? "jEditor" : "deckEditor"}
+        lang={l}
+        userId={userId}
+        enabled={profile?.role === "teacher"}
+        autoStart={autoStartTour || inEditorLeg || editorLaunch.autoStart}
+        force={inEditorLeg || editorLaunch.force}
+        onSkip={inEditorLeg ? () => finishJourney(userId) : undefined}
+        onStepChange={(_i, step) => {
+          if (step?.anchor === "ai-generate") setEditorTab("questions");
+          else if (
+            step?.anchor === "deck-title" || step?.anchor === "deck-class" ||
+            step?.anchor === "deck-section" || step?.anchor === "deck-language"
+          ) setEditorTab("general");
+        }}
+      />
 
       <div className="fade-up" style={{ background: C.bg, borderRadius: 14, border: `1px solid ${C.border}`, padding: 24, marginBottom: 16 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, gap: 12 }}>
@@ -1502,7 +1526,6 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
             <button
               key={tab.id}
               className="dk-editor-tab"
-              data-tour={tab.id === "questions" ? "add-questions" : undefined}
               onClick={() => setEditorTab(tab.id)}
               style={{
                 padding: "10px 14px",
@@ -1530,7 +1553,7 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           <div>
             <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: C.textSecondary, marginBottom: 5 }}>{t.title} *</label>
-            <input className="dk-input" value={title} onChange={e => setTitle(e.target.value)} placeholder={t.titlePlaceholder} style={inp} />
+            <input className="dk-input" data-tour="deck-title" value={title} onChange={e => setTitle(e.target.value)} placeholder={t.titlePlaceholder} style={inp} />
           </div>
           <div>
             <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: C.textSecondary, marginBottom: 5 }}>{t.description}</label>
@@ -1584,7 +1607,7 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
           })()}
           <div>
             <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: C.textSecondary, marginBottom: 5 }}>{t.addToClass} *</label>
-            <select className="dk-input" value={classId} onChange={e => {
+            <select className="dk-input" data-tour="deck-class" value={classId} onChange={e => {
               const id = e.target.value;
               setClassId(id);
               if (id) {
@@ -1675,7 +1698,7 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
             </div>
             <div>
               <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: C.textSecondary, marginBottom: 5 }}>{t.language}</label>
-              <select className="dk-input" value={deckLang || ""} onChange={e => setDeckLang(e.target.value)} style={sel}>
+              <select className="dk-input" data-tour="deck-language" value={deckLang || ""} onChange={e => setDeckLang(e.target.value)} style={sel}>
                 <option value="" disabled hidden>{t.aiLanguagePlaceholder}</option>
                 <option value="en">English</option><option value="es">Español</option><option value="ko">한국어</option>
               </select>
@@ -1963,6 +1986,7 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             <button
               className="dk-btn"
+              data-tour="ai-generate"
               onClick={openAIPanel}
               disabled={showAIPanel || showTypeSelector}
               style={{

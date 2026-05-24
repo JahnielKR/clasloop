@@ -37,6 +37,7 @@ import { C } from "../components/tokens";
 import { CIcon } from "../components/Icons";
 import PageHeader from "../components/PageHeader";
 import CleoTour from "../onboarding/CleoTour";
+import { useTourLaunch } from "../onboarding/useTourLaunch";
 import {
   scanDocument,
   readQRFromImage,
@@ -60,6 +61,7 @@ export default function Scanner({ lang = "en", profile, onOpenMobileMenu }) {
   const toast = useToast();
   const t = useT("scanner", lang);
   const isNative = Capacitor.isNativePlatform();
+  const scannerLaunch = useTourLaunch("scanner"); // chat: "show me the scanner"
 
   // Stage machine
   const [stage, setStage] = useState(() => isNative ? "pickDeck" : "webFallback");
@@ -259,7 +261,7 @@ export default function Scanner({ lang = "en", profile, onOpenMobileMenu }) {
         collapseAt={1280}
         rail={<ScannerRail t={t} scanCount={scanCount} deckTitle={selectedDeck?.title} />}
       >
-      <PageHeader title={t.pageTitle} lang={lang} maxWidth={720} tourId="scanner" onOpenMobileMenu={onOpenMobileMenu} />
+      <PageHeader title={t.pageTitle} lang={lang} maxWidth={720} onOpenMobileMenu={onOpenMobileMenu} />
       <div style={{ marginBottom: 20 }}>
         <p style={{ fontSize: 14, color: C.textMuted, margin: 0 }}>
           {t.pageSubtitle}
@@ -334,7 +336,7 @@ export default function Scanner({ lang = "en", profile, onOpenMobileMenu }) {
       </TwoColPage>
 
       {/* First-visit guided tour — how to grade paper exams with the camera. */}
-      <CleoTour tourId="scanner" lang={lang} userId={profile?.id} enabled={profile?.role === "teacher"} />
+      <CleoTour tourId="scanner" lang={lang} userId={profile?.id} enabled={profile?.role === "teacher"} autoStart={scannerLaunch.autoStart} force={scannerLaunch.force} />
     </div>
   );
 }
