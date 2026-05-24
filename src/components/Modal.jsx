@@ -1,5 +1,6 @@
 import { useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
+import { C, R } from "./tokens";
 
 // PR 146 (H23): shared accessible modal primitive. Adds the a11y mechanics
 // every modal in the app was missing — focus trap, return focus, role +
@@ -23,8 +24,8 @@ const DEFAULT_BACKDROP = {
 };
 
 const DEFAULT_DIALOG = {
-  background: "#fff",
-  borderRadius: 12,
+  background: C.bg,
+  borderRadius: R.lg,
   padding: 24,
   maxWidth: 480,
   width: "100%",

@@ -9,7 +9,7 @@
 //     actionLabel="Join a class" onAction={openJoinForm} />
 import Cleo from "./Cleo";
 import Button from "./ui/Button";
-import { C, TYPE } from "./tokens";
+import { C, TYPE, R } from "./tokens";
 
 export default function EmptyState({
   emoji,           // string emoji (fallback visual)
@@ -30,7 +30,7 @@ export default function EmptyState({
       textAlign: "center",
       background: C.bg,
       border: `1px solid ${C.border}`,
-      borderRadius: 16,
+      borderRadius: R.lg,
       padding: "40px 28px",
       display: "flex",
       flexDirection: "column",

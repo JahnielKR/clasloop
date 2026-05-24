@@ -7,7 +7,7 @@
 //
 // Used inside the rail column that TwoColPage reserves on wide screens.
 
-import { C, MONO } from "./tokens";
+import { C, R, MONO } from "./tokens";
 import { CIcon } from "./Icons";
 
 // A bordered card section with an optional small uppercase title.
@@ -17,7 +17,7 @@ export function RailCard({ title, children, style }) {
       style={{
         background: C.bg,
         border: `1px solid ${C.border}`,
-        borderRadius: 12,
+        borderRadius: R.lg,
         padding: 16,
         marginBottom: 14,
         fontFamily: "'Outfit', sans-serif",
@@ -81,6 +81,7 @@ export function RailRow({ icon, label, right, active, onClick, title }) {
     <button
       onClick={onClick}
       title={title}
+      className={`rk-row${active ? " rk-row--active" : ""}`}
       style={{
         width: "100%",
         display: "flex",
@@ -89,16 +90,11 @@ export function RailRow({ icon, label, right, active, onClick, title }) {
         padding: "8px 10px",
         marginBottom: 2,
         border: "none",
-        borderRadius: 7,
+        borderRadius: R.sm,
         cursor: "pointer",
         textAlign: "left",
         fontFamily: "'Outfit', sans-serif",
-        background: active ? C.accentSoft : "transparent",
-        color: active ? C.accent : C.textSecondary,
-        transition: "background .12s ease, color .12s ease",
       }}
-      onMouseEnter={(e) => { if (!active) e.currentTarget.style.background = "rgba(0,0,0,0.035)"; }}
-      onMouseLeave={(e) => { if (!active) e.currentTarget.style.background = "transparent"; }}
     >
       {icon && <CIcon name={icon} size={16} inline />}
       <span style={{

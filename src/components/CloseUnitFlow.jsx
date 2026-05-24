@@ -119,21 +119,22 @@ export function CloseUnitConfirmModal({ open, unit, onCancel, onContinue, lang =
           <button
             onClick={onContinue}
             style={{
-              // Black button — user explicitly asked for the mockup style.
-              // Negative space, high contrast, signals "this is the
-              // serious action".
+              // High-contrast "serious action" button (the mockup's black
+              // style). Theme-aware via inverse tokens: near-black in light,
+              // near-white in dark — so it stays the high-contrast signal in
+              // both themes instead of a #000 box vanishing on a dark surface.
               padding: "9px 16px",
               borderRadius: 7,
-              background: "#000",
-              color: "#fff",
+              background: C.text,
+              color: C.bg,
               border: "none",
               fontFamily: "'Outfit', sans-serif",
               fontSize: 13, fontWeight: 600,
               cursor: "pointer",
-              transition: "background .12s ease",
+              transition: "opacity .12s ease",
             }}
-            onMouseEnter={e => { e.currentTarget.style.background = "#1A1A1A"; }}
-            onMouseLeave={e => { e.currentTarget.style.background = "#000"; }}
+            onMouseEnter={e => { e.currentTarget.style.opacity = "0.85"; }}
+            onMouseLeave={e => { e.currentTarget.style.opacity = "1"; }}
           >
             {t.continueToSummary}
           </button>
@@ -630,8 +631,8 @@ export function CloseUnitSummary({ unit, classObj, userId, lang = "en", onBack, 
                 style={{
                   padding: "8px 14px",
                   borderRadius: 7,
-                  background: "#000",
-                  color: "#fff",
+                  background: C.text,
+                  color: C.bg,
                   border: "none",
                   fontSize: 13, fontWeight: 600,
                   fontFamily: "'Outfit', sans-serif",
@@ -792,8 +793,8 @@ export function CloseUnitSummary({ unit, classObj, userId, lang = "en", onBack, 
           style={{
             padding: "9px 18px",
             borderRadius: 7,
-            background: "#000",
-            color: "#fff",
+            background: C.text,
+            color: C.bg,
             border: "none",
             fontFamily: "'Outfit', sans-serif",
             fontSize: 13, fontWeight: 600,
@@ -808,7 +809,7 @@ export function CloseUnitSummary({ unit, classObj, userId, lang = "en", onBack, 
         <div style={{
           marginTop: 10,
           padding: "8px 12px",
-          background: "#FEE",
+          background: C.redSoft,
           color: C.red,
           borderRadius: 6,
           fontSize: 12,
@@ -917,7 +918,7 @@ export function ReopenUnitModal({ open, unit, onCancel, onConfirm, lang = "en" }
         {errorMsg && (
           <div style={{
             padding: "8px 12px",
-            background: "#FEE",
+            background: C.redSoft,
             color: C.red,
             borderRadius: 6,
             fontSize: 12,
