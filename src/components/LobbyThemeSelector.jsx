@@ -28,6 +28,7 @@ import { useState } from "react";
 import { supabase } from "../lib/supabase";
 import { listThemes } from "../lib/themes";
 import { C } from "./tokens";
+import { selectableCard, selectedCheckStyle } from "./ui/selectable";
 import Modal from "./Modal";
 
 // PR 74: el bloque i18n local fue movido a src/i18n/{en,es,ko}.js
@@ -159,18 +160,15 @@ export default function LobbyThemeSelector({
                 <button
                   key={th.id}
                   onClick={() => setSelected(th.id)}
+                  className="cl-selectable"
                   style={{
                     position: "relative",
                     padding: 12,
                     borderRadius: 12,
-                    border: isSelected
-                      ? `2px solid ${C.accent}`
-                      : `1px solid ${C.border}`,
-                    background: isSelected ? C.accentSoft : C.bg,
+                    ...selectableCard(isSelected),
                     cursor: "pointer",
                     fontFamily: "inherit",
                     textAlign: "left",
-                    transition: "border-color .15s ease, background .15s ease",
                   }}
                 >
                   {/* Mini swatch — small representation of the theme's background */}
@@ -199,13 +197,9 @@ export default function LobbyThemeSelector({
                       position: "absolute",
                       top: 6, right: 6,
                       width: 18, height: 18,
-                      borderRadius: 50,
-                      background: C.accent,
-                      color: "#fff",
                       fontSize: 11,
                       fontWeight: 700,
-                      display: "grid",
-                      placeItems: "center",
+                      ...selectedCheckStyle(),
                     }}>✓</div>
                   )}
                 </button>

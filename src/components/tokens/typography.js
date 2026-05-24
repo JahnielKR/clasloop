@@ -27,6 +27,11 @@ export const TYPE = {
   bodyStrong: { fontFamily: BODY, fontSize: 14, fontWeight: 600, lineHeight: 1.5 },
   // Secondary / meta text
   small:   { fontFamily: BODY,    fontSize: 12, fontWeight: 500, lineHeight: 1.45 },
+  // Form field labels (see components/forms/FieldLabel). `label` is the
+  // standard secondary label; `labelDense` is the tighter one used inside
+  // data-dense panels (e.g. the AI generator) per density-by-function.
+  label:     { fontFamily: BODY, fontSize: 13, fontWeight: 500, lineHeight: 1.4 },
+  labelDense:{ fontFamily: BODY, fontSize: 11, fontWeight: 600, lineHeight: 1.3 },
   // Uppercase eyebrow / section label (matches the sidebar section titles)
   caption: { fontFamily: DISPLAY, fontSize: 10.5, fontWeight: 600, lineHeight: 1.4, letterSpacing: "0.09em", textTransform: "uppercase" },
   // Codes, PINs, code-like values
