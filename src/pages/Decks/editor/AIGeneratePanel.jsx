@@ -18,6 +18,7 @@ import { C } from "../styles";
 import AIIcon from "../../../components/AIIcon";
 import Button from "../../../components/ui/Button";
 import { inputStyle as inp, selectStyle as sel } from "../../../components/forms/field-styles";
+import { FieldLabel } from "../../../components/forms/FieldLabel";
 import { ACTIVITY_TYPES } from "./constants";
 import { sectionToLessonContext, sectionLabels } from "../../../lib/class-hierarchy";
 
@@ -299,9 +300,7 @@ export default function AIGeneratePanel({
 
       {/* Topic + key points */}
       <div style={{ marginBottom: 14 }}>
-        <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: C.textSecondary, marginBottom: 6 }}>
-          {file ? t.aiTopicOptional : t.aiTopicRequired}
-        </label>
+        <FieldLabel dense>{file ? t.aiTopicOptional : t.aiTopicRequired}</FieldLabel>
         <input
           type="text"
           value={topic}
@@ -313,9 +312,7 @@ export default function AIGeneratePanel({
       </div>
 
       <div style={{ marginBottom: 14 }}>
-        <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: C.textSecondary, marginBottom: 6 }}>
-          {t.aiKeyPointsLabel}
-        </label>
+        <FieldLabel dense>{t.aiKeyPointsLabel}</FieldLabel>
         <textarea
           value={keyPoints}
           onChange={(e) => setKeyPoints(e.target.value)}
@@ -333,7 +330,7 @@ export default function AIGeneratePanel({
           flex-wrap permite reorganizarse en pantallas chicas. */}
       <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 14 }}>
         <div style={{ flex: "2 1 160px", minWidth: 0 }}>
-          <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: C.textSecondary, marginBottom: 4 }}>{t.aiTypeLabel}</label>
+          <FieldLabel dense>{t.aiTypeLabel}</FieldLabel>
           <select
             value={aiActivityType}
             onChange={(e) => setAiActivityType(e.target.value)}
@@ -351,7 +348,7 @@ export default function AIGeneratePanel({
           </select>
         </div>
         <div style={{ flex: "0 0 90px" }}>
-          <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: C.textSecondary, marginBottom: 4 }}>{t.aiCountLabel}</label>
+          <FieldLabel dense>{t.aiCountLabel}</FieldLabel>
           <select
             value={numQuestions}
             onChange={(e) => setNumQuestions(Number(e.target.value))}
@@ -362,7 +359,7 @@ export default function AIGeneratePanel({
           </select>
         </div>
         <div style={{ flex: "1.5 1 140px", minWidth: 0 }}>
-          <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: C.textSecondary, marginBottom: 4 }}>{t.aiContextLabel}</label>
+          <FieldLabel dense>{t.aiContextLabel}</FieldLabel>
           {/* Read-only display — the AI's lessonContext is derived from the
               deck's section (set in the General tab). Shows the same value
               the AI prompt will use, so the teacher can verify, but no
@@ -395,7 +392,7 @@ export default function AIGeneratePanel({
           })()}
         </div>
         <div style={{ flex: "0 0 130px" }}>
-          <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: C.textSecondary, marginBottom: 4 }}>{t.aiLanguageLabel}</label>
+          <FieldLabel dense>{t.aiLanguageLabel}</FieldLabel>
           <select
             value={deckLanguage || ""}
             onChange={(e) => setDeckLanguage(e.target.value)}
