@@ -4,13 +4,17 @@
 //
 // Genera assets para el listing de Google Play (no para la app):
 //   - feature-graphic.png  (1024×500, obligatorio en Play Console)
+//   - icon-512.png         (512×512, ícono de alta resolución del listing)
 //
 // USO:  npm run store:assets
-// Output: resources/store/feature-graphic.png
+// Output: resources/store/feature-graphic.png, resources/store/icon-512.png
 //
-// Es un punto de partida con la identidad de marca (logo reloj+sol sobre
-// gradiente sky→ocean). Podés refinarlo en Canva/Figma si querés más pulido;
-// Play solo exige 1024×500 PNG/JPG sin transparencia.
+// El feature graphic es un punto de partida con la identidad de marca (logo
+// reloj+sol sobre gradiente sky→ocean); refinable en Canva/Figma. El ícono 512
+// se rasteriza del SVG real de la app (resources/icons/icon.svg) para que quede
+// idéntico al ícono adaptive del AAB.
+// Play exige: feature graphic 1024×500 PNG/JPG sin transparencia; ícono 512×512
+// PNG de 32 bits.
 
 const fs = require("fs");
 const path = require("path");
@@ -18,6 +22,7 @@ const sharp = require("sharp");
 
 const ROOT = process.cwd();
 const OUT_DIR = path.join(ROOT, "resources", "store");
+const ICON_SRC = path.join(ROOT, "resources", "icons", "icon.svg");
 fs.mkdirSync(OUT_DIR, { recursive: true });
 
 const W = 1024, H = 500;
@@ -51,8 +56,15 @@ function featureSvg() {
 async function main() {
   await sharp(featureSvg()).png().toFile(path.join(OUT_DIR, "feature-graphic.png"));
   console.log("✓ resources/store/feature-graphic.png (1024×500)");
-  console.log("\nListo. Subilo en Play Console → Store listing → Graphics → Feature graphic.");
-  console.log("Si el texto no se ve perfecto (fuentes del sistema), refinalo en Canva.");
+
+  // Hi-res listing icon (512×512), rasterized from the app's real SVG so it
+  // matches the adaptive icon in the AAB. Solid background → opaque PNG, OK for Play.
+  await sharp(fs.readFileSync(ICON_SRC)).resize(512, 512).png().toFile(path.join(OUT_DIR, "icon-512.png"));
+  console.log("✓ resources/store/icon-512.png (512×512)");
+
+  console.log("\nListo. Subilos en Play Console → Store listing → Graphics");
+  console.log("(Feature graphic + App icon). Si el texto del feature graphic no se ve");
+  console.log("perfecto (fuentes del sistema), refinalo en Canva.");
 }
 
 main().catch(err => { console.error("❌", err); process.exit(1); });
