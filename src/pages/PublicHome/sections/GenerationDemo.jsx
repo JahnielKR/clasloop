@@ -1,7 +1,7 @@
 import { C, MONO } from "../../../components/tokens";
 import { CIcon } from "../../../components/Icons";
 import { useReveal } from "../useReveal";
-import Eyebrow from "./Eyebrow";
+import SectionHeader from "./SectionHeader";
 // Real in-app section theming so the generated warmup/exit-ticket cards match
 // what teachers actually see. forceDark=false → light values (landing is light).
 import { getSectionTheme, getSectionLabel } from "../../../lib/section-theme";
@@ -54,13 +54,7 @@ export default function GenerationDemo({ t, lang }) {
     <section id="generate" className="ph-section ph-anchor ph-seam-top" style={{ padding: "110px 32px" }}>
       <div style={{ maxWidth: 1000, margin: "0 auto", textAlign: "center" }}>
         <div ref={headRef} className={`ph-reveal ${headVisible ? "is-visible" : ""}`}>
-          <Eyebrow num="01">{t.eyebrowGen}</Eyebrow>
-          <h2 className="ph-section-h2" style={{ fontSize: 52, fontWeight: 700, color: C.text, margin: "0 0 18px", letterSpacing: "-0.02em" }}>
-            {t.genTitle}
-          </h2>
-          <p className="ph-section-sub" style={{ fontSize: 21, color: C.textSecondary, margin: "0 auto 56px", maxWidth: 720, lineHeight: 1.5 }}>
-            {t.genSub}
-          </p>
+          <SectionHeader num="01" eyebrow={t.eyebrowGen} title={t.genTitle} sub={t.genSub} />
         </div>
 
         <div

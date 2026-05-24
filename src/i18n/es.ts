@@ -945,7 +945,7 @@ const es: Locale = {
     signUpFree: "Registrarse gratis",
     pill: "Tus warmups y exit tickets diarios",
     taglinePart1: "De cualquier archivo a un warmup o exit ticket en",
-    taglineHighlight: "60 segundos.",
+    taglineHighlight: "30 segundos.",
     sub: "Cualquier archivo o tema entra. Preguntas verificadas y listas para usar salen. Tú revisas, lanzas, listo.",
     ctaPrimary: "Empezar prueba gratis",
     ctaSubtext: "7 días gratis, todas las funciones. Sin tarjeta de crédito.",

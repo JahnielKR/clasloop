@@ -8,8 +8,8 @@ import { test, expect } from "@playwright/test";
 test.describe("public landing", () => {
   test("PublicHome renders the marketing entry", async ({ page }) => {
     await page.goto("/");
-    // taglineHighlight — unique copy on the landing hero
-    await expect(page.getByText("60 seconds.")).toBeVisible();
+    // taglineHighlight — unique copy on the landing hero (the headline anchor)
+    await expect(page.getByRole("heading", { name: /30 seconds\./ })).toBeVisible();
     await expect(
       page.getByRole("button", { name: "Sign up free" }).first()
     ).toBeVisible();
@@ -56,7 +56,7 @@ test.describe("public landing", () => {
     page.on("pageerror", (err) => errors.push(String(err)));
     await page.setViewportSize({ width: 1280, height: 900 });
     await page.goto("/");
-    await expect(page.getByText("60 seconds.")).toBeVisible();
+    await expect(page.getByRole("heading", { name: /30 seconds\./ })).toBeVisible();
     await expect(page.getByRole("navigation", { name: "Section progress" })).toBeVisible();
     // The four scene headings all render (generate → print → live → insights).
     await expect(page.getByRole("heading", { name: "From any file to verified questions" })).toBeAttached();
@@ -67,7 +67,38 @@ test.describe("public landing", () => {
   test("scroll redesign: journey rail is hidden on mobile", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto("/");
-    await expect(page.getByText("60 seconds.")).toBeVisible();
+    await expect(page.getByRole("heading", { name: /30 seconds\./ })).toBeVisible();
     await expect(page.getByRole("navigation", { name: "Section progress" })).toBeHidden();
+  });
+
+  test("closing CTA shows Cleo and the sign-up call to action", async ({ page }) => {
+    await page.goto("/");
+    // "Pricing" nav targets the closing section (id="start").
+    await page.getByRole("button", { name: "Pricing" }).click();
+    await expect(
+      page.getByRole("heading", { name: "Every class deserves a warmup." })
+    ).toBeInViewport({ timeout: 5000 });
+    // The mascot's one punctual landing appearance.
+    await expect(page.getByRole("img", { name: "Cleo" }).first()).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Start free trial" }).last()
+    ).toBeVisible();
+  });
+
+  test("reduced-motion: content stays visible and logs no console errors", async ({ page }) => {
+    // Guards the new hero choreography + card entrance + closing Cleo: under
+    // prefers-reduced-motion every animation must collapse to a readable end
+    // state (nothing left hidden) and nothing should throw.
+    const errors: string[] = [];
+    page.on("console", (msg) => { if (msg.type() === "error") errors.push(msg.text()); });
+    page.on("pageerror", (err) => errors.push(String(err)));
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.goto("/");
+    await expect(page.getByRole("heading", { name: /30 seconds\./ })).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Every class deserves a warmup." })
+    ).toBeAttached();
+    expect(errors).toEqual([]);
   });
 });

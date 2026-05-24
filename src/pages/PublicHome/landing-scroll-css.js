@@ -81,9 +81,16 @@ export const landingScrollCss = `
      always light, so fading to opaque white is correct. */
   .ph-seam-top { background: linear-gradient(to bottom, rgba(35,131,226,0.05) 0%, rgba(255,255,255,0) 180px); }
 
-  /* ── Micro-delight: springy lift on interactive pills/cards ─────────────── */
-  .ph-springy { transition: transform .2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow .2s ease; }
+  /* ── Micro-delight: springy lift + tactile press on interactive pills/cards ─
+     The press uses the independent \`scale\` property so it composes with the
+     hover \`transform\` (translateY) instead of clobbering it. */
+  .ph-springy { transition: transform .2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow .2s ease, scale .12s ease; }
   .ph-springy:hover { transform: translateY(-3px); }
+  .ph-springy:active { scale: .97; }
+  /* Press feedback for tappable chips that aren't springy (e.g. theme picker).
+     Pair with \`scale\` in the element's own transition so the dip animates. */
+  .ph-press { transition: scale .12s ease, background .15s ease, border-color .15s ease, color .15s ease; }
+  .ph-press:active { scale: .96; }
 
   /* ── Accessibility: collapse every new motion to a static end-state ─────── */
   @media (prefers-reduced-motion: reduce) {
@@ -93,5 +100,8 @@ export const landingScrollCss = `
     .ph-scene { min-height: 0 !important; }
     .ph-scene-stick { position: static !important; }
     .ph-springy { transition: none !important; }
+    .ph-springy:active { scale: 1 !important; }
+    .ph-press { transition: none !important; }
+    .ph-press:active { scale: 1 !important; }
   }
 `;

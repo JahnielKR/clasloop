@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { C, MONO } from "../../../components/tokens";
 import { useReveal } from "../useReveal";
-import Eyebrow from "./Eyebrow";
+import SectionHeader from "./SectionHeader";
 
 // ─── QuestionTypes ─────────────────────────────────────────────────────────
 // Interactive showcase of the 9 question types. Clicking/hovering a pill (or
@@ -251,13 +251,7 @@ export default function QuestionTypes({ t, lang }) {
     }}>
       <div style={{ maxWidth: 980, margin: "0 auto", textAlign: "center" }}>
         <div ref={headRef} className={`ph-reveal ${headVisible ? "is-visible" : ""}`}>
-          <Eyebrow>{t.eyebrowTypes}</Eyebrow>
-          <h2 className="ph-section-h2" style={{ fontSize: 52, fontWeight: 700, color: C.text, margin: "0 0 18px", letterSpacing: "-0.02em" }}>
-            {t.typesTitle}
-          </h2>
-          <p className="ph-section-sub" style={{ fontSize: 21, color: C.textSecondary, margin: "0 auto 44px", maxWidth: 700, lineHeight: 1.5 }}>
-            {t.typesSub}
-          </p>
+          <SectionHeader eyebrow={t.eyebrowTypes} title={t.typesTitle} sub={t.typesSub} subGap={44} />
         </div>
 
         {/* Preview stage — bigger, accent-topped, with a fade on each swap. */}

@@ -55,7 +55,7 @@ const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" 
   <g font-family="${FONT}" fill="#191919" font-weight="800">
     <text x="90" y="262" font-size="62">From any file to</text>
     <text x="90" y="334" font-size="62">a warmup or exit</text>
-    <text x="90" y="406" font-size="62">ticket in <tspan fill="#2383E2">60 seconds.</tspan></text>
+    <text x="90" y="406" font-size="62">ticket in <tspan fill="#2383E2">30 seconds.</tspan></text>
   </g>
 
   <!-- sub -->

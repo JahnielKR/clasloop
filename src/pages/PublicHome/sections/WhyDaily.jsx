@@ -1,6 +1,6 @@
 import { C } from "../../../components/tokens";
 import { useReveal } from "../useReveal";
-import Eyebrow from "./Eyebrow";
+import SectionHeader from "./SectionHeader";
 
 // ─── WhyDaily ──────────────────────────────────────────────────────────────
 // "Why daily" — three benefit cards. Each gets a small on-brand mini-visual
@@ -96,19 +96,10 @@ export default function WhyDaily({ t }) {
   ];
 
   return (
-    <section id="why" className="ph-section ph-anchor" style={{ padding: "120px 32px" }}>
+    <section id="why" className="ph-section ph-anchor ph-seam-top" style={{ padding: "120px 32px" }}>
       <div style={{ maxWidth: 1080, margin: "0 auto", textAlign: "center" }}>
         <div ref={headRef} className={`ph-reveal ${headVisible ? "is-visible" : ""}`}>
-          <Eyebrow>{t.eyebrowWhy}</Eyebrow>
-          <h2 className="ph-section-h2" style={{
-            fontSize: 52, fontWeight: 700, color: C.text,
-            margin: "0 0 20px", letterSpacing: "-0.02em",
-          }}>{t.whyTitle}</h2>
-          <p className="ph-section-sub" style={{
-            fontSize: 22, color: C.textSecondary,
-            margin: "0 0 70px", maxWidth: 820,
-            marginLeft: "auto", marginRight: "auto", lineHeight: 1.5,
-          }}>{t.whySub}</p>
+          <SectionHeader eyebrow={t.eyebrowWhy} title={t.whyTitle} sub={t.whySub} subGap={70} />
         </div>
         <div ref={gridRef} className={`ph-why-grid ph-stagger ${gridVisible ? "is-visible" : ""}`} style={{
           display: "grid", gridTemplateColumns: "repeat(3, 1fr)",
