@@ -33,9 +33,10 @@ import { useT } from "../i18n";
 //   plus 1, so the picked deck lands at the end of the day stack. The
 //   teacher can drag-reorder later in All-decks view.
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { C, MONO } from "./tokens";
+import Modal from "./Modal";
 import SectionBadge, { sectionAccent } from "./SectionBadge";
 
 // PR 74: el bloque i18n local fue movido a src/i18n/{en,es,ko}.js
@@ -57,6 +58,9 @@ export default function AddToSlotModal({
 }) {
   const t = useT("addToSlotModal", lang);
   const section = slotKind === "warmup" ? "warmup" : "exit_ticket";
+  // Initial focus for the Modal primitive — the search field, not the close
+  // button the focus trap would otherwise pick first.
+  const searchRef = useRef(null);
 
   const [tab, setTab] = useState("library"); // "library" | "create"
   const [search, setSearch] = useState("");
@@ -236,31 +240,31 @@ export default function AddToSlotModal({
   const stripeColor = sectionAccent(section);
 
   return (
-    // Backdrop — click outside closes (a teacher who opened by accident
-    // shouldn't have to hunt for an X button)
-    <div
-      onClick={onClose}
-      style={{
+    // Click outside closes (a teacher who opened by accident shouldn't have
+    // to hunt for an X button) — handled by the Modal primitive.
+    <Modal
+      open
+      onClose={onClose}
+      ariaLabelledBy="addtoslot-title"
+      initialFocusRef={searchRef}
+      backdropStyle={{
         position: "fixed", inset: 0,
         background: "rgba(0,0,0,0.5)",
         display: "flex", alignItems: "center", justifyContent: "center",
         zIndex: 200, padding: 20,
       }}
+      dialogStyle={{
+        background: C.bg,
+        borderRadius: 12,
+        border: `1px solid ${C.border}`,
+        width: "100%",
+        maxWidth: 540,
+        maxHeight: "85vh",
+        display: "flex", flexDirection: "column",
+        overflow: "hidden",
+        boxShadow: "0 20px 60px rgba(0,0,0,0.18)",
+      }}
     >
-      <div
-        onClick={e => e.stopPropagation()}
-        style={{
-          background: C.bg,
-          borderRadius: 12,
-          border: `1px solid ${C.border}`,
-          width: "100%",
-          maxWidth: 540,
-          maxHeight: "85vh",
-          display: "flex", flexDirection: "column",
-          overflow: "hidden",
-          boxShadow: "0 20px 60px rgba(0,0,0,0.18)",
-        }}
-      >
         {/* Header */}
         <div style={{
           padding: "18px 20px",
@@ -273,7 +277,7 @@ export default function AddToSlotModal({
             background: stripeColor,
           }} />
           <div style={{ flex: 1 }}>
-            <div style={{
+            <div id="addtoslot-title" style={{
               fontFamily: "'Outfit', sans-serif",
               fontSize: 16, fontWeight: 700,
               color: C.text,
@@ -339,11 +343,11 @@ export default function AddToSlotModal({
             <>
               {/* Search input */}
               <input
+                ref={searchRef}
                 type="text"
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 placeholder={t.searchPlaceholder}
-                autoFocus
                 style={{
                   width: "100%",
                   padding: "10px 14px",
@@ -519,7 +523,6 @@ export default function AddToSlotModal({
             </div>
           )}
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 }

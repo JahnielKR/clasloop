@@ -19,6 +19,7 @@
 
 import { useEffect, useState, useMemo } from "react";
 import { C } from "./tokens";
+import Modal from "./Modal";
 import { setDayDate, getDayDate, suggestNextDayDate } from "../lib/class-hierarchy";
 // PR 73: i18n centralizado
 import { useT } from "../i18n";
@@ -82,14 +83,6 @@ export default function DayDateModal({
     setSaving(false);
   }, [open, suggestedDate]);
 
-  // Esc to close
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e) => { if (e.key === "Escape" && !saving) onClose(); };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [open, onClose, saving]);
-
   if (!open) return null;
 
   const isEdit = !!existingDate;
@@ -126,29 +119,28 @@ export default function DayDateModal({
   };
 
   return (
-    <div
-      onClick={(e) => { if (e.target === e.currentTarget && !saving) onClose(); }}
-      style={{
+    <Modal
+      open
+      onClose={onClose}
+      canClose={!saving}
+      ariaLabelledBy="daydate-title"
+      backdropStyle={{
         position: "fixed", inset: 0, zIndex: 100,
         background: "rgba(0,0,0,0.45)",
         display: "flex", alignItems: "center", justifyContent: "center",
         padding: 16,
       }}
+      dialogStyle={{
+        background: C.bg,
+        borderRadius: 14,
+        width: "100%",
+        maxWidth: 420,
+        padding: "24px 24px 20px",
+        boxShadow: "0 18px 60px rgba(0,0,0,0.25)",
+        fontFamily: "'Outfit', sans-serif",
+      }}
     >
-      <div
-        role="dialog"
-        aria-modal="true"
-        style={{
-          background: C.bg,
-          borderRadius: 14,
-          width: "100%",
-          maxWidth: 420,
-          padding: "24px 24px 20px",
-          boxShadow: "0 18px 60px rgba(0,0,0,0.25)",
-          fontFamily: "'Outfit', sans-serif",
-        }}
-      >
-        <h2 style={{
+        <h2 id="daydate-title" style={{
           fontFamily: "'Outfit', sans-serif",
           fontSize: 19, fontWeight: 700,
           margin: "0 0 6px",
@@ -281,7 +273,6 @@ export default function DayDateModal({
             {saving ? t.saving : t.save}
           </button>
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 }

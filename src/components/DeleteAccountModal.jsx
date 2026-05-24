@@ -18,6 +18,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
 import { C } from "./tokens";
+import Modal from "./Modal";
 // PR 74: i18n centralizado
 import { useT } from "../i18n";
 
@@ -39,14 +40,6 @@ export default function DeleteAccountModal({
 
   const isTeacher = profile?.role === "teacher";
 
-  // Lock body scroll while open
-  useEffect(() => {
-    if (!open) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => { document.body.style.overflow = prev; };
-  }, [open]);
-
   // Reset state when reopened
   useEffect(() => {
     if (open) {
@@ -55,16 +48,6 @@ export default function DeleteAccountModal({
       setDeleting(false);
     }
   }, [open]);
-
-  // Esc closes (only when not in the middle of deleting)
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e) => {
-      if (e.key === "Escape" && !deleting) onClose();
-    };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [open, deleting, onClose]);
 
   if (!open) return null;
 
@@ -99,30 +82,29 @@ export default function DeleteAccountModal({
   };
 
   return (
-    <div
-      onClick={(e) => { if (e.target === e.currentTarget && !deleting) onClose(); }}
-      style={{
+    <Modal
+      open
+      onClose={onClose}
+      canClose={!deleting}
+      role="alertdialog"
+      ariaLabelledBy="delete-account-title"
+      backdropStyle={{
         position: "fixed", inset: 0, zIndex: 9999,
         background: "rgba(15, 18, 25, 0.65)",
         display: "flex", alignItems: "center", justifyContent: "center",
         padding: 16,
         fontFamily: "'Outfit', sans-serif",
       }}
+      dialogStyle={{
+        background: C.bg,
+        borderRadius: 16,
+        width: "100%",
+        maxWidth: 460,
+        padding: "26px 28px 22px",
+        boxShadow: "0 24px 70px rgba(0, 0, 0, 0.4)",
+        borderTop: `4px solid ${C.red}`,
+      }}
     >
-      <div
-        role="alertdialog"
-        aria-modal="true"
-        aria-labelledby="delete-account-title"
-        style={{
-          background: C.bg,
-          borderRadius: 16,
-          width: "100%",
-          maxWidth: 460,
-          padding: "26px 28px 22px",
-          boxShadow: "0 24px 70px rgba(0, 0, 0, 0.4)",
-          borderTop: `4px solid ${C.red}`,
-        }}
-      >
         {/* Warning icon */}
         <div style={{
           width: 52, height: 52,
@@ -287,7 +269,6 @@ export default function DeleteAccountModal({
             {deleting ? t.deleting : t.deleteBtn}
           </button>
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 }
