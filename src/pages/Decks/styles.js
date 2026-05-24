@@ -10,27 +10,27 @@ import { C as BASE_C } from "../../components/tokens";
 export const C = BASE_C;
 
 export const css = `
-  .dk-tab { transition: all .15s ease; cursor: pointer; border: none; font-family: 'Outfit',sans-serif; }
+  .dk-tab { transition: transform .15s ease, background-color .15s ease, border-color .15s ease, color .15s ease, box-shadow .15s ease, filter .15s ease; cursor: pointer; border: none; font-family: 'Outfit',sans-serif; }
   .dk-tab:hover { background: ${C.accentSoft} !important; border-color: ${C.accent} !important; color: ${C.accent} !important; }
-  .dk-card { transition: all .2s ease; cursor: pointer; }
+  .dk-card { transition: transform .2s ease, background-color .2s ease, border-color .2s ease, color .2s ease, box-shadow .2s ease, filter .2s ease; cursor: pointer; }
   .dk-card:hover { border-color: ${C.accent} !important; box-shadow: 0 4px 16px rgba(35,131,226,.1) !important; transform: translateY(-2px); }
-  .dk-group-header { transition: all .18s ease; cursor: pointer; }
+  .dk-group-header { transition: transform .18s ease, background-color .18s ease, border-color .18s ease, color .18s ease, box-shadow .18s ease, filter .18s ease; cursor: pointer; }
   .dk-group-header:hover { transform: translateY(-1px); box-shadow: 0 3px 10px rgba(0,0,0,0.06); filter: brightness(0.98); }
   .dk-group-header:active { transform: translateY(0); }
   .dk-plus-tile { position: relative; }
   .dk-plus-tile:hover { background: ${C.accentSoft} !important; border-color: ${C.accent} !important; }
   .dk-plus-tile:hover .dk-plus-icon { transform: rotate(180deg) scale(1.08); background: ${C.accentSoft} !important; box-shadow: 0 0 0 6px ${C.accentSoft}; }
   .dk-plus-tile:active .dk-plus-icon { transform: rotate(180deg) scale(.95); }
-  .dk-btn { transition: all .15s ease; cursor: pointer; border: none; font-family: 'Outfit',sans-serif; }
+  .dk-btn { transition: transform .15s ease, background-color .15s ease, border-color .15s ease, color .15s ease, box-shadow .15s ease, filter .15s ease; cursor: pointer; border: none; font-family: 'Outfit',sans-serif; }
   .dk-btn:hover { transform: translateY(-1px); filter: brightness(1.05); }
   .dk-btn-secondary:hover { background: ${C.accentSoft} !important; border-color: ${C.accent} !important; color: ${C.accent} !important; }
   .dk-btn-danger:hover { background: ${C.red} !important; color: #fff !important; }
-  .dk-fav-customize { transition: all .15s ease; }
+  .dk-fav-customize { transition: transform .15s ease, background-color .15s ease, border-color .15s ease, color .15s ease, box-shadow .15s ease, filter .15s ease; }
   .dk-fav-customize:hover { background: ${C.accent} !important; color: #fff !important; border-color: ${C.accent} !important; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(35,131,226,.25); }
   .dk-fav-customize:active { transform: translateY(0); }
-  .dk-fav-remove { transition: all .15s ease; }
+  .dk-fav-remove { transition: transform .15s ease, background-color .15s ease, border-color .15s ease, color .15s ease, box-shadow .15s ease, filter .15s ease; }
   .dk-fav-remove:hover { background: ${C.redSoft} !important; color: ${C.red} !important; border-color: ${C.red} !important; }
-  .dk-pill { transition: all .15s ease; cursor: pointer; }
+  .dk-pill { transition: transform .15s ease, background-color .15s ease, border-color .15s ease, color .15s ease, box-shadow .15s ease, filter .15s ease; cursor: pointer; }
   .dk-pill:hover { background: ${C.accentSoft} !important; border-color: ${C.accent} !important; color: ${C.accent} !important; }
   .dk-color-swatch:hover { transform: scale(1.1); }
   .dk-color-swatch:active { transform: scale(.95); }
@@ -77,7 +77,7 @@ export const css = `
   .dk-type-card:active { transform: scale(.97); }
   .dk-add-another:hover { background: ${C.accentSoft} !important; border-color: ${C.accent} !important; }
   .dk-add-another:active { transform: scale(.99); }
-  .dk-add-mini { transition: all .15s ease; }
+  .dk-add-mini { transition: transform .15s ease, background-color .15s ease, border-color .15s ease, color .15s ease, box-shadow .15s ease, filter .15s ease; }
   .dk-add-mini:hover { background: ${C.accentSoft} !important; border-color: ${C.accent} !important; color: ${C.accent} !important; }
   .dk-add-mini:active { transform: scale(.97); }
   @keyframes flashGlow {
@@ -88,15 +88,19 @@ export const css = `
   .dk-input { transition: border-color .15s, box-shadow .15s; }
   .dk-input:hover { border-color: ${C.accent} !important; }
   .dk-input:focus { border-color: ${C.accent} !important; box-shadow: 0 0 0 3px ${C.accentSoft} !important; }
-  .dk-back { transition: all .15s ease; cursor: pointer; }
+  .dk-back { transition: transform .15s ease, background-color .15s ease, border-color .15s ease, color .15s ease, box-shadow .15s ease, filter .15s ease; cursor: pointer; }
   .dk-back:hover { background: ${C.accentSoft} !important; }
-  .dk-q-card { transition: all .2s ease; }
+  .dk-q-card { transition: transform .2s ease, background-color .2s ease, border-color .2s ease, color .2s ease, box-shadow .2s ease, filter .2s ease; }
   .dk-q-card:hover { border-color: ${C.accent} !important; }
-  .dk-lang { transition: all .12s ease; cursor: pointer; }
+  .dk-lang { transition: transform .12s ease, background-color .12s ease, border-color .12s ease, color .12s ease, box-shadow .12s ease, filter .12s ease; cursor: pointer; }
   .dk-lang:hover { background: ${C.accentSoft} !important; color: ${C.accent} !important; }
   @keyframes fadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
   .fade-up { animation: fadeUp .3s ease-out both; }
   @keyframes dk-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
   .dk-scroll-x { overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; -ms-overflow-style: none; }
   .dk-scroll-x::-webkit-scrollbar { display: none; }
+  @media (prefers-reduced-motion: reduce) {
+    .dk-tab, .dk-card, .dk-group-header, .dk-btn, .dk-fav-customize, .dk-fav-remove, .dk-pill, .dk-add-mini, .dk-q-card, .dk-lang, .dk-q-row, .dk-input, .dk-back, .dk-icon-btn, .dk-mode-btn, .dk-preset-btn, .dk-color-swatch { transition: none; }
+    .dk-q-flash, .fade-up { animation: none; }
+  }
 `;
