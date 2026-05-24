@@ -178,6 +178,13 @@ a {
   animation: shimmer 1.3s ease-in-out infinite;
 }
 
+/* Side-rail clickable row (RailKit). Hover/active live here so they're
+   theme-aware — the old inline rgba(0,0,0,.035) hover was invisible in dark
+   mode — and applied consistently across every side rail. */
+.rk-row { background: transparent; color: var(--c-text-secondary); transition: background .12s ease, color .12s ease; }
+.rk-row:hover:not(.rk-row--active) { background: var(--c-bg-soft); }
+.rk-row--active { background: var(--c-accent-soft); color: var(--c-accent); }
+
 @media (prefers-reduced-motion: reduce) {
   .ui-btn, .ui-card { transition: none; }
   .ui-btn:hover, .ui-btn:active, .ui-card--hover:hover, .ui-card--hover:active { transform: none; }

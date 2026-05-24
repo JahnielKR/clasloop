@@ -23,8 +23,9 @@ import EditClassModal from "../components/EditClassModal";
 import StudentsModal from "../components/StudentsModal";
 import SectionBadge, { sectionAccent } from "../components/SectionBadge";
 import PlanView from "../components/PlanView";
+import Skeleton from "../components/ui/Skeleton";
 import { CloseUnitConfirmModal, CloseUnitSummary, ReopenUnitModal } from "../components/CloseUnitFlow";
-import { C, MONO } from "../components/tokens";
+import { C, R, MONO } from "../components/tokens";
 import CleoTour from "../onboarding/CleoTour";
 import Confetti from "../components/Confetti";
 import { useJourney } from "../onboarding/useJourney";
@@ -864,9 +865,25 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
   }
 
   if (loading || !classObj) {
+    // Skeleton that mirrors the real layout (back link → class header → section
+    // tabs → deck grid) so the most-visited page fills in gracefully instead of
+    // blinking a centered "Loading…". Shimmer + reduced-motion handled by .ui-skeleton.
     return (
-      <div style={{ padding: isMobile ? "16px 14px 32px" : "20px 28px 40px", maxWidth: 760, margin: "0 auto" }}>
-        <p style={{ textAlign: "center", color: C.textMuted, padding: 60, fontSize: 14 }}>{t.loading}</p>
+      <div style={{ padding: isMobile ? "16px 14px 32px" : "20px 28px 40px", maxWidth: 760, margin: "0 auto" }} aria-busy="true" aria-label={t.loading}>
+        <Skeleton width={88} height={16} style={{ marginBottom: 22 }} />
+        <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 26 }}>
+          <Skeleton width={48} height={48} radius={R.md} />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <Skeleton width="52%" height={22} style={{ marginBottom: 8 }} />
+            <Skeleton width="34%" height={13} />
+          </div>
+        </div>
+        <div style={{ display: "flex", gap: 8, marginBottom: 24 }}>
+          {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} width={112} height={36} radius={R.md} />)}
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fill, minmax(220px, 1fr))", gap: 14 }}>
+          {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} height={118} radius={R.lg} />)}
+        </div>
       </div>
     );
   }

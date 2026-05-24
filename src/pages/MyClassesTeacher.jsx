@@ -8,7 +8,7 @@ import CreateClassModal from "../components/CreateClassModal";
 import ImportClassModal from "../components/ImportClassModal";
 // PR 22: theme selector modal launched from each class card
 import LobbyThemeSelector from "../components/LobbyThemeSelector";
-import { C, MONO } from "../components/tokens";
+import { C, R, MONO } from "../components/tokens";
 import Button from "../components/ui/Button";
 import Skeleton from "../components/ui/Skeleton";
 import EmptyState from "../components/EmptyState";
@@ -76,7 +76,7 @@ function ClassCard({ cls, t, lang, onOpen, onOpenThemeSelector, deckCount = 0, s
         background: C.bg,
         border: `1px solid ${C.border}`,
         borderLeft: `4px solid ${accent}`,
-        borderRadius: 12,
+        borderRadius: R.lg,
         padding: 18,
         cursor: "pointer",
         display: "flex",
@@ -533,7 +533,7 @@ export default function MyClassesTeacher({ lang = "en", profile, onNavigateToSes
           marginTop: 12,
         }}>
           {Array.from({ length: 6 }).map((_, i) => (
-            <Skeleton key={i} height={150} radius={12} />
+            <Skeleton key={i} height={150} radius={14} />
           ))}
         </div>
       ) : classes.length === 0 ? (
@@ -684,6 +684,10 @@ export default function MyClassesTeacher({ lang = "en", profile, onNavigateToSes
         @keyframes ns-fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
         .ns-fade { animation: ns-fadeIn .25s ease; }
         @keyframes cl-fade-in { from { opacity: 0; } to { opacity: 1; } }
+        @media (prefers-reduced-motion: reduce) {
+          .cl-class-card:hover { transform: none; }
+          .cl-class-card-new, .cl-class-card-glow, .ns-fade { animation: none; }
+        }
       `}</style>
 
       {/* PR 22: Theme selector modal. Opens when the teacher clicks the
