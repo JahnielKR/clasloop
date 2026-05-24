@@ -59,7 +59,12 @@ button {
   cursor: pointer;
   border: none;
   outline: none;
-  transition: all 0.15s;
+  /* Explicit, GPU-friendly props (not `all`) so every raw button transitions
+     the same way and never animates layout. Mirrors the .ui-btn token set so
+     primitive + inline buttons feel identical. */
+  transition: transform .12s ease, background-color .12s ease,
+              border-color .12s ease, color .12s ease, box-shadow .12s ease,
+              opacity .12s ease, filter .12s ease;
 }
 
 button:active {
@@ -69,6 +74,7 @@ button:active {
 a {
   color: inherit;
   text-decoration: none;
+  transition: color .15s ease;
 }
 
 @keyframes fadeIn {
