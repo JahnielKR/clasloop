@@ -11,6 +11,8 @@ import {
   resolveColor,
 } from "../../../lib/deck-cover";
 import { C } from "../styles";
+import { selectableCard } from "../../../components/ui/selectable";
+import { FieldLabel } from "../../../components/forms/FieldLabel";
 import DeckCardPreview from "./DeckCardPreview";
 
 export default function CustomizeTab({ ed, t }) {
@@ -52,7 +54,7 @@ export default function CustomizeTab({ ed, t }) {
 
           {/* Cover style selector ─────────────────────────── */}
           <div>
-            <label style={{ display: "block", fontSize: 12, fontWeight: 500, color: C.textSecondary, marginBottom: 8 }}>{t.coverStyle}</label>
+            <FieldLabel>{t.coverStyle}</FieldLabel>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6 }}>
               {[
                 { id: "color",  label: t.styleColor,  icon: "paint" },
@@ -64,7 +66,7 @@ export default function CustomizeTab({ ed, t }) {
                   <button
                     key={opt.id}
                     type="button"
-                    className="dk-mode-btn"
+                    className="dk-mode-btn cl-selectable"
                     onClick={() => {
                       if (opt.id === "color")  handleClearCover();
                       if (opt.id === "preset" && coverMode !== "preset") handleSelectPreset(PRESET_PATTERNS[0].id);
@@ -72,12 +74,10 @@ export default function CustomizeTab({ ed, t }) {
                     }}
                     style={{
                       padding: "10px 8px", borderRadius: 9, fontSize: 12, fontWeight: 600,
-                      background: active ? C.accentSoft : C.bg,
+                      ...selectableCard(active),
                       color: active ? C.accent : C.textSecondary,
-                      border: `1.5px solid ${active ? C.accent : C.border}`,
                       cursor: "pointer", fontFamily: "'Outfit',sans-serif",
                       display: "flex", alignItems: "center", justifyContent: "center", gap: 5,
-                      transition: "all .15s ease",
                     }}
                   >
                     <CIcon name={opt.icon} size={14} inline /> {opt.label}
@@ -98,7 +98,7 @@ export default function CustomizeTab({ ed, t }) {
 
           {/* Color always visible — it tints presets too ─────────── */}
           <div>
-            <label style={{ display: "block", fontSize: 12, fontWeight: 500, color: C.textSecondary, marginBottom: 6 }}>{t.coverColor}</label>
+            <FieldLabel>{t.coverColor}</FieldLabel>
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
               {DECK_COLORS.map(col => (
                 <button
@@ -124,7 +124,7 @@ export default function CustomizeTab({ ed, t }) {
           {/* Mode-specific content */}
           {coverMode === "color" && (
             <div>
-              <label style={{ display: "block", fontSize: 12, fontWeight: 500, color: C.textSecondary, marginBottom: 6 }}>{t.coverIcon}</label>
+              <FieldLabel>{t.coverIcon}</FieldLabel>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(10, 1fr)", gap: 4 }}>
                 {DECK_ICONS.map(ic => (
                   <button
@@ -133,15 +133,13 @@ export default function CustomizeTab({ ed, t }) {
                     aria-label={ic}
                     title={ic}
                     onClick={() => setCoverIcon(ic)}
-                    className="dk-icon-btn"
+                    className="dk-icon-btn cl-selectable"
                     style={{
                       aspectRatio: "1 / 1",
                       borderRadius: 8,
-                      background: coverIcon === ic ? C.accentSoft : C.bg,
-                      border: `1.5px solid ${coverIcon === ic ? C.accent : C.border}`,
+                      ...selectableCard(coverIcon === ic),
                       cursor: "pointer", padding: 0,
                       display: "flex", alignItems: "center", justifyContent: "center",
-                      transition: "all .15s ease",
                     }}
                   >
                     <CIcon name={ic} size={18} />
@@ -153,7 +151,7 @@ export default function CustomizeTab({ ed, t }) {
 
           {coverMode === "preset" && (
             <div>
-              <label style={{ display: "block", fontSize: 12, fontWeight: 500, color: C.textSecondary, marginBottom: 6 }}>{t.presetPatterns}</label>
+              <FieldLabel>{t.presetPatterns}</FieldLabel>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
                 {PRESET_PATTERNS.map(p => {
                   const active = coverImageUrl === `preset:${p.id}`;
