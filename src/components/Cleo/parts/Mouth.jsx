@@ -1,7 +1,13 @@
 // ─── Cleo — mouth ───────────────────────────────────────────────────────────
+// Only the surprised "o" takes motion: when `live` and a gesture variant is given
+// (mouthGasp), the mouth opens/closes in sync with the gasp via motion/react.
+// Everything else is static.
+
+import { motion } from "motion/react";
+import { GESTURE_VARIANTS } from "../motion/variants";
 import { OUTLINE } from "./constants";
 
-export function Mouth({ variant, gesture }) {
+export function Mouth({ variant, gesture, live }) {
   const s = { fill: "none", stroke: OUTLINE, strokeWidth: 2.4, strokeLinecap: "round", strokeLinejoin: "round" };
   switch (variant) {
     case "openSmile": // big grin + tongue (cheer)
@@ -15,8 +21,18 @@ export function Mouth({ variant, gesture }) {
       return <path d="M44 71.5 Q50 66.5 56 71.5" {...s} />;
     case "flat": // small pursed pout (annoyed)
       return <path d="M45 69 Q50 70.5 55 68.8" {...s} />;
-    case "o": // open O (surprised) — opens in sync with the gasp when animated
-      return <ellipse cx="50" cy="70" rx="3.8" ry="4.8" fill={OUTLINE} className={gesture || undefined} />;
+    case "o": { // open O (surprised) — opens in sync with the gasp when live
+      const v = live && gesture ? GESTURE_VARIANTS[gesture] : null;
+      if (!v) return <ellipse cx="50" cy="70" rx="3.8" ry="4.8" fill={OUTLINE} />;
+      return (
+        <motion.ellipse
+          cx="50" cy="70" rx="3.8" ry="4.8" fill={OUTLINE}
+          animate={v.animate}
+          transition={v.transition}
+          style={{ transformBox: "view-box", transformOrigin: "50px 70px" }}
+        />
+      );
+    }
     case "hmm": // small asymmetric line (thinking)
       return <path d="M46 69.5 Q50 68.2 54 70" {...s} />;
     case "grin": // confident smile (encouraging)

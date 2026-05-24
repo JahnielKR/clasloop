@@ -26,7 +26,9 @@ const css = `
   .cft-strip {
     position:absolute; top:0; will-change:transform;
     animation-name: cft-fall; animation-timing-function: cubic-bezier(.3,.25,.5,1);
-    animation-iteration-count: 1; animation-fill-mode: forwards;
+    /* fill-mode both: the stagger delay backfills the 0% state (hidden, above
+       the viewport) instead of leaving the strip parked, visible, at the top. */
+    animation-iteration-count: 1; animation-fill-mode: both;
   }
 `;
 

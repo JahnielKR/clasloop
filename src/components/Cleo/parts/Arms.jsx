@@ -4,12 +4,14 @@
 // body/face). index.jsx renders Arms once per layer, so one pose can tuck an arm
 // behind the body and rest another on the face (e.g. thinking's chin hand).
 //
-// Every limb is a single segment (a stroked path + a round hand) that animates by
-// rotating around a shoulder pivot (gesture: {className, origin}). Gestures that
-// reach "up to the face" (sad's wipe, surprised's gasp) are simple arcs from a
-// limb that hangs down BEHIND the body — they sweep past the face and back, they
-// don't fold onto it.
+// Every limb is a single segment (a stroked path + a round hand). When `live` and
+// the mood supplies a gesture ({ variant, origin }), the limb rotates around its
+// shoulder pivot via motion/react — the variant keys into ../motion/variants.js;
+// the pivot is set here (transform-box:view-box, in 100×100 viewBox units). When
+// not live (or no gesture) it renders as a plain, static <g>.
 
+import { motion } from "motion/react";
+import { GESTURE_VARIANTS } from "../motion/variants";
 import { ARM, HAND, EDGE } from "./constants";
 
 const SEG = { fill: "none", stroke: ARM, strokeWidth: 6, strokeLinecap: "round" };
@@ -18,8 +20,10 @@ const POSES = {
   // arms hanging down at the sides, behind the body — happy waves one, sad arcs
   // one up to wipe, surprised arcs both up in shock (all via ../motion gestures).
   down: [
-    { side: "left", layer: "back", d: "M28 62 Q19 71 17 81", hand: [17, 81] },
-    { side: "right", layer: "back", d: "M72 62 Q81 71 83 81", hand: [83, 81] },
+    // Straight segments (not curved) so the happy wave reads as a normal raised
+    // arm, not a bent/curved one when it rotates up.
+    { side: "left", layer: "back", d: "M28 62 L17 81", hand: [17, 81] },
+    { side: "right", layer: "back", d: "M72 62 L83 81", hand: [83, 81] },
   ],
   // cheer — both arms up
   up: [
@@ -43,27 +47,35 @@ const POSES = {
   ],
 };
 
-function Limb({ limb, gesture }) {
+function Limb({ limb, gesture, live }) {
   const [hx, hy] = limb.hand;
-  const wrap = gesture
-    ? { className: gesture.className, style: { transformBox: "view-box", transformOrigin: `${gesture.origin[0]}px ${gesture.origin[1]}px` } }
-    : null;
-  return (
-    <g {...wrap}>
+  const content = (
+    <>
       <path d={limb.d} {...SEG} />
       <circle cx={hx} cy={hy} r="5" fill={HAND} stroke={EDGE} strokeWidth="2.5" />
-    </g>
+    </>
+  );
+  const v = live && gesture ? GESTURE_VARIANTS[gesture.variant] : null;
+  if (!v) return <g>{content}</g>;
+  return (
+    <motion.g
+      animate={v.animate}
+      transition={v.transition}
+      style={{ transformBox: "view-box", transformOrigin: `${gesture.origin[0]}px ${gesture.origin[1]}px` }}
+    >
+      {content}
+    </motion.g>
   );
 }
 
-export function Arms({ variant, gesture, layer }) {
+export function Arms({ variant, gesture, layer, live }) {
   const limbs = POSES[variant] || POSES.down;
   return (
     <>
       {limbs
         .filter((l) => l.layer === layer)
         .map((l) => (
-          <Limb key={l.side} limb={l} gesture={gesture?.[l.side]} />
+          <Limb key={l.side} limb={l} gesture={gesture?.[l.side]} live={live} />
         ))}
     </>
   );
