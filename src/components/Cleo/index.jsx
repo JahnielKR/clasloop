@@ -36,7 +36,8 @@ export default function Cleo({ size = 96, expression = "happy", animate = true, 
 
   const spec = EXPRESSIONS[expression] || EXPRESSIONS.happy;
   const { live, scope } = useCleoMotion({ expression, animate, eyes: spec.eyes });
-  // Idle limb gesture for this mood (only when live; sad has none).
+  // Idle limb gesture for this mood (only when live; sad has none). The happy wave
+  // is one-shot, so it plays once on appear then the arm rests back down.
   const gesture = live ? MOOD_GESTURES[expression] : undefined;
 
   // The body group breathes when live; otherwise it's a plain, inert <g>.
