@@ -10,6 +10,7 @@
 import { CIcon } from "../../components/Icons";
 import { DeckCover } from "../../lib/deck-cover";
 import { C } from "./styles";
+import { selectableTab } from "../../components/ui/selectable";
 import CleoTour from "../../onboarding/CleoTour";
 import { finishJourney } from "../../onboarding/journey";
 import GeneralTab from "./editor/GeneralTab";
@@ -102,20 +103,16 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
           ].map(tab => (
             <button
               key={tab.id}
-              className="dk-editor-tab"
+              className="dk-editor-tab cl-selectable"
               onClick={() => setEditorTab(tab.id)}
               style={{
                 padding: "10px 14px",
-                background: "transparent",
-                border: "none",
-                borderBottom: `2.5px solid ${editorTab === tab.id ? C.accent : "transparent"}`,
-                color: editorTab === tab.id ? C.accent : C.textSecondary,
+                ...selectableTab(editorTab === tab.id),
                 fontSize: 13, fontWeight: 600,
                 fontFamily: "'Outfit',sans-serif",
                 cursor: "pointer",
                 marginBottom: -1,
                 display: "flex", alignItems: "center", gap: 6,
-                transition: "all .15s ease",
                 whiteSpace: "nowrap", flexShrink: 0,
               }}
             >
