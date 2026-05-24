@@ -15,10 +15,11 @@
 // the contract. The hosting page passes its own dictionary; if a key is
 // missing, the English default kicks in so UI never shows raw keys.
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { CIcon } from "./Icons";
 import { C } from "./tokens";
+import Modal from "./Modal";
 import { SUBJECTS } from "../lib/constants";
 
 import { inputStyle as inp, selectStyle as sel } from "./forms/field-styles";
@@ -161,6 +162,8 @@ export default function EditClassModal({
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState("");
   const [error, setError] = useState("");
+  // Initial focus for the Modal primitive — the name field, not the X button.
+  const nameRef = useRef(null);
 
   // Delete flow has its own confirm sub-state to avoid accidental clicks.
   // 'idle'    → just the red "Delete class" button
@@ -259,32 +262,33 @@ export default function EditClassModal({
   }, [t, unitsCount, decksCount]);
 
   return (
-    <div
-      onClick={closeDisabled ? undefined : onClose}
-      style={{
+    <Modal
+      open
+      onClose={onClose}
+      canClose={!closeDisabled}
+      ariaLabelledBy="editclass-title"
+      initialFocusRef={nameRef}
+      backdropStyle={{
         position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)",
         display: "flex", alignItems: "flex-start", justifyContent: "center",
         zIndex: 100, padding: 20, overflowY: "auto",
       }}
+      dialogClassName="ns-fade"
+      dialogStyle={{
+        background: C.bg,
+        borderRadius: 14,
+        padding: 24,
+        maxWidth: 520,
+        width: "100%",
+        marginTop: 40,
+        marginBottom: 40,
+        boxShadow: "0 12px 40px rgba(0,0,0,0.15)",
+        fontFamily: "'Outfit',sans-serif",
+      }}
     >
-      <div
-        onClick={e => e.stopPropagation()}
-        className="ns-fade"
-        style={{
-          background: C.bg,
-          borderRadius: 14,
-          padding: 24,
-          maxWidth: 520,
-          width: "100%",
-          marginTop: 40,
-          marginBottom: 40,
-          boxShadow: "0 12px 40px rgba(0,0,0,0.15)",
-          fontFamily: "'Outfit',sans-serif",
-        }}
-      >
         {/* Header */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
-          <h3 style={{ fontSize: 18, fontWeight: 700, margin: 0, display: "flex", alignItems: "center", gap: 8, color: C.text }}>
+          <h3 id="editclass-title" style={{ fontSize: 18, fontWeight: 700, margin: 0, display: "flex", alignItems: "center", gap: 8, color: C.text }}>
             <CIcon name="school" size={20} inline /> {L(t, "title")}
           </h3>
           {!closeDisabled && (
@@ -314,12 +318,12 @@ export default function EditClassModal({
               {L(t, "className")}
             </label>
             <input
+              ref={nameRef}
               value={name}
               onChange={e => { setName(e.target.value); if (error) setError(""); }}
               placeholder={L(t, "classNamePlaceholder")}
               style={inp}
               maxLength={120}
-              autoFocus
             />
           </div>
 
@@ -536,7 +540,6 @@ export default function EditClassModal({
           @keyframes ns-fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
           .ns-fade { animation: ns-fadeIn .2s ease; }
         `}</style>
-      </div>
-    </div>
+    </Modal>
   );
 }

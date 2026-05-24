@@ -13,10 +13,11 @@
 // onboarding check. Renders BEFORE avatar onboarding (no class = no
 // point in customizing).
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { joinClass } from "../lib/classes";
 import { supabase } from "../lib/supabase";
 import { C } from "./tokens";
+import Modal from "./Modal";
 
 // PR 74: i18n centralizado
 import { useT } from "../i18n";
@@ -29,16 +30,10 @@ export default function ClassCodeModal({ profile, lang = "en", onJoined }) {
   const [joining, setJoining] = useState(false);
   const [error, setError] = useState("");
 
-  // Lock body scroll while the modal is open — student shouldn't be
-  // able to scroll the dimmed shell behind.
-  useEffect(() => {
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => { document.body.style.overflow = prev; };
-  }, []);
-
-  // NO escape handlers. The student can't dismiss this with Esc or
-  // by clicking outside — only by joining or signing out.
+  // NO escape handlers. The student can't dismiss this with Esc or by
+  // clicking outside — only by joining or signing out, so the Modal below
+  // sets closeOnEscape / closeOnBackdrop to false. The Modal primitive owns
+  // the body-scroll lock, focus trap and return-focus.
 
   const handleJoin = async () => {
     const trimmed = code.trim();
@@ -83,8 +78,12 @@ export default function ClassCodeModal({ profile, lang = "en", onJoined }) {
   };
 
   return (
-    <div
-      style={{
+    <Modal
+      open
+      closeOnEscape={false}
+      closeOnBackdrop={false}
+      ariaLabelledBy="class-code-modal-title"
+      backdropStyle={{
         position: "fixed",
         inset: 0,
         zIndex: 9999,
@@ -97,20 +96,15 @@ export default function ClassCodeModal({ profile, lang = "en", onJoined }) {
         padding: 16,
         fontFamily: "'Outfit', sans-serif",
       }}
+      dialogStyle={{
+        background: C.bg,
+        borderRadius: 16,
+        width: "100%",
+        maxWidth: 440,
+        padding: "32px 28px 24px",
+        boxShadow: "0 24px 70px rgba(0, 0, 0, 0.35)",
+      }}
     >
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="class-code-modal-title"
-        style={{
-          background: C.bg,
-          borderRadius: 16,
-          width: "100%",
-          maxWidth: 440,
-          padding: "32px 28px 24px",
-          boxShadow: "0 24px 70px rgba(0, 0, 0, 0.35)",
-        }}
-      >
         {/* Decorative icon — gives the modal a face beyond pure text */}
         <div style={{
           width: 56, height: 56,
@@ -274,7 +268,6 @@ export default function ClassCodeModal({ profile, lang = "en", onJoined }) {
             {t.signOut}
           </button>
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 }

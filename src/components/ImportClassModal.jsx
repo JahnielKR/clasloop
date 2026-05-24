@@ -17,6 +17,7 @@
 import { useRef, useState } from "react";
 import { CIcon } from "./Icons";
 import { C } from "./tokens";
+import Modal from "./Modal";
 import { importClassFromJson, validateImportJson, IMPORT_LIMITS, ImportError } from "../lib/class-import";
 
 const DEFAULT_LABELS = {
@@ -82,6 +83,9 @@ function errorMessageFor(err, t) {
 
 export default function ImportClassModal({ userId, t, onClose, onImported }) {
   const fileInputRef = useRef(null);
+  // Initial focus target for the Modal primitive — the primary action in the
+  // select phase, so the focus trap doesn't land on the close button.
+  const pickFileBtnRef = useRef(null);
   // 'select' | 'preview' | 'importing'
   const [phase, setPhase] = useState("select");
   // Parsed JSON kept around between select and preview phases.
@@ -175,35 +179,35 @@ export default function ImportClassModal({ userId, t, onClose, onImported }) {
   // actual DB write — closing mid-import would leave the user wondering
   // whether the class made it. We block the close path during 'importing'.
   const closeable = phase !== "importing";
-  const handleBackdrop = () => { if (closeable) onClose(); };
 
   // Render variants share the outer chrome (overlay + card) and only
   // swap the inner content. Reduces duplication.
   return (
-    <div
-      onClick={handleBackdrop}
-      style={{
+    <Modal
+      open
+      onClose={onClose}
+      canClose={closeable}
+      ariaLabelledBy="import-class-title"
+      initialFocusRef={pickFileBtnRef}
+      backdropStyle={{
         position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)",
         display: "flex", alignItems: "center", justifyContent: "center",
         zIndex: 100, padding: 20,
       }}
+      dialogClassName="ns-fade"
+      dialogStyle={{
+        background: C.bg,
+        borderRadius: 14,
+        padding: 24,
+        maxWidth: 480,
+        width: "100%",
+        boxShadow: "0 12px 40px rgba(0,0,0,0.15)",
+        fontFamily: "'Outfit',sans-serif",
+      }}
     >
-      <div
-        onClick={e => e.stopPropagation()}
-        className="ns-fade"
-        style={{
-          background: C.bg,
-          borderRadius: 14,
-          padding: 24,
-          maxWidth: 480,
-          width: "100%",
-          boxShadow: "0 12px 40px rgba(0,0,0,0.15)",
-          fontFamily: "'Outfit',sans-serif",
-        }}
-      >
         {/* Header */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-          <h3 style={{ fontSize: 17, fontWeight: 700, margin: 0, display: "flex", alignItems: "center", gap: 8, color: C.text }}>
+          <h3 id="import-class-title" style={{ fontSize: 17, fontWeight: 700, margin: 0, display: "flex", alignItems: "center", gap: 8, color: C.text }}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
               <path d="M12 20V8m0 0l-4 4m4-4l4 4M4 4h16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
@@ -246,6 +250,7 @@ export default function ImportClassModal({ userId, t, onClose, onImported }) {
               {L(t, "description")}
             </p>
             <button
+              ref={pickFileBtnRef}
               onClick={() => fileInputRef.current?.click()}
               style={{
                 width: "100%",
@@ -397,7 +402,6 @@ export default function ImportClassModal({ userId, t, onClose, onImported }) {
           @keyframes ns-fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
           .ns-fade { animation: ns-fadeIn .2s ease; }
         `}</style>
-      </div>
-    </div>
+    </Modal>
   );
 }
