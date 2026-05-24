@@ -23,6 +23,7 @@ import Modal from "./Modal";
 import { SUBJECTS } from "../lib/constants";
 
 import { inputStyle as inp, selectStyle as sel } from "./forms/field-styles";
+import { FieldLabel } from "./forms/FieldLabel";
 
 // ─── Helper: build the export payload ──────────────────────────────────
 // Pulls the class + its units + its decks from Supabase and produces the
@@ -314,9 +315,7 @@ export default function EditClassModal({
         {/* ── Edit form ───────────────────────────────────────────────── */}
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           <div>
-            <label style={{ display: "block", fontSize: 12, fontWeight: 500, color: C.textSecondary, marginBottom: 6 }}>
-              {L(t, "className")}
-            </label>
+            <FieldLabel>{L(t, "className")}</FieldLabel>
             <input
               ref={nameRef}
               value={name}
@@ -329,17 +328,13 @@ export default function EditClassModal({
 
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 10 }}>
             <div>
-              <label style={{ display: "block", fontSize: 12, fontWeight: 500, color: C.textSecondary, marginBottom: 6 }}>
-                {L(t, "classSubject")}
-              </label>
+              <FieldLabel>{L(t, "classSubject")}</FieldLabel>
               <select value={subject} onChange={e => setSubject(e.target.value)} style={sel}>
                 {SUBJECTS.map(s => <option key={s} value={s}>{s}</option>)}
               </select>
             </div>
             <div>
-              <label style={{ display: "block", fontSize: 12, fontWeight: 500, color: C.textSecondary, marginBottom: 6 }}>
-                {L(t, "classGrade")}
-              </label>
+              <FieldLabel>{L(t, "classGrade")}</FieldLabel>
               <input
                 value={grade}
                 onChange={e => setGrade(e.target.value)}
@@ -467,9 +462,7 @@ export default function EditClassModal({
                 </p>
               </div>
               <div>
-                <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: C.textSecondary, marginBottom: 5 }}>
-                  {L(t, "deleteConfirmLabel")} <span style={{ fontFamily: "'Outfit',sans-serif", fontWeight: 700, color: C.text }}>"{classObj?.name}"</span>
-                </label>
+                <FieldLabel dense>{L(t, "deleteConfirmLabel")} <span style={{ fontFamily: "'Outfit',sans-serif", fontWeight: 700, color: C.text }}>"{classObj?.name}"</span></FieldLabel>
                 <input
                   value={deleteTyped}
                   onChange={e => { setDeleteTyped(e.target.value); if (deleteError) setDeleteError(""); }}
