@@ -10,13 +10,11 @@
 const loop = (extra) => ({ repeat: Infinity, ease: "easeInOut", ...extra });
 
 export const GESTURE_VARIANTS = {
-  // saluda UNA sola vez al aparecer (no en bucle): sube a la altura de la cabeza
-  // (~70°; con un solo segmento rígido un giro mayor se ve "imposible"), ondea un
-  // par de veces y baja el brazo. Sin repeat → se reproduce al montar y luego
-  // reposa, así Cleo deja de saludar y sólo respira/parpadea/mira a los lados.
+  // saluda: el brazo (recto) sube SÓLO hasta el nivel del ojo (el ojo está a ~78°,
+  // así que el tope es 77° — nunca por encima), ondea ahí y baja. Una vez (sin repeat).
   wave: {
-    animate: { rotate: [0, 70, 60, 70, 62, 0] },
-    transition: { duration: 1.8, times: [0, 0.22, 0.42, 0.6, 0.8, 1], ease: "easeInOut" },
+    animate: { rotate: [0, 77, 70, 76, 72, 75, 73, 0] },
+    transition: { duration: 3.2, times: [0, 0.17, 0.29, 0.42, 0.54, 0.67, 0.83, 1], ease: "easeInOut" },
   },
   // celebra — pequeño shake de los brazos arriba
   cheer: {

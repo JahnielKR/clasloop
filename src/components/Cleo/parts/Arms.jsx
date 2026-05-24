@@ -20,8 +20,7 @@ const POSES = {
   // arms hanging down at the sides, behind the body — happy waves one, sad arcs
   // one up to wipe, surprised arcs both up in shock (all via ../motion gestures).
   down: [
-    // Straight segments (not curved) so the happy wave reads as a normal raised
-    // arm, not a bent/curved one when it rotates up.
+    // Straight segments (not curved) — the happy wave wants a straight little arm.
     { side: "left", layer: "back", d: "M28 62 L17 81", hand: [17, 81] },
     { side: "right", layer: "back", d: "M72 62 L83 81", hand: [83, 81] },
   ],
@@ -57,11 +56,16 @@ function Limb({ limb, gesture, live }) {
   );
   const v = live && gesture ? GESTURE_VARIANTS[gesture.variant] : null;
   if (!v) return <g>{content}</g>;
+  // Pivot at the shoulder. motion OVERRIDES a `transform-origin` string with its
+  // own default (50% 50% → the body center with transform-box:view-box, which made
+  // the arm swing from her belly). Its native originX/originY ARE respected: as a
+  // fraction they become `transform-origin: NN%`, and with view-box on a 100×100
+  // viewBox that resolves to the shoulder's viewBox coordinates.
   return (
     <motion.g
       animate={v.animate}
       transition={v.transition}
-      style={{ transformBox: "view-box", transformOrigin: `${gesture.origin[0]}px ${gesture.origin[1]}px` }}
+      style={{ transformBox: "view-box", originX: gesture.origin[0] / 100, originY: gesture.origin[1] / 100 }}
     >
       {content}
     </motion.g>

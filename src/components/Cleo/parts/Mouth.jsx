@@ -29,7 +29,7 @@ export function Mouth({ variant, gesture, live }) {
           cx="50" cy="70" rx="3.8" ry="4.8" fill={OUTLINE}
           animate={v.animate}
           transition={v.transition}
-          style={{ transformBox: "view-box", transformOrigin: "50px 70px" }}
+          style={{ transformBox: "view-box", originX: 0.5, originY: 0.7 }}
         />
       );
     }
