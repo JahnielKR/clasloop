@@ -1984,8 +1984,8 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
             )}
             <button className="sj-btn" onClick={handleJoin} disabled={pin.length !== 6 || !name.trim()} style={{
               width: "100%", padding: 14, borderRadius: 10, fontSize: 16, fontWeight: 600,
-              background: pin.length === 6 && name.trim() ? `linear-gradient(135deg, ${C.accent}, ${C.purple})` : C.border,
-              color: "#fff", opacity: pin.length === 6 && name.trim() ? 1 : 0.4,
+              background: pin.length === 6 && name.trim() ? `linear-gradient(135deg, ${C.accent}, ${C.purple})` : C.bgSoft,
+              color: pin.length === 6 && name.trim() ? "#fff" : C.textSecondary, opacity: 1,
             }}>{t.join}</button>
           </div>
         </div>
@@ -3244,8 +3244,8 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
                 {!showResult && (
                   <button className="sj-btn" onClick={handleFillSubmit} disabled={!fillText.trim()} style={{
                     width: "100%", padding: 14, borderRadius: 10, fontSize: 15, fontWeight: 600,
-                    background: fillText.trim() ? `linear-gradient(135deg, ${C.accent}, ${C.purple})` : C.border,
-                    color: "#fff", opacity: fillText.trim() ? 1 : .5,
+                    background: fillText.trim() ? `linear-gradient(135deg, ${C.accent}, ${C.purple})` : C.bgSoft,
+                    color: fillText.trim() ? "#fff" : C.textSecondary, opacity: 1,
                   }}>{t.submit}</button>
                 )}
                 {showResult && !lastIsCorrect && q.answer && (
@@ -3483,8 +3483,8 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
                       disabled={!sentenceText.trim()}
                       style={{
                         width: "100%", padding: 14, borderRadius: 10, fontSize: 15, fontWeight: 600,
-                        background: sentenceText.trim() ? `linear-gradient(135deg, ${C.accent}, ${C.purple})` : C.border,
-                        color: "#fff", opacity: sentenceText.trim() ? 1 : .5,
+                        background: sentenceText.trim() ? `linear-gradient(135deg, ${C.accent}, ${C.purple})` : C.bgSoft,
+                        color: sentenceText.trim() ? "#fff" : C.textSecondary, opacity: 1,
                       }}
                     >{t.submit}</button>
                   )}

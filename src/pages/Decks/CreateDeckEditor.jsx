@@ -2868,8 +2868,13 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
       <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
         <button className="dk-btn" data-tour="save-deck" onClick={handleSave} disabled={!canSave || saving} style={{
           flex: 1, padding: 14, borderRadius: 10, fontSize: 15, fontWeight: 600,
-          background: canSave ? `linear-gradient(135deg, ${C.accent}, ${C.purple})` : C.border,
-          color: "#fff", opacity: canSave && !saving ? 1 : 0.4,
+          // Disabled (empty deck) stays READABLE — a muted gray label on a soft
+          // surface, not white-on-light. It flips to the accent gradient once the
+          // deck is saveable (name + a question + class). Theme-aware tokens.
+          background: canSave ? `linear-gradient(135deg, ${C.accent}, ${C.purple})` : C.bgSoft,
+          color: canSave ? "#fff" : C.textSecondary,
+          opacity: saving ? 0.7 : 1,
+          cursor: (!canSave || saving) ? "not-allowed" : "pointer",
         }}>{saving ? t.publishing : t.publish}</button>
       </div>
 
