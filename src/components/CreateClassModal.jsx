@@ -16,6 +16,7 @@ import { SUBJECTS } from "../lib/constants";
 import Modal from "./Modal";
 
 import { inputStyle as inp, selectStyle as sel } from "./forms/field-styles";
+import { FieldLabel } from "./forms/FieldLabel";
 
 // i18n is passed in by the caller (each parent already has its own dictionary).
 // Required keys: createClass, className, classNamePlaceholder, classSubject,
@@ -73,7 +74,7 @@ export default function CreateClassModal({ userId, t, onClose, onCreated }) {
 
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         <div>
-          <label style={{ display: "block", fontSize: 12, fontWeight: 500, color: C.textSecondary, marginBottom: 6 }}>{t.className}</label>
+          <FieldLabel>{t.className}</FieldLabel>
           <input
             value={name}
             onChange={e => setName(e.target.value)}
@@ -86,13 +87,13 @@ export default function CreateClassModal({ userId, t, onClose, onCreated }) {
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 10 }}>
           <div>
-            <label style={{ display: "block", fontSize: 12, fontWeight: 500, color: C.textSecondary, marginBottom: 6 }}>{t.classSubject}</label>
+            <FieldLabel>{t.classSubject}</FieldLabel>
             <select value={subject} onChange={e => setSubject(e.target.value)} style={sel}>
               {SUBJECTS.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
           </div>
           <div>
-            <label style={{ display: "block", fontSize: 12, fontWeight: 500, color: C.textSecondary, marginBottom: 6 }}>{t.classGrade}</label>
+            <FieldLabel>{t.classGrade}</FieldLabel>
             <input
               value={grade}
               onChange={e => setGrade(e.target.value)}

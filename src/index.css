@@ -191,6 +191,13 @@ a {
 .rk-row:hover:not(.rk-row--active) { background: var(--c-bg-soft); }
 .rk-row--active { background: var(--c-accent-soft); color: var(--c-accent); }
 
+/* Uniform "selected" transition for selectable cards/chips/tabs (pairs with
+   the components/ui/selectable.js style helpers). The selected colors are set
+   inline by those helpers; the transition lives here — GPU-safe, explicit
+   props (never `all`/layout) — so prefers-reduced-motion can switch it off,
+   which an inline transition could not. */
+.cl-selectable { transition: background-color .15s ease, border-color .15s ease, color .15s ease, box-shadow .15s ease; }
+
 /* Uniform keyboard-focus ring. The global `button { outline: none }` above
    hides focus on every raw <button>; only .ui-btn restored a ring. This gives
    ONE consistent accent ring (same as inputs + .ui-btn) on :focus-visible for
@@ -207,7 +214,7 @@ summary:focus-visible {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  button, .ui-btn, .ui-card { transition: none; }
+  button, .ui-btn, .ui-card, .cl-selectable { transition: none; }
   button:active, .ui-btn:hover, .ui-btn:active, .ui-card--hover:hover, .ui-card--hover:active { transform: none; }
   .ui-btn__spinner, .ui-skeleton { animation: none; }
 }

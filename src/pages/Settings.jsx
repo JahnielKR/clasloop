@@ -44,6 +44,7 @@ const css = `
 `;
 
 import { inputStyle as inp } from "../components/forms/field-styles";
+import { FieldLabel } from "../components/forms/FieldLabel";
 
 const Toggle = ({ on, onToggle }) => (
   <button className="st-toggle" onClick={onToggle} style={{ width: 44, height: 24, borderRadius: 12, padding: 2, background: on ? C.accent : C.border, border: "none", display: "flex", alignItems: "center" }}>
@@ -458,15 +459,15 @@ export default function Settings({ lang: pageLang = "en", setLang: pageSetLang, 
             <Section title={t.profile} icon="student">
               <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
                 <div>
-                  <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: C.textSecondary, marginBottom: 5 }}>{t.fullName}</label>
+                  <FieldLabel>{t.fullName}</FieldLabel>
                   <input className="st-input" value={name} onChange={e => setName(e.target.value)} style={inp} />
                 </div>
                 <div>
-                  <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: C.textSecondary, marginBottom: 5 }}>{t.email}</label>
+                  <FieldLabel>{t.email}</FieldLabel>
                   <input className="st-input" value={email} disabled style={{ ...inp, opacity: 0.5, cursor: "not-allowed" }} />
                 </div>
                 <div>
-                  <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: C.textSecondary, marginBottom: 5 }}>{t.role}</label>
+                  <FieldLabel>{t.role}</FieldLabel>
                   <div style={{ padding: "10px 14px", borderRadius: 8, background: C.bgSoft, fontSize: 14, color: C.textSecondary, display: "flex", alignItems: "center", gap: 6 }}>
                     <CIcon name={isTeacher ? "teacher" : "student"} size={16} inline />
                     {isTeacher ? t.teacher : t.student}
@@ -474,7 +475,7 @@ export default function Settings({ lang: pageLang = "en", setLang: pageSetLang, 
                 </div>
                 {isTeacher && (
                   <div>
-                    <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: C.textSecondary, marginBottom: 5 }}>{t.school}</label>
+                    <FieldLabel>{t.school}</FieldLabel>
                     <input className="st-input" value={school} onChange={e => setSchool(e.target.value)} placeholder={t.schoolPlaceholder} style={inp} />
                   </div>
                 )}
@@ -615,11 +616,11 @@ export default function Settings({ lang: pageLang = "en", setLang: pageSetLang, 
             <Section title={t.changePassword} icon="shield">
               <div style={{ display: "flex", flexDirection: "column", gap: 12, maxWidth: 360 }}>
                 <div>
-                  <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: C.textSecondary, marginBottom: 5 }}>{t.newPassword}</label>
+                  <FieldLabel>{t.newPassword}</FieldLabel>
                   <input className="st-input" type="password" value={newPass} onChange={e => setNewPass(e.target.value)} placeholder="••••••••" style={inp} />
                 </div>
                 <div>
-                  <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: C.textSecondary, marginBottom: 5 }}>{t.confirmPassword}</label>
+                  <FieldLabel>{t.confirmPassword}</FieldLabel>
                   <input className="st-input" type="password" value={confirmPass} onChange={e => setConfirmPass(e.target.value)} placeholder="••••••••" style={inp} />
                 </div>
                 {passStatus === "mismatch" && <p style={{ fontSize: 12, color: C.red }}>{t.passwordMismatch}</p>}
