@@ -5,7 +5,7 @@ import { CIcon } from "../../../components/Icons";
 import { useT } from "../../../i18n";
 import { useReveal } from "../useReveal";
 import { useScrollProgress, useTilt } from "../landing-motion";
-import Eyebrow from "./Eyebrow";
+import SectionHeader from "./SectionHeader";
 
 // ─── PrintAndScanDemo ──────────────────────────────────────────────────────
 // Teacher "wow" #2 — the differentiator no live-quiz app has. The PINNED scene
@@ -126,13 +126,7 @@ export default function PrintAndScanDemo({ t, lang }) {
     }}>
       <div style={{ maxWidth: 1100, margin: "0 auto" }}>
         <div ref={headRef} className={`ph-reveal ${headVisible ? "is-visible" : ""}`} style={{ textAlign: "center" }}>
-          <Eyebrow num="02">{t.eyebrowPrint}</Eyebrow>
-          <h2 className="ph-section-h2" style={{ fontSize: 52, fontWeight: 700, color: C.text, margin: "0 0 18px", letterSpacing: "-0.02em" }}>
-            {t.printTitle}
-          </h2>
-          <p className="ph-section-sub" style={{ fontSize: 21, color: C.textSecondary, margin: "0 auto 56px", maxWidth: 740, lineHeight: 1.5 }}>
-            {t.printSub}
-          </p>
+          <SectionHeader num="02" eyebrow={t.eyebrowPrint} title={t.printTitle} sub={t.printSub} />
         </div>
 
         {/* PINNED scrollytelling scene: the real sheet transforms through the

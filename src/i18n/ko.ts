@@ -945,7 +945,7 @@ const ko: Locale = {
     signUpFree: "무료 가입",
     pill: "매일의 워밍업과 종료 티켓",
     taglinePart1: "어떤 파일이든 워밍업이나 종료 티켓으로",
-    taglineHighlight: "60초.",
+    taglineHighlight: "30초.",
     sub: "어떤 파일이나 주제든 입력하세요. 검증된 사용 가능한 문제가 나옵니다. 검토하고, 시작하고, 완료.",
     ctaPrimary: "무료 체험 시작",
     ctaSubtext: "7일 무료, 모든 기능 잠금 해제. 신용카드 필요 없음.",

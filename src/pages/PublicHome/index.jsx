@@ -118,13 +118,13 @@ export default function PublicHome({ onSignIn, onSignUp }) {
         {/* HEADER — sticky con logo, nav, acciones */}
         <header className="ph-header" style={{
           position: "sticky", top: 0, zIndex: 50,
-          background: scrolled ? "rgba(255,255,255,0.97)" : "rgba(255,255,255,0.92)",
-          backdropFilter: scrolled ? "blur(6px)" : "none",
-          WebkitBackdropFilter: scrolled ? "blur(6px)" : "none",
-          borderBottom: `1px solid ${C.border}`,
+          background: scrolled ? "rgba(255,255,255,0.85)" : "rgba(255,255,255,0.92)",
+          backdropFilter: scrolled ? "blur(12px) saturate(1.5)" : "none",
+          WebkitBackdropFilter: scrolled ? "blur(12px) saturate(1.5)" : "none",
+          borderBottom: `1px solid ${scrolled ? C.border : "transparent"}`,
           padding: scrolled ? "10px 36px" : "16px 36px",
-          boxShadow: scrolled ? "0 4px 20px rgba(0,0,0,0.06)" : "0 0 0 rgba(0,0,0,0)",
-          transition: "padding .25s ease, box-shadow .25s ease, background .25s ease",
+          boxShadow: scrolled ? "0 4px 24px rgba(0,0,0,0.07)" : "0 0 0 rgba(0,0,0,0)",
+          transition: "padding .25s ease, box-shadow .25s ease, background .25s ease, border-color .25s ease",
           display: "flex", alignItems: "center", justifyContent: "space-between",
         }}>
           <div style={{ display: "flex", alignItems: "center", gap: 40 }}>

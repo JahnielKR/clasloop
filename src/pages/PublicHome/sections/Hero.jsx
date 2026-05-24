@@ -1,254 +1,211 @@
-import { C, MONO } from "../../../components/tokens";
+import { useRef, useEffect, useState } from "react";
+import { C } from "../../../components/tokens";
 // Real in-app section theming (the same module the student quiz uses) so the
-// warmup / exit-ticket cards on the landing look exactly like the product.
-// forceDark=false → always the light values (the landing is always light).
+// verified warmup / exit-ticket cards the machine produces look exactly like the
+// product. forceDark=false → light values (the landing is always light).
 import { getSectionTheme, getSectionLabel } from "../../../lib/section-theme";
-import { useRef, useEffect } from "react";
-import { useScrollValue } from "../landing-motion";
+import { useTilt } from "../landing-motion";
+import TickingSeconds from "./TickingSeconds";
 
-// ─── Floating doc card data ────────────────────────────────
-// 4 cards animan en el hero. Cada card representa un input típico (PDF,
-// PPTX, DOCX, topic) y morphea a una pregunta del tipo correspondiente.
-// La animación cuenta visualmente lo que dice el sub: "any file or topic
-// in, verified questions out".
-const FLOATING_CARDS = [
+// ─── Hero ────────────────────────────────────────────────────────────────────
+// The first impression. The centerpiece is a live "60-second machine": input
+// files / a topic flow LEFT → a glowing AI core verifies in the MIDDLE →
+// finished, verified question cards land on the RIGHT. It assembles itself on
+// load (the parts fly in) and then breathes in a continuous loop — light packets
+// travel the wires, the core ring spins + pings, a verify-shimmer sweeps the
+// cards. Visitors literally watch the product's promise build itself.
+//
+// Everything is pure HTML/CSS/SVG (no screenshots, no image weight). All motion
+// collapses to a clean, readable static "before → after" snapshot under
+// prefers-reduced-motion (see the machine block + reduced-motion block in
+// landing-css.js).
+
+// Section glyphs — mirror SectionBadge.jsx (☀ warmup, ⤓ exit ticket).
+const SECTION_GLYPH = { warmup: "☀", exit_ticket: "⤓" };
+
+const txt = (v, lang) => (typeof v === "string" ? v : v[lang] || v.en);
+
+// Inputs that feed the machine (left column).
+const INPUTS = [
+  { type: "PDF", color: "#D85A30", name: "chapter5.pdf" },
+  { type: "PPT", color: "#BA7517", name: "lesson.pptx" },
+  { type: "Aa", color: "#5A5A5A", name: { en: "a topic", es: "un tema", ko: "주제" } },
+];
+
+// Verified questions the machine produces (right column). Themed per section so
+// they read as the real product output.
+const OUTPUTS = [
   {
-    id: 1,
-    fileType: "PDF",
-    fileColor: "#D85A30",
-    fileName: "chapter5.pdf",
     section: "warmup",
     typeTag: { en: "MCQ", es: "MCQ", ko: "객관식" },
-    questionText: { en: "What is photosynthesis?", es: "¿Qué es la fotosíntesis?", ko: "광합성이란 무엇인가요?" },
-    pos: { top: 90, left: 60 }, size: { w: 225, h: 150 },
-    floatDelay: 0,
+    text: { en: "Which organelle powers the cell?", es: "¿Qué orgánulo da energía a la célula?", ko: "세포에 에너지를 공급하는 소기관은?" },
   },
   {
-    id: 2,
-    fileType: "PPT",
-    fileColor: "#BA7517",
-    fileName: "lesson.pptx",
     section: "exit_ticket",
     typeTag: { en: "TF", es: "VF", ko: "참거짓" },
-    questionText: { en: "Mitosis happens in 4 phases.", es: "La mitosis tiene 4 fases.", ko: "유사분열은 4단계입니다." },
-    pos: { top: 65, right: 75 }, size: { w: 215, h: 145 },
-    floatDelay: -1,
+    text: { en: "Mitosis happens in 4 phases.", es: "La mitosis tiene 4 fases.", ko: "유사분열은 4단계로 일어난다." },
   },
   {
-    id: 3,
-    fileType: "DOC",
-    fileColor: "#185FA5",
-    fileName: "notes.docx",
     section: "warmup",
     typeTag: { en: "FILL", es: "ESPACIO", ko: "빈칸" },
-    questionText: { en: "The mitochondria is the ___.", es: "La mitocondria es el ___.", ko: "미토콘드리아는 ___입니다." },
-    pos: { bottom: 75, left: 110 }, size: { w: 215, h: 145 },
-    floatDelay: -2,
-  },
-  {
-    id: 4,
-    fileType: "TXT",
-    fileColor: "#5A5A5A",
-    fileName: "topic",
-    section: "exit_ticket",
-    typeTag: { en: "MATCH", es: "EMPAREJAR", ko: "짝짓기" },
-    questionText: { en: "Match cell parts to functions", es: "Empareja partes de la célula", ko: "세포 부분과 기능 짝짓기" },
-    pos: { bottom: 100, right: 60 }, size: { w: 210, h: 140 },
-    floatDelay: -1.5,
+    text: { en: "The mitochondria is the ___.", es: "La mitocondria es el ___.", ko: "미토콘드리아는 ___이다." },
   },
 ];
 
-// Section glyphs — mirror SectionBadge.jsx (☀ warmup, ⤓ exit ticket) so the
-// landing badge reads identically to the in-app one.
-const SECTION_GLYPH = { warmup: "☀", exit_ticket: "⤓" };
-
-// Helper para float class por id
-const floatClass = (id) => ["ph-float-a", "ph-float-b", "ph-float-c", "ph-float-d"][(id - 1) % 4];
-
-// Per-card parallax speed. Applied via the CSS `translate` property (which
-// composes with the float keyframes' `transform`), so cards drift at different
-// rates as the hero scrolls — depth without fighting the float loop. Negative
-// = outruns the scroll, positive = lags behind it.
-const PARALLAX = { 1: -0.10, 2: 0.07, 3: -0.14, 4: 0.09 };
-
-// Write each card's `translate` from BOTH the scroll offset (depth parallax)
-// and the pointer offset (a gentle "alive" follow). `translate` composes with
-// the float keyframes' `transform`, so the loop animation is untouched. Kept at
-// module scope so the scroll + pointer callbacks share one writer without hook
-// dependency churn. px/py are -0.5…0.5 (pointer position within the hero).
-function writeCardParallax(root, y, px, py) {
-  if (!root) return;
-  root.querySelectorAll("[data-card]").forEach((el) => {
-    const p = PARALLAX[el.getAttribute("data-card")] || 0;
-    const depth = p * 70; // pointer travel scales with each card's parallax factor
-    el.style.translate = `${(px * depth).toFixed(1)}px ${(y * p + py * depth).toFixed(1)}px`;
-  });
+// A small input chip ("chapter5.pdf").
+function InputChip({ chip, lang }) {
+  return (
+    <div className="ph-mc-chip">
+      <span className="ph-mc-chip-badge" style={{ background: chip.color }}>{chip.type}</span>
+      <span style={{ fontSize: 13, color: C.textSecondary, fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+        {txt(chip.name, lang)}
+      </span>
+    </div>
+  );
 }
 
-// The "question" face of a floating card, themed to look like a real warmup /
-// exit-ticket question (uses the in-app getSectionTheme). Keeps the
-// .ph-morph-to class so the doc↔question morph animation still works.
-function MorphTo({ card, lang }) {
-  const th = getSectionTheme(card.section, false);
-  const typeTag = card.typeTag[lang] || card.typeTag.en;
+// A verified question card the machine outputs, themed like the real product.
+function OutputCard({ q, lang, verifiedLabel }) {
+  const th = getSectionTheme(q.section, false);
   return (
-    <div className="ph-morph-to" style={{
-      background: th.tint, border: `1px solid ${th.accent}`,
-      borderRadius: 12, padding: 16, textAlign: "left",
-    }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 9, flexWrap: "wrap" }}>
+    <div className="ph-mc-qcard" style={{ background: th.tint, border: `1px solid ${th.accent}` }}>
+      <div className="ph-mc-qcard-top">
         <span style={{
           display: "inline-flex", alignItems: "center", gap: 4,
-          background: th.iconBg, color: th.iconFg,
-          borderRadius: 5, padding: "2px 7px",
-          fontSize: 10.5, fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase",
+          background: th.iconBg, color: th.iconFg, borderRadius: 5, padding: "2px 7px",
+          fontSize: 10, fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase",
         }}>
-          <span aria-hidden="true" style={{ fontSize: 11, lineHeight: 1 }}>{SECTION_GLYPH[card.section]}</span>
-          {getSectionLabel(card.section, lang)}
+          <span aria-hidden="true" style={{ fontSize: 11, lineHeight: 1 }}>{SECTION_GLYPH[q.section]}</span>
+          {getSectionLabel(q.section, lang)}
         </span>
-        <span style={{ fontSize: 10.5, fontWeight: 700, color: th.labelFg, letterSpacing: "0.06em" }}>{typeTag}</span>
+        <span style={{ fontSize: 10, fontWeight: 700, color: th.labelFg, letterSpacing: "0.05em" }}>
+          {q.typeTag[lang] || q.typeTag.en}
+        </span>
+        <span className="ph-mc-verified">
+          <span aria-hidden="true">✓</span> {verifiedLabel}
+        </span>
       </div>
-      <div style={{ fontSize: 15, color: th.onTint, lineHeight: 1.4 }}>
-        {card.questionText[lang] || card.questionText.en}
+      <div style={{ fontSize: 13.5, color: th.onTint, lineHeight: 1.4, fontWeight: 500 }}>
+        {txt(q.text, lang)}
       </div>
     </div>
   );
 }
 
 export default function Hero({ t, lang, onSignUp, onOpenCode, onSeeHow }) {
-  // Parallax written IMPERATIVELY (no per-frame re-render): each floating card
-  // carries data-card; we set its `translate` (composes with the float's
-  // transform animation) straight on the DOM. Driven by BOTH scroll (depth) and
-  // the pointer (a gentle alive-follow) — combined via writeCardParallax so the
-  // two inputs don't clobber each other's `translate`.
   const heroRef = useRef(null);
-  const scrollYRef = useRef(0);
-  const pointerRef = useRef({ x: 0, y: 0 });
-
-  useScrollValue((y) => {
-    scrollYRef.current = y;
-    writeCardParallax(heroRef.current, y, pointerRef.current.x, pointerRef.current.y);
-  });
-
-  // Pointer-follow — subtle, hover devices only, off under reduced-motion.
+  // Flip .is-in one frame after mount → triggers the machine's entrance assembly.
+  const [entered, setEntered] = useState(false);
   useEffect(() => {
-    const root = heroRef.current;
-    if (!root || typeof window === "undefined" || typeof window.matchMedia !== "function") return undefined;
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return undefined;
-    if (window.matchMedia("(hover: none)").matches) return undefined;
-    let raf = 0;
-    const onMove = (e) => {
-      const r = root.getBoundingClientRect();
-      pointerRef.current = { x: (e.clientX - r.left) / r.width - 0.5, y: (e.clientY - r.top) / r.height - 0.5 };
-      if (!raf) raf = requestAnimationFrame(() => { raf = 0; writeCardParallax(root, scrollYRef.current, pointerRef.current.x, pointerRef.current.y); });
-    };
-    const onLeave = () => { pointerRef.current = { x: 0, y: 0 }; writeCardParallax(root, scrollYRef.current, 0, 0); };
-    root.addEventListener("mousemove", onMove);
-    root.addEventListener("mouseleave", onLeave);
-    return () => {
-      root.removeEventListener("mousemove", onMove);
-      root.removeEventListener("mouseleave", onLeave);
-      if (raf) cancelAnimationFrame(raf);
-    };
+    const id = requestAnimationFrame(() => setEntered(true));
+    return () => cancelAnimationFrame(id);
   }, []);
+
+  // Subtle cursor-reactive 3D tilt on the whole machine (no-op on touch /
+  // reduced-motion). Applied to the outer wrapper so it composes with the inner
+  // parts' entrance transforms.
+  const machineRef = useRef(null);
+  const tilt = useTilt(machineRef, 7);
+
   return (
-    <section ref={heroRef} className="ph-section ph-hero ph-fade" style={{
-      padding: "100px 32px 70px",
+    <section ref={heroRef} className={`ph-section ph-hero${entered ? " is-in" : ""}`} style={{
+      padding: "84px 32px 64px",
       position: "relative",
       textAlign: "center",
-      minHeight: 700,
-      background: `radial-gradient(ellipse at top center, ${C.accentSoft} 0%, transparent 50%)`,
+      // Layered, reserved depth: accent wash up top + a faint purple whisper at
+      // the top-right. The dot-grid lives in .ph-hero::before.
+      background: `radial-gradient(ellipse 92% 56% at 50% -6%, ${C.accentSoft} 0%, transparent 60%), radial-gradient(circle 480px at 88% 10%, rgba(105,64,165,0.055), transparent 70%)`,
     }}>
-      {FLOATING_CARDS.map(card => (
-        <div
-          key={card.id}
-          data-card={card.id}
-          className={`ph-floating-card ph-float ${floatClass(card.id)}`}
-          style={{
-            position: "absolute",
-            top: card.pos.top, left: card.pos.left,
-            right: card.pos.right, bottom: card.pos.bottom,
-            width: card.size.w, height: card.size.h,
-            animationDelay: `${card.floatDelay}s`,
-            // Parallax `translate` is set imperatively in useScrollValue above
-            // (composes with the float animation's `transform`).
-            willChange: "translate",
-            zIndex: 1,
-          }}
-        >
-          <div className="ph-morph-from" style={{
-            width: "100%", height: "100%",
-            background: "white", border: `1px solid ${C.border}`,
-            borderRadius: 12, padding: 18,
-            boxShadow: "0 6px 16px rgba(0,0,0,0.07)",
-          }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 10 }}>
-              <div style={{
-                width: 38, height: 38, background: card.fileColor,
-                borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center",
-                color: "white", fontSize: 13, fontWeight: 700, fontFamily: MONO,
-              }}>{card.fileType}</div>
-              <span style={{ fontSize: 14, color: C.textMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                {card.fileName}
-              </span>
-            </div>
-            <div style={{ height: 4, background: C.border, borderRadius: 2, marginBottom: 6 }} />
-            <div style={{ height: 4, background: C.border, borderRadius: 2, marginBottom: 6, width: "80%" }} />
-            <div style={{ height: 4, background: C.border, borderRadius: 2, marginBottom: 6 }} />
-            <div style={{ height: 4, background: C.border, borderRadius: 2, width: "65%" }} />
-          </div>
-          <MorphTo card={card} lang={lang} />
-        </div>
-      ))}
-
-      <div className="ph-hero-content" style={{ position: "relative", zIndex: 2, maxWidth: 1100, margin: "0 auto" }}>
+      <div className="ph-hero-content ph-hero-enter" style={{ position: "relative", zIndex: 2, maxWidth: 1080, margin: "0 auto" }}>
         <div className="ph-pill" style={{
-          display: "inline-block",
-          padding: "9px 22px",
+          display: "inline-flex", alignItems: "center", gap: 8,
+          padding: "7px 16px 7px 13px",
           background: C.accentSoft, color: C.accent,
-          borderRadius: 100, fontSize: 17, fontWeight: 600,
-          marginBottom: 34, letterSpacing: "0.2px",
-        }}>{t.pill}</div>
+          border: "1px solid rgba(35,131,226,0.18)",
+          borderRadius: 100, fontSize: 14, fontWeight: 600,
+          marginBottom: 24, letterSpacing: "0.01em",
+        }}>
+          <span aria-hidden="true" style={{ width: 6, height: 6, borderRadius: "50%", background: C.accent, flexShrink: 0 }} />
+          {t.pill}
+        </div>
 
-        <h1 className="ph-tagline" style={{
-          fontSize: 80, fontWeight: 700, color: C.text,
-          lineHeight: 1.08, margin: "0 0 28px",
+        <h1 className="ph-tagline" aria-label={`${t.taglinePart1} ${t.taglineHighlight}`} style={{
+          fontSize: 64, fontWeight: 700, color: C.text,
+          lineHeight: 1.08, margin: "0 0 20px",
           letterSpacing: "-0.02em",
         }}>
-          {t.taglinePart1} <span style={{ color: C.accent }}>{t.taglineHighlight}</span>
+          {t.taglinePart1}{" "}
+          <span style={{ color: C.accent }} aria-hidden="true">
+            <TickingSeconds highlight={t.taglineHighlight} />
+          </span>
         </h1>
 
         <p className="ph-sub" style={{
-          fontSize: 24, color: C.textSecondary,
-          lineHeight: 1.55, margin: "0 0 46px",
-          maxWidth: 800, marginLeft: "auto", marginRight: "auto",
+          fontSize: 20, color: C.textSecondary,
+          lineHeight: 1.5, margin: "0 0 40px",
+          maxWidth: 680, marginLeft: "auto", marginRight: "auto",
         }}>{t.sub}</p>
 
-        <button
-          className="ph-cta-primary ph-btn-primary"
-          onClick={() => onSignUp?.()}
-          style={{
-            background: C.accent, color: "#fff",
-            padding: "20px 44px", borderRadius: 12,
-            fontSize: 21, fontWeight: 600,
-            border: "none", cursor: "pointer",
-            fontFamily: "'Outfit',sans-serif",
-          }}
-        >{t.ctaPrimary}</button>
+        {/* ── The 60-second machine — the centerpiece ── */}
+        <div ref={machineRef} className="ph-machine" style={{ transform: tilt || undefined }}>
+          <div className="ph-machine-grid">
+            <div className="ph-mc-col ph-mc-inputs" aria-hidden="true">
+              {INPUTS.map((chip) => <InputChip key={chip.type} chip={chip} lang={lang} />)}
+            </div>
 
-        <p style={{
-          fontSize: 17, color: C.textMuted,
-          margin: "18px 0 0", fontFamily: "'Outfit',sans-serif",
-        }}>{t.ctaSubtext}</p>
+            <div className="ph-mc-wire ph-mc-wire-in" aria-hidden="true"><span className="ph-mc-packet" /></div>
 
-        {/* Got a code? — solo en mobile (header lo esconde, lo movemos
-            acá para que el estudiante con código siga teniéndolo a mano). */}
+            <div className="ph-mc-core-wrap">
+              <div className="ph-mc-core" aria-hidden="true">
+                <svg className="ph-mc-core-ring" viewBox="0 0 92 92" width="92" height="92">
+                  <circle cx="46" cy="46" r="42" fill="none" stroke="rgba(35,131,226,0.18)" strokeWidth="3" />
+                  <circle cx="46" cy="46" r="42" fill="none" stroke={C.accent} strokeWidth="3" strokeLinecap="round" strokeDasharray="70 195" />
+                </svg>
+                <span className="ph-mc-ping" />
+                <span className="ph-mc-core-orb">
+                  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path d="M12 2.6l1.7 5.5 5.5 1.7-5.5 1.7L12 17l-1.7-5.5L4.8 9.8l5.5-1.7z" fill="#fff" />
+                    <circle cx="18.7" cy="5.3" r="1.5" fill="#fff" opacity="0.85" />
+                  </svg>
+                </span>
+              </div>
+              <span className="ph-mc-core-label">{t.genVerifying}</span>
+            </div>
+
+            <div className="ph-mc-wire ph-mc-wire-out" aria-hidden="true"><span className="ph-mc-packet" /></div>
+
+            <div className="ph-mc-col ph-mc-outputs">
+              {OUTPUTS.map((q, i) => <OutputCard key={i} q={q} lang={lang} verifiedLabel={t.genVerified} />)}
+            </div>
+          </div>
+        </div>
+
+        <div style={{ marginTop: 40 }}>
+          <button
+            className="ph-cta-primary ph-btn-primary"
+            onClick={() => onSignUp?.()}
+            style={{
+              background: C.accent, color: "#fff",
+              padding: "18px 42px", borderRadius: 12,
+              fontSize: 20, fontWeight: 600,
+              border: "none", cursor: "pointer",
+              fontFamily: "'Outfit',sans-serif",
+            }}
+          >{t.ctaPrimary}</button>
+
+          <p style={{
+            fontSize: 16, color: C.textMuted,
+            margin: "16px 0 0", fontFamily: "'Outfit',sans-serif",
+          }}>{t.ctaSubtext}</p>
+        </div>
+
+        {/* Got a code? — mobile only (header hides it there). */}
         <button
           className="ph-mobile-code-btn"
           onClick={() => onOpenCode?.()}
           style={{
             display: "none",
-            marginTop: 24,
+            marginTop: 22,
             background: "transparent",
             color: C.accent,
             border: `1.5px solid ${C.accent}`,
@@ -260,9 +217,8 @@ export default function Hero({ t, lang, onSignUp, onOpenCode, onSeeHow }) {
           }}
         >{t.haveCode}</button>
 
-        {/* Scroll cue — invita a bajar a la narrativa del producto. Oculto
-            si el visitante prefiere reduced-motion lo deja estático (CSS). */}
-        <div style={{ marginTop: 46 }}>
+        {/* Scroll cue — invites the visitor into the product narrative. */}
+        <div style={{ marginTop: 36 }}>
           <button
             onClick={() => onSeeHow?.()}
             aria-label={t.scrollCue || "See how it works"}

@@ -4,7 +4,7 @@ import { getTheme } from "../../../lib/themes";
 import { getSectionLabel } from "../../../lib/section-theme";
 import { useReveal } from "../useReveal";
 import { useTilt } from "../landing-motion";
-import Eyebrow from "./Eyebrow";
+import SectionHeader from "./SectionHeader";
 
 // ─── LiveSessionDemo ───────────────────────────────────────────────────────
 // The shared wow: a real session as it's projected — a landscape "tablet"
@@ -173,13 +173,7 @@ export default function LiveSessionDemo({ t, lang }) {
     <section id="live" className="ph-section ph-anchor ph-seam-top" style={{ padding: "110px 32px" }}>
       <div style={{ maxWidth: 820, margin: "0 auto", textAlign: "center" }}>
         <div ref={headRef} className={`ph-reveal ${headVisible ? "is-visible" : ""}`}>
-          <Eyebrow num="03">{t.eyebrowLive}</Eyebrow>
-          <h2 className="ph-section-h2" style={{ fontSize: 52, fontWeight: 700, color: C.text, margin: "0 0 18px", letterSpacing: "-0.02em" }}>
-            {t.liveTitle}
-          </h2>
-          <p className="ph-section-sub" style={{ fontSize: 21, color: C.textSecondary, margin: "0 auto 48px", maxWidth: 720, lineHeight: 1.5 }}>
-            {t.liveSub}
-          </p>
+          <SectionHeader num="03" eyebrow={t.eyebrowLive} title={t.liveTitle} sub={t.liveSub} subGap={48} />
         </div>
 
         <div ref={bodyRef} className={`ph-reveal ${bodyVisible ? "is-visible" : ""}`}>
@@ -212,6 +206,7 @@ export default function LiveSessionDemo({ t, lang }) {
                   onMouseEnter={() => { setActive(i); setPaused(true); }}
                   onFocus={() => { setActive(i); setPaused(true); }}
                   onClick={() => { setActive(i); setPaused(true); }}
+                  className="ph-press"
                   style={{
                     display: "flex", alignItems: "center", gap: 9,
                     padding: "8px 14px 8px 8px", borderRadius: 100, cursor: "pointer",
@@ -219,7 +214,7 @@ export default function LiveSessionDemo({ t, lang }) {
                     background: on ? C.accentSoft : C.bg,
                     color: on ? C.accent : C.textSecondary,
                     fontSize: 14, fontWeight: on ? 700 : 500, fontFamily: "'Outfit',sans-serif",
-                    transition: "border-color .15s, background .15s, color .15s",
+                    transition: "border-color .15s, background .15s, color .15s, scale .14s ease",
                   }}
                 >
                   <span style={{

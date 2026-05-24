@@ -949,7 +949,7 @@ const en = {
     signUpFree: "Sign up free",
     pill: "Your daily warmups & exit tickets",
     taglinePart1: "From any file to a class warmup or exit ticket in",
-    taglineHighlight: "60 seconds.",
+    taglineHighlight: "30 seconds.",
     sub: "Any file or topic in. Verified, ready-to-use questions out. You review, launch, done.",
     ctaPrimary: "Start free trial",
     ctaSubtext: "7 days free, all features unlocked. No credit card needed.",
