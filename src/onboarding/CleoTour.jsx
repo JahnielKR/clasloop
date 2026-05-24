@@ -11,6 +11,7 @@
 // Persistence + the offer/step state machine live in ./useFirstVisitTour.js.
 import { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } from "react";
 import { createPortal } from "react-dom";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import Cleo from "../components/Cleo";
 import Button from "../components/ui/Button";
 import { C } from "../components/tokens";
@@ -24,28 +25,13 @@ const BUBBLE_W = 360;
 const GAP = 12;          // space between the spotlight and the bubble
 const PAD = 6;           // breathing room around the highlighted element
 
-function prefersReduced() {
-  return (
-    typeof window !== "undefined" &&
-    typeof window.matchMedia === "function" &&
-    window.matchMedia("(prefers-reduced-motion: reduce)").matches
-  );
-}
-
 const css = `
   @keyframes ct-rise { from { opacity:0; transform:translateY(10px) } to { opacity:1; transform:translateY(0) } }
   @keyframes ct-bob  { 0%,100% { transform:translateY(0) } 50% { transform:translateY(-4px) } }
-  /* The offer grows out of the bottom-right corner (Cleo's home) and, on
-     dismiss, shrinks back into it — so it reads as one Cleo coming out to talk
-     and returning, not a second Cleo popping in. */
-  @keyframes ct-emerge  { from { opacity:0; transform:translate(18px,26px) scale(.45) } to { opacity:1; transform:none } }
-  @keyframes ct-retract { from { opacity:1; transform:none } to { opacity:0; transform:translate(18px,26px) scale(.45) } }
   .ct-card { animation: ct-rise .28s cubic-bezier(.16,1,.3,1) both }
-  .ct-emerge  { transform-origin: bottom right; animation: ct-emerge .42s cubic-bezier(.16,1,.3,1) both }
-  .ct-retract { transform-origin: bottom right; animation: ct-retract .26s ease-in both }
   .ct-cleo { animation: ct-bob 3s ease-in-out infinite }
   @media (prefers-reduced-motion: reduce) {
-    .ct-card, .ct-emerge, .ct-retract, .ct-cleo { animation: none !important }
+    .ct-card, .ct-cleo { animation: none !important }
   }
 `;
 
@@ -79,8 +65,7 @@ export default function CleoTour({ tourId, lang = "en", userId, enabled = true, 
   const steps = useMemo(() => tour?.steps || [], [tour]);
   const total = steps.length;
 
-  const [reduced, setReduced] = useState(false);
-  useEffect(() => { setReduced(prefersReduced()); }, []);
+  const reduced = useReducedMotion();
 
   const { phase, index, accept, decline, close, next, back } =
     useFirstVisitTour({ tourId, total, enabled, userId, autoStart, force });
@@ -106,13 +91,12 @@ export default function CleoTour({ tourId, lang = "en", userId, enabled = true, 
     return () => setTourActive(tourId, false);
   }, [setTourActive, tourId, phase]);
 
-  // Plays the retract-into-corner animation before actually dismissing the offer.
-  const [leaving, setLeaving] = useState(false);
-  const handleDecline = useCallback(() => {
-    if (reduced) { decline(); return; }
-    setLeaving(true);
-    setTimeout(() => { setLeaving(false); decline(); }, 280);
-  }, [reduced, decline]);
+  // Declining flips `show` off; the offer's motion.div retracts into the corner
+  // and onExitComplete then calls the real decline() (mark seen + idle). Reset
+  // when a fresh offer appears so a later re-offer animates in again.
+  const [show, setShow] = useState(true);
+  useEffect(() => { if (phase === "offer") setShow(true); }, [phase]);
+  const handleDecline = useCallback(() => setShow(false), []);
 
   // ── Anchor measurement ────────────────────────────────────────────────────
   const [rect, setRect] = useState(null);
@@ -125,6 +109,8 @@ export default function CleoTour({ tourId, lang = "en", userId, enabled = true, 
 
     let raf = 0;
     let tries = 0;
+    let settle = 0;
+    let last = null;
     const read = (doScroll) => {
       const el = document.querySelector(`[data-tour="${step.anchor}"]`);
       if (el) {
@@ -133,7 +119,16 @@ export default function CleoTour({ tourId, lang = "en", userId, enabled = true, 
           el.scrollIntoView({ block: "center", inline: "nearest", behavior: reduced ? "auto" : "smooth" });
         }
         const r = el.getBoundingClientRect();
-        setRect({ top: r.top, left: r.left, width: r.width, height: r.height });
+        if (!last || last.top !== r.top || last.left !== r.left || last.width !== r.width || last.height !== r.height) {
+          last = { top: r.top, left: r.left, width: r.width, height: r.height };
+          setRect(last);
+        }
+        // Keep re-measuring for a short window so the box settles ONTO the element
+        // after any layout shift the step triggers. The big one: the deck editor
+        // switches tabs (via onStepChange, a useEffect that runs AFTER this layout
+        // effect) to reveal the AI button, which moves it. The box has a move
+        // transition, so following it reads as a glide, not a jump.
+        if (settle++ < 30) raf = requestAnimationFrame(() => read(false));
       } else if (tries++ < 24) {
         raf = requestAnimationFrame(() => read(doScroll));
       } else {
@@ -184,36 +179,49 @@ export default function CleoTour({ tourId, lang = "en", userId, enabled = true, 
   // and the whole thing grows out of / shrinks back into the corner.
   if (phase === "offer") {
     const offerText = (t[tourId] && t[tourId].offer) || t.offerDefault || "";
+    // Grows out of the bottom-right corner (Cleo's home) and shrinks back into it
+    // on dismiss — so it reads as one Cleo coming out to talk and returning, not a
+    // second Cleo popping in. AnimatePresence runs the retract before the state
+    // machine actually declines (onExitComplete).
+    const corner = { opacity: 0, scale: 0.45, x: 18, y: 26 };
     return createPortal(
-      <div
-        className={leaving ? "ct-retract" : "ct-emerge"}
-        role="dialog"
-        aria-label={offerText}
-        style={{ position: "fixed", zIndex: 1300, ...(isMobile
-          ? { left: 12, right: 12, bottom: 12 }
-          : { right: 20, bottom: 20, width: 380 }) }}
-      >
-        <style>{css}</style>
-        <div style={{
-          display: "flex", alignItems: "center", gap: 12,
-          background: C.bg, border: `1px solid ${C.border}`, borderRadius: 16,
-          padding: "14px 16px", boxShadow: "0 12px 36px rgba(0,0,0,0.16)",
-          fontFamily: "'Outfit', sans-serif",
-        }}>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 14, color: C.text, lineHeight: 1.4, marginBottom: 10 }}>
-              {offerText}
+      <AnimatePresence onExitComplete={decline}>
+        {show && (
+          <motion.div
+            key="offer"
+            role="dialog"
+            aria-label={offerText}
+            initial={reduced ? false : corner}
+            animate={{ opacity: 1, scale: 1, x: 0, y: 0 }}
+            exit={reduced ? { opacity: 0 } : corner}
+            transition={reduced ? { duration: 0 } : { type: "spring", stiffness: 460, damping: 34 }}
+            style={{ position: "fixed", zIndex: 1300, transformOrigin: "bottom right", ...(isMobile
+              ? { left: 12, right: 12, bottom: 12 }
+              : { right: 20, bottom: 20, width: 380 }) }}
+          >
+            <style>{css}</style>
+            <div style={{
+              display: "flex", alignItems: "center", gap: 12,
+              background: C.bg, border: `1px solid ${C.border}`, borderRadius: 16,
+              padding: "14px 16px", boxShadow: "0 12px 36px rgba(0,0,0,0.16)",
+              fontFamily: "'Outfit', sans-serif",
+            }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 14, color: C.text, lineHeight: 1.4, marginBottom: 10 }}>
+                  {offerText}
+                </div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <Button variant="gradient" size="sm" onClick={accept}>{t.offerYes || "Sí, guíame"}</Button>
+                  <Button variant="ghost" size="sm" onClick={handleDecline}>{t.offerNo || "Ahora no"}</Button>
+                </div>
+              </div>
+              <div className="ct-cleo" aria-hidden="true" style={{ flexShrink: 0 }}>
+                <Cleo size={52} expression="encouraging" />
+              </div>
             </div>
-            <div style={{ display: "flex", gap: 8 }}>
-              <Button variant="gradient" size="sm" onClick={accept}>{t.offerYes || "Sí, guíame"}</Button>
-              <Button variant="ghost" size="sm" onClick={handleDecline}>{t.offerNo || "Ahora no"}</Button>
-            </div>
-          </div>
-          <div className="ct-cleo" aria-hidden="true" style={{ flexShrink: 0 }}>
-            <Cleo size={52} expression="encouraging" />
-          </div>
-        </div>
-      </div>,
+          </motion.div>
+        )}
+      </AnimatePresence>,
       document.body,
     );
   }
