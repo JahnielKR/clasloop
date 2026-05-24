@@ -211,12 +211,12 @@ export default function Director({ lang: pageLang = "en", setLang: pageSetLang, 
                 {classes.length > 0 && (
                   <div className="sd-card" style={{ background: C.bg, borderRadius: 12, border: `1px solid ${C.border}`, padding: space.lg, marginBottom: 16 }}>
                     <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 14 }}>{t.avgRetention} — {t.byClass.toLowerCase()}</h3>
-                    <div style={{ display: "flex", gap: 8, alignItems: "flex-end", height: 140 }}>
+                    <div style={{ display: "flex", gap: 8, alignItems: "flex-end", justifyContent: "center", height: 140 }}>
                       {classes.map((cls, i) => {
                         const ret = retentionData[cls.id];
                         const avg = ret ? ret.average : 0;
                         return (
-                          <div key={i} style={{ flex: 1, textAlign: "center" }}>
+                          <div key={i} style={{ flex: "1 1 0", maxWidth: 110, minWidth: 56, textAlign: "center" }}>
                             <div style={{ fontSize: 12, fontWeight: 700, fontFamily: MONO, color: retCol(avg), marginBottom: 4 }}>{avg > 0 ? `${avg}%` : "—"}</div>
                             <div style={{ height: 120, display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
                               <div style={{ width: "70%", height: Math.max((avg / 100) * 120, 4), borderRadius: "6px 6px 0 0", background: avg > 0 ? retCol(avg) : C.bgSoft, opacity: .8, transition: "height .5s ease" }} />
