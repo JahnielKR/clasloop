@@ -24,6 +24,7 @@ import { C } from "../components/tokens";
 import { ROUTES, buildRoute } from "../routes";
 import PageHeader from "../components/PageHeader";
 import Skeleton from "../components/ui/Skeleton";
+import { useDensity } from "../components/ui/density";
 import { fetchClassDecksSummary, groupRowsBySection, pctColor } from "../lib/class-insights";
 import { sectionLabels, resolveClassAccent } from "../lib/class-hierarchy";
 // PR 75: i18n centralizado
@@ -114,6 +115,9 @@ export default function ClassInsights({ profile, lang = "en", setLang, onOpenMob
   const toggleSection = (sectionId) => {
     setOpenSections((prev) => ({ ...prev, [sectionId]: !prev[sectionId] }));
   };
+  // Consume the COMPACT density (App.jsx wraps this page) so the report
+  // tightens to the same scannable rhythm as the School Dashboard.
+  const { space } = useDensity();
 
   return (
     <div style={{ padding: "28px 20px 80px", fontFamily: "'Outfit',sans-serif" }}>
@@ -254,7 +258,7 @@ export default function ClassInsights({ profile, lang = "en", setLang, onOpenMob
               className="ci-section-summary"
               data-tour={sIdx === 0 ? "insights-section" : undefined}
               style={{
-                padding: "14px 16px",
+                padding: `${space.md}px ${space.lg}px`,
                 display: "flex",
                 alignItems: "center",
                 gap: 10,
@@ -321,6 +325,7 @@ export default function ClassInsights({ profile, lang = "en", setLang, onOpenMob
 // One row per deck inside an expanded section. Clickable — navigates to
 // /decks/:id/results for the per-question drilldown.
 function DeckRow({ deck, accent, t, onClick, anchor }) {
+  const { space } = useDensity();
   const pct = deck.pctCorrect;
   const barColor = pctColor(pct, C);
   const widthPct = pct == null ? 0 : Math.max(2, pct); // floor at 2% so a 0% bar is still visible
@@ -341,7 +346,7 @@ function DeckRow({ deck, accent, t, onClick, anchor }) {
         // hover-card pattern across the app and gives each row an
         // immediate at-a-glance signal even before the bar/% read.
         borderLeft: `2px solid ${barColor}`,
-        padding: "14px 16px 14px 18px",
+        padding: `${space.md}px ${space.lg}px`,
         cursor: "pointer",
         fontFamily: "'Outfit',sans-serif",
         display: "block",
