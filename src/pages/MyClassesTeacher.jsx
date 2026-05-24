@@ -10,6 +10,7 @@ import ImportClassModal from "../components/ImportClassModal";
 import LobbyThemeSelector from "../components/LobbyThemeSelector";
 import { C, R, MONO } from "../components/tokens";
 import Button from "../components/ui/Button";
+import Card from "../components/ui/Card";
 import Skeleton from "../components/ui/Skeleton";
 import EmptyState from "../components/EmptyState";
 import PageHeader from "../components/PageHeader";
@@ -69,20 +70,17 @@ function ClassCard({ cls, t, lang, onOpen, onOpenThemeSelector, deckCount = 0, s
   };
 
   return (
-    <div
+    <Card
+      as="div"
+      hover
+      accent={accent}
+      padding={18}
       onClick={onOpen}
-      className={`cl-class-card${highlight ? " cl-class-card-new cl-class-card-glow" : ""}`}
+      className={highlight ? "cl-class-card-new cl-class-card-glow" : undefined}
       style={{
-        background: C.bg,
-        border: `1px solid ${C.border}`,
-        borderLeft: `4px solid ${accent}`,
-        borderRadius: R.lg,
-        padding: 18,
-        cursor: "pointer",
         display: "flex",
         flexDirection: "column",
         gap: 14,
-        transition: "transform .15s ease, box-shadow .15s ease, border-color .15s ease",
         fontFamily: "'Outfit',sans-serif",
       }}
     >
@@ -233,7 +231,7 @@ function ClassCard({ cls, t, lang, onOpen, onOpenThemeSelector, deckCount = 0, s
           </button>
         )}
       </div>
-    </div>
+    </Card>
   );
 }
 
@@ -666,10 +664,6 @@ export default function MyClassesTeacher({ lang = "en", profile, onNavigateToSes
       )}
 
       <style>{`
-        .cl-class-card:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 6px 20px rgba(0,0,0,.06);
-        }
         @keyframes cl-class-pop {
           0%   { transform: scale(.96); opacity: 0; }
           60%  { transform: scale(1.02); opacity: 1; }
@@ -685,7 +679,6 @@ export default function MyClassesTeacher({ lang = "en", profile, onNavigateToSes
         .ns-fade { animation: ns-fadeIn .25s ease; }
         @keyframes cl-fade-in { from { opacity: 0; } to { opacity: 1; } }
         @media (prefers-reduced-motion: reduce) {
-          .cl-class-card:hover { transform: none; }
           .cl-class-card-new, .cl-class-card-glow, .ns-fade { animation: none; }
         }
       `}</style>
