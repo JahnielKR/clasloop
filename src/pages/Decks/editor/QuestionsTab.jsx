@@ -14,6 +14,7 @@ import AutoResizeTextarea from "./AutoResizeTextarea";
 import AIGeneratePanel from "./AIGeneratePanel";
 import { ACTIVITY_TYPES, addMiniBtn, miniDeleteBtn, iconOverImageBtn } from "./constants";
 import { inputStyle as inp } from "../../../components/forms/field-styles";
+import { FieldLabel } from "../../../components/forms/FieldLabel";
 
 export default function QuestionsTab({ ed, t, l }) {
   const {
@@ -518,7 +519,7 @@ export default function QuestionsTab({ ed, t, l }) {
                         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                           <input className="dk-input" value={q.answer || ""} onChange={e => updateQ(qi, "answer", e.target.value)} placeholder={t.correctAnswer} style={{ ...inp, background: C.greenSoft, borderColor: C.green + "44" }} />
                           <div>
-                            <label style={{ display: "block", fontSize: 11, fontWeight: 500, color: C.textSecondary, marginBottom: 4 }}>{t.acceptedAlts}</label>
+                            <FieldLabel dense>{t.acceptedAlts}</FieldLabel>
                             <input
                               className="dk-input"
                               value={Array.isArray(q.alternatives) ? q.alternatives.join(", ") : ""}
@@ -588,7 +589,7 @@ export default function QuestionsTab({ ed, t, l }) {
                       {(q.type === "sentence") && (
                         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                           <div>
-                            <label style={{ display: "block", fontSize: 12, fontWeight: 500, color: C.textSecondary, marginBottom: 4 }}>{t.requiredWord} *</label>
+                            <FieldLabel dense required>{t.requiredWord}</FieldLabel>
                             <input
                               className="dk-input"
                               value={q.required_word || ""}
@@ -598,7 +599,7 @@ export default function QuestionsTab({ ed, t, l }) {
                             />
                           </div>
                           <div>
-                            <label style={{ display: "block", fontSize: 12, fontWeight: 500, color: C.textSecondary, marginBottom: 4 }}>{t.minWords}</label>
+                            <FieldLabel dense>{t.minWords}</FieldLabel>
                             <input
                               className="dk-input"
                               type="number"
@@ -620,7 +621,7 @@ export default function QuestionsTab({ ed, t, l }) {
                         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
                             <div>
-                              <label style={{ display: "block", fontSize: 12, fontWeight: 500, color: C.textSecondary, marginBottom: 4 }}>{t.sliderMin}</label>
+                              <FieldLabel dense>{t.sliderMin}</FieldLabel>
                               <input
                                 className="dk-input"
                                 type="number"
@@ -630,7 +631,7 @@ export default function QuestionsTab({ ed, t, l }) {
                               />
                             </div>
                             <div>
-                              <label style={{ display: "block", fontSize: 12, fontWeight: 500, color: C.textSecondary, marginBottom: 4 }}>{t.sliderMax}</label>
+                              <FieldLabel dense>{t.sliderMax}</FieldLabel>
                               <input
                                 className="dk-input"
                                 type="number"
@@ -642,7 +643,7 @@ export default function QuestionsTab({ ed, t, l }) {
                           </div>
                           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
                             <div>
-                              <label style={{ display: "block", fontSize: 12, fontWeight: 500, color: C.textSecondary, marginBottom: 4 }}>{t.sliderCorrect} *</label>
+                              <FieldLabel dense required>{t.sliderCorrect}</FieldLabel>
                               <input
                                 className="dk-input"
                                 type="number"
@@ -652,7 +653,7 @@ export default function QuestionsTab({ ed, t, l }) {
                               />
                             </div>
                             <div>
-                              <label style={{ display: "block", fontSize: 12, fontWeight: 500, color: C.textSecondary, marginBottom: 4 }}>{t.sliderTolerance}</label>
+                              <FieldLabel dense>{t.sliderTolerance}</FieldLabel>
                               <input
                                 className="dk-input"
                                 type="number"
@@ -664,7 +665,7 @@ export default function QuestionsTab({ ed, t, l }) {
                             </div>
                           </div>
                           <div>
-                            <label style={{ display: "block", fontSize: 12, fontWeight: 500, color: C.textSecondary, marginBottom: 4 }}>{t.sliderUnit}</label>
+                            <FieldLabel dense>{t.sliderUnit}</FieldLabel>
                             <input
                               className="dk-input"
                               value={q.unit || ""}
