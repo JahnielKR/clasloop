@@ -11,6 +11,7 @@ import { SUBJECTS } from "../../../lib/constants";
 import { getStrings } from "../../../i18n";
 import { C } from "../styles";
 import { inputStyle as inp, selectStyle as sel } from "../../../components/forms/field-styles";
+import { FieldLabel } from "../../../components/forms/FieldLabel";
 
 export default function GeneralTab({ ed, t, l, userClasses, onNeedClass }) {
   const {
@@ -30,11 +31,11 @@ export default function GeneralTab({ ed, t, l, userClasses, onNeedClass }) {
   return (
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           <div>
-            <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: C.textSecondary, marginBottom: 5 }}>{t.title} *</label>
+            <FieldLabel required>{t.title}</FieldLabel>
             <input className="dk-input" data-tour="deck-title" value={title} onChange={e => setTitle(e.target.value)} placeholder={t.titlePlaceholder} style={inp} />
           </div>
           <div>
-            <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: C.textSecondary, marginBottom: 5 }}>{t.description}</label>
+            <FieldLabel>{t.description}</FieldLabel>
             <textarea className="dk-input" value={desc} onChange={e => setDesc(e.target.value)} placeholder={t.descPlaceholder} style={{ ...inp, minHeight: 60, resize: "vertical" }} />
           </div>
           {/* Class selection. Three layers:
@@ -84,7 +85,7 @@ export default function GeneralTab({ ed, t, l, userClasses, onNeedClass }) {
             );
           })()}
           <div>
-            <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: C.textSecondary, marginBottom: 5 }}>{t.addToClass} *</label>
+            <FieldLabel required>{t.addToClass}</FieldLabel>
             <select className="dk-input" data-tour="deck-class" value={classId} onChange={e => {
               const id = e.target.value;
               setClassId(id);
@@ -124,9 +125,7 @@ export default function GeneralTab({ ed, t, l, userClasses, onNeedClass }) {
               render it greyed out when no class so the teacher knows the
               option exists; tooltip explains. */}
           <div>
-            <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: C.textSecondary, marginBottom: 5 }}>
-              {t.sectionLabel}
-            </label>
+            <FieldLabel>{t.sectionLabel}</FieldLabel>
             <select
               className="dk-input"
               data-tour="deck-section"
@@ -149,7 +148,7 @@ export default function GeneralTab({ ed, t, l, userClasses, onNeedClass }) {
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 10 }}>
             <div>
-              <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: C.textSecondary, marginBottom: 5 }}>{t.subject} *</label>
+              <FieldLabel required>{t.subject}</FieldLabel>
               <select
                 className="dk-input"
                 value={subject}
@@ -163,7 +162,7 @@ export default function GeneralTab({ ed, t, l, userClasses, onNeedClass }) {
               </select>
             </div>
             <div>
-              <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: C.textSecondary, marginBottom: 5 }}>{t.grade} *</label>
+              <FieldLabel required>{t.grade}</FieldLabel>
               <input
                 className="dk-input"
                 value={grade}
@@ -175,7 +174,7 @@ export default function GeneralTab({ ed, t, l, userClasses, onNeedClass }) {
               />
             </div>
             <div>
-              <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: C.textSecondary, marginBottom: 5 }}>{t.language}</label>
+              <FieldLabel>{t.language}</FieldLabel>
               <select className="dk-input" data-tour="deck-language" value={deckLang || ""} onChange={e => setDeckLang(e.target.value)} style={sel}>
                 <option value="" disabled hidden>{t.aiLanguagePlaceholder}</option>
                 <option value="en">English</option><option value="es">Español</option><option value="ko">한국어</option>
@@ -183,7 +182,7 @@ export default function GeneralTab({ ed, t, l, userClasses, onNeedClass }) {
             </div>
           </div>
           <div>
-            <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: C.textSecondary, marginBottom: 5 }}>{t.tags}</label>
+            <FieldLabel>{t.tags}</FieldLabel>
             <input className="dk-input" value={tags} onChange={e => setTags(e.target.value)} placeholder={t.tagsPlaceholder} style={inp} />
           </div>
 
