@@ -6,6 +6,8 @@ import { useIsMobile } from "../components/MobileMenuButton";
 import PageHeader from "../components/PageHeader";
 import Skeleton from "../components/ui/Skeleton";
 import { C as BASE_C, MONO } from "../components/tokens";
+import { useDensity } from "../components/ui/density";
+import { selectableChip } from "../components/ui/selectable";
 import { ROUTES } from "../routes";
 // PR 74: i18n centralizado
 import { useT } from "../i18n";
@@ -20,23 +22,31 @@ const retCol = (v) => v >= 70 ? C.green : v >= 40 ? C.orange : C.red;
 // PR 74: el bloque i18n local fue movido a src/i18n/{en,es,ko}.js
 // bajo el namespace "director".
 
+// GPU-safe transitions (explicit props, never `all`) so hovers never animate
+// layout — mirrors the global button set (index.css). Reduced-motion disables
+// the motion at the end of the blob.
 const css = `
-  .sd-tab { transition: all .15s ease; cursor: pointer; border: none; font-family: 'Outfit',sans-serif; }
+  .sd-tab { cursor: pointer; border: none; font-family: 'Outfit',sans-serif; }
   .sd-tab:hover { background: ${C.accentSoft} !important; border-color: ${C.accent} !important; color: ${C.accent} !important; }
-  .sd-stat { transition: all .2s ease; }
+  .sd-stat { transition: transform .2s ease, box-shadow .2s ease; }
   .sd-stat:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,.06); }
-  .sd-card { transition: all .2s ease; }
+  .sd-card { transition: border-color .2s ease, box-shadow .2s ease; }
   .sd-card:hover { border-color: ${C.accent} !important; box-shadow: 0 2px 8px rgba(0,0,0,.06); }
-  .sd-row { transition: all .15s ease; }
+  .sd-row { transition: background-color .15s ease, color .15s ease; }
   .sd-row:hover { background: ${C.accentSoft} !important; }
-  .sd-alert { transition: all .15s ease; }
+  .sd-alert { transition: filter .15s ease, transform .15s ease; }
   .sd-alert:hover { filter: brightness(.97); transform: translateX(2px); }
-  .sd-lang { transition: all .12s ease; cursor: pointer; }
+  .sd-lang { cursor: pointer; transition: background-color .12s ease, color .12s ease; }
   .sd-lang:hover { background: ${C.accentSoft} !important; color: ${C.accent} !important; }
   @keyframes fadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
   .fade-up { animation: fadeUp .3s ease-out both; }
   .sd-scroll-x { overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; -ms-overflow-style: none; }
   .sd-scroll-x::-webkit-scrollbar { display: none; }
+  @media (prefers-reduced-motion: reduce) {
+    .sd-stat, .sd-card, .sd-row, .sd-alert, .sd-lang, .cl-selectable { transition: none; }
+    .sd-stat:hover, .sd-alert:hover { transform: none; }
+    .fade-up { animation: none; }
+  }
 `;
 
 const Bar = ({ value, max = 100, color = C.accent, h = 6 }) => (
@@ -48,6 +58,10 @@ const Bar = ({ value, max = 100, color = C.accent, h = 6 }) => (
 export default function Director({ lang: pageLang = "en", setLang: pageSetLang, onOpenMobileMenu }) {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
+  // Director sits in a COMPACT DensityProvider (App.jsx) — consume it so the
+  // dashboard's spacing actually tightens into the scannable, Sheets/TradingView
+  // rhythm instead of staying at fixed comfortable paddings.
+  const { space } = useDensity();
   const [lang, setLangLocal] = useState(pageLang);
   const setLang = pageSetLang || setLangLocal;
   const l = pageLang || lang;
@@ -163,11 +177,9 @@ export default function Director({ lang: pageLang = "en", setLang: pageSetLang, 
               ...(isMobile ? { flexWrap: "nowrap" } : {}),
             }}>
               {[["overview", t.overview], ["byClass", t.byClass], ["students", t.students], ["alerts", t.alerts]].map(([id, label]) => (
-                <button key={id} className="sd-tab" onClick={() => setTab(id)} style={{
+                <button key={id} className="sd-tab cl-selectable" onClick={() => setTab(id)} style={{
                   padding: "8px 16px", borderRadius: 8, fontSize: 13, fontWeight: 500,
-                  background: tab === id ? C.accentSoft : C.bg,
-                  color: tab === id ? C.accent : C.textSecondary,
-                  border: `1px solid ${tab === id ? C.accent + "33" : C.border}`,
+                  ...selectableChip(tab === id),
                   display: "flex", alignItems: "center", gap: 6,
                   whiteSpace: "nowrap", flexShrink: 0,
                 }}>
@@ -187,7 +199,7 @@ export default function Director({ lang: pageLang = "en", setLang: pageSetLang, 
                     [t.totalStudents, totalStudents, C.purple, "student"],
                     [t.totalSessions, totalSessions, C.green, "pin"],
                   ].map(([label, value, color, icon], i) => (
-                    <div key={i} className="sd-stat" style={{ padding: "16px 18px", borderRadius: 10, background: C.bg, border: `1px solid ${C.border}`, textAlign: "center" }}>
+                    <div key={i} className="sd-stat" style={{ padding: space.lg, borderRadius: 10, background: C.bg, border: `1px solid ${C.border}`, textAlign: "center" }}>
                       <div style={{ marginBottom: 6 }}><CIcon name={icon} size={22} /></div>
                       <div style={{ fontSize: 26, fontWeight: 700, color, fontFamily: MONO, lineHeight: 1 }}>{value}</div>
                       <div style={{ fontSize: 11, color: C.textMuted, marginTop: 4 }}>{label}</div>
@@ -197,7 +209,7 @@ export default function Director({ lang: pageLang = "en", setLang: pageSetLang, 
 
                 {/* Retention by class chart */}
                 {classes.length > 0 && (
-                  <div className="sd-card" style={{ background: C.bg, borderRadius: 12, border: `1px solid ${C.border}`, padding: 20, marginBottom: 16 }}>
+                  <div className="sd-card" style={{ background: C.bg, borderRadius: 12, border: `1px solid ${C.border}`, padding: space.lg, marginBottom: 16 }}>
                     <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 14 }}>{t.avgRetention} — {t.byClass.toLowerCase()}</h3>
                     <div style={{ display: "flex", gap: 8, alignItems: "flex-end", height: 140 }}>
                       {classes.map((cls, i) => {
@@ -219,13 +231,13 @@ export default function Director({ lang: pageLang = "en", setLang: pageSetLang, 
 
                 {/* Top students */}
                 {allStudents.length > 0 && (
-                  <div className="sd-card" style={{ background: C.bg, borderRadius: 12, border: `1px solid ${C.border}`, padding: 20 }}>
+                  <div className="sd-card" style={{ background: C.bg, borderRadius: 12, border: `1px solid ${C.border}`, padding: space.lg }}>
                     <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12, display: "flex", alignItems: "center", gap: 6 }}>
                       <CIcon name="trophy" size={16} inline /> {t.topPerformers}
                     </h3>
                     <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                       {[...allStudents].sort((a, b) => b.avgRetention - a.avgRetention).slice(0, 5).map((s, i) => (
-                        <div key={i} className="sd-row" style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 8, background: C.bgSoft }}>
+                        <div key={i} className="sd-row" style={{ display: "flex", alignItems: "center", gap: 10, padding: `${space.sm}px ${space.md}px`, borderRadius: 8, background: C.bgSoft }}>
                           <span style={{ fontSize: 14, width: 20, textAlign: "center", fontWeight: 700, fontFamily: MONO, color: i === 0 ? C.yellow : C.textMuted }}>{i + 1}</span>
                           <div style={{ flex: 1 }}>
                             <span style={{ fontSize: 14, fontWeight: 500 }}>{s.name}</span>
@@ -249,7 +261,7 @@ export default function Director({ lang: pageLang = "en", setLang: pageSetLang, 
                   const mc = memberCounts[cls.id] || 0;
                   const avg = ret ? ret.average : 0;
                   return (
-                    <div key={i} className="sd-card" style={{ background: C.bg, borderRadius: 12, border: `1px solid ${C.border}`, padding: 20 }}>
+                    <div key={i} className="sd-card" style={{ background: C.bg, borderRadius: 12, border: `1px solid ${C.border}`, padding: space.lg }}>
                       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
                         <div>
                           <div style={{ fontSize: 16, fontWeight: 600 }}>{cls.name}</div>
@@ -287,13 +299,13 @@ export default function Director({ lang: pageLang = "en", setLang: pageSetLang, 
                 ) : (
                   <div className="sd-card" style={{ background: C.bg, borderRadius: 12, border: `1px solid ${C.border}`, overflow: "hidden" }}>
                     {!isMobile && (
-                      <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", gap: 0, padding: "12px 16px", borderBottom: `1px solid ${C.border}`, fontSize: 12, fontWeight: 600, color: C.textMuted }}>
+                      <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", gap: 0, padding: `${space.sm}px ${space.md}px`, borderBottom: `1px solid ${C.border}`, fontSize: 12, fontWeight: 600, color: C.textMuted }}>
                         <span>{t.students}</span><span>{t.className}</span><span>{t.retention}</span><span>{t.sessions}</span>
                       </div>
                     )}
                     {[...allStudents].sort((a, b) => b.avgRetention - a.avgRetention).map((s, i) => (
                       isMobile ? (
-                        <div key={i} className="sd-row" style={{ padding: "12px 16px", borderBottom: `1px solid ${C.border}`, background: i % 2 === 0 ? C.bgSoft : C.bg }}>
+                        <div key={i} className="sd-row" style={{ padding: `${space.sm}px ${space.md}px`, borderBottom: `1px solid ${C.border}`, background: i % 2 === 0 ? C.bgSoft : C.bg }}>
                           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 8 }}>
                             <div style={{ minWidth: 0, flex: 1 }}>
                               <div style={{ fontSize: 14, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.name}</div>
@@ -308,7 +320,7 @@ export default function Director({ lang: pageLang = "en", setLang: pageSetLang, 
                           </div>
                         </div>
                       ) : (
-                        <div key={i} className="sd-row" style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", gap: 0, padding: "12px 16px", borderBottom: `1px solid ${C.border}`, alignItems: "center", background: i % 2 === 0 ? C.bgSoft : C.bg }}>
+                        <div key={i} className="sd-row" style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", gap: 0, padding: `${space.sm}px ${space.md}px`, borderBottom: `1px solid ${C.border}`, alignItems: "center", background: i % 2 === 0 ? C.bgSoft : C.bg }}>
                           <div>
                             <div style={{ fontSize: 14, fontWeight: 500 }}>{s.name}</div>
                             <div style={{ fontSize: 11, color: C.textMuted }}>{s.strongTopics} {t.strong.toLowerCase()} · {s.weakTopics} {t.weak.toLowerCase()}</div>
@@ -338,13 +350,13 @@ export default function Director({ lang: pageLang = "en", setLang: pageSetLang, 
                 ) : (
                   <>
                     {atRiskStudents.length > 0 && (
-                      <div className="sd-card" style={{ background: C.bg, borderRadius: 12, border: `1px solid ${C.border}`, padding: 20, borderLeft: `3px solid ${C.red}` }}>
+                      <div className="sd-card" style={{ background: C.bg, borderRadius: 12, border: `1px solid ${C.border}`, padding: space.lg, borderLeft: `3px solid ${C.red}` }}>
                         <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 4, display: "flex", alignItems: "center", gap: 6 }}>
                           <CIcon name="alert" size={16} inline /> {t.atRisk}
                         </h3>
                         <p style={{ fontSize: 12, color: C.textMuted, marginBottom: 12 }}>{t.atRiskDesc}</p>
                         {atRiskStudents.map((s, i) => (
-                          <div key={i} className="sd-alert" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 12px", borderRadius: 8, background: C.redSoft, marginBottom: 6 }}>
+                          <div key={i} className="sd-alert" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: `${space.sm}px ${space.md}px`, borderRadius: 8, background: C.redSoft, marginBottom: 6 }}>
                             <div>
                               <span style={{ fontSize: 14, fontWeight: 500 }}>{s.name}</span>
                               <span style={{ fontSize: 12, color: C.textMuted, marginLeft: 8 }}>{s.className} · {s.weakTopics} {t.weak.toLowerCase()} topics</span>
@@ -356,13 +368,13 @@ export default function Director({ lang: pageLang = "en", setLang: pageSetLang, 
                     )}
 
                     {lowTopics.length > 0 && (
-                      <div className="sd-card" style={{ background: C.bg, borderRadius: 12, border: `1px solid ${C.border}`, padding: 20, borderLeft: `3px solid ${C.orange}` }}>
+                      <div className="sd-card" style={{ background: C.bg, borderRadius: 12, border: `1px solid ${C.border}`, padding: space.lg, borderLeft: `3px solid ${C.orange}` }}>
                         <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 4, display: "flex", alignItems: "center", gap: 6 }}>
                           <CIcon name="warning" size={16} inline /> {t.lowTopics}
                         </h3>
                         <p style={{ fontSize: 12, color: C.textMuted, marginBottom: 12 }}>{t.lowTopicsDesc}</p>
                         {lowTopics.map((tp, i) => (
-                          <div key={i} className="sd-alert" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 12px", borderRadius: 8, background: C.orangeSoft, marginBottom: 6 }}>
+                          <div key={i} className="sd-alert" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: `${space.sm}px ${space.md}px`, borderRadius: 8, background: C.orangeSoft, marginBottom: 6 }}>
                             <div>
                               <span style={{ fontSize: 14, fontWeight: 500 }}>{tp.topic}</span>
                               <span style={{ fontSize: 12, color: C.textMuted, marginLeft: 8 }}>{tp.className}</span>
