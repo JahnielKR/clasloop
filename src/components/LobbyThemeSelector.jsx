@@ -28,6 +28,7 @@ import { useState } from "react";
 import { supabase } from "../lib/supabase";
 import { listThemes } from "../lib/themes";
 import { C } from "./tokens";
+import Modal from "./Modal";
 
 // PR 74: el bloque i18n local fue movido a src/i18n/{en,es,ko}.js
 // bajo el namespace "lobbyThemeSelector".
@@ -69,30 +70,30 @@ export default function LobbyThemeSelector({
   };
 
   return (
-    <div
-      onClick={onClose}
-      style={{
+    <Modal
+      open
+      onClose={onClose}
+      canClose={!saving}
+      ariaLabelledBy="lobbytheme-title"
+      backdropStyle={{
         position: "fixed", inset: 0, zIndex: 100,
         background: "rgba(0,0,0,0.5)",
         display: "flex", alignItems: "center", justifyContent: "center",
         padding: 20,
         animation: "cl-fade-in 0.15s ease",
       }}
+      dialogStyle={{
+        background: C.bg,
+        borderRadius: 16,
+        maxWidth: 920,
+        width: "100%",
+        maxHeight: "90vh",
+        overflow: "hidden",
+        display: "flex",
+        flexDirection: "column",
+        boxShadow: "0 20px 60px rgba(0,0,0,0.3)",
+      }}
     >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          background: C.bg,
-          borderRadius: 16,
-          maxWidth: 920,
-          width: "100%",
-          maxHeight: "90vh",
-          overflow: "hidden",
-          display: "flex",
-          flexDirection: "column",
-          boxShadow: "0 20px 60px rgba(0,0,0,0.3)",
-        }}
-      >
 
         {/* Header */}
         <div style={{
@@ -104,7 +105,7 @@ export default function LobbyThemeSelector({
           gap: 16,
         }}>
           <div>
-            <h2 style={{
+            <h2 id="lobbytheme-title" style={{
               margin: 0,
               fontFamily: "'Outfit', sans-serif",
               fontSize: 20,
@@ -261,8 +262,7 @@ export default function LobbyThemeSelector({
             }}
           >{saving ? t.saving : t.save}</button>
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 }
 

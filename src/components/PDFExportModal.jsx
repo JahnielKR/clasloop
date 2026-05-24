@@ -53,6 +53,7 @@ import { useToast } from "../lib/toast";
 // marketing landing can reuse the exact same SVGs without importing jsPDF.
 import { STYLE_THUMBS } from "./PdfStyleThumbs";
 import Button from "./ui/Button";
+import Modal from "./Modal";
 import CleoTour from "../onboarding/CleoTour";
 
 // PR 46: scanner ya no es un "estilo" — es una página opcional que se
@@ -246,13 +247,6 @@ export default function PDFExportModal({
     };
   }, []);
 
-  // Escape closes the modal
-  useEffect(() => {
-    const onKey = (e) => { if (e.key === "Escape") onClose?.(); };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
-
   const handleDownload = async () => {
     if (downloading) return;
     setDownloading(true);
@@ -278,33 +272,32 @@ export default function PDFExportModal({
   ];
 
   return (
-    <div
-      onClick={onClose}
-      style={{
+    <Modal
+      open
+      onClose={onClose}
+      ariaLabelledBy="pdfexport-title"
+      backdropStyle={{
         position: "fixed", inset: 0,
         background: "rgba(0,0,0,0.45)",
         display: "flex", alignItems: "center", justifyContent: "center",
         zIndex: 100,
         padding: 20,
       }}
+      dialogStyle={{
+        background: C.bg,
+        borderRadius: 14,
+        maxWidth: 760, width: "100%",
+        maxHeight: "92vh",
+        display: "flex", flexDirection: "column",
+        boxShadow: "0 20px 50px rgba(0,0,0,0.18)",
+        overflow: "hidden",
+      }}
     >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          background: C.bg,
-          borderRadius: 14,
-          maxWidth: 760, width: "100%",
-          maxHeight: "92vh",
-          display: "flex", flexDirection: "column",
-          boxShadow: "0 20px 50px rgba(0,0,0,0.18)",
-          overflow: "hidden",
-        }}
-      >
         {/* Header */}
         <div style={{ padding: "20px 24px 12px", borderBottom: `1px solid ${C.border}` }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
             <div>
-              <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: C.text }}>{t.title}</h3>
+              <h3 id="pdfexport-title" style={{ margin: 0, fontSize: 18, fontWeight: 700, color: C.text }}>{t.title}</h3>
               <p style={{ margin: "4px 0 0", fontSize: 13, color: C.textSecondary }}>{t.subtitle}</p>
             </div>
             <button
@@ -562,7 +555,6 @@ export default function PDFExportModal({
 
         {/* First-visit guided tour — pick a style → download. */}
         <CleoTour tourId="pdfExport" lang={lang} userId={userId} enabled />
-      </div>
-    </div>
+    </Modal>
   );
 }

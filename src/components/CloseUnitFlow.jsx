@@ -32,6 +32,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { getUnitRetentionSummary } from "../lib/spaced-repetition";
 import { C, MONO } from "./tokens";
+import Modal from "./Modal";
 import SectionBadge, { sectionAccent } from "./SectionBadge";
 import { buildRoute } from "../routes";
 import {
@@ -52,28 +53,27 @@ export function CloseUnitConfirmModal({ open, unit, onCancel, onContinue, lang =
   const t = useT("closeUnitFlow", lang);
   if (!open || !unit) return null;
   return (
-    <div
-      onClick={onCancel}
-      style={{
+    <Modal
+      open
+      onClose={onCancel}
+      ariaLabelledBy="closeunit-confirm-title"
+      backdropStyle={{
         position: "fixed", inset: 0,
         background: "rgba(0,0,0,0.5)",
         display: "flex", alignItems: "center", justifyContent: "center",
         zIndex: 200, padding: 20,
       }}
+      dialogStyle={{
+        background: C.bg,
+        borderRadius: 12,
+        border: `1px solid ${C.border}`,
+        width: "100%",
+        maxWidth: 440,
+        padding: "22px 24px",
+        boxShadow: "0 20px 60px rgba(0,0,0,0.18)",
+      }}
     >
-      <div
-        onClick={e => e.stopPropagation()}
-        style={{
-          background: C.bg,
-          borderRadius: 12,
-          border: `1px solid ${C.border}`,
-          width: "100%",
-          maxWidth: 440,
-          padding: "22px 24px",
-          boxShadow: "0 20px 60px rgba(0,0,0,0.18)",
-        }}
-      >
-        <div style={{
+        <div id="closeunit-confirm-title" style={{
           fontFamily: "'Outfit', sans-serif",
           fontSize: 17, fontWeight: 700,
           color: C.text,
@@ -139,8 +139,7 @@ export function CloseUnitConfirmModal({ open, unit, onCancel, onContinue, lang =
             {t.continueToSummary}
           </button>
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 }
 

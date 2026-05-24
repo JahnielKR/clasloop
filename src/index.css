@@ -185,8 +185,23 @@ a {
 .rk-row:hover:not(.rk-row--active) { background: var(--c-bg-soft); }
 .rk-row--active { background: var(--c-accent-soft); color: var(--c-accent); }
 
+/* Uniform keyboard-focus ring. The global `button { outline: none }` above
+   hides focus on every raw <button>; only .ui-btn restored a ring. This gives
+   ONE consistent accent ring (same as inputs + .ui-btn) on :focus-visible for
+   every interactive element, so keyboard focus is visible + identical app-wide.
+   :focus-visible only fires for keyboard/AT focus, so pointer users see no
+   change, and the ring follows each element's own border-radius. */
+button:focus-visible,
+a:focus-visible,
+[role="button"]:focus-visible,
+[tabindex]:not([tabindex="-1"]):focus-visible,
+summary:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--c-accent-soft);
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .ui-btn, .ui-card { transition: none; }
-  .ui-btn:hover, .ui-btn:active, .ui-card--hover:hover, .ui-card--hover:active { transform: none; }
+  button, .ui-btn, .ui-card { transition: none; }
+  button:active, .ui-btn:hover, .ui-btn:active, .ui-card--hover:hover, .ui-card--hover:active { transform: none; }
   .ui-btn__spinner, .ui-skeleton { animation: none; }
 }
