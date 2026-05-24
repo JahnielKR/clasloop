@@ -1,9 +1,11 @@
 // ─── Cleo — extras ──────────────────────────────────────────────────────────
 // Small mood decorations: a tear, a sweat drop, sparkles, thought dots. Only the
-// thought dots take motion — when `gesture` is supplied (thinking + animate) the
-// three dots rise and fade in sequence (staggered delay) so Cleo reads as
+// thought dots take motion — when `live` and a gesture variant is supplied (dots),
+// the three dots rise and fade in sequence (staggered delay) so Cleo reads as
 // actively pondering. Everything else is static.
 
+import { motion } from "motion/react";
+import { GESTURE_VARIANTS } from "../motion/variants";
 import { OUTLINE, ARM } from "./constants";
 
 function Sparkle({ x, y, s = 1 }) {
@@ -18,7 +20,7 @@ function Sparkle({ x, y, s = 1 }) {
   );
 }
 
-export function Extras({ variant, gesture }) {
+export function Extras({ variant, gesture, live }) {
   switch (variant) {
     case "tear":
       return <path d="M63.5 60 Q66.5 64.5 63.5 67 Q60.5 64.5 63.5 60 Z" fill="#8FD0F5" stroke={ARM} strokeWidth="1.4" />;
@@ -32,17 +34,18 @@ export function Extras({ variant, gesture }) {
         </>
       );
     case "thoughtDots": {
-      const dot = (cx, cy, r, delay) => (
-        <circle
-          cx={cx}
-          cy={cy}
-          r={r}
-          fill={OUTLINE}
-          opacity="0.85"
-          className={gesture || undefined}
-          style={gesture ? { animationDelay: `${delay}s` } : undefined}
-        />
-      );
+      const v = live && gesture ? GESTURE_VARIANTS[gesture] : null;
+      const dot = (cx, cy, r, delay) =>
+        v ? (
+          <motion.circle
+            key={`${cx}-${cy}`}
+            cx={cx} cy={cy} r={r} fill={OUTLINE} opacity="0.85"
+            animate={v.animate}
+            transition={{ ...v.transition, delay }}
+          />
+        ) : (
+          <circle key={`${cx}-${cy}`} cx={cx} cy={cy} r={r} fill={OUTLINE} opacity="0.85" />
+        );
       return (
         <>
           {dot(74, 42, 2, 0)}

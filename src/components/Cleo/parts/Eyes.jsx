@@ -4,6 +4,17 @@
 
 import { OUTLINE } from "./constants";
 
+// A little lash flick at the outer-top corner of each eye — a small feminine cue
+// so Cleo reads clearly as a girl. Tuned to the standard open-eye placement.
+function Lashes() {
+  return (
+    <>
+      <path d="M35.5 50.8 Q 32 48 30 48.8" fill="none" stroke={OUTLINE} strokeWidth="1.8" strokeLinecap="round" />
+      <path d="M64.5 50.8 Q 68 48 70 48.8" fill="none" stroke={OUTLINE} strokeWidth="1.8" strokeLinecap="round" />
+    </>
+  );
+}
+
 export function Eyes({ variant }) {
   switch (variant) {
     case "arc": // happy closed eyes ^^ (cheer)
@@ -40,6 +51,7 @@ export function Eyes({ variant }) {
           <circle cx="60" cy="56" r="6.2" fill={OUTLINE} />
           <circle cx="42.2" cy="53.5" r="2.1" fill="#fff" />
           <circle cx="62.2" cy="53.5" r="2.1" fill="#fff" />
+          <Lashes />
         </>
       );
     case "wink": // one eye winking (encouraging)
@@ -49,6 +61,10 @@ export function Eyes({ variant }) {
           <circle cx="42" cy="53" r="2" fill="#fff" />
           <circle cx="38.5" cy="58.5" r="1" fill="#fff" opacity="0.8" />
           <path d="M54 58 Q60 52 66 58" fill="none" stroke={OUTLINE} strokeWidth="3" strokeLinecap="round" />
+          {/* left lash on the open eye; right lash hugs the wink's outer corner
+              (not the standard high position, which floats above a winking eye). */}
+          <path d="M35.5 50.8 Q 32 48 30 48.8" fill="none" stroke={OUTLINE} strokeWidth="1.8" strokeLinecap="round" />
+          <path d="M64.6 54.6 Q 68 52.4 70 53.4" fill="none" stroke={OUTLINE} strokeWidth="1.8" strokeLinecap="round" />
         </>
       );
     case "wide": // big bright eyes (happy / thinking) — the original look
@@ -61,6 +77,7 @@ export function Eyes({ variant }) {
           <circle cx="62" cy="53" r="2" fill="#fff" />
           <circle cx="38.5" cy="58.5" r="1" fill="#fff" opacity="0.8" />
           <circle cx="58.5" cy="58.5" r="1" fill="#fff" opacity="0.8" />
+          <Lashes />
         </>
       );
   }
