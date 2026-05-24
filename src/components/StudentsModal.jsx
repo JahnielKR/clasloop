@@ -17,6 +17,8 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
 import { C } from "./tokens";
+import Modal from "./Modal";
+import ConfirmDialog from "./ConfirmDialog";
 import { getAvatarById } from "./Avatars";
 // PR 75: i18n centralizado
 import { useT } from "../i18n";
@@ -117,29 +119,6 @@ export default function StudentsModal({
     });
   }, [students]);
 
-  // Lock body scroll while open
-  useEffect(() => {
-    if (!open) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => { document.body.style.overflow = prev; };
-  }, [open]);
-
-  // Esc closes (unless a confirm sub-modal is open or we're removing)
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e) => {
-      if (e.key !== "Escape") return;
-      if (confirmRemove) {
-        if (!removing) setConfirmRemove(null);
-      } else {
-        onClose();
-      }
-    };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [open, confirmRemove, removing, onClose]);
-
   if (!open) return null;
 
   // PR 28.8: handles both single and bulk deletes through the same
@@ -218,33 +197,31 @@ export default function StudentsModal({
   };
 
   return (
-    <div
-      onClick={(e) => {
-        if (e.target === e.currentTarget && !confirmRemove) onClose();
-      }}
-      style={{
+    <>
+    <Modal
+      open
+      onClose={onClose}
+      canClose={!confirmRemove}
+      ariaLabelledBy="students-modal-title"
+      backdropStyle={{
         position: "fixed", inset: 0, zIndex: 200,
         background: "rgba(15, 18, 25, 0.55)",
         display: "flex", alignItems: "center", justifyContent: "center",
         padding: 16,
         fontFamily: "'Outfit', sans-serif",
       }}
+      dialogStyle={{
+        background: C.bg,
+        borderRadius: 16,
+        width: "100%",
+        maxWidth: 520,
+        maxHeight: "82vh",
+        display: "flex",
+        flexDirection: "column",
+        boxShadow: "0 24px 70px rgba(0, 0, 0, 0.35)",
+        overflow: "hidden",
+      }}
     >
-      <div
-        role="dialog"
-        aria-modal="true"
-        style={{
-          background: C.bg,
-          borderRadius: 16,
-          width: "100%",
-          maxWidth: 520,
-          maxHeight: "82vh",
-          display: "flex",
-          flexDirection: "column",
-          boxShadow: "0 24px 70px rgba(0, 0, 0, 0.35)",
-          overflow: "hidden",
-        }}
-      >
         {/* Header */}
         <div style={{
           padding: "22px 24px 18px",
@@ -256,7 +233,7 @@ export default function StudentsModal({
           flexShrink: 0,
         }}>
           <div style={{ minWidth: 0 }}>
-            <h2 style={{
+            <h2 id="students-modal-title" style={{
               fontSize: 18, fontWeight: 700,
               margin: "0 0 3px",
               color: C.text,
@@ -512,90 +489,25 @@ export default function StudentsModal({
             </button>
           </div>
         )}
-      </div>
+    </Modal>
 
-      {/* Confirm remove — nested dialog with its own backdrop click */}
+      {/* Confirm remove (single or bulk) — the shared ConfirmDialog, layered
+          above the list. While it's open the list's canClose is false, so
+          Escape/backdrop dismiss the confirm, not the whole roster. */}
       {confirmRemove && (
-        <div
-          onClick={(e) => { if (e.target === e.currentTarget && !removing) setConfirmRemove(null); }}
-          style={{
-            position: "fixed", inset: 0,
-            background: "rgba(15, 18, 25, 0.45)",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            padding: 16,
-            zIndex: 300,
-          }}
-        >
-          <div
-            role="alertdialog"
-            aria-modal="true"
-            style={{
-              background: C.bg,
-              borderRadius: 14,
-              maxWidth: 380,
-              width: "100%",
-              padding: "22px 22px 18px",
-              boxShadow: "0 20px 50px rgba(0,0,0,0.30)",
-            }}
-          >
-            <h3 style={{
-              fontSize: 16, fontWeight: 700,
-              margin: "0 0 8px",
-              color: C.text,
-            }}>
-              {/* PR 28.8: title swaps per kind. Single keeps the
-                  named "Remove Pedro?"; bulk shows "Remove 3 students?". */}
-              {confirmRemove.kind === "bulk"
-                ? t.bulkConfirmTitle.replace("{n}", String(confirmRemove.ids.length))
-                : t.removeConfirmTitle.replace("{name}", confirmRemove.name)}
-            </h3>
-            <p style={{
-              fontSize: 13, lineHeight: 1.5,
-              color: C.textSecondary,
-              margin: "0 0 18px",
-            }}>
-              {confirmRemove.kind === "bulk" ? t.bulkConfirmBody : t.removeConfirmBody}
-            </p>
-            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-              <button
-                onClick={() => setConfirmRemove(null)}
-                disabled={removing}
-                style={{
-                  background: "transparent",
-                  border: `1px solid ${C.border}`,
-                  color: C.textSecondary,
-                  padding: "8px 14px",
-                  borderRadius: 8,
-                  fontSize: 13,
-                  fontWeight: 500,
-                  cursor: removing ? "not-allowed" : "pointer",
-                  fontFamily: "'Outfit', sans-serif",
-                }}
-              >
-                {t.removeNo}
-              </button>
-              <button
-                onClick={handleRemove}
-                disabled={removing}
-                style={{
-                  background: C.red,
-                  border: "none",
-                  color: "#fff",
-                  padding: "8px 16px",
-                  borderRadius: 8,
-                  fontSize: 13,
-                  fontWeight: 600,
-                  cursor: removing ? "wait" : "pointer",
-                  fontFamily: "'Outfit', sans-serif",
-                  opacity: removing ? 0.7 : 1,
-                }}
-              >
-                {removing ? t.loading : t.removeYes}
-              </button>
-            </div>
-          </div>
-        </div>
+        <ConfirmDialog
+          title={confirmRemove.kind === "bulk"
+            ? t.bulkConfirmTitle.replace("{n}", String(confirmRemove.ids.length))
+            : t.removeConfirmTitle.replace("{name}", confirmRemove.name)}
+          body={confirmRemove.kind === "bulk" ? t.bulkConfirmBody : t.removeConfirmBody}
+          confirmLabel={t.removeYes}
+          cancelLabel={t.removeNo}
+          variant="danger"
+          loading={removing}
+          onConfirm={handleRemove}
+          onCancel={() => setConfirmRemove(null)}
+        />
       )}
-    </div>
+    </>
   );
 }

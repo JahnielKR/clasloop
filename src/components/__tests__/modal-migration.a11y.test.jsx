@@ -11,6 +11,8 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import EditClassModal from "../EditClassModal";
 import DeleteAccountModal from "../DeleteAccountModal";
 import ClassCodeModal from "../ClassCodeModal";
+import LobbyThemeSelector from "../LobbyThemeSelector";
+import { CloseUnitConfirmModal } from "../CloseUnitFlow";
 
 describe("Modal-primitive migration — a11y contract", () => {
   it("EditClassModal exposes a labelled dialog", () => {
@@ -48,5 +50,25 @@ describe("Modal-primitive migration — a11y contract", () => {
     fireEvent.keyDown(document, { key: "Escape" });
     // No onClose wired + closeOnEscape disabled → the gate must remain.
     expect(screen.getByRole("dialog")).toBeInTheDocument();
+  });
+
+  it("LobbyThemeSelector exposes a labelled dialog that Escape closes", () => {
+    const onClose = vi.fn();
+    render(<LobbyThemeSelector classId="c1" currentTheme="calm" lang="en" onClose={onClose} />);
+    const dialog = screen.getByRole("dialog");
+    expect(dialog).toHaveAttribute("aria-labelledby", "lobbytheme-title");
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("CloseUnitConfirmModal exposes a labelled dialog that Escape closes", () => {
+    const onCancel = vi.fn();
+    render(
+      <CloseUnitConfirmModal open unit={{ name: "Unit 1" }} lang="en" onCancel={onCancel} onContinue={() => {}} />
+    );
+    const dialog = screen.getByRole("dialog");
+    expect(dialog).toHaveAttribute("aria-labelledby", "closeunit-confirm-title");
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(onCancel).toHaveBeenCalledTimes(1);
   });
 });
