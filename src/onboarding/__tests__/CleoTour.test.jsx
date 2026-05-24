@@ -64,4 +64,29 @@ describe("CleoTour", () => {
     renderHomeTour();
     expect(screen.queryByText(t.offerYes)).toBeNull();
   });
+
+  it("force + autoStart replays a tour the user already saw (chat 'show me' path)", async () => {
+    localStorage.setItem("cl.tours.seen.u1", JSON.stringify(["home"]));
+    renderHomeTour({ autoStart: true, force: true });
+    // No offer — autoStart jumps straight to the first running step, and force
+    // bypasses the "seen" gate so the replay actually runs.
+    expect(await screen.findByText(t.home.steps[0].title)).toBeTruthy();
+  });
+
+  it("fires onComplete when the last step's 'Listo' is tapped", async () => {
+    let completed = false;
+    renderHomeTour({ autoStart: true, force: true, onComplete: () => { completed = true; } });
+    await screen.findByText(t.home.steps[0].title);
+    fireEvent.click(screen.getByText(t.next)); // → last step
+    fireEvent.click(screen.getByText(t.done)); // finish
+    expect(completed).toBe(true);
+  });
+
+  it("fires onSkip when 'Saltar' is tapped (journey abandon)", async () => {
+    let skipped = false;
+    renderHomeTour({ autoStart: true, force: true, onSkip: () => { skipped = true; } });
+    await screen.findByText(t.home.steps[0].title);
+    fireEvent.click(screen.getByText(t.skip));
+    expect(skipped).toBe(true);
+  });
 });

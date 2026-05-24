@@ -30,7 +30,7 @@ export function markTourSeen(userId, tourId) {
   safeSetJSON(seenKey(userId), [...seen, tourId]);
 }
 
-export function useFirstVisitTour({ tourId, total = 0, enabled = true, userId, autoStart = false }) {
+export function useFirstVisitTour({ tourId, total = 0, enabled = true, userId, autoStart = false, force = false }) {
   const [phase, setPhase] = useState("idle"); // idle | offer | running
   const [index, setIndex] = useState(0);
   // Fire the first-visit trigger exactly once (the gating inputs — enabled,
@@ -39,14 +39,16 @@ export function useFirstVisitTour({ tourId, total = 0, enabled = true, userId, a
   const startedRef = useRef(false);
 
   // On first visit: `autoStart` walks the teacher straight through (used for the
-  // guaranteed first-warmup flow); otherwise Cleo offers first.
+  // guided journey); otherwise Cleo offers first. `force` re-runs a tour the
+  // user has already seen — used when they ask for it again from the chat, and
+  // by the journey legs (gated by the leg pointer, not seen-state).
   useEffect(() => {
     if (!enabled || !tourId || total === 0 || startedRef.current) return;
-    if (hasSeenTour(userId, tourId)) return;
+    if (!force && hasSeenTour(userId, tourId)) return;
     startedRef.current = true;
     setPhase(autoStart ? "running" : "offer");
     setIndex(0);
-  }, [enabled, tourId, total, userId, autoStart]);
+  }, [enabled, tourId, total, userId, autoStart, force]);
 
   const accept = useCallback(() => {
     setIndex(0);

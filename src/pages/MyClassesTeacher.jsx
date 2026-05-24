@@ -37,6 +37,9 @@ import TwoColPage from "../components/TwoColPage";
 import MyClassesRail from "./MyClasses.rail";
 import { countPendingReviewsForTeacher } from "../lib/notifications";
 import CleoTour from "../onboarding/CleoTour";
+import { useJourney } from "../onboarding/useJourney";
+import { setJourneyLeg, isJourneyActive, finishJourney } from "../onboarding/journey";
+import { useTourLaunch } from "../onboarding/useTourLaunch";
 
 // ─── i18n ────────────────────────────────────────────────────────────────
 // PR 77: el bloque i18n local fue movido a src/i18n/{en,es,ko}.js
@@ -296,6 +299,10 @@ export default function MyClassesTeacher({ lang = "en", profile, onNavigateToSes
     return () => { cancelled = true; };
   }, [userId]);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  // Guided journey (leg 1): jHome spotlights "create a class" and opens the
+  // modal; creating the class advances the journey to the unit leg.
+  const { leg: journeyLegId } = useJourney(profile?.id);
+  const homeLaunch = useTourLaunch("home"); // chat: "show me how to create a class"
   const [showImportModal, setShowImportModal] = useState(false);
   // PR 22: when non-null, the LobbyThemeSelector modal is open for this class
   const [themeSelectorClass, setThemeSelectorClass] = useState(null);
@@ -402,8 +409,12 @@ export default function MyClassesTeacher({ lang = "en", profile, onNavigateToSes
     });
     setShowCreateModal(false);
     if (isFirstClass) {
-      // tour=run → the editor auto-starts its guided tour (their first warmup).
-      navigate(`${ROUTES.DECKS_NEW}?${QUERY.CLASS}=${encodeURIComponent(newClass.id)}&tour=run`);
+      // First class → open it. During the guided journey, advance to the unit
+      // leg so jUnit arms on the class page (clase → unidad → warmup → …).
+      if (isJourneyActive(profile?.id)) {
+        setJourneyLeg(profile?.id, "unit", { classId: newClass.id });
+      }
+      navigate(buildRoute.classDetail(newClass.id));
       return;
     }
     setJustCreatedId(newClass.id);
@@ -695,9 +706,28 @@ export default function MyClassesTeacher({ lang = "en", profile, onNavigateToSes
         />
       )}
 
-      {/* First-visit guided tour — Cleo offers to walk a new teacher through
-          creating their first class. */}
-      <CleoTour tourId="home" lang={lang} userId={profile?.id} enabled={profile?.role === "teacher"} />
+      {/* Guided journey, leg 1: spotlight "create a class", then open the modal.
+          Armed only while the journey sits on the "home" leg. */}
+      <CleoTour
+        tourId="jHome"
+        lang={lang}
+        userId={profile?.id}
+        enabled={profile?.role === "teacher" && journeyLegId === "home"}
+        autoStart={journeyLegId === "home"}
+        force
+        onComplete={() => setShowCreateModal(true)}
+        onSkip={() => finishJourney(profile?.id)}
+      />
+      {/* Standalone first-visit tour (non-journey teachers + chat replay).
+          Suppressed while the journey is running so the two don't compete. */}
+      <CleoTour
+        tourId="home"
+        lang={lang}
+        userId={profile?.id}
+        enabled={profile?.role === "teacher" && !isJourneyActive(profile?.id)}
+        autoStart={homeLaunch.autoStart}
+        force={homeLaunch.force}
+      />
     </div>
   );
 }

@@ -2,9 +2,9 @@
 // Phase 2 — the "OPEN" moment for teachers. They skip avatar onboarding and
 // otherwise land on an empty dashboard with no orientation. This is a brief,
 // skippable, friendly first-run screen (shown once, right after they pick the
-// teacher role) that frames the value in 3 lines and points them at their
-// first win: creating a warmup. Same card-on-bgSoft style as RoleOnboarding /
-// AvatarOnboarding.
+// teacher role) that frames the value in 3 lines and starts the guided journey
+// (clase → unidad → warmup → lanzar). Same card-on-bgSoft style as
+// RoleOnboarding / AvatarOnboarding.
 import Cleo from "../components/Cleo";
 import { CIcon } from "../components/Icons";
 import { C } from "../components/tokens";

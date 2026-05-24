@@ -71,7 +71,7 @@ function bubblePosition(rect, placement, isMobile) {
   return { left, top: rect.top + rect.height + GAP, width: BUBBLE_W };
 }
 
-export default function CleoTour({ tourId, lang = "en", userId, enabled = true, onStepChange, autoStart = false }) {
+export default function CleoTour({ tourId, lang = "en", userId, enabled = true, onStepChange, autoStart = false, force = false, onComplete, onSkip }) {
   const t = useT("tours", lang);
   const isMobile = useIsMobile();
   const tour = getTour(tourId);
@@ -83,7 +83,7 @@ export default function CleoTour({ tourId, lang = "en", userId, enabled = true, 
   useEffect(() => { setReduced(prefersReduced()); }, []);
 
   const { phase, index, accept, decline, close, next, back } =
-    useFirstVisitTour({ tourId, total, enabled, userId, autoStart });
+    useFirstVisitTour({ tourId, total, enabled, userId, autoStart, force });
 
   // Let the host page react when the running step changes — e.g. the deck
   // editor switches to the right tab so the step's anchor is on screen (the
@@ -152,10 +152,29 @@ export default function CleoTour({ tourId, lang = "en", userId, enabled = true, 
     };
   }, [phase, index, steps, reduced]);
 
+  // onComplete fires when the tour ends by reaching the last step ("Listo");
+  // onSkip fires when the user taps "Saltar". The journey wires these to drive
+  // the next leg (complete) or abandon the whole journey (skip). Kept in refs so
+  // inline callbacks don't churn. Both still run the normal close() (mark seen).
+  const onCompleteRef = useRef(onComplete);
+  onCompleteRef.current = onComplete;
+  const onSkipRef = useRef(onSkip);
+  onSkipRef.current = onSkip;
+
+  const handleFinish = useCallback(() => {
+    close();
+    onCompleteRef.current?.();
+  }, [close]);
+
+  const handleSkip = useCallback(() => {
+    close();
+    onSkipRef.current?.();
+  }, [close]);
+
   const onNext = useCallback(() => {
-    if (index + 1 >= total) close();
+    if (index + 1 >= total) handleFinish();
     else next();
-  }, [index, total, close, next]);
+  }, [index, total, handleFinish, next]);
 
   // ── Render ─────────────────────────────────────────────────────────────────
   if (!tour || total === 0 || phase === "idle") return null;
@@ -277,7 +296,7 @@ export default function CleoTour({ tourId, lang = "en", userId, enabled = true, 
               <Button variant="ghost" size="sm" onClick={back}>{t.back || "Atrás"}</Button>
             )}
             {!isLast && (
-              <Button variant="ghost" size="sm" onClick={close}>{t.skip || "Saltar"}</Button>
+              <Button variant="ghost" size="sm" onClick={handleSkip}>{t.skip || "Saltar"}</Button>
             )}
             <Button variant="gradient" size="sm" onClick={onNext}>
               {isLast ? (t.done || "Listo") : (t.next || "Siguiente")}

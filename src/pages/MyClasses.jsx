@@ -17,6 +17,7 @@ import { getPracticeTimerPref, setPracticeTimerPref } from "../lib/practice-time
 import { ROUTES, buildRoute } from "../routes";
 // PR 77: i18n centralizado
 import { useT } from "../i18n";
+import CleoTour from "../onboarding/CleoTour";
 
 // PR 77: el bloque i18n local fue movido a src/i18n/{en,es,ko}.js
 // bajo el namespace "myClasses".
@@ -295,6 +296,7 @@ export default function MyClasses({ lang: pageLang = "en", setLang: pageSetLang,
             onClick={openJoinForm}
             disabled={showJoinForm}
             style={{ flexShrink: 0 }}
+            data-tour="student-join"
           >{t.joinClass}</Button>
         </div>
 
@@ -302,7 +304,9 @@ export default function MyClasses({ lang: pageLang = "en", setLang: pageSetLang,
             1.5 min per pending review (rough guess based on average
             FRQ length — could refine later if Jota wants). */}
         {totalReviewsDue > 0 && (
-          <div style={{
+          <div
+            data-tour="student-reviews"
+            style={{
             background: C.orangeSoft,
             border: `1px solid ${C.orange}`,
             borderRadius: 12,
@@ -432,11 +436,11 @@ export default function MyClasses({ lang: pageLang = "en", setLang: pageSetLang,
         {/* Class cards */}
         {classes.length > 0 && (
           <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 24 }}>
-            {classes.map(cls => {
+            {classes.map((cls, cIdx) => {
               const isFlash = flashClassId === cls.id;
               const teacher = cls.profiles;
               return (
-                <div key={cls.id} ref={el => { classRefs.current[cls.id] = el; }} className={isFlash ? "mc-flash" : ""}>
+                <div key={cls.id} ref={el => { classRefs.current[cls.id] = el; }} className={isFlash ? "mc-flash" : ""} data-tour={cIdx === 0 ? "student-class" : undefined}>
                   <Card
                     className="mc-class-card"
                     onClick={() => navigate(buildRoute.classDetail(cls.id))}
@@ -499,6 +503,10 @@ export default function MyClasses({ lang: pageLang = "en", setLang: pageSetLang,
             now have ONE home: the Favorites strip up top + /favorites
             page. */}
       </div>
+
+      {/* First-visit tour for students — join, classes, reviews. Replayable from
+          the chat. (The first student-role tour; teachers have their own set.) */}
+      <CleoTour tourId="student" lang={l} userId={profile?.id} enabled={profile?.role === "student"} />
     </div>
   );
 }

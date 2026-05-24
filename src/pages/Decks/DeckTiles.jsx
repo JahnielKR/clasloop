@@ -160,6 +160,7 @@ export function DeckTile({ deck, t, lang, onEdit, onDelete, onTogglePublic, onDo
             }}
             title={t.downloadPdf}
             aria-label={t.downloadPdf}
+            data-tour="library-download"
             style={{
               width: 26, height: 26,
               padding: 0,

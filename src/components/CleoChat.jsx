@@ -5,12 +5,15 @@
 // (Gemini Flash, grounded server-side). Conversation lives only in local state —
 // nothing is persisted.
 import { useState, useRef, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import Cleo from "./Cleo";
 import { C } from "./tokens";
 import { CIcon } from "./Icons";
 import { useT } from "../i18n";
 import { supabase } from "../lib/supabase";
 import { useTourActive } from "../onboarding/TourContext";
+import { detectTourIntent } from "../onboarding/chatTourIntent";
+import { resolveTourRoute } from "../onboarding/tourRoutes";
 
 const css = `
   @keyframes clc-pop  { from { opacity:0; transform:translateY(12px) scale(.96) } to { opacity:1; transform:none } }
@@ -41,6 +44,7 @@ export default function CleoChat({ lang = "en" }) {
   // Hide this FAB while a guided tour is on screen — there's only one Cleo, and
   // she's "out" giving the tour. She glides back into this corner when it ends.
   const tourActive = useTourActive();
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState([{ role: "model", text: t.greeting, ui: true }]);
   const [input, setInput] = useState("");
@@ -64,6 +68,22 @@ export default function CleoChat({ lang = "en" }) {
   const send = async () => {
     const text = input.trim();
     if (!text || loading) return;
+
+    // Tour request? Launch the matching guided tour instead of asking the AI.
+    // If we can't launch it cold (needs an open class, or it's the student
+    // view) we fall through and let the AI explain the feature in words.
+    const tourId = detectTourIntent(text);
+    if (tourId) {
+      const url = resolveTourRoute(tourId);
+      if (url) {
+        setMessages((m) => [...m, { role: "user", text }, { role: "model", text: t.tourLaunch }]);
+        setInput("");
+        setOpen(false);
+        navigate(url);
+        return;
+      }
+    }
+
     const next = [...messages, { role: "user", text }];
     setMessages(next);
     setInput("");

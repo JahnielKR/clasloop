@@ -31,6 +31,9 @@ import { SECTIONS, DEFAULT_SECTION, isValidSection, sectionLabels, resolveClassA
 import { useToast } from "../../lib/toast";
 import { SUBJECTS } from "../../lib/constants";
 import CleoTour from "../../onboarding/CleoTour";
+import { useJourney } from "../../onboarding/useJourney";
+import { finishJourney } from "../../onboarding/journey";
+import { useTourLaunch } from "../../onboarding/useTourLaunch";
 import { getStrings } from "../../i18n";
 
 // Question type catalog — used by the type-selector grid and the per-question
@@ -584,6 +587,12 @@ function AIGeneratePanel({
 function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existingDeck, prefilledClassId = null, prefilledSection = null, prefilledUnitId = null, prefilledPosition = null, profile = null, onNeedClass, autoStartTour = false }) {
   const toast = useToast();
   const isMobile = useIsMobile();
+  // Guided journey: when the pointer is on the "editor" leg, run the jEditor
+  // walkthrough (same anchors as deckEditor, journey copy). Saving advances the
+  // journey to the finale (see Decks.jsx onCreated).
+  const { leg: journeyLegId } = useJourney(userId);
+  const inEditorLeg = journeyLegId === "editor";
+  const editorLaunch = useTourLaunch("deckEditor"); // chat: "how does the deck editor work"
   const [title, setTitle] = useState(existingDeck?.title || "");
   const [desc, setDesc] = useState(existingDeck?.description || "");
   // If we're creating fresh AND a class was pre-selected (came from "Add deck"
@@ -1482,11 +1491,13 @@ function CreateDeckEditor({ t, l, onBack, onCreated, userId, userClasses, existi
           → save. The AI step lives on the Questions tab, so the tour switches
           tabs for us (the overlay is modal — the user can't click there). */}
       <CleoTour
-        tourId="deckEditor"
+        tourId={inEditorLeg ? "jEditor" : "deckEditor"}
         lang={l}
         userId={userId}
         enabled={profile?.role === "teacher"}
-        autoStart={autoStartTour}
+        autoStart={autoStartTour || inEditorLeg || editorLaunch.autoStart}
+        force={inEditorLeg || editorLaunch.force}
+        onSkip={inEditorLeg ? () => finishJourney(userId) : undefined}
         onStepChange={(_i, step) => {
           if (step?.anchor === "ai-generate") setEditorTab("questions");
           else if (

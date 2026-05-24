@@ -234,7 +234,7 @@ const es: Locale = {
     point2Body: "Inicia una sesión en vivo a la que los alumnos entran desde el móvil, o imprime un test impecable.",
     point3Title: "Mira quién necesita ayuda",
     point3Body: "Tras cada uno ves los puntos débiles y la retención por alumno — y vuelven solos.",
-    ctaPrimary: "Crear mi primer warmup",
+    ctaPrimary: "Guíame paso a paso",
     ctaSkip: "Prefiero explorar por mi cuenta",
   },
 
@@ -278,9 +278,10 @@ const es: Locale = {
     title: "Pregúntale a Cleo",
     subtitle: "Tu ayudante de Clasloop",
     close: "Cerrar",
-    greeting: "¡Hola! Soy Cleo 👋 Pregúntame lo que sea de Clasloop — cómo funciona algo o dónde encontrarlo.",
+    greeting: "¡Hola! Soy Cleo 👋 Pregúntame lo que sea de Clasloop — cómo funciona algo o dónde está. Y si quieres, pídeme un tour (\"muéstrame la biblioteca\") y te lo enseño en vivo.",
     placeholder: "Pregunta sobre Clasloop…",
     send: "Enviar",
+    tourLaunch: "¡Vamos! Te lo muestro 👇",
     error: "Mmm, no pude conectar ahora mismo. Inténtalo de nuevo en un momento.",
     blocked: "No pude responder eso — prueba reformularlo o escribe al equipo.",
   },
@@ -296,49 +297,112 @@ const es: Locale = {
     next: "Siguiente",
     done: "Listo",
     skip: "Saltar",
-    replay: "Ver guía",
     home: {
       offer: "¡Bienvenido! ¿Te ayudo a dejar tu primera clase lista en un minuto?",
       steps: [
-        { title: "Crea tu primera clase", body: "Pulsa aquí para crear una clase. Todo —warmups, alumnos, sesiones— vive dentro de ella." },
-        { title: "Comparte el código", body: "Cada clase tiene un código. Tus alumnos lo ingresan en la app —con una cuenta gratis o con Google— para unirse a la clase." },
+        { title: "Crea una clase", body: "Una clase es el contenedor de todo: sus alumnos, warmups y resultados. Crea una por cada grupo que enseñas y lo demás encaja solo." },
+        { title: "Comparte el código", body: "Cada clase trae un código. Tus alumnos lo meten una vez (cuenta gratis o Google) y quedan dentro de todas tus sesiones. Tip: proyéctalo el primer día." },
       ],
     },
     classDetail: {
       offer: "¿Te guío por tu clase? Te muestro cómo navegarla, crear una unidad e invitar a tus alumnos.",
       steps: [
-        { title: "Navega tu clase", body: "Aquí cambias entre tu unidad actual, las pasadas, las próximas y el repaso general." },
-        { title: "Crea una unidad", body: "Una unidad es un tema (ej. 'Fracciones'). Los warmups y exit tickets de cada día viven dentro de ella. Empieza por aquí." },
-        { title: "Invita a tus alumnos", body: "Comparte el código de la clase. Tus alumnos se unen con una cuenta gratis o con Google, y luego ingresan el código en la app." },
-        { title: "Lánzalo en vivo", body: "Toca un warmup para iniciarlo: se proyecta en pantalla y tus alumnos responden desde el móvil." },
+        { title: "Navega tu clase", body: "Estas pestañas separan tu unidad actual de las pasadas y del repaso. Tu día a día vive en la actual; el resto queda a mano sin estorbar." },
+        { title: "Crea una unidad", body: "Una unidad es un tema (ej. 'Fracciones'): al ponerle fechas sus warmups salen solos en 'Hoy'. Tip: crea la unidad antes que los decks y cada uno cae en su sitio." },
+        { title: "Invita a tus alumnos", body: "Comparten un código por clase: lo meten una vez (cuenta gratis o Google) y entran a todas tus sesiones. Proyéctalo el primer día." },
+        { title: "Lánzalo en vivo", body: "Toca un warmup y se proyecta en pantalla mientras los alumnos responden desde el móvil — ves los resultados al instante." },
       ],
     },
     deckEditor: {
       offer: "¿Te muestro cómo armar tu primer warmup? Es rápido.",
       steps: [
-        { title: "Ponle un nombre", body: "Dale un nombre al deck — sin nombre no podrás guardarlo." },
-        { title: "Elige la clase", body: "Selecciona a qué clase pertenece. Toma su materia y grado automáticamente." },
-        { title: "Tipo de sesión", body: "Marca si es un warmup, un exit ticket o repaso general — así aparece en el lugar correcto de tu clase." },
-        { title: "Elige el idioma", body: "Elige el idioma del deck. La IA genera y revisa las preguntas en ese idioma." },
-        { title: "Genera con IA", body: "Sube un archivo o escribe un tema y la IA crea las preguntas y las revisa. O agrégalas a mano." },
-        { title: "Guarda y listo", body: "Pulsa Guardar. Tu deck queda listo para lanzarlo en vivo o imprimirlo." },
+        { title: "Ponle un nombre", body: "Un nombre claro (ej. 'Fracciones — Día 1') te lo hace fácil de reencontrar. Sin nombre no se puede guardar." },
+        { title: "Elige la clase", body: "Hereda materia y grado de la clase, así la IA genera al nivel correcto sin que se lo expliques." },
+        { title: "Tipo de sesión", body: "Warmup, exit ticket o repaso: define dónde cae en tu clase y cuándo lo usas — al inicio, al cierre o para repasar." },
+        { title: "Elige el idioma", body: "La IA genera y revisa en este idioma. Clave si enseñas un idioma o tu aula es bilingüe." },
+        { title: "Genera con IA", body: "Sube tu PDF o diapositivas y la IA saca las preguntas de TU material — y una segunda pasada las revisa antes de que las veas. Tip: archivo concreto, mejores preguntas." },
+        { title: "Guarda y listo", body: "Tu deck queda listo para lanzar en vivo o imprimir. Lo verás en su clase enseguida." },
+      ],
+    },
+    library: {
+      offer: "¿Te muestro tu biblioteca y para qué sirve el botón de descargar?",
+      steps: [
+        { title: "Tu biblioteca de decks", body: "Aquí vive cada warmup, exit ticket y repaso que creas — buscables y agrupados por clase. Reutiliza un deck en otra clase sin rehacerlo." },
+        { title: "Llévalo a papel", body: "El botón Descargar convierte cualquier deck en un examen imprimible — con clave de respuestas y una hoja escaneable que corriges con la cámara. Ideal para días sin pantallas." },
       ],
     },
     pdfExport: {
       offer: "¿Te muestro cómo llevar este deck a papel?",
       steps: [
-        { title: "Imprime tus preguntas", body: "Exporta cualquier deck como PDF para repartir en clase o tomar un examen sin pantallas." },
-        { title: "Elige el tipo", body: "Examen, clave de respuestas, o un examen con hoja escaneable que corriges con tu móvil." },
-        { title: "Elige un estilo", body: "Hay varios diseños listos para imprimir. Elige el que prefieras." },
-        { title: "Descarga el PDF", body: "Pulsa aquí para descargarlo. Luego puedes corregir las hojas con el escáner desde tu móvil." },
+        { title: "Imprime tus preguntas", body: "Cualquier deck se vuelve un examen en papel — útil para días sin pantallas o un parcial formal. El mismo deck sirve en vivo y en papel." },
+        { title: "Elige el tipo", body: "Examen para repartir, clave de respuestas para ti, o examen con hoja escaneable que luego corriges con la cámara. Elige según cómo vas a calificar." },
+        { title: "Elige un estilo", body: "Varios diseños listos para imprimir; el contenido es el mismo, cambia solo la presentación. Escoge el que encaje con tu clase." },
+        { title: "Descarga el PDF", body: "Se descarga al instante. Si elegiste la hoja escaneable, imprímela y luego corrige las respuestas con el escáner — cero corrección a mano." },
       ],
     },
     scanner: {
       offer: "¿Te muestro cómo corregir exámenes en papel con la cámara?",
       steps: [
-        { title: "Corrige con la cámara", body: "Toma una foto de la hoja de respuestas y el escáner la califica al instante." },
-        { title: "Escanea la hoja", body: "Elige el examen, enfoca la hoja de respuestas del alumno y el escáner hace el resto." },
-        { title: "Revisa y guarda", body: "Si alguna marca quedó dudosa, la resaltamos para que la confirmes. Luego guardas la nota." },
+        { title: "Corrige con la cámara", body: "Apunta a la hoja de respuestas y el escáner la califica en segundos — el papel entra a tus resultados sin corregir a mano." },
+        { title: "Escanea la hoja", body: "Elige el examen y enfoca la hoja; el código impreso le dice al escáner qué deck es, así no te confundes de examen." },
+        { title: "Revisa y guarda", body: "Si una marca quedó dudosa te la señalo para que confirmes — tú tienes la última palabra. Luego la nota se guarda con el resto de la clase." },
+      ],
+    },
+
+    insights: {
+      offer: "¿Te explico cómo leer los resultados de tu clase?",
+      steps: [
+        { title: "¿Qué reenseñar?", body: "Esta página responde justo eso: de un vistazo ves qué dominó tu clase y qué no, sin abrir respuesta por respuesta." },
+        { title: "Comparable, no mezclado", body: "Separo warmups, exit tickets y repaso porque miden momentos distintos — comparar un warmup con un examen final te engañaría." },
+        { title: "La barra es el dominio", body: "Cada barra es el % de aciertos de la clase en ese deck. Toca la fila para ver qué preguntas la hundieron." },
+        { title: "Empieza por el rojo", body: "Los decks en rojo son tu mejor warmup de mañana: ahí el repaso rinde más. Tip: con 2–3 preguntas basta." },
+      ],
+    },
+
+    student: {
+      offer: "¿Te enseño cómo moverte por aquí?",
+      steps: [
+        { title: "Únete a una clase", body: "Pídele a tu profe el código y pégalo aquí. Puedes estar en varias clases a la vez." },
+        { title: "Tus clases", body: "Cada clase de tu profe aparece aquí. Entra para practicar sus decks a tu ritmo, sin presión de nota." },
+        { title: "Repasos que se te pegan", body: "Lo que fallaste vuelve en el momento justo para que no se te olvide — repaso espaciado, unos minutos bastan." },
+        { title: "Gana mientras aprendes", body: "Sumas avatares y pequeños logros según practicas. Aprender se siente como avanzar, no como tarea." },
+      ],
+    },
+
+    // ── El recorrido guiado (clase → unidad → warmup → editor → lanzar) ──
+    // Auto-arranca por etapas; no usan "offer". Cantidad de steps = la geometría
+    // en onboarding/tours.js (jHome 2, jUnit 2, jWarmup 1, jEditor 6, jFinale 2).
+    jHome: {
+      steps: [
+        { title: "Montemos tu primera clase", body: "Te guío en pocos pasos: clase, unidad, warmup y lanzarlo. Tú marcas el ritmo — puedes saltar el recorrido cuando quieras." },
+        { title: "Empieza por la clase", body: "La clase es la raíz de todo: alumnos, warmups y resultados cuelgan de ella. Crea la que más enseñas y el resto encaja solo." },
+      ],
+    },
+    jUnit: {
+      steps: [
+        { title: "Crea tu primera unidad", body: "Una unidad es un tema (ej. 'Fracciones'). Al darle fechas, sus warmups aparecen solos en 'Hoy' — por eso conviene crearla antes que los decks." },
+        { title: "Comparte el código", body: "Con este código tus alumnos entran desde el móvil (cuenta gratis o Google). Tip: proyéctalo el primer día y se unen en segundos." },
+      ],
+    },
+    jWarmup: {
+      steps: [
+        { title: "Añade tu primer warmup", body: "Un warmup vive dentro de la unidad: un control rápido de 2–3 minutos al empezar la clase. Púlsalo y lo armamos juntos." },
+      ],
+    },
+    jEditor: {
+      steps: [
+        { title: "Ponle un nombre", body: "Un nombre claro (ej. 'Fracciones — Día 1') te lo hace fácil de reencontrar. Sin nombre no se puede guardar." },
+        { title: "Elige la clase", body: "Hereda materia y grado de la clase, así la IA genera al nivel correcto sin que se lo expliques." },
+        { title: "Tipo de sesión", body: "Warmup, exit ticket o repaso: define dónde cae en tu unidad y cuándo lo usas — al inicio, al cierre o para repasar." },
+        { title: "Elige el idioma", body: "La IA genera y revisa en este idioma. Clave si enseñas un idioma o tu aula es bilingüe." },
+        { title: "Genera con IA", body: "Sube tu PDF o diapositivas y la IA saca las preguntas de TU material — y una segunda pasada las revisa antes de que las veas. Tip: archivo concreto, mejores preguntas." },
+        { title: "Guarda y listo", body: "Tu warmup queda listo para lanzar o imprimir. Lo verás en tu clase en un segundo." },
+      ],
+    },
+    jFinale: {
+      steps: [
+        { title: "Lánzalo en vivo", body: "Al pulsar Lanzar se proyecta en pantalla y tus alumnos responden desde el móvil con el código. Verás sus respuestas en tiempo real." },
+        { title: "¡Lo lograste! 🎉", body: "Ya tienes tu clase, tu unidad y tu primer warmup. ¿Quieres otro tour más adelante? Pídemelo en el chat — estoy en la esquina." },
       ],
     },
   },

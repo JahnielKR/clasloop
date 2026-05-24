@@ -22,14 +22,16 @@ import TeacherWelcome from './pages/TeacherWelcome';
 import CreateClassModal from './components/CreateClassModal';
 // Cleo speech bubble shown above the create-class modal in the first-warmup
 // flow ("first a class, then the warmup").
-import OnboardingCoach from './components/OnboardingCoach';
 // In-app Cleo help bot (floating "Ask Cleo"). Eager — it's tiny and renders in
 // the authed shell for teachers.
 import CleoChat from './components/CleoChat';
-// Per-page first-visit tours ("Cleo te guía"). The provider lets each page's
-// PageHeader replay its tour ("Ver guía"); pages mount <CleoTour> themselves.
+// Per-page first-visit tours + the guided journey ("Cleo te guía"). The provider
+// coordinates a single on-screen Cleo and lets the chat re-launch a tour on
+// request; pages mount <CleoTour> themselves. Tours are replayed from the chat
+// ("muéstrame la biblioteca"), not a header button.
 import { TourProvider } from './onboarding/TourContext';
 import { markTourSeen } from './onboarding/useFirstVisitTour';
+import { startJourney } from './onboarding/journey';
 // PR 112: AuthScreen + NotFoundScreen extracted to their own files.
 // Eagerly imported (no lazy) because they paint before the authed shell
 // loads — same rationale as the eager imports above.
@@ -181,10 +183,6 @@ export default function App() {
   // Phase 2: one-time first-run welcome for teachers, set only on a fresh role
   // pick (see handleRoleOnboardingCreated) so existing teachers never see it.
   const [showTeacherWelcome, setShowTeacherWelcome] = useState(false);
-  // First-warmup flow: "Crear mi primer warmup" opens the create-class modal
-  // directly (a warmup needs a class). On create we jump to the deck editor
-  // with its tour auto-running. App-owned (not a URL param) so it's reliable.
-  const [creatingFirstClass, setCreatingFirstClass] = useState(false);
   const queryClient = useQueryClient();
   // `page` mirrors the URL (kept in sync by an effect below). Initialised from
   // the current pathname so the very first render already shows the correct
@@ -918,14 +916,16 @@ export default function App() {
       <TeacherWelcome
         profile={profile}
         lang={lang}
-        // "Create my first warmup" → open the create-class modal right away
-        // (a warmup needs a class). Mark the "home" tour seen so its corner
-        // offer doesn't compete with the modal — still replayable via "Ver guía".
-        // Skip just lands them on My Classes to explore.
+        // "Empezar" → kick off the guided journey on My Classes, where Cleo
+        // spotlights "create a class" and walks them clase → unidad → warmup →
+        // editor → lanzar. The journey uses its own jHome/jUnit/… legs, so mark
+        // the standalone page tours seen (they'd otherwise re-offer once the
+        // journey ends). Skip just lands them on My Classes to explore.
         onStart={() => {
-          markTourSeen(profile?.id, "home");
+          startJourney(profile?.id);
+          ["home", "classDetail", "deckEditor"].forEach((id) => markTourSeen(profile?.id, id));
           setShowTeacherWelcome(false);
-          setCreatingFirstClass(true);
+          navigate(defaultRouteForRole("teacher"));
         }}
         onSkip={() => setShowTeacherWelcome(false)}
       />
@@ -1095,34 +1095,6 @@ export default function App() {
           )}
         </Suspense>
       </div>
-
-      {/* First-warmup flow — the create-class modal, opened by the welcome's
-          "Crear mi primer warmup" CTA. On create we jump to the deck editor with
-          its tour auto-running (?tour=run); saving there returns to the class
-          page (with a confetti celebration). Gated to teachers; existing
-          teachers who skip the welcome never see it. */}
-      {profile?.role === "teacher" && creatingFirstClass && (
-        <>
-          {/* Cleo explains the step before they fill the modal: a warmup needs
-              a class first, then we go build it. */}
-          <OnboardingCoach
-            title={getStrings("onboarding", lang).classCoachTitle}
-            body={getStrings("onboarding", lang).classCoachBody}
-          />
-          <CreateClassModal
-            userId={profile.id}
-            t={getStrings("myClassesTeacher", lang)}
-            onClose={() => setCreatingFirstClass(false)}
-            onCreated={(newClass) => {
-              setCreatingFirstClass(false);
-              // The editor resolves subject/grade from the classes query, so make
-              // the new class visible there before we land on /decks/new.
-              queryClient.invalidateQueries({ queryKey: DECKS_PAGE_KEY });
-              navigate(`${ROUTES.DECKS_NEW}?class=${encodeURIComponent(newClass.id)}&tour=run`);
-            }}
-          />
-        </>
-      )}
 
       {/* In-app Cleo help bot — floating "Ask Cleo" for teachers (how things
           work / where to find them). Gated to teachers; the authed shell only. */}
