@@ -239,6 +239,25 @@ function buildSourceBlock({ lang, topic, keyPoints, fileContent, hasMultimodal, 
   return `TOPIC: ${topicLine}${keyPoints ? `\nKEY POINTS:${keyLine}` : ""}`;
 }
 
+// ─── Document-image rules ────────────────────────────────────
+// Track A: when the teacher's PPTX carried embedded images, we send them to the
+// model (labeled [image 0]..[image N-1]) and append these rules so it can attach
+// the right one to a question via an optional "image_ref" index. Appended to the
+// system prompt only when there are images, so normal generation is unchanged.
+const IMAGE_RULES = {
+  en: (n) => `DOCUMENT IMAGES
+You were also given ${n} image(s) extracted from the teacher's document, shown above and labeled [image 0] … [image ${n - 1}]. When one of those images is directly relevant to a question — a diagram, figure, map, chart, or photo the question is actually about — add an "image_ref" field with that image's index to the question's JSON (e.g. "image_ref": 2). Only attach an image when it genuinely belongs to the question; MOST questions should have no image. Never attach the same image to more than one question, and never use an index outside 0–${n - 1}.`,
+  es: (n) => `IMÁGENES DEL DOCUMENTO
+También recibiste ${n} imagen(es) extraídas del documento del profe, mostradas arriba y etiquetadas [image 0] … [image ${n - 1}]. Cuando una de esas imágenes sea directamente relevante para una pregunta — un diagrama, figura, mapa, gráfico o foto sobre el que trata la pregunta — agrega un campo "image_ref" con el índice de esa imagen al JSON de la pregunta (ej. "image_ref": 2). Solo adjunta una imagen cuando de verdad pertenece a la pregunta; la MAYORÍA no debe llevar imagen. Nunca adjuntes la misma imagen a más de una pregunta, ni uses un índice fuera de 0–${n - 1}.`,
+  ko: (n) => `문서 이미지
+교사 문서에서 추출한 이미지 ${n}개도 위에 [image 0] … [image ${n - 1}]로 표시되어 제공되었습니다. 그 이미지 중 하나가 특정 문제와 직접 관련될 때(문제가 실제로 다루는 다이어그램, 그림, 지도, 차트, 사진), 해당 문제 JSON에 그 이미지의 인덱스를 "image_ref" 필드로 추가하세요(예: "image_ref": 2). 이미지가 문제에 정말 속할 때만 첨부하세요. 대부분의 문제에는 이미지가 없어야 합니다. 같은 이미지를 여러 문제에 첨부하거나 0–${n - 1} 범위 밖의 인덱스를 사용하지 마세요.`,
+};
+
+export function imageRules(language, count) {
+  const fn = IMAGE_RULES[language] || IMAGE_RULES.en;
+  return fn(count);
+}
+
 // ─── Public API ──────────────────────────────────────────────
 // Esta es la función que `ai.js` llama. Devuelve { system, userText }.
 //

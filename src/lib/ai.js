@@ -3,8 +3,9 @@
 // Uses Claude API with multimodal support for images/PDFs
 
 import { supabase } from "./supabase";
-import { buildPromptParts } from "./ai-prompt";
+import { buildPromptParts, imageRules } from "./ai-prompt";
 import { extractDocx, extractPptx } from "./file-extract";
+import { extractPptxImages, buildImageParts, attachDocImages } from "./pptx-images";
 
 // Custom error class so el frontend puede distinguir rate limit de otros errores.
 export class AIError extends Error {
@@ -242,6 +243,9 @@ export async function generateQuestions({
   let fileContent = null;
   let messageContent = [];
   let promptParts = null;
+  // Track A: images extracted from a PPTX (if any), in the order the model sees
+  // them — the array index is the `image_ref` the model returns.
+  let docImages = [];
   // Warnings no-bloqueantes que queremos comunicar al caller (panel UI).
   // Por ejemplo: el texto fue truncado por tamaño, o se aplicó algún
   // ajuste defensivo. El panel los muestra como aviso amarillo.
@@ -316,6 +320,24 @@ export async function generateQuestions({
       fileContent: null, hasMultimodal: false, fileName: null, lessonContext,
     });
     messageContent = [{ type: "text", text: promptParts.userText }];
+  }
+
+  // Track A: si el archivo es un PPTX, extrae sus imágenes embebidas y mándalas
+  // al modelo (multimodal) para que adjunte la que corresponda a cada pregunta
+  // vía image_ref. El editor/quiz/PDF ya renderizan question.image_url.
+  if (file && /\.pptx$/i.test(file.name)) {
+    try {
+      docImages = await extractPptxImages(file, { max: 6 });
+    } catch {
+      docImages = [];
+    }
+    if (docImages.length > 0) {
+      promptParts = {
+        ...promptParts,
+        system: `${promptParts.system}\n\n${imageRules(language, docImages.length)}`,
+      };
+      messageContent = [...messageContent, ...buildImageParts(docImages)];
+    }
   }
 
   // ── Calcular metadata para logging server-side ──────
@@ -443,9 +465,15 @@ export async function generateQuestions({
 
     // Parser robusto: aunque el modelo se desvía y mete texto/code-fence
     // alrededor del JSON, intentamos extraer el primer array bien formado.
-    const parsed = parseQuestionsArray(text);
+    let parsed = parseQuestionsArray(text);
     if (!Array.isArray(parsed)) {
       throw new AIError("The model didn't return a valid question array. Try again.", { code: "bad_output" });
+    }
+
+    // Track A: subir las imágenes del PPTX que el modelo referenció (image_ref)
+    // y fijarlas en question.image_url. Siempre limpia image_ref del output.
+    if (docImages.length > 0) {
+      parsed = await attachDocImages(parsed, docImages, session?.user?.id);
     }
 
     // Bloque 4: el endpoint puede haber filtrado preguntas con Haiku.
