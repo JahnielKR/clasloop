@@ -76,6 +76,10 @@ export default async function handler(req, res) {
   const okRate = await requireDailyRateLimit(
     res, supabaseAdmin, userId, RATE_LIMIT_PER_DAY,
     `You've reached ${RATE_LIMIT_PER_DAY} generations in the last 24 hours. Try again later.`,
+    // AI images log their own rows in ai_generations; don't let them count
+    // against the question-generation budget (api/generate-image.js has a
+    // separate daily cap).
+    { excludeActivityType: 'image_generation' },
   );
   if (!okRate) return;
 

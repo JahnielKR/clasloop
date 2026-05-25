@@ -787,6 +787,20 @@ export default function QuestionsTab({ ed, t, l }) {
                         .replace("{found}", String(w.found));
                   return <div key={i}>{msg}</div>;
                 }
+                if (w.code === "ai_images") {
+                  // AI-generated images: success, partial (some failed or the
+                  // batch was capped), or total failure. Questions are fine
+                  // either way — this only reports the picture outcome.
+                  const msg = w.generated === 0
+                    ? (t.aiImagesAiFailedMsg || "Couldn't generate AI images this time. Your questions are ready without them.")
+                    : w.generated < w.found
+                    ? (t.aiImagesAiPartialMsg || "Added {generated} of {found} AI-generated images — the rest couldn't be generated this time.")
+                        .replace("{generated}", String(w.generated))
+                        .replace("{found}", String(w.found))
+                    : (t.aiImagesAiAddedMsg || "Added {generated} AI-generated image(s) to your questions.")
+                        .replace("{generated}", String(w.generated));
+                  return <div key={i}>{msg}</div>;
+                }
                 if (w.code === "quality_filtered") {
                   // Dos variantes según qué % pasó el filtro:
                   //  - Suave (≥70% pasaron): "X de Y listas para usar"

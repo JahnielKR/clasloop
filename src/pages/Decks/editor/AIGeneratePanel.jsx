@@ -29,6 +29,10 @@ import { sectionToLessonContext, sectionLabels } from "../../../lib/class-hierar
 //   - "poll" sigue afuera porque el editor no lo renderiza todavía.
 const AI_SUPPORTED_TYPES = ["mix", "mcq", "tf", "fill", "order", "match", "free", "sentence", "slider"];
 
+// "From my document" image source only works for PPTX — that's the one format
+// we can pull embedded images out of. Used to gate the source option + defaults.
+const isPptx = (f) => !!f && /\.pptx$/i.test(f.name);
+
 export default function AIGeneratePanel({
   t, l,
   panelRef,
@@ -67,9 +71,15 @@ export default function AIGeneratePanel({
   const [keyPoints, setKeyPoints] = useState("");
   const [file, setFile] = useState(null);
   const [fileError, setFileError] = useState("");
-  // Track A: how to use images embedded in an uploaded PPTX. Only surfaced when
-  // the attached file is a .pptx (that's where extraction works).
-  const [imageMode, setImageMode] = useState("attach");
+  // Track A (A-img-3): two-axis image control.
+  //   imageSource — where pictures come from: "document" (a PPTX's own embedded
+  //     images, only when a .pptx is attached), "ai" (generate with Gemini), or
+  //     "none". Defaults to the document's images for a PPTX, else "none" so we
+  //     never spend on AI images without an explicit opt-in.
+  //   imageMode — how they're used: "illustrate" (visual support) or "about"
+  //     (the picture carries what the question asks). Hidden when source=none.
+  const [imageSource, setImageSource] = useState("none");
+  const [imageMode, setImageMode] = useState("illustrate");
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState("");
   const aiFileInputRef = useRef(null);
@@ -83,12 +93,17 @@ export default function AIGeneratePanel({
       return;
     }
     setFile(f);
+    // A PPTX brings its own images, so default to reusing them. Any other file
+    // can't satisfy a "document" source — drop back to "none" if we were on it.
+    if (isPptx(f)) setImageSource("document");
+    else setImageSource((s) => (s === "document" ? "none" : s));
   };
 
   const clearFile = () => {
     setFile(null);
     setFileError("");
     if (aiFileInputRef.current) aiFileInputRef.current.value = "";
+    setImageSource((s) => (s === "document" ? "none" : s));
   };
 
   // Generate solo se habilita cuando hay material (file o topic) Y el idioma
@@ -110,6 +125,7 @@ export default function AIGeneratePanel({
         language: deckLanguage,
         file,
         lessonContext,
+        imageSource,
         imageMode,
       });
       // generateQuestions ahora devuelve { questions, warnings }.
@@ -302,30 +318,58 @@ export default function AIGeneratePanel({
         {fileError && <p style={{ fontSize: 11, color: "#d23", margin: "6px 0 0" }}>{fileError}</p>}
       </div>
 
-      {/* Track A: image control — only for PPTX, where we can pull the file's
-          own embedded images and let the AI attach them to questions. */}
-      {file && /\.pptx$/i.test(file.name) && (
-        <div style={{ marginBottom: 14 }}>
-          <FieldLabel dense>{t.aiImagesLabel}</FieldLabel>
+      {/* Track A (A-img-3): two-axis image control. Source = where pictures
+          come from; How = how the question uses them. "From my document" only
+          appears for a PPTX (the one format we can extract images from). The
+          "How" selector + hint are hidden when there are no images. */}
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: imageSource === "none" ? 14 : 6 }}>
+        <div style={{ flex: "1 1 180px", minWidth: 0 }}>
+          <FieldLabel dense>
+            {t.aiImgSourceLabel}
+            {/* AI image generation is still rough around the edges — flag it as
+                Beta (blue, on-brand) whenever it's the selected source so the
+                teacher knows results can miss. */}
+            {imageSource === "ai" && (
+              <span style={{
+                marginLeft: 6, fontSize: 9, fontWeight: 700,
+                textTransform: "uppercase", letterSpacing: "0.05em",
+                padding: "1px 6px", borderRadius: 999,
+                background: C.accentSoft, color: C.accent, verticalAlign: "middle",
+              }}>Beta</span>
+            )}
+          </FieldLabel>
           <select
-            value={imageMode}
-            onChange={(e) => setImageMode(e.target.value)}
+            value={imageSource}
+            onChange={(e) => setImageSource(e.target.value)}
             disabled={generating}
             style={{ ...sel, padding: "7px 28px 7px 10px", fontSize: 12, width: "100%" }}
           >
-            <option value="attach">{t.aiImagesAttach}</option>
-            <option value="about">{t.aiImagesAbout}</option>
-            <option value="off">{t.aiImagesOff}</option>
+            {isPptx(file) && <option value="document">{t.aiImgSourceDoc}</option>}
+            <option value="ai">{t.aiImgSourceAi}</option>
+            <option value="none">{t.aiImgSourceNone}</option>
           </select>
-          {/* Dynamic one-liner so the two image modes are self-explanatory. */}
-          <p style={{ fontSize: 11.5, color: C.textSecondary, margin: "6px 0 0", lineHeight: 1.5 }}>
-            {imageMode === "about"
-              ? t.aiImagesHintAbout
-              : imageMode === "off"
-              ? t.aiImagesHintOff
-              : t.aiImagesHintAttach}
-          </p>
         </div>
+        {imageSource !== "none" && (
+          <div style={{ flex: "1 1 180px", minWidth: 0 }}>
+            <FieldLabel dense>{t.aiImgModeLabel}</FieldLabel>
+            <select
+              value={imageMode}
+              onChange={(e) => setImageMode(e.target.value)}
+              disabled={generating}
+              style={{ ...sel, padding: "7px 28px 7px 10px", fontSize: 12, width: "100%" }}
+            >
+              <option value="illustrate">{t.aiImgModeIllustrate}</option>
+              <option value="about">{t.aiImgModeAbout}</option>
+            </select>
+          </div>
+        )}
+      </div>
+      {imageSource !== "none" && (
+        <p style={{ fontSize: 11.5, color: C.textSecondary, margin: "0 0 14px", lineHeight: 1.5 }}>
+          {imageSource === "ai"
+            ? (imageMode === "about" ? t.aiImgHintAiAbout : t.aiImgHintAiIllustrate)
+            : (imageMode === "about" ? t.aiImgHintAbout : t.aiImgHintIllustrate)}
+        </p>
       )}
 
       {/* Topic + key points */}
@@ -470,8 +514,22 @@ export default function AIGeneratePanel({
         onClick={handleGenerate}
         leftIcon={<AIIcon size={13} />}
       >
-        {generating ? t.aiGenerating : t.aiGenerateCta}
+        {generating
+          ? (imageSource === "ai" ? t.aiGeneratingImages : t.aiGenerating)
+          : t.aiGenerateCta}
       </Button>
+
+      {/* AI image generation adds the image step + quality check on top of the
+          questions, so it's noticeably slower. Reassure the teacher the wait is
+          expected (and that it hasn't frozen) while it runs. */}
+      {generating && imageSource === "ai" && (
+        <p style={{
+          fontSize: 11.5, color: C.textSecondary,
+          margin: "8px 0 0", textAlign: "center", lineHeight: 1.5,
+        }}>
+          {t.aiGeneratingImagesHint}
+        </p>
+      )}
     </div>
   );
 }

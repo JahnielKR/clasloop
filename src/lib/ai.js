@@ -3,9 +3,10 @@
 // Uses Claude API with multimodal support for images/PDFs
 
 import { supabase } from "./supabase";
-import { buildPromptParts, imageRules } from "./ai-prompt";
+import { buildPromptParts, imageRules, aiImageRules } from "./ai-prompt";
 import { extractDocx, extractPptx } from "./file-extract";
 import { extractPptxImages, buildImageParts, attachDocImages } from "./pptx-images";
+import { generateQuestionImages } from "./ai-images";
 
 // Custom error class so el frontend puede distinguir rate limit de otros errores.
 export class AIError extends Error {
@@ -239,10 +240,14 @@ export async function generateQuestions({
   language = "en",
   file = null,
   lessonContext = "general", // "warmup" | "exitTicket" | "general" — Bloque 3 lo conectará desde la UI
-  // Track A: cómo usar las imágenes embebidas de un PPTX. "attach" = adjuntar
-  // generosamente donde encajen; "about" = crear preguntas SOBRE las imágenes;
-  // "off" = ignorarlas (ni extraer ni enviar).
-  imageMode = "attach",
+  // Track A (A-img-3): two-axis image control.
+  //   imageSource: "document" (reuse a PPTX's own embedded images) | "ai"
+  //     (generate with gemini-2.5-flash-image) | "none".
+  //   imageMode: "illustrate" (picture as visual support, question stands
+  //     without it) | "about" (the picture carries what the question asks).
+  //     Ignored when imageSource is "none".
+  imageSource = "none",
+  imageMode = "illustrate",
 }) {
   let fileContent = null;
   let messageContent = [];
@@ -326,10 +331,10 @@ export async function generateQuestions({
     messageContent = [{ type: "text", text: promptParts.userText }];
   }
 
-  // Track A: si el archivo es un PPTX, extrae sus imágenes embebidas y mándalas
-  // al modelo (multimodal) para que adjunte la que corresponda a cada pregunta
-  // vía image_ref. El editor/quiz/PDF ya renderizan question.image_url.
-  if (file && /\.pptx$/i.test(file.name) && imageMode !== "off") {
+  // Track A — document image source: extract the PPTX's own embedded images and
+  // send them to the model (multimodal) so it attaches the right one to each
+  // question via image_ref. The editor/quiz/PDF already render question.image_url.
+  if (imageSource === "document" && file && /\.pptx$/i.test(file.name)) {
     try {
       docImages = await extractPptxImages(file, { max: 6 });
     } catch {
@@ -342,6 +347,17 @@ export async function generateQuestions({
       };
       messageContent = [...messageContent, ...buildImageParts(docImages)];
     }
+  }
+
+  // Track A — AI image source: ask the model to tag questions with an
+  // image_prompt; we turn those into real pictures after generation (see the
+  // post-parse step below). No images are sent to the model here, and this
+  // works for any input — a file or just a topic.
+  if (imageSource === "ai") {
+    promptParts = {
+      ...promptParts,
+      system: `${promptParts.system}\n\n${aiImageRules(language, imageMode)}`,
+    };
   }
 
   // ── Calcular metadata para logging server-side ──────
@@ -480,6 +496,26 @@ export async function generateQuestions({
       parsed = await attachDocImages(parsed, docImages, session?.user?.id);
       const attached = parsed.filter((q) => q && q.image_url).length;
       warnings.push({ code: "doc_images", found: docImages.length, attached });
+    }
+
+    // Track A — AI image source: generate a picture for every question the model
+    // tagged with an image_prompt, upload it, and set image_url. Strips
+    // image_prompt regardless. Image failures never block the questions (the
+    // teacher keeps the questions, minus the picture that failed).
+    if (imageSource === "ai") {
+      const imgRes = await generateQuestionImages(parsed, {
+        accessToken: session.access_token,
+        userId: session.user?.id,
+      });
+      parsed = imgRes.questions;
+      if (imgRes.found > 0) {
+        warnings.push({
+          code: "ai_images",
+          found: imgRes.found,
+          generated: imgRes.generated,
+          failed: imgRes.failed,
+        });
+      }
     }
 
     // Bloque 4: el endpoint puede haber filtrado preguntas con Haiku.

@@ -77,14 +77,28 @@ export async function requireTeacher(req, res) {
  * Fail-open: if the count query errors, allow (don't block the user on our own
  * infra hiccup). Returns true if OK, false if limited (and sends 429).
  * `message` is passed through so each endpoint keeps its own user-facing text.
+ *
+ * `opts` scopes which rows count toward the limit. Each AI feature gets its own
+ * budget instead of sharing one pool:
+ *   - activityType:        count ONLY rows with this activity_type (the image
+ *                          endpoint uses 'image_generation').
+ *   - excludeActivityType: count every row EXCEPT this activity_type (question
+ *                          generation excludes 'image_generation' so a deck's
+ *                          AI images don't eat into its question quota).
+ * Omitting both preserves the original "count all rows" behavior.
  */
-export async function requireDailyRateLimit(res, supabase, userId, limitPerDay, message) {
+export async function requireDailyRateLimit(res, supabase, userId, limitPerDay, message, opts = {}) {
+  const { activityType, excludeActivityType } = opts;
   const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-  const { count, error } = await supabase
+  let query = supabase
     .from("ai_generations")
     .select("id", { count: "exact", head: true })
     .eq("teacher_id", userId)
     .gte("created_at", since);
+  if (activityType) query = query.eq("activity_type", activityType);
+  if (excludeActivityType) query = query.neq("activity_type", excludeActivityType);
+
+  const { count, error } = await query;
 
   if (error) {
     console.error("Rate limit query failed:", error);
