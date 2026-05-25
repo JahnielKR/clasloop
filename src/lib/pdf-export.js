@@ -37,6 +37,11 @@ import { drawScanSheet } from "./pdf-styles/scanner";
 // puede prepender al exam pero el style picker no lo muestra.
 const STYLES = { classic, modern, editorial, framed };
 
+// Track A: styles whose renderers draw real LaTeX (KaTeX rasterised inline).
+// These receive the raw deck; others get the latexToAscii fallback. Grows as
+// each style is migrated; once all 4 are in, the ASCII fallback can be dropped.
+const MATH_NATIVE_STYLES = new Set(["classic"]);
+
 // Style preferences for default fonts. Framed uses serif (times) for the
 // academic-paper feel; the others use the dispatcher's chosen font
 // (helvetica for non-Korean, NotoSansKR for Korean).
@@ -108,16 +113,21 @@ export async function exportPDF(deck, classObj, opts = {}) {
   // style + the answer key + the scan sheet. The on-screen quiz renders the
   // exact formula (KaTeX); this is the print-safe approximation. Korean
   // detection above runs on the raw deck, so it's unaffected.
-  const pdfDeck = Array.isArray(deck.questions)
+  // Styles migrated to render real LaTeX (KaTeX rasterised inline) get the RAW
+  // deck (with $…$); the rest still get the ASCII fallback until they're
+  // migrated too. The scanner sheet is always ASCII — it's a b+w utility page,
+  // not math-aware.
+  const asciiDeck = Array.isArray(deck.questions)
     ? { ...deck, questions: deck.questions.map(sanitizeQuestionMath) }
     : deck;
+  const pdfDeck = MATH_NATIVE_STYLES.has(style) ? deck : asciiDeck;
 
   if (variant === "answer_key") {
     await renderer.renderAnswerKey(doc, pdfDeck, classObj, renderOpts);
   } else if (variant === "exam_with_scan") {
     // Página 1: scan sheet (b+w, sin estilo). Helvetica forzada para
     // que sea legible en cualquier impresora, sin importar el style.
-    await drawScanSheet(doc, pdfDeck, classObj, { lang, fontFamily: useKorean ? "NotoSansKR" : "helvetica" });
+    await drawScanSheet(doc, asciiDeck, classObj, { lang, fontFamily: useKorean ? "NotoSansKR" : "helvetica" });
     doc.addPage();
     // Páginas 2..N: exam normal con el style elegido
     await renderer.renderExam(doc, pdfDeck, classObj, renderOpts);
