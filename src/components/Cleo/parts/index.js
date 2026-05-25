@@ -9,3 +9,4 @@ export { Mouth } from "./Mouth";
 export { Arms } from "./Arms";
 export { Extras } from "./Extras";
 export { Ribbon } from "./Ribbon";
+export { SleepMarks } from "./SleepMarks";
