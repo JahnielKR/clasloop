@@ -23,6 +23,7 @@
 
 import jsPDF from "jspdf";
 import { ensureKoreanFont } from "./pdf-fonts";
+import { sanitizeQuestionMath } from "./latex";
 import { sanitizeFilename } from "./pdf-styles/shared";
 import { getPalette } from "./pdf-styles/palettes";
 import { savePdfCrossPlatform } from "./native-pdf";
@@ -101,17 +102,27 @@ export async function exportPDF(deck, classObj, opts = {}) {
 
   const renderOpts = { lang, fontFamily, palette };
 
+  // Track A (A1): the PDF fonts (Helvetica for en/es, a content-subset
+  // NotoSansKR for ko) don't carry math glyphs like π, √ or ≤, so render any
+  // $…$ LaTeX as readable ASCII before drawing. Doing it once here covers every
+  // style + the answer key + the scan sheet. The on-screen quiz renders the
+  // exact formula (KaTeX); this is the print-safe approximation. Korean
+  // detection above runs on the raw deck, so it's unaffected.
+  const pdfDeck = Array.isArray(deck.questions)
+    ? { ...deck, questions: deck.questions.map(sanitizeQuestionMath) }
+    : deck;
+
   if (variant === "answer_key") {
-    await renderer.renderAnswerKey(doc, deck, classObj, renderOpts);
+    await renderer.renderAnswerKey(doc, pdfDeck, classObj, renderOpts);
   } else if (variant === "exam_with_scan") {
     // Página 1: scan sheet (b+w, sin estilo). Helvetica forzada para
     // que sea legible en cualquier impresora, sin importar el style.
-    await drawScanSheet(doc, deck, classObj, { lang, fontFamily: useKorean ? "NotoSansKR" : "helvetica" });
+    await drawScanSheet(doc, pdfDeck, classObj, { lang, fontFamily: useKorean ? "NotoSansKR" : "helvetica" });
     doc.addPage();
     // Páginas 2..N: exam normal con el style elegido
-    await renderer.renderExam(doc, deck, classObj, renderOpts);
+    await renderer.renderExam(doc, pdfDeck, classObj, renderOpts);
   } else {
-    await renderer.renderExam(doc, deck, classObj, renderOpts);
+    await renderer.renderExam(doc, pdfDeck, classObj, renderOpts);
   }
 
   let suffix = "_exam";

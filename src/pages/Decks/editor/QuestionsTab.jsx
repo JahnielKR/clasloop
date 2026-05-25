@@ -9,6 +9,7 @@ import { estimateDeckSeconds, formatDeckDuration } from "../../../lib/time-limit
 import { CIcon } from "../../../components/Icons";
 import { MONO } from "../../../components/tokens";
 import AIIcon from "../../../components/AIIcon";
+import MathText from "../../../components/MathText";
 import { C } from "../styles";
 import AutoResizeTextarea from "./AutoResizeTextarea";
 import AIGeneratePanel from "./AIGeneratePanel";
@@ -195,7 +196,7 @@ export default function QuestionsTab({ ed, t, l }) {
                     fontSize: 13,
                     color: q.q?.trim() ? C.text : C.textMuted,
                     overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-                  }}>{q.q?.trim() || t.emptyQ}</span>
+                  }}>{q.q?.trim() ? <MathText text={q.q.trim()} /> : t.emptyQ}</span>
 
                   <span
                     title={complete ? t.complete : t.incomplete}

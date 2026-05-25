@@ -12,6 +12,7 @@ import { evaluateAnswer, describeCorrectAnswer, formatStudentAnswer } from "../l
 import { sound } from "../lib/sound";
 import { haptics } from "../lib/haptics";
 import Confetti from "../components/Confetti";
+import MathText from "../components/MathText";
 import { QUERY } from "../routes";
 import { getSectionTheme, getSectionLabel, SectionIconSVG } from "../lib/section-theme";
 // PR 78: i18n centralizado
@@ -274,7 +275,7 @@ function MatchPanel({
                 onClick={() => picked ? handleMatchUndo(p.left) : handleMatchLeft(p.left)}
                 disabled={showResult}
               >
-                {p.left}
+                <MathText text={p.left} />
               </button>
             );
           })}
@@ -304,7 +305,7 @@ function MatchPanel({
                 onClick={() => handleMatchRight(right)}
                 disabled={showResult || used || !matchActiveLeft}
               >
-                {right}
+                <MathText text={right} />
               </button>
             );
           })}
@@ -376,7 +377,7 @@ function OrderPanel({
                 className="order-pool-chip"
                 onClick={() => handleOrderPick(item)}
               >
-                {item}
+                <MathText text={item} />
               </button>
             ))}
         </div>
@@ -398,7 +399,7 @@ function OrderPanel({
               disabled={showResult}
             >
               <div className="order-card-num">{idx + 1}</div>
-              <div className="order-card-text">{item}</div>
+              <div className="order-card-text"><MathText text={item} /></div>
               {showResult && item !== correctItem && (
                 <div className="order-card-hint">{"\u2192"} {correctItem}</div>
               )}
@@ -2556,7 +2557,7 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
                                 <img className="tile-image" src={optImg} alt="" />
                               )}
                               {optText && (
-                                <div className="tile-text">{optText}</div>
+                                <div className="tile-text"><MathText text={optText} /></div>
                               )}
                             </button>
                           );
@@ -3035,7 +3036,7 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
               whiteSpace: "pre-wrap", // preserve teacher's newlines
               // PR 10: text reads on the section-tinted bg
               color: deckSection ? theme.onTint : C.text,
-            }}>{q.q}</h2>
+            }}><MathText text={q.q} /></h2>
 
             {/* ── MCQ (single or multi-correct, text or image options) ── */}
             {qType === "mcq" && Array.isArray(q.options) && (() => {
@@ -3146,7 +3147,7 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
                               borderRadius: 6,
                             }} />
                           ) : (
-                            <span style={{ flex: 1 }}>{optText}</span>
+                            <span style={{ flex: 1 }}><MathText text={optText} /></span>
                           )}
                           {/* Multi-correct: show check mark on selected */}
                           {isMulti && picked && !showResult && (
@@ -3250,7 +3251,7 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
                 )}
                 {showResult && !lastIsCorrect && q.answer && (
                   <div style={{ padding: "10px 14px", borderRadius: 8, background: C.greenSoft, fontSize: 13, color: C.green, textAlign: "center" }}>
-                    <strong>{t.correctAnswer}:</strong> {q.answer}
+                    <strong>{t.correctAnswer}:</strong> <MathText text={q.answer} />
                   </div>
                 )}
               </div>
@@ -3275,7 +3276,7 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
                       <button key={item} className="sj-chip" onClick={() => handleOrderPick(item)} style={{
                         padding: "10px 14px", borderRadius: 8, fontSize: 14, fontWeight: 500,
                         background: C.bg, color: C.text, border: `1px solid ${C.border}`,
-                      }}>{item}</button>
+                      }}><MathText text={item} /></button>
                     ))}
                   </div>
                 )}
@@ -3294,7 +3295,7 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
                         fontSize: 14, fontWeight: 500,
                       }}>
                         <span style={{ width: 22, height: 22, borderRadius: 6, background: showResult ? (ok ? C.green : C.red) : C.accent, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, flexShrink: 0 }}>{j + 1}</span>
-                        <span style={{ flex: 1 }}>{item}</span>
+                        <span style={{ flex: 1 }}><MathText text={item} /></span>
                         {showResult && !ok && <span style={{ fontSize: 12, color: C.textMuted }}>{"\u2192"} {correctItem}</span>}
                       </div>
                     );
@@ -3345,7 +3346,7 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
                             cursor: showResult ? "default" : "pointer",
                           }}
                         >
-                          {p.left}
+                          <MathText text={p.left} />
                           {picked && !showResult && <span style={{ fontSize: 10, marginLeft: 6, opacity: .7 }}>✕</span>}
                         </button>
                       );
@@ -3386,7 +3387,7 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
                             cursor: (showResult || used || !matchActiveLeft) ? "default" : "pointer",
                           }}
                         >
-                          {right}
+                          <MathText text={right} />
                         </button>
                       );
                     })}
