@@ -103,6 +103,8 @@ export default async function handler(req, res) {
   const okRate = await requireDailyRateLimit(
     res, supabaseAdmin, userId, RATE_LIMIT_PER_DAY,
     `You've reached ${RATE_LIMIT_PER_DAY} AI calls in the last 24 hours.`,
+    // Keep AI image rows out of this feature's budget (they have their own cap).
+    { excludeActivityType: 'image_generation' },
   );
   if (!okRate) return;
 

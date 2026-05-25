@@ -245,37 +245,76 @@ function buildSourceBlock({ lang, topic, keyPoints, fileContent, hasMultimodal, 
 // the right one to a question via an optional "image_ref" index. Appended to the
 // system prompt only when there are images, so normal generation is unchanged.
 // Per-language scaffolding. `head` introduces the labeled images + the
-// image_ref mechanic; `attach`/`about` is the mode-specific directive; `tail`
-// is the shared guardrail. mode "attach" = use images generously where they
-// fit; mode "about" = build questions ABOUT the images.
+// image_ref mechanic; `illustrate`/`about` is the mode-specific directive;
+// `tail` is the shared guardrail. mode "illustrate" = use images generously
+// where they fit; mode "about" = build questions ABOUT the images.
 const IMAGE_RULES = {
   en: {
     head: (n) => `DOCUMENT IMAGES
 You were also given ${n} image(s) extracted from the teacher's document, shown above and labeled [image 0] … [image ${n - 1}]. Attach one to a question by adding an "image_ref" field with that image's index to the question's JSON (e.g. "image_ref": 2).`,
-    attach: `Be GENEROUS: attach a relevant image to ANY question it genuinely supports or illustrates.`,
+    illustrate: `Be GENEROUS: attach a relevant image to ANY question it genuinely supports or illustrates.`,
     about: `PRIORITIZE building questions ABOUT these images — ask what a diagram/figure/map/chart shows, identify its parts, or interpret its data — and attach that image to each such question. Anchor as many questions to the images as they reasonably allow.`,
     tail: (n) => `Do not attach an image to a question it has nothing to do with, do not reuse the same image across many questions, and never use an index outside 0–${n - 1}.`,
   },
   es: {
     head: (n) => `IMÁGENES DEL DOCUMENTO
 También recibiste ${n} imagen(es) extraídas del documento del profe, mostradas arriba y etiquetadas [image 0] … [image ${n - 1}]. Adjunta una a una pregunta agregando un campo "image_ref" con el índice de esa imagen al JSON de la pregunta (ej. "image_ref": 2).`,
-    attach: `Sé GENEROSO: adjunta una imagen relevante a CUALQUIER pregunta que de verdad apoye o ilustre.`,
+    illustrate: `Sé GENEROSO: adjunta una imagen relevante a CUALQUIER pregunta que de verdad apoye o ilustre.`,
     about: `PRIORIZA crear preguntas SOBRE estas imágenes — pregunta qué muestra un diagrama/figura/mapa/gráfico, identifica sus partes, o interpreta sus datos — y adjunta esa imagen a cada una. Ancla tantas preguntas a las imágenes como razonablemente permitan.`,
     tail: (n) => `No adjuntes una imagen a una pregunta con la que no tiene nada que ver, no reutilices la misma imagen en muchas preguntas, y nunca uses un índice fuera de 0–${n - 1}.`,
   },
   ko: {
     head: (n) => `문서 이미지
 교사 문서에서 추출한 이미지 ${n}개도 위에 [image 0] … [image ${n - 1}]로 표시되어 제공되었습니다. 문제 JSON에 그 이미지의 인덱스를 "image_ref" 필드로 추가해 문제에 첨부하세요(예: "image_ref": 2).`,
-    attach: `너그럽게 첨부하세요: 이미지가 진정으로 뒷받침하거나 설명하는 어떤 문제에든 관련 이미지를 첨부하세요.`,
+    illustrate: `너그럽게 첨부하세요: 이미지가 진정으로 뒷받침하거나 설명하는 어떤 문제에든 관련 이미지를 첨부하세요.`,
     about: `이 이미지들에 대한 문제를 우선적으로 만드세요 — 다이어그램/그림/지도/차트가 무엇을 보여주는지, 그 부분을 식별하거나 데이터를 해석하도록 묻고 — 각 문제에 해당 이미지를 첨부하세요. 이미지가 허용하는 만큼 많은 문제를 이미지에 연결하세요.`,
     tail: (n) => `관련 없는 문제에 이미지를 첨부하지 말고, 같은 이미지를 여러 문제에 재사용하지 말며, 0–${n - 1} 범위 밖의 인덱스를 절대 사용하지 마세요.`,
   },
 };
 
-export function imageRules(language, count, mode = "attach") {
+export function imageRules(language, count, mode = "illustrate") {
   const r = IMAGE_RULES[language] || IMAGE_RULES.en;
-  const directive = mode === "about" ? r.about : r.attach;
+  const directive = mode === "about" ? r.about : r.illustrate;
   return `${r.head(count)}\n${directive}\n${r.tail(count)}`;
+}
+
+// ─── AI-generated-image rules ────────────────────────────────
+// Track A (A-img-3): when the teacher's image source is "Generate with AI", we
+// don't send any images to the model — instead we ask it to tag questions with
+// an "image_prompt" (a short scene description). src/lib/ai-images.js then turns
+// each prompt into a real picture and sets the question's image_url. Appended to
+// the system prompt only for that source, so other generations are unchanged.
+// mode "illustrate" = picture as visual support; mode "about" = the picture
+// carries information the question asks about (flagged: the image is invented,
+// so it's only safe for the main subject, not fine details).
+const AI_IMAGE_RULES = {
+  en: {
+    head: `AI-GENERATED IMAGES
+For questions that benefit from a picture, add an "image_prompt" field: a short English description (one sentence) of a clear, simple illustration to generate for that question. Describe the subject and visual style only — the image must contain NO text, letters, numbers, or labels (image models render text unreliably). Keep it classroom-appropriate and factual, with no real logos or copyrighted characters.`,
+    illustrate: `Add an image_prompt only where a picture genuinely supports the question. The question MUST stay fully answerable WITHOUT the image — the picture is context, never the source of the answer.`,
+    about: `Write questions the image supports and give each an "image_prompt" describing what to show. The image is AI-generated, so do NOT ask about fine details it could get wrong (exact counts, specific text, precise measurements) — ask about the main subject or concept the illustration clearly conveys.`,
+    tail: `Add image_prompt only to questions that truly need one — most sets need just a few, and never more than 6. Omit it entirely for questions that don't need an image.`,
+  },
+  es: {
+    head: `IMÁGENES GENERADAS CON IA
+Para las preguntas que se benefician de una imagen, agrega un campo "image_prompt": una descripción breve EN INGLÉS (una oración) de una ilustración clara y simple para generar para esa pregunta. Describe solo el tema y el estilo visual — la imagen NO debe contener texto, letras, números ni etiquetas (los modelos de imagen renderizan texto de forma poco fiable). Mantenla apropiada para el aula y factual, sin logos reales ni personajes con derechos de autor.`,
+    illustrate: `Agrega un image_prompt solo donde una imagen de verdad apoye la pregunta. La pregunta DEBE poder responderse por completo SIN la imagen — la imagen es contexto, nunca la fuente de la respuesta.`,
+    about: `Escribe preguntas que la imagen apoye y dale a cada una un "image_prompt" que describa qué mostrar. La imagen la genera la IA, así que NO preguntes por detalles finos que podría equivocar (conteos exactos, texto específico, medidas precisas) — pregunta por el tema o concepto principal que la ilustración transmite con claridad.`,
+    tail: `Agrega image_prompt solo a las preguntas que de verdad lo necesiten — la mayoría de los sets necesitan solo unas pocas, y nunca más de 6. Omítelo por completo en las preguntas que no necesitan imagen.`,
+  },
+  ko: {
+    head: `AI 생성 이미지
+이미지가 도움이 되는 문제에는 "image_prompt" 필드를 추가하세요: 그 문제를 위해 생성할 명확하고 단순한 삽화를 영어로 한 문장으로 간단히 묘사합니다. 주제와 시각적 스타일만 묘사하세요 — 이미지에는 텍스트, 글자, 숫자, 라벨이 없어야 합니다(이미지 모델은 텍스트를 정확히 렌더링하지 못합니다). 교실에 적합하고 사실에 기반하며 실제 로고나 저작권 캐릭터가 없어야 합니다.`,
+    illustrate: `이미지가 문제를 진정으로 뒷받침하는 경우에만 image_prompt를 추가하세요. 문제는 이미지 없이도 완전히 답할 수 있어야 합니다 — 이미지는 맥락이며 답의 출처가 아닙니다.`,
+    about: `이미지가 뒷받침하는 문제를 만들고 각 문제에 무엇을 보여줄지 묘사하는 "image_prompt"를 주세요. 이미지는 AI가 생성하므로 틀릴 수 있는 세부 사항(정확한 개수, 특정 텍스트, 정밀한 측정값)은 묻지 말고, 삽화가 명확히 전달하는 주요 주제나 개념을 물으세요.`,
+    tail: `정말 필요한 문제에만 image_prompt를 추가하세요 — 대부분의 세트는 몇 개만 필요하며 6개를 넘지 마세요. 이미지가 필요 없는 문제에는 완전히 생략하세요.`,
+  },
+};
+
+export function aiImageRules(language, mode = "illustrate") {
+  const r = AI_IMAGE_RULES[language] || AI_IMAGE_RULES.en;
+  const directive = mode === "about" ? r.about : r.illustrate;
+  return `${r.head}\n${directive}\n${r.tail}`;
 }
 
 // ─── Public API ──────────────────────────────────────────────
