@@ -1392,6 +1392,7 @@ const es: Locale = {
     aiImgHintAiIllustrate: "La IA crea una imagen para cada pregunta como apoyo visual; la pregunta se entiende igual sin ella.",
     aiImgHintAiAbout: "La IA crea la imagen sobre la que trata la pregunta. Ojo: las imágenes generadas pueden equivocarse en detalles, así que funciona mejor para la idea principal, no para datos exactos.",
     aiGeneratingImages: "Generando preguntas e imágenes…",
+    aiGeneratingImagesHint: "Crear las imágenes y pasar el control de calidad hace que tarde un poco más — un momento.",
     aiImagesAddedMsg: "Añadí {attached} imagen(es) de tu documento a las preguntas.",
     aiImagesNoneMsg: "Encontré {found} imagen(es) en tu archivo, pero ninguna encajó en una pregunta — prueba \"Preguntar sobre la imagen\".",
     aiImagesAiAddedMsg: "Añadí {generated} imagen(es) generada(s) con IA a tus preguntas.",

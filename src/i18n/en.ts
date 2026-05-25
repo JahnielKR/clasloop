@@ -1396,6 +1396,7 @@ const en = {
     aiImgHintAiIllustrate: "The AI draws a picture for each question as visual support — the question still makes sense without it.",
     aiImgHintAiAbout: "The AI draws the picture the question is about. Heads up: generated images can get details wrong, so this works best for the main idea, not exact specifics.",
     aiGeneratingImages: "Generating questions and images…",
+    aiGeneratingImagesHint: "Creating the images and running the quality check makes this take a little longer — hang tight.",
     aiImagesAddedMsg: "Added {attached} image(s) from your document to the questions.",
     aiImagesNoneMsg: "Found {found} image(s) in your file, but none fit a question — try \"Ask about the image\".",
     aiImagesAiAddedMsg: "Added {generated} AI-generated image(s) to your questions.",

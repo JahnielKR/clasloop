@@ -505,6 +505,18 @@ export default function AIGeneratePanel({
           ? (imageSource === "ai" ? t.aiGeneratingImages : t.aiGenerating)
           : t.aiGenerateCta}
       </Button>
+
+      {/* AI image generation adds the image step + quality check on top of the
+          questions, so it's noticeably slower. Reassure the teacher the wait is
+          expected (and that it hasn't frozen) while it runs. */}
+      {generating && imageSource === "ai" && (
+        <p style={{
+          fontSize: 11.5, color: C.textSecondary,
+          margin: "8px 0 0", textAlign: "center", lineHeight: 1.5,
+        }}>
+          {t.aiGeneratingImagesHint}
+        </p>
+      )}
     </div>
   );
 }

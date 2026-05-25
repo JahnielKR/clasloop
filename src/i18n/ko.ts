@@ -1392,6 +1392,7 @@ const ko: Locale = {
     aiImgHintAiIllustrate: "AI가 각 문제에 시각적 보조 이미지를 그립니다 — 이미지 없이도 문제가 성립합니다.",
     aiImgHintAiAbout: "AI가 문제의 대상이 되는 이미지를 그립니다. 참고: 생성된 이미지는 세부 사항이 틀릴 수 있으므로 정확한 세부 정보보다 핵심 개념에 가장 잘 맞습니다.",
     aiGeneratingImages: "문제와 이미지를 생성하는 중…",
+    aiGeneratingImagesHint: "이미지 생성과 품질 검사 때문에 조금 더 오래 걸립니다 — 잠시만 기다려 주세요.",
     aiImagesAddedMsg: "문서의 이미지 {attached}개를 문제에 추가했습니다.",
     aiImagesNoneMsg: "파일에서 이미지 {found}개를 찾았지만 어떤 문제에도 맞지 않았습니다 — \"이미지에 대해 질문\"을 시도해 보세요.",
     aiImagesAiAddedMsg: "AI로 생성한 이미지 {generated}개를 문제에 추가했습니다.",
