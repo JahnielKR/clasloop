@@ -239,6 +239,45 @@ function buildSourceBlock({ lang, topic, keyPoints, fileContent, hasMultimodal, 
   return `TOPIC: ${topicLine}${keyPoints ? `\nKEY POINTS:${keyLine}` : ""}`;
 }
 
+// ─── Document-image rules ────────────────────────────────────
+// Track A: when the teacher's PPTX carried embedded images, we send them to the
+// model (labeled [image 0]..[image N-1]) and append these rules so it can attach
+// the right one to a question via an optional "image_ref" index. Appended to the
+// system prompt only when there are images, so normal generation is unchanged.
+// Per-language scaffolding. `head` introduces the labeled images + the
+// image_ref mechanic; `attach`/`about` is the mode-specific directive; `tail`
+// is the shared guardrail. mode "attach" = use images generously where they
+// fit; mode "about" = build questions ABOUT the images.
+const IMAGE_RULES = {
+  en: {
+    head: (n) => `DOCUMENT IMAGES
+You were also given ${n} image(s) extracted from the teacher's document, shown above and labeled [image 0] … [image ${n - 1}]. Attach one to a question by adding an "image_ref" field with that image's index to the question's JSON (e.g. "image_ref": 2).`,
+    attach: `Be GENEROUS: attach a relevant image to ANY question it genuinely supports or illustrates.`,
+    about: `PRIORITIZE building questions ABOUT these images — ask what a diagram/figure/map/chart shows, identify its parts, or interpret its data — and attach that image to each such question. Anchor as many questions to the images as they reasonably allow.`,
+    tail: (n) => `Do not attach an image to a question it has nothing to do with, do not reuse the same image across many questions, and never use an index outside 0–${n - 1}.`,
+  },
+  es: {
+    head: (n) => `IMÁGENES DEL DOCUMENTO
+También recibiste ${n} imagen(es) extraídas del documento del profe, mostradas arriba y etiquetadas [image 0] … [image ${n - 1}]. Adjunta una a una pregunta agregando un campo "image_ref" con el índice de esa imagen al JSON de la pregunta (ej. "image_ref": 2).`,
+    attach: `Sé GENEROSO: adjunta una imagen relevante a CUALQUIER pregunta que de verdad apoye o ilustre.`,
+    about: `PRIORIZA crear preguntas SOBRE estas imágenes — pregunta qué muestra un diagrama/figura/mapa/gráfico, identifica sus partes, o interpreta sus datos — y adjunta esa imagen a cada una. Ancla tantas preguntas a las imágenes como razonablemente permitan.`,
+    tail: (n) => `No adjuntes una imagen a una pregunta con la que no tiene nada que ver, no reutilices la misma imagen en muchas preguntas, y nunca uses un índice fuera de 0–${n - 1}.`,
+  },
+  ko: {
+    head: (n) => `문서 이미지
+교사 문서에서 추출한 이미지 ${n}개도 위에 [image 0] … [image ${n - 1}]로 표시되어 제공되었습니다. 문제 JSON에 그 이미지의 인덱스를 "image_ref" 필드로 추가해 문제에 첨부하세요(예: "image_ref": 2).`,
+    attach: `너그럽게 첨부하세요: 이미지가 진정으로 뒷받침하거나 설명하는 어떤 문제에든 관련 이미지를 첨부하세요.`,
+    about: `이 이미지들에 대한 문제를 우선적으로 만드세요 — 다이어그램/그림/지도/차트가 무엇을 보여주는지, 그 부분을 식별하거나 데이터를 해석하도록 묻고 — 각 문제에 해당 이미지를 첨부하세요. 이미지가 허용하는 만큼 많은 문제를 이미지에 연결하세요.`,
+    tail: (n) => `관련 없는 문제에 이미지를 첨부하지 말고, 같은 이미지를 여러 문제에 재사용하지 말며, 0–${n - 1} 범위 밖의 인덱스를 절대 사용하지 마세요.`,
+  },
+};
+
+export function imageRules(language, count, mode = "attach") {
+  const r = IMAGE_RULES[language] || IMAGE_RULES.en;
+  const directive = mode === "about" ? r.about : r.attach;
+  return `${r.head(count)}\n${directive}\n${r.tail(count)}`;
+}
+
 // ─── Public API ──────────────────────────────────────────────
 // Esta es la función que `ai.js` llama. Devuelve { system, userText }.
 //

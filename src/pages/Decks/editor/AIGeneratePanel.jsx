@@ -67,6 +67,9 @@ export default function AIGeneratePanel({
   const [keyPoints, setKeyPoints] = useState("");
   const [file, setFile] = useState(null);
   const [fileError, setFileError] = useState("");
+  // Track A: how to use images embedded in an uploaded PPTX. Only surfaced when
+  // the attached file is a .pptx (that's where extraction works).
+  const [imageMode, setImageMode] = useState("attach");
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState("");
   const aiFileInputRef = useRef(null);
@@ -107,6 +110,7 @@ export default function AIGeneratePanel({
         language: deckLanguage,
         file,
         lessonContext,
+        imageMode,
       });
       // generateQuestions ahora devuelve { questions, warnings }.
       // Tolerante a la versión vieja que devolvía solo el array (ej. de un
@@ -297,6 +301,32 @@ export default function AIGeneratePanel({
         )}
         {fileError && <p style={{ fontSize: 11, color: "#d23", margin: "6px 0 0" }}>{fileError}</p>}
       </div>
+
+      {/* Track A: image control — only for PPTX, where we can pull the file's
+          own embedded images and let the AI attach them to questions. */}
+      {file && /\.pptx$/i.test(file.name) && (
+        <div style={{ marginBottom: 14 }}>
+          <FieldLabel dense>{t.aiImagesLabel}</FieldLabel>
+          <select
+            value={imageMode}
+            onChange={(e) => setImageMode(e.target.value)}
+            disabled={generating}
+            style={{ ...sel, padding: "7px 28px 7px 10px", fontSize: 12, width: "100%" }}
+          >
+            <option value="attach">{t.aiImagesAttach}</option>
+            <option value="about">{t.aiImagesAbout}</option>
+            <option value="off">{t.aiImagesOff}</option>
+          </select>
+          {/* Dynamic one-liner so the two image modes are self-explanatory. */}
+          <p style={{ fontSize: 11.5, color: C.textSecondary, margin: "6px 0 0", lineHeight: 1.5 }}>
+            {imageMode === "about"
+              ? t.aiImagesHintAbout
+              : imageMode === "off"
+              ? t.aiImagesHintOff
+              : t.aiImagesHintAttach}
+          </p>
+        </div>
+      )}
 
       {/* Topic + key points */}
       <div style={{ marginBottom: 14 }}>
