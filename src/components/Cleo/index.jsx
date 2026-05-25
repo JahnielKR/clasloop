@@ -23,27 +23,39 @@
 // where she renders as plain, inert SVG (the contract the rasterized OG relies on).
 import { useId } from "react";
 import { motion } from "motion/react";
-import { Eyes, Brows, Mouth, Arms, Extras, Ribbon } from "./parts";
+import { Eyes, Brows, Mouth, Arms, Extras, Ribbon, SleepMarks } from "./parts";
 import { EXPRESSIONS } from "./expressions";
 import { MOOD_GESTURES, useCleoMotion } from "./motion";
-import { BREATH, BREATH_TRANSITION } from "./motion/idle";
+import { BREATH, BREATH_TRANSITION, SLEEP_BREATH, SLEEP_BREATH_TRANSITION } from "./motion/idle";
 
-export default function Cleo({ size = 96, expression = "happy", animate = true, className = "", style = {}, title = "Cleo" }) {
+// `idle` opts into the inactivity easter-eggs ("calm" = off, the default, so every
+// existing caller is unchanged; "playful" = the persistent chat FAB). `idleStage`
+// ("active" | "playful" | "asleep") comes from useUserIdle, owned by the caller.
+export default function Cleo({ size = 96, expression = "happy", animate = true, idle = "calm", idleStage = "active", className = "", style = {}, title = "Cleo" }) {
   // Unique ids per instance so multiple Cleos don't share/clip a def.
   const uid = useId().replace(/:/g, "");
   const bodyGrad = `cleo-body-${uid}`;
   const goldGrad = `cleo-gold-${uid}`;
 
   const spec = EXPRESSIONS[expression] || EXPRESSIONS.happy;
-  const { live, scope } = useCleoMotion({ expression, animate, eyes: spec.eyes });
+  const { live, scope } = useCleoMotion({ expression, animate, eyes: spec.eyes, idle, idleStage });
   // Idle limb gesture for this mood (only when live; sad has none). The happy wave
   // is one-shot, so it plays once on appear then the arm rests back down.
   const gesture = live ? MOOD_GESTURES[expression] : undefined;
 
-  // The body group breathes when live; otherwise it's a plain, inert <g>.
+  // Easter-eggs only when the caller opts in (idle="playful") and motion is live.
+  const playful = idle === "playful";
+  const asleep = live && playful && idleStage === "asleep";
+
+  // The body group breathes when live; otherwise it's a plain, inert <g>. While
+  // asleep it swaps to a slower, deeper breath (declarative — no imperative fight).
   const Breath = live ? motion.g : "g";
   const breathProps = live
-    ? { animate: BREATH, transition: BREATH_TRANSITION, style: { transformBox: "fill-box", transformOrigin: "center" } }
+    ? {
+        animate: asleep ? SLEEP_BREATH : BREATH,
+        transition: asleep ? SLEEP_BREATH_TRANSITION : BREATH_TRANSITION,
+        style: { transformBox: "fill-box", transformOrigin: "center" },
+      }
     : null;
 
   return (
@@ -79,8 +91,14 @@ export default function Cleo({ size = 96, expression = "happy", animate = true, 
             {/* arms behind the body */}
             <Arms variant={spec.arms} gesture={gesture?.arms} layer="back" live={live} />
 
-            {/* ribbon (brand signature, replaces the old crown) */}
-            <Ribbon live={live} gradId={goldGrad} />
+            {/* ribbon (brand signature, replaces the old crown). Wrapped in a
+                group the "play with her bow" idle act animates imperatively — the
+                wrapper rotate/bounce composes with the bow's own declarative
+                wobble, so they don't fight (transform-origin string, respected by
+                useAnimate's run()). */}
+            <g data-cleo="ribbon" style={{ transformBox: "view-box", transformOrigin: "50px 27.5px" }}>
+              <Ribbon live={live} gradId={goldGrad} />
+            </g>
 
             {/* body */}
             <path
@@ -115,6 +133,19 @@ export default function Cleo({ size = 96, expression = "happy", animate = true, 
             <Extras variant={spec.extras} gesture={gesture?.extras} live={live} />
           </Breath>
         </g>
+
+        {/* floating "Z"s — only mounted while asleep. Outside the lean/breath
+            groups so they hover steadily instead of swaying with her; inside
+            `scope` so useCleoMotion can drive them. We must NOT set opacity in
+            React here: the sleep loop animates opacity imperatively, and a
+            React-controlled opacity would get re-applied on any parent re-render,
+            pinning it and hiding the Z's. Mounting only when asleep keeps them
+            hidden the rest of the time without React owning their opacity. */}
+        {asleep && (
+          <g data-cleo="zzz" style={{ transformBox: "view-box", transformOrigin: "74px 32px" }}>
+            <SleepMarks />
+          </g>
+        )}
       </g>
     </svg>
   );

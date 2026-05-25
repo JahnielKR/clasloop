@@ -14,6 +14,8 @@ import { supabase } from "../lib/supabase";
 import { useTourActive } from "../onboarding/TourContext";
 import { detectTourIntent } from "../onboarding/chatTourIntent";
 import { resolveTourRoute } from "../onboarding/tourRoutes";
+import { useUserIdle } from "../hooks/useUserIdle";
+import { IDLE_TIMING } from "./Cleo/motion/idle";
 
 const css = `
   @keyframes clc-pop  { from { opacity:0; transform:translateY(12px) scale(.96) } to { opacity:1; transform:none } }
@@ -23,10 +25,15 @@ const css = `
   .clc-panel { animation: clc-pop .26s cubic-bezier(.16,1,.3,1) both; }
   /* The FAB glides up into the corner when it (re)appears — e.g. when a tour
      ends and Cleo "returns home". No fill-mode so the hover transform still works. */
-  .clc-fab   { animation: clc-fab-in .4s cubic-bezier(.16,1,.3,1); transition: transform .15s; }
-  .clc-fab:hover { transform: translateY(-2px); }
-  .clc-fab-cleo { animation: clc-bob 3.2s ease-in-out infinite; filter: drop-shadow(0 5px 8px rgba(20,66,94,0.28)); transition: filter .15s; }
-  .clc-fab:hover .clc-fab-cleo { filter: drop-shadow(0 9px 14px rgba(20,66,94,0.34)); }
+  .clc-fab   { animation: clc-fab-in .4s cubic-bezier(.16,1,.3,1); transition: transform .15s, filter .15s; filter: drop-shadow(0 5px 8px rgba(20,66,94,0.28)); }
+  .clc-fab:hover { transform: translateY(-2px); filter: drop-shadow(0 9px 14px rgba(20,66,94,0.34)); }
+  /* The drop-shadow lives on the (static) button, NOT on the bobbing element: a
+     filter on a transform-animated element forces the browser to rasterize it
+     and move that bitmap to sub-pixel positions, which softens her edges as she
+     floats. will-change keeps the continuous bob on a clean, high-quality layer. */
+  .clc-fab-cleo { animation: clc-bob 3.2s ease-in-out infinite; will-change: transform; }
+  /* While Cleo is asleep, stop the bob so she rests still (the Z's carry it). */
+  .clc-fab-cleo--asleep { animation: none; will-change: auto; }
   .clc-dot { width:6px; height:6px; border-radius:50%; background:${C.textMuted}; display:inline-block; animation: clc-dot 1.2s infinite; }
   .clc-send:disabled { opacity:.5; cursor:default; }
   @media (max-width: 640px) {
@@ -51,6 +58,11 @@ export default function CleoChat({ lang = "en" }) {
   const [loading, setLoading] = useState(false);
   const endRef = useRef(null);
   const inputRef = useRef(null);
+
+  // Idle easter-eggs for the always-visible FAB: after a stretch of inactivity
+  // Cleo plays with her bow, then dozes off (waking on the next activity). Off
+  // while the panel is open (she's "working") or a tour is on (the FAB is hidden).
+  const idleStage = useUserIdle({ enabled: !open && !tourActive, t1: IDLE_TIMING.playful, t2: IDLE_TIMING.asleep });
 
   // Keep the greeting localized if the language changes before first use.
   useEffect(() => {
@@ -135,7 +147,9 @@ export default function CleoChat({ lang = "en" }) {
             padding: 0,
           }}
         >
-          <span className="clc-fab-cleo" style={{ display: "block" }}><Cleo size={56} /></span>
+          <span className={`clc-fab-cleo${idleStage === "asleep" ? " clc-fab-cleo--asleep" : ""}`} style={{ display: "block" }}>
+            <Cleo size={56} idle="playful" idleStage={idleStage} />
+          </span>
         </button>
       )}
 
