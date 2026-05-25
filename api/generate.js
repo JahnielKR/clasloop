@@ -6,34 +6,37 @@
 //   4. Loggea cada llamada en ai_generations (input_type, num_questions, etc.)
 //
 // Bloque 4 — Validación semántica (LLM-as-judge):
-//   Cuando el cliente pide `validate: true` Y el modelo principal es "primary"
-//   (Sonnet generando preguntas), hacemos un segundo call a Haiku que revisa
-//   cada pregunta y dice ok/reject. Filtramos las rechazadas antes de devolver.
-//   Si Haiku falla por cualquier motivo, devolvemos sin filtrar (no bloqueamos).
+//   Cuando el cliente pide `validate: true`, tras generar las preguntas hacemos
+//   un segundo call al modelo validador (más barato) que revisa cada pregunta y
+//   dice ok/reject. Filtramos las rechazadas antes de devolver. Si el validador
+//   falla por cualquier motivo, devolvemos sin filtrar (no bloqueamos al profe).
 //
 // Variables de entorno requeridas en Vercel:
-//   - ANTHROPIC_API_KEY (ya existía)
+//   - GEMINI_API_KEY (la misma key que usa Cleo en api/cleo-chat.js)
 //   - SUPABASE_URL (mismo valor que VITE_SUPABASE_URL)
 //   - SUPABASE_SERVICE_KEY (service_role key, NO la anon)
 
 import { requireTeacher, requireDailyRateLimit } from './_lib/auth.js';
+import { callGemini } from './_lib/gemini.js';
 
 const RATE_LIMIT_PER_DAY = 50;
 
 // Mapping de "rol" lógico a modelo concreto. El frontend manda `model: "primary"`
-// o `model: "validator"` y aquí lo traducimos.
+// o `model: "validator"` y aquí lo traducimos. (Migrado de Claude a Gemini: el
+// adaptador en _lib/gemini.js traduce el formato Anthropic↔Gemini.)
 const MODELS = {
-  primary: 'claude-sonnet-4-6',             // generación de preguntas (calidad)
-  validator: 'claude-haiku-4-5-20251001',  // validación semántica (Bloque 4)
+  primary: 'gemini-3.5-flash',        // generación de preguntas (calidad)
+  validator: 'gemini-2.5-flash-lite', // validación semántica (Bloque 4)
 };
 const DEFAULT_MODEL_KEY = 'primary';
 
 // System prompt para el judge. Inglés a propósito (mejor consistencia en
 // modelos LLM-as-judge). Las preguntas que evalúa pueden venir en cualquier
-// idioma — Haiku las evalúa por mérito.
+// idioma — el validador las evalúa por mérito.
 const VALIDATOR_SYSTEM = `You are a pedagogical reviewer for classroom warmups and exit tickets. For each question in the input array, decide whether a real teacher would use it AS-IS (no edits needed) for the given grade and subject.
 
 Reject a question only when:
+- It is OFF-SUBJECT: the question's topic does not match the Subject given in the context below. A question can be perfectly well-formed and still belong to a DIFFERENT subject than this set — e.g. the Subject is "History" but the question tests Spanish vocabulary or grammar, or the Subject is "Math" but it asks about a novel's plot. Reject EVERY such off-subject question. This is a HARD reject (see the note below), not a "when in doubt" case.
 - It is ambiguous or has more than one valid correct answer
 - The marked correct answer is objectively wrong
 - It requires knowledge NOT plausibly present in the source material described
@@ -44,9 +47,9 @@ Reject a question only when:
 - For ordering: items can defensibly be in different orders
 - For fill: the answer is genuinely ambiguous given the sentence
 
-Accept everything else. WHEN IN DOUBT, ACCEPT — the teacher can edit minor things, you should only catch real defects.
+Accept everything else. WHEN IN DOUBT, ACCEPT — the teacher can edit minor things, you should only catch real defects. The ONE exception is the off-subject rule above: a question that clearly belongs to a different subject than the stated Subject is ALWAYS rejected, even if it is well-made and unambiguous.
 
-Questions can be in any language (English, Spanish, Korean). Evaluate them on their merits, not their language.
+Questions can be in any language (English, Spanish, Korean). Evaluate them on their merits, not their language. NOTE: a question being written in Spanish does not by itself make it a Spanish-subject question — judge by what the question is ABOUT (its topic), not the language it is written in.
 
 Return ONLY a JSON array of verdicts, one per input question, in the same order:
 [{"i": 0, "ok": true}, {"i": 1, "ok": false, "reason": "two correct answers"}, ...]
@@ -58,8 +61,8 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'method_not_allowed' });
   }
 
-  const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
-  if (!ANTHROPIC_API_KEY) {
+  const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+  if (!GEMINI_API_KEY) {
     return res.status(500).json({ error: 'server_misconfigured' });
   }
 
@@ -76,7 +79,7 @@ export default async function handler(req, res) {
   );
   if (!okRate) return;
 
-  // ── 4. Llamar a Anthropic ──────────────────────────────
+  // ── 4. Llamar a Gemini ─────────────────────────────────
   try {
     const {
       messages,
@@ -86,11 +89,11 @@ export default async function handler(req, res) {
       // más, hacerlo con un allowlist explícito (no echo del input).
       // model = DEFAULT_MODEL_KEY,  // ← ignored from req.body
       max_tokens = 2000,
-      // Bloque 4: si validate=true y el modelo es "primary", corremos un
-      // segundo call a Haiku para filtrar.
+      // Bloque 4: si validate=true, corremos un segundo call al validador
+      // para filtrar las preguntas malas.
       validate = false,
       // Shadow mode: corre el validador y loggea los rejects, pero NO
-      // filtra el output. Se usa para juntar data sobre qué rechaza Haiku
+      // filtra el output. Se usa para juntar data sobre qué rechaza el validador
       // sin disrumpir a los profes. Cuando tengamos suficientes reasons,
       // ajustamos el prompt del validador y volvemos a validate:true.
       validateShadow = false,
@@ -126,45 +129,36 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'system_prompt_too_long' });
     }
 
-    const anthropicBody = {
+    const geminiResult = await callGemini({
+      apiKey: GEMINI_API_KEY,
       model: modelString,
-      max_tokens: safeMaxTokens,
+      system: (typeof system === 'string' && system.trim()) ? system : undefined,
       messages,
-    };
-    if (typeof system === 'string' && system.trim()) {
-      anthropicBody.system = system;
-    }
-
-    const anthropicResp = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify(anthropicBody),
+      maxTokens: safeMaxTokens,
     });
 
-    if (!anthropicResp.ok) {
-      // PR 94: no echo del error crudo de Anthropic — puede tener
-      // detalles internos. Loguear server-side, devolver genérico.
-      const errText = await anthropicResp.text();
-      console.error(`[generate] Anthropic ${anthropicResp.status}: ${errText.slice(0, 500)}`);
-      return res.status(anthropicResp.status).json({
+    if (!geminiResult.ok) {
+      // No echo del error crudo del upstream — puede tener detalles internos.
+      // Loguear server-side, devolver genérico.
+      console.error(`[generate] Gemini ${geminiResult.status}: ${(geminiResult.error || '').slice(0, 500)}`);
+      const status = geminiResult.status >= 400 && geminiResult.status < 600 ? geminiResult.status : 502;
+      return res.status(status).json({
         error: 'upstream_error',
-        status: anthropicResp.status,
+        status: geminiResult.status,
       });
     }
 
-    const data = await anthropicResp.json();
+    // Envolvemos el texto en la forma que ya espera el resto del handler y el
+    // cliente (data.content[].text), para no tocar parseQuestionsArray ni ai.js.
+    const data = { content: [{ type: 'text', text: geminiResult.text }] };
 
     // ── 5. Parsear el output del modelo principal ────────
     const outputRaw = parseQuestionsArray(data);
 
-    // ── 6. Validación semántica con Haiku (Bloque 4) ─────
+    // ── 6. Validación semántica con el validador (Bloque 4) ─────
     // Solo si:
     //   - el cliente lo pidió (validate=true o validateShadow=true)
-    //   - tenemos un array de preguntas parseable (sin él Haiku no tiene
+    //   - tenemos un array de preguntas parseable (sin él el validador no tiene
     //     nada que evaluar)
     // Antes había un guard `model === 'primary'`, pero desde PR 94 el modelo se
     // fija server-side a primary y `model` dejó de existir en este scope — el
@@ -172,19 +166,19 @@ export default async function handler(req, res) {
     // validate=true. El modelo aquí siempre es primary, así que se elimina.
     let validationResult = null;
     // Run the validator if either flag is on. validateShadow gives us the
-    // logs without applying the filter (used while we re-tune Haiku for
-    // Sonnet 4.6).
+    // logs without applying the filter (used while we re-tune the validator
+    // prompt for the generation model).
     const shouldRunValidator = (validate || validateShadow) &&
       Array.isArray(outputRaw) &&
       outputRaw.length > 0;
     if (shouldRunValidator) {
       try {
-        validationResult = await validateWithHaiku({
+        validationResult = await validateWithGemini({
           questions: outputRaw,
           grade,
           subject,
           lessonContext: lesson_context,
-          apiKey: ANTHROPIC_API_KEY,
+          apiKey: GEMINI_API_KEY,
         });
         // Shadow mode logging: dump the WHOLE drop report at once, prefixed,
         // so it's easy to grep in Vercel logs. Includes the prompt + reason
@@ -200,9 +194,9 @@ export default async function handler(req, res) {
           }
         }
       } catch (err) {
-        // Si Haiku falla por cualquier motivo, NO bloqueamos al profe.
+        // Si el validador falla por cualquier motivo, NO bloqueamos al profe.
         // Mejor preguntas sin validar que ninguna pregunta.
-        console.error('Validator (Haiku) failed:', err);
+        console.error('Validator failed:', err);
         validationResult = { error: err.message || String(err) };
       }
     }
@@ -230,7 +224,7 @@ export default async function handler(req, res) {
         ],
         // Metadata extra para el cliente. `reasons` es un array de strings
         // (no índices) — el frontend los agrupa por frecuencia para mostrar
-        // al profe el motivo más común si Haiku descarta todas las
+        // al profe el motivo más común si el validador descarta todas las
         // preguntas (ej. "Spanish lesson content, not history" cuando el
         // subject del deck no coincide con el topic pedido).
         validation: {
@@ -285,8 +279,8 @@ export default async function handler(req, res) {
 
 // ─── Helpers ──────────────────────────────────────────
 
-// Parsea el array de preguntas del response de Anthropic. Tolera code-fences
-// y texto basura alrededor del JSON.
+// Parsea el array de preguntas del response del modelo (lee data.content[].text,
+// la forma que arma el handler). Tolera code-fences y texto basura alrededor.
 function parseQuestionsArray(data) {
   try {
     const text = (data.content || [])
@@ -305,13 +299,13 @@ function parseQuestionsArray(data) {
   }
 }
 
-// Llama a Haiku con el array de preguntas y devuelve { kept, dropReasons }.
+// Llama al validador con el array de preguntas y devuelve { kept, dropReasons }.
 // `kept` es el array filtrado (mantiene orden original); `dropReasons` es un
 // array de { i, reason } para las descartadas (útil para logs).
-async function validateWithHaiku({ questions, grade, subject, lessonContext, apiKey }) {
+async function validateWithGemini({ questions, grade, subject, lessonContext, apiKey }) {
   // Limitar el número de preguntas que mandamos al judge en una sola llamada.
-  // 30+ preguntas en un solo request a Haiku puede ser lento o truncar el JSON
-  // de respuesta. En la práctica nunca pasaremos de 20 preguntas (Bloque 3
+  // 30+ preguntas en un solo request al validador puede ser lento o truncar el
+  // JSON de respuesta. En la práctica nunca pasaremos de 20 preguntas (Bloque 3
   // capea el cliente en 20), pero por seguridad capeamos acá también.
   const MAX_QUESTIONS_PER_VALIDATION = 25;
   if (questions.length > MAX_QUESTIONS_PER_VALIDATION) {
@@ -334,30 +328,22 @@ ${JSON.stringify(questions, null, 2)}
 
 Return ONLY the JSON array of verdicts.`;
 
-  const resp = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
-    },
-    body: JSON.stringify({
-      model: MODELS.validator,
-      // Verdicts son cortos: ~30-50 tokens por verdict. 25 preguntas * 50 = 1250.
-      // Con margen 2000 tokens para que el JSON cierre bien.
-      max_tokens: 2000,
-      system: VALIDATOR_SYSTEM,
-      messages: [{ role: 'user', content: userText }],
-    }),
+  const gen = await callGemini({
+    apiKey,
+    model: MODELS.validator,
+    system: VALIDATOR_SYSTEM,
+    messages: [{ role: 'user', content: userText }],
+    // Verdicts son cortos: ~30-50 tokens por verdict. 25 preguntas * 50 = 1250.
+    // Con margen 2000 tokens para que el JSON cierre bien.
+    maxTokens: 2000,
   });
 
-  if (!resp.ok) {
-    const errText = await resp.text();
-    throw new Error(`Validator HTTP ${resp.status}: ${errText.slice(0, 200)}`);
+  if (!gen.ok) {
+    throw new Error(`Validator HTTP ${gen.status}: ${(gen.error || '').slice(0, 200)}`);
   }
 
-  const judgeData = await resp.json();
-  const verdicts = parseQuestionsArray(judgeData);
+  // Reusamos parseQuestionsArray, que lee data.content[].text.
+  const verdicts = parseQuestionsArray({ content: [{ type: 'text', text: gen.text }] });
 
   if (!Array.isArray(verdicts)) {
     throw new Error('Validator returned non-array');
