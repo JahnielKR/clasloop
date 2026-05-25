@@ -2,8 +2,8 @@
 //
 // Generates the AI narrative ({whatWorked, whatDidnt}) for a closed
 // unit. Pipeline:
-//   1. WRITER — Sonnet 4.6 writes the narrative from the unit data
-//   2. VERIFIER — Sonnet 4.6 reviews the WRITER's output for honesty
+//   1. WRITER — Gemini 3.5 Flash writes the narrative from the unit data
+//   2. VERIFIER — Gemini 3.5 Flash reviews the WRITER's output for honesty
 //   3. If verifier rejects, retry the WRITER once with the issues
 //   4. If second attempt also rejected, ship the WRITER's output anyway
 //      (better than no output at all — never hard-fail user-visible)
@@ -20,9 +20,10 @@
 // the admin AI stats dashboard can track usage.
 
 import { requireTeacher, requireDailyRateLimit } from './_lib/auth.js';
+import { callGemini } from './_lib/gemini.js';
 
 const RATE_LIMIT_PER_DAY = 50;
-const MODEL = 'claude-sonnet-4-6';
+const MODEL = 'gemini-3.5-flash';
 const MAX_TOKENS = 800;
 
 // Imported as plain text via a local require since this is a
@@ -88,8 +89,8 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'method_not_allowed' });
   }
 
-  const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
-  if (!ANTHROPIC_API_KEY) {
+  const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+  if (!GEMINI_API_KEY) {
     return res.status(500).json({ error: 'server_misconfigured' });
   }
 
@@ -149,8 +150,9 @@ export default async function handler(req, res) {
           : `Here is the unit data:\n\n\`\`\`json\n${JSON.stringify(context, null, 2)}\n\`\`\`\n\nWrite the reflection now.`,
       },
     ];
-    const writerResp = await callClaude({
-      apiKey: ANTHROPIC_API_KEY,
+    const writerResp = await callGemini({
+      apiKey: GEMINI_API_KEY,
+      model: MODEL,
       system: WRITER_SYSTEM,
       messages: writerMessages,
       maxTokens: MAX_TOKENS,
@@ -173,8 +175,9 @@ export default async function handler(req, res) {
         content: `SOURCE DATA:\n\`\`\`json\n${JSON.stringify(context, null, 2)}\n\`\`\`\n\nDRAFT REFLECTION TO REVIEW:\n\`\`\`json\n${JSON.stringify(narrative, null, 2)}\n\`\`\`\n\nApprove or reject.`,
       },
     ];
-    const verifierResp = await callClaude({
-      apiKey: ANTHROPIC_API_KEY,
+    const verifierResp = await callGemini({
+      apiKey: GEMINI_API_KEY,
+      model: MODEL,
       system: VERIFIER_SYSTEM,
       messages: verifierMessages,
       maxTokens: 200,
@@ -233,37 +236,6 @@ export default async function handler(req, res) {
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────
-
-async function callClaude({ apiKey, system, messages, maxTokens }) {
-  try {
-    const resp = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({
-        model: MODEL,
-        max_tokens: maxTokens,
-        system,
-        messages,
-      }),
-    });
-    if (!resp.ok) {
-      const text = await resp.text();
-      return { ok: false, error: text };
-    }
-    const data = await resp.json();
-    const text = (data?.content || [])
-      .filter(c => c.type === 'text')
-      .map(c => c.text)
-      .join('\n');
-    return { ok: true, text };
-  } catch (err) {
-    return { ok: false, error: String(err) };
-  }
-}
 
 // Tolerate ```json fences and surrounding whitespace.
 function parseJson(s) {

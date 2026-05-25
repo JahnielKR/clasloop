@@ -33,10 +33,12 @@ You'll be asked to log in (`supabase login`) the first time.
 ### Step 3: Set the function's secrets
 
 ```bash
-supabase secrets set ANTHROPIC_API_KEY=sk-ant-xxx
+supabase secrets set GEMINI_API_KEY=your-gemini-key
+# optional: override the default model (gemini-2.5-flash-lite)
+# supabase secrets set GEMINI_MODEL=gemini-2.5-flash-lite
 ```
 
-Replace `sk-ant-xxx` with your actual Anthropic API key (the same one used in Vercel).
+Replace `your-gemini-key` with your actual Google AI Studio (Gemini) key (the same one used in Vercel).
 
 `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are set automatically by Supabase — you don't need to set them manually.
 
@@ -52,7 +54,7 @@ In Supabase Dashboard → Database → Webhooks → "Create a new hook":
 | Type | Supabase Edge Functions |
 | Edge Function | `generate-insight` |
 | Method | POST |
-| Timeout | 30000 (30 seconds — Haiku can take a few seconds) |
+| Timeout | 30000 (30 seconds — the model can take a few seconds) |
 
 Click **Confirm**.
 
@@ -93,7 +95,7 @@ That's it. Vercel-style "git push and forget" doesn't work here — Edge Functio
 4. This Edge Function runs (in Deno, in Supabase's runtime):
    - Reads deck, responses, participants
    - Computes candidates (insight-prep.ts)
-   - If ≥1 candidate, calls Haiku for labels
+   - If ≥1 candidate, calls Gemini for labels
    - Saves to session_insights with status='ready' or 'empty' or 'failed'
                                        ↓
 5. Meanwhile, teacher navigates to /sessions/<id>/recap
@@ -125,7 +127,7 @@ curl -X POST http://localhost:54321/functions/v1/generate-insight \
   }'
 ```
 
-You'll need a `.env.local` file with `ANTHROPIC_API_KEY`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`.
+You'll need a `.env.local` file with `GEMINI_API_KEY`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`.
 
 ## Files
 
@@ -133,7 +135,7 @@ You'll need a `.env.local` file with `ANTHROPIC_API_KEY`, `SUPABASE_URL`, `SUPAB
 |---|---|
 | `index.ts` | Main handler — receives webhook, orchestrates the pipeline |
 | `insight-prep.ts` | Pure function: raw data → weak-point candidates |
-| `insight-prompt.ts` | Haiku prompt + response parser |
+| `insight-prompt.ts` | Label prompt + response parser |
 | `README.md` | This file |
 
 ## Reverting / disabling

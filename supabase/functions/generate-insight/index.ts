@@ -7,10 +7,10 @@
 //      participants for this session
 //   2. Compute weak-point candidates from real data (insight-prep)
 //   3. If 0 candidates → mark insight as 'empty' and return
-//   4. Otherwise call Haiku to generate human-readable labels
+//   4. Otherwise call the model (Gemini) to generate human-readable labels
 //   5. Save the final weak_points array with status='ready'
 //
-// If any step fails (Haiku error, parse failure, DB error), we mark
+// If any step fails (model error, parse failure, DB error), we mark
 // the insight as 'failed' with an error_message. Retries are allowed
 // once: if the insight row already exists with status='failed' AND
 // attempts < 2, this run re-attempts. Otherwise idempotent (does
@@ -29,9 +29,9 @@ import { buildCandidates } from "./insight-prep.ts";
 import type { Question, Response, Participant } from "./insight-prep.ts";
 import { buildInsightPrompt, parseHaikuResponse } from "./insight-prompt.ts";
 
-// PR 108 (L16): modelo configurable via secret. Fallback a Haiku 4.5
-// para no romper el deploy si el secret no está seteado.
-const HAIKU_MODEL = Deno.env.get("HAIKU_MODEL") || "claude-haiku-4-5-20251001";
+// Modelo configurable via secret. Migrado de Haiku a Gemini Flash-Lite; el
+// fallback mantiene el deploy vivo si el secret no está seteado.
+const INSIGHT_MODEL = Deno.env.get("GEMINI_MODEL") || "gemini-2.5-flash-lite";
 const MAX_TOKENS = 300;
 
 interface WebhookPayload {
@@ -65,7 +65,7 @@ Deno.serve(async (req: Request) => {
   // where WEBHOOK_SECRET is a random string we set via
   //   supabase secrets set WEBHOOK_SECRET=<value>
   // If the header is missing or doesn't match, reject — no payload
-  // parsing, no DB writes, no Anthropic calls.
+  // parsing, no DB writes, no model calls.
   const WEBHOOK_SECRET = Deno.env.get("WEBHOOK_SECRET");
   if (!WEBHOOK_SECRET) {
     console.error("[generate-insight] WEBHOOK_SECRET not configured");
@@ -107,9 +107,9 @@ Deno.serve(async (req: Request) => {
   // Env vars (set via `supabase secrets set` or Dashboard)
   const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
   const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
+  const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
 
-  if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY || !ANTHROPIC_API_KEY) {
+  if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY || !GEMINI_API_KEY) {
     console.error("Missing env vars");
     return jsonResponse({ error: "missing_env_vars" }, 500);
   }
@@ -242,7 +242,7 @@ Deno.serve(async (req: Request) => {
     return jsonResponse({ status: "empty" }, 200);
   }
 
-  // ── 4. Call Haiku for labels ──────────────────────────────────────
+  // ── 4. Call the model for labels ──────────────────────────────────
   // PR 108 (M13): priorizar teacher.language sobre deck.language.
   // Si el teacher tiene perfil con language seteado, usar ese.
   // Si no, caer al deck.language (legacy behavior) o 'en'.
@@ -255,44 +255,43 @@ Deno.serve(async (req: Request) => {
     uiLang,
   );
 
-  let haikuText: string;
+  let modelText: string;
   try {
-    // PR 108 (M14): retry con backoff para 5xx y network errors transients.
-    const haikuResp = await callAnthropicWithRetry(
-      "https://api.anthropic.com/v1/messages",
+    // Retry con backoff para 5xx y network errors transients.
+    // thinkingBudget: 0 evita que el presupuesto chico (300 tokens) se vacíe
+    // en tokens de "pensamiento" y trunque el JSON de labels.
+    const modelResp = await fetchWithRetry(
+      `https://generativelanguage.googleapis.com/v1beta/models/${INSIGHT_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
       {
         method: "POST",
-        headers: {
-          "content-type": "application/json",
-          "x-api-key": ANTHROPIC_API_KEY,
-          "anthropic-version": "2023-06-01",
-        },
+        headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          model: HAIKU_MODEL,
-          max_tokens: MAX_TOKENS,
-          system,
-          messages: [{ role: "user", content: user }],
+          systemInstruction: { parts: [{ text: system }] },
+          contents: [{ role: "user", parts: [{ text: user }] }],
+          generationConfig: {
+            maxOutputTokens: MAX_TOKENS,
+            thinkingConfig: { thinkingBudget: 0 },
+          },
         }),
       },
     );
 
-    if (!haikuResp.ok) {
-      const errText = await haikuResp.text();
-      await markFailed(supabase, sessionId, `haiku_http_${haikuResp.status}: ${errText.slice(0, 200)}`, startTime);
-      return jsonResponse({ error: "haiku_call_failed" }, 502);
+    if (!modelResp.ok) {
+      const errText = await modelResp.text();
+      await markFailed(supabase, sessionId, `model_http_${modelResp.status}: ${errText.slice(0, 200)}`, startTime);
+      return jsonResponse({ error: "insight_call_failed" }, 502);
     }
 
-    const haikuData = await haikuResp.json();
-    haikuText = (haikuData.content || [])
-      .filter((c: any) => c.type === "text")
-      .map((c: any) => c.text)
-      .join("\n");
+    const modelData = await modelResp.json();
+    modelText = (modelData?.candidates?.[0]?.content?.parts || [])
+      .map((p: any) => p?.text || "")
+      .join("");
   } catch (err) {
-    await markFailed(supabase, sessionId, `haiku_exception: ${String(err).slice(0, 200)}`, startTime);
-    return jsonResponse({ error: "haiku_call_failed" }, 502);
+    await markFailed(supabase, sessionId, `model_exception: ${String(err).slice(0, 200)}`, startTime);
+    return jsonResponse({ error: "insight_call_failed" }, 502);
   }
 
-  const labels = parseHaikuResponse(haikuText);
+  const labels = parseHaikuResponse(modelText);
   if (!labels || labels.length !== candidates.length) {
     await markFailed(supabase, sessionId, `parse_failed: got ${labels?.length || 0} labels for ${candidates.length} candidates`, startTime);
     return jsonResponse({ error: "parse_failed" }, 502);
@@ -313,7 +312,7 @@ Deno.serve(async (req: Request) => {
     .update({
       status: "ready",
       weak_points: weakPoints,
-      model_used: HAIKU_MODEL,
+      model_used: INSIGHT_MODEL,
       generated_at: new Date().toISOString(),
       generation_ms: Date.now() - startTime,
     })
@@ -389,11 +388,11 @@ function extractCorrectAnswer(q: any): string | null {
 }
 
 /**
- * PR 108 (M14): Call Anthropic with retry on 5xx and network errors.
+ * PR 108 (M14): fetch with retry on 5xx and network errors.
  * Up to 3 attempts total (initial + 2 retries) with backoff: 0, 1s, 3s.
  * 4xx errors (auth, bad request) do NOT retry — they fail fast.
  */
-async function callAnthropicWithRetry(
+async function fetchWithRetry(
   url: string,
   init: RequestInit,
   maxAttempts = 3,
@@ -414,7 +413,7 @@ async function callAnthropicWithRetry(
       if (attempt < maxAttempts) {
         const delayMs = attempt === 1 ? 1000 : 3000;
         console.log(
-          `[generate-insight] Anthropic ${resp.status} attempt ${attempt}/${maxAttempts}, retrying in ${delayMs}ms`,
+          `[generate-insight] upstream ${resp.status} attempt ${attempt}/${maxAttempts}, retrying in ${delayMs}ms`,
         );
         await new Promise((r) => setTimeout(r, delayMs));
         continue;
@@ -433,5 +432,5 @@ async function callAnthropicWithRetry(
       throw err;
     }
   }
-  throw lastError ?? new Error("callAnthropicWithRetry: unreachable");
+  throw lastError ?? new Error("fetchWithRetry: unreachable");
 }
