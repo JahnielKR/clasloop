@@ -36,6 +36,7 @@ const DEFAULT_MODEL_KEY = 'primary';
 const VALIDATOR_SYSTEM = `You are a pedagogical reviewer for classroom warmups and exit tickets. For each question in the input array, decide whether a real teacher would use it AS-IS (no edits needed) for the given grade and subject.
 
 Reject a question only when:
+- It is OFF-SUBJECT: the question's topic does not match the Subject given in the context below. A question can be perfectly well-formed and still belong to a DIFFERENT subject than this set — e.g. the Subject is "History" but the question tests Spanish vocabulary or grammar, or the Subject is "Math" but it asks about a novel's plot. Reject EVERY such off-subject question. This is a HARD reject (see the note below), not a "when in doubt" case.
 - It is ambiguous or has more than one valid correct answer
 - The marked correct answer is objectively wrong
 - It requires knowledge NOT plausibly present in the source material described
@@ -46,9 +47,9 @@ Reject a question only when:
 - For ordering: items can defensibly be in different orders
 - For fill: the answer is genuinely ambiguous given the sentence
 
-Accept everything else. WHEN IN DOUBT, ACCEPT — the teacher can edit minor things, you should only catch real defects.
+Accept everything else. WHEN IN DOUBT, ACCEPT — the teacher can edit minor things, you should only catch real defects. The ONE exception is the off-subject rule above: a question that clearly belongs to a different subject than the stated Subject is ALWAYS rejected, even if it is well-made and unambiguous.
 
-Questions can be in any language (English, Spanish, Korean). Evaluate them on their merits, not their language.
+Questions can be in any language (English, Spanish, Korean). Evaluate them on their merits, not their language. NOTE: a question being written in Spanish does not by itself make it a Spanish-subject question — judge by what the question is ABOUT (its topic), not the language it is written in.
 
 Return ONLY a JSON array of verdicts, one per input question, in the same order:
 [{"i": 0, "ok": true}, {"i": 1, "ok": false, "reason": "two correct answers"}, ...]
