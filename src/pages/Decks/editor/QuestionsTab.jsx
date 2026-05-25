@@ -779,6 +779,14 @@ export default function QuestionsTab({ ed, t, l }) {
                     </div>
                   );
                 }
+                if (w.code === "doc_images") {
+                  const msg = w.attached > 0
+                    ? (t.aiImagesAddedMsg || "Added {attached} image(s) from your document to the questions.")
+                        .replace("{attached}", String(w.attached))
+                    : (t.aiImagesNoneMsg || "Found {found} image(s) in your file, but none fit a question — try the \"Questions about images\" mode.")
+                        .replace("{found}", String(w.found));
+                  return <div key={i}>{msg}</div>;
+                }
                 if (w.code === "quality_filtered") {
                   // Dos variantes según qué % pasó el filtro:
                   //  - Suave (≥70% pasaron): "X de Y listas para usar"

@@ -239,6 +239,10 @@ export async function generateQuestions({
   language = "en",
   file = null,
   lessonContext = "general", // "warmup" | "exitTicket" | "general" — Bloque 3 lo conectará desde la UI
+  // Track A: cómo usar las imágenes embebidas de un PPTX. "attach" = adjuntar
+  // generosamente donde encajen; "about" = crear preguntas SOBRE las imágenes;
+  // "off" = ignorarlas (ni extraer ni enviar).
+  imageMode = "attach",
 }) {
   let fileContent = null;
   let messageContent = [];
@@ -325,7 +329,7 @@ export async function generateQuestions({
   // Track A: si el archivo es un PPTX, extrae sus imágenes embebidas y mándalas
   // al modelo (multimodal) para que adjunte la que corresponda a cada pregunta
   // vía image_ref. El editor/quiz/PDF ya renderizan question.image_url.
-  if (file && /\.pptx$/i.test(file.name)) {
+  if (file && /\.pptx$/i.test(file.name) && imageMode !== "off") {
     try {
       docImages = await extractPptxImages(file, { max: 6 });
     } catch {
@@ -334,7 +338,7 @@ export async function generateQuestions({
     if (docImages.length > 0) {
       promptParts = {
         ...promptParts,
-        system: `${promptParts.system}\n\n${imageRules(language, docImages.length)}`,
+        system: `${promptParts.system}\n\n${imageRules(language, docImages.length, imageMode)}`,
       };
       messageContent = [...messageContent, ...buildImageParts(docImages)];
     }
@@ -474,6 +478,8 @@ export async function generateQuestions({
     // y fijarlas en question.image_url. Siempre limpia image_ref del output.
     if (docImages.length > 0) {
       parsed = await attachDocImages(parsed, docImages, session?.user?.id);
+      const attached = parsed.filter((q) => q && q.image_url).length;
+      warnings.push({ code: "doc_images", found: docImages.length, attached });
     }
 
     // Bloque 4: el endpoint puede haber filtrado preguntas con Haiku.
