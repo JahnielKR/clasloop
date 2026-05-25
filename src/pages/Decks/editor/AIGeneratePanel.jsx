@@ -317,6 +317,14 @@ export default function AIGeneratePanel({
             <option value="about">{t.aiImagesAbout}</option>
             <option value="off">{t.aiImagesOff}</option>
           </select>
+          {/* Dynamic one-liner so the two image modes are self-explanatory. */}
+          <p style={{ fontSize: 11.5, color: C.textSecondary, margin: "6px 0 0", lineHeight: 1.5 }}>
+            {imageMode === "about"
+              ? t.aiImagesHintAbout
+              : imageMode === "off"
+              ? t.aiImagesHintOff
+              : t.aiImagesHintAttach}
+          </p>
         </div>
       )}
 
