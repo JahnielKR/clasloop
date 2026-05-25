@@ -324,7 +324,20 @@ export default function AIGeneratePanel({
           "How" selector + hint are hidden when there are no images. */}
       <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: imageSource === "none" ? 14 : 6 }}>
         <div style={{ flex: "1 1 180px", minWidth: 0 }}>
-          <FieldLabel dense>{t.aiImgSourceLabel}</FieldLabel>
+          <FieldLabel dense>
+            {t.aiImgSourceLabel}
+            {/* AI image generation is still rough around the edges — flag it as
+                Beta (blue, on-brand) whenever it's the selected source so the
+                teacher knows results can miss. */}
+            {imageSource === "ai" && (
+              <span style={{
+                marginLeft: 6, fontSize: 9, fontWeight: 700,
+                textTransform: "uppercase", letterSpacing: "0.05em",
+                padding: "1px 6px", borderRadius: 999,
+                background: C.accentSoft, color: C.accent, verticalAlign: "middle",
+              }}>Beta</span>
+            )}
+          </FieldLabel>
           <select
             value={imageSource}
             onChange={(e) => setImageSource(e.target.value)}

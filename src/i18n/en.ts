@@ -1386,7 +1386,7 @@ const en = {
     // ── Image control (Track A: source × how) ──
     aiImgSourceLabel: "Image source",
     aiImgSourceDoc: "From my document (recommended)",
-    aiImgSourceAi: "Generate with AI",
+    aiImgSourceAi: "Generate with AI (Beta)",
     aiImgSourceNone: "No images",
     aiImgModeLabel: "How to use them",
     aiImgModeIllustrate: "Illustrate the question",

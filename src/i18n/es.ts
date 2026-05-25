@@ -1382,7 +1382,7 @@ const es: Locale = {
     // ── Control de imágenes (Track A: fuente × cómo) ──
     aiImgSourceLabel: "Fuente de imágenes",
     aiImgSourceDoc: "De mi documento (recomendado)",
-    aiImgSourceAi: "Generar con IA",
+    aiImgSourceAi: "Generar con IA (Beta)",
     aiImgSourceNone: "Sin imágenes",
     aiImgModeLabel: "Cómo usarlas",
     aiImgModeIllustrate: "Ilustrar la pregunta",

@@ -1382,7 +1382,7 @@ const ko: Locale = {
     // ── 이미지 컨트롤 (Track A: 소스 × 방식) ──
     aiImgSourceLabel: "이미지 소스",
     aiImgSourceDoc: "내 문서에서 (권장)",
-    aiImgSourceAi: "AI로 생성",
+    aiImgSourceAi: "AI로 생성 (Beta)",
     aiImgSourceNone: "이미지 없음",
     aiImgModeLabel: "사용 방식",
     aiImgModeIllustrate: "문제를 보강",
