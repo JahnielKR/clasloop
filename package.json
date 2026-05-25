@@ -9,6 +9,7 @@
     "preview": "vite preview",
     "patch:android": "node scripts/patch-android.cjs",
     "icons:generate": "node scripts/generate-android-assets.cjs",
+    "store:assets": "node scripts/generate-store-assets.cjs",
     "prepare-fonts": "node scripts/prepare-fonts.cjs",
     "test": "vitest",
     "test:run": "vitest run",

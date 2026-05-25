@@ -45,6 +45,7 @@ const patches = [
   patchProguard,
   patchDeepLink,
   patchSplashTheme,
+  patchCameraPermission,
 ];
 
 let totalApplied = 0;
@@ -197,5 +198,42 @@ function patchSplashTheme() {
   content = content.replace(oldStyleRegex, newStyle);
   fs.writeFileSync(filePath, content);
   console.log("✓ Splash theme: legacy (windowBackground=@drawable/splash) — nítido en HD");
+  return "applied";
+}
+
+/**
+ * Permiso de CÁMARA para el scanner ML Kit (document-scanner +
+ * barcode-scanning). Los plugins mergean su propio manifest, pero
+ * declararlo explícitamente acá garantiza que esté presente y deja
+ * claro el permiso para el Data Safety form de Play.
+ *
+ * Se inserta como hijo directo de <manifest>, justo antes del cierre.
+ */
+function patchCameraPermission() {
+  const filePath = path.join(
+    ANDROID_DIR, "app", "src", "main", "AndroidManifest.xml"
+  );
+  if (!fs.existsSync(filePath)) {
+    console.warn("⚠ AndroidManifest.xml no encontrado, skipping camera permission patch");
+    return "skipped";
+  }
+
+  let content = fs.readFileSync(filePath, "utf8");
+
+  if (content.includes('android:name="android.permission.CAMERA"')) {
+    console.log("○ Camera permission: ya está aplicado");
+    return "skipped";
+  }
+
+  if (!content.includes("</manifest>")) {
+    console.warn("⚠ Camera permission: no encontré </manifest> para insertar");
+    return "skipped";
+  }
+
+  const permission = `    <uses-permission android:name="android.permission.CAMERA" />\n`;
+  content = content.replace(/<\/manifest>/, permission + "</manifest>");
+
+  fs.writeFileSync(filePath, content);
+  console.log("✓ Camera permission: android.permission.CAMERA agregado");
   return "applied";
 }

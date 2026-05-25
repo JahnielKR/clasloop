@@ -55,6 +55,11 @@ import { STYLE_THUMBS } from "./PdfStyleThumbs";
 import Button from "./ui/Button";
 import Modal from "./Modal";
 import CleoTour from "../onboarding/CleoTour";
+// Mobile preview: WebViews can't render a PDF in an <iframe>, so on native/phone
+// we open the real PDF in the system viewer instead (where you also print).
+import { Capacitor } from "@capacitor/core";
+import { useIsMobile } from "./MobileMenuButton";
+import { savePdfNative } from "../lib/native-pdf";
 
 // PR 46: scanner ya no es un "estilo" — es una página opcional que se
 // preempts al examen cuando variant === "exam_with_scan". El style
@@ -85,7 +90,7 @@ const VISIBLE_STYLES = 3;
 // ─── Generate a preview blob (no download trigger) ────────────────────────
 // Same logic as exportPDF but instead of calling doc.save(), we return
 // the blob URL so the modal can show it in an iframe.
-async function generatePreviewBlobURL(deck, classObj, { style, variant, lang, paletteId }) {
+async function buildPreviewDoc(deck, classObj, { style, variant, lang, paletteId }) {
   const renderer = STYLES[style] || STYLES.classic;
   const doc = new jsPDF({ unit: "mm", format: "a4" });
   // PR 81: detectar hangul en el contenido del deck, no solo en deck.language.
@@ -127,8 +132,13 @@ async function generatePreviewBlobURL(deck, classObj, { style, variant, lang, pa
   } else {
     await renderer.renderExam(doc, deck, classObj, renderOpts);
   }
-  const blob = doc.output("blob");
-  return URL.createObjectURL(blob);
+  return doc;
+}
+
+// Desktop iframe preview: build the doc, return a blob object URL.
+async function generatePreviewBlobURL(deck, classObj, opts) {
+  const doc = await buildPreviewDoc(deck, classObj, opts);
+  return URL.createObjectURL(doc.output("blob"));
 }
 
 // ─── Component ───────────────────────────────────────────────────────────
@@ -145,6 +155,14 @@ export default function PDFExportModal({
 }) {
   const toast = useToast();
   const t = useT("pdfExportModal", lang);
+
+  // Mobile WebViews (Android WebView / iOS) can't render a PDF inside an
+  // <iframe>, and narrow web browsers don't either. On those we swap the inline
+  // iframe for a button that opens the real PDF in the device's system viewer
+  // (where the teacher also prints). Desktop keeps the live iframe preview.
+  const isNative = Capacitor.isNativePlatform();
+  const isMobile = useIsMobile();
+  const useNativePreview = isNative || isMobile;
 
   // Sticky style from localStorage. Default to classic if first run.
   const [style, setStyle] = useState(() => {
@@ -167,6 +185,7 @@ export default function PDFExportModal({
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  const [openingPreview, setOpeningPreview] = useState(false);
   // PR 46: carrusel del style picker. Muestra hasta VISIBLE_STYLES a la
   // vez, flechas L/R para navegar cuando hay más. Empieza centrado en el
   // style seleccionado para que el user vea inmediatamente cuál tiene
@@ -207,6 +226,10 @@ export default function PDFExportModal({
 
   // Regenerate preview whenever style, variant, or palette changes
   useEffect(() => {
+    // Native opens via savePdfNative (builds its own doc), so don't pre-generate
+    // a blob for an iframe we won't render. Web (desktop iframe + web-mobile
+    // open-in-tab) still needs the blob URL.
+    if (isNative) { setPreviewLoading(false); return; }
     let cancelled = false;
     setPreviewLoading(true);
     setPreviewError(false);
@@ -235,7 +258,7 @@ export default function PDFExportModal({
     })();
 
     return () => { cancelled = true; };
-  }, [style, variant, deck, classObj, lang, paletteId]);
+  }, [style, variant, deck, classObj, lang, paletteId, isNative]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -264,12 +287,35 @@ export default function PDFExportModal({
     }
   };
 
+  // Mobile/native "preview": open the real PDF in the device's system viewer.
+  // Native → write + share sheet (savePdfNative); web-mobile → open the blob
+  // in a new tab (mobile browsers render PDFs there, unlike in an iframe).
+  const handleOpenPreview = async () => {
+    if (openingPreview) return;
+    setOpeningPreview(true);
+    try {
+      if (isNative) {
+        const doc = await buildPreviewDoc(deck, classObj, { style, variant, lang, paletteId });
+        const filename = `${sanitizeFilename(deck.title || "clasloop")}_${variant}.pdf`;
+        await savePdfNative(doc, filename);
+      } else if (previewURL) {
+        window.open(previewURL, "_blank");
+      }
+    } catch (err) {
+      console.error("[pdf preview open] failed:", err);
+      toast.error(t.previewFailed, { reportError: err, context: { source: "PDFExportModal.openPreview" } });
+    } finally {
+      setOpeningPreview(false);
+    }
+  };
+
   const styleOptions = [
     { id: "classic", name: t.classicName, desc: t.classicDesc, Thumb: STYLE_THUMBS.classic },
     { id: "modern", name: t.modernName, desc: t.modernDesc, Thumb: STYLE_THUMBS.modern },
     { id: "editorial", name: t.editorialName, desc: t.editorialDesc, Thumb: STYLE_THUMBS.editorial },
     { id: "framed", name: t.framedName, desc: t.framedDesc, Thumb: STYLE_THUMBS.framed },
   ];
+  const SelectedThumb = styleOptions.find((s) => s.id === style)?.Thumb;
 
   return (
     <Modal
@@ -504,41 +550,70 @@ export default function PDFExportModal({
             <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: C.textSecondary, marginBottom: 6, textTransform: "uppercase", letterSpacing: 0.4 }}>
               {t.previewLabel}
             </label>
-            <div style={{
-              position: "relative",
-              border: `1px solid ${C.border}`,
-              borderRadius: 8,
-              background: "#f7f7f5",
-              height: 360,
-              overflow: "hidden",
-            }}>
-              {previewURL && !previewError && (
-                <iframe
-                  src={previewURL}
-                  title="PDF preview"
-                  style={{ width: "100%", height: "100%", border: "none", background: "#fff" }}
-                />
-              )}
-              {previewLoading && (
-                <div style={{
-                  position: "absolute", inset: 0,
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  fontSize: 13, color: C.textMuted,
-                  background: previewURL ? "rgba(247,247,245,0.8)" : "transparent",
-                }}>
-                  {t.previewLoading}
-                </div>
-              )}
-              {previewError && !previewLoading && (
-                <div style={{
-                  position: "absolute", inset: 0,
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  fontSize: 13, color: C.textMuted, padding: 20, textAlign: "center",
-                }}>
-                  {t.previewFailed}
-                </div>
-              )}
-            </div>
+            {useNativePreview ? (
+              // Mobile / native: WebViews can't render a PDF in an iframe. Show
+              // the style thumbnail + a button that opens the real PDF in the
+              // system viewer (where the teacher also prints).
+              <div style={{
+                border: `1px solid ${C.border}`, borderRadius: 8, background: "#f7f7f5",
+                padding: 20, display: "flex", flexDirection: "column", alignItems: "center", gap: 14,
+              }}>
+                {SelectedThumb && (
+                  <div style={{ width: 132, borderRadius: 6, overflow: "hidden", background: "#fff", boxShadow: "0 2px 10px rgba(0,0,0,0.08)" }}>
+                    <SelectedThumb />
+                  </div>
+                )}
+                <p style={{ margin: 0, fontSize: 13, color: C.textSecondary, textAlign: "center", maxWidth: 280 }}>
+                  {t.previewMobileHint}
+                </p>
+                <button
+                  onClick={handleOpenPreview}
+                  disabled={openingPreview || (!isNative && !previewURL)}
+                  style={{
+                    padding: "10px 18px", borderRadius: 9, border: "none",
+                    background: C.accent, color: "#fff", fontWeight: 600, fontSize: 13.5,
+                    cursor: openingPreview ? "default" : "pointer", fontFamily: "inherit",
+                    opacity: (openingPreview || (!isNative && !previewURL)) ? 0.6 : 1,
+                  }}
+                >{openingPreview ? t.previewOpening : t.previewOpen}</button>
+              </div>
+            ) : (
+              <div style={{
+                position: "relative",
+                border: `1px solid ${C.border}`,
+                borderRadius: 8,
+                background: "#f7f7f5",
+                height: 360,
+                overflow: "hidden",
+              }}>
+                {previewURL && !previewError && (
+                  <iframe
+                    src={previewURL}
+                    title="PDF preview"
+                    style={{ width: "100%", height: "100%", border: "none", background: "#fff" }}
+                  />
+                )}
+                {previewLoading && (
+                  <div style={{
+                    position: "absolute", inset: 0,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    fontSize: 13, color: C.textMuted,
+                    background: previewURL ? "rgba(247,247,245,0.8)" : "transparent",
+                  }}>
+                    {t.previewLoading}
+                  </div>
+                )}
+                {previewError && !previewLoading && (
+                  <div style={{
+                    position: "absolute", inset: 0,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    fontSize: 13, color: C.textMuted, padding: 20, textAlign: "center",
+                  }}>
+                    {t.previewFailed}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
 

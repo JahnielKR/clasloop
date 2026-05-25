@@ -1,12 +1,9 @@
 import { LogoMark } from "../../../components/Icons";
 import { C } from "../../../components/tokens";
 
-// NOTE (landing scaffold PR): the legal links (Privacy / Terms / Contact)
-// are still placeholders — they need real destinations (legal pages or a
-// support email) which is a product decision. They are intentionally NOT
-// rendered as fake clickable links here; once targets exist they become
-// proper <a> elements. The header nav links ARE wired to smooth-scroll
-// (see index.jsx) — that's where the "dead link" fix landed for this PR.
+// Privacy links to the static /privacy.html (the canonical policy URL used by
+// the Google Play listing). Terms / Contact stay as placeholders until they
+// have real destinations (a legal page / support email — a product decision).
 export default function Footer({ t }) {
   return (
     <footer style={{
@@ -26,7 +23,10 @@ export default function Footer({ t }) {
           </span>
         </div>
         <div style={{ display: "flex", gap: 20, fontSize: 12, color: C.textMuted }}>
-          <span>{t.footerPrivacy}</span>
+          <a
+            href="/privacy.html"
+            style={{ color: C.textMuted, textDecoration: "none" }}
+          >{t.footerPrivacy}</a>
           <span>{t.footerTerms}</span>
           <span>{t.footerContact}</span>
         </div>
