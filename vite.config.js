@@ -66,6 +66,10 @@ export default defineConfig({
             '@dnd-kit/sortable',
             '@dnd-kit/utilities',
           ],
+          // recharts powers the Class Report charts. Its own chunk keeps it out
+          // of the main bundle — only fetched when the (lazy) report page loads,
+          // and stays cached across deploys.
+          'charts': ['recharts'],
         },
       },
 
