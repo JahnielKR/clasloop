@@ -21,6 +21,20 @@ import { executeCleoAction } from "../lib/cleo-actions";
 import { SUPPORTED_FILES } from "../lib/ai";
 import CleoActionCard from "./CleoActionCard";
 
+// Monochrome line icon (inherits currentColor) for the attach affordance —
+// matches the sidebar's line-icon style rather than a colored CIcon (whose
+// fixed color would clash on the blue user bubble).
+function AttachIcon({ size = 18 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true" style={{ display: "block" }}>
+      <path
+        d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"
+        stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 // Light page/entity context sent with each message so Cleo can tailor help and
 // resolve "this class". We parse the current URL here (CleoChat is mounted at
 // the app root, outside any param'd route, so useParams would be empty).
@@ -280,7 +294,7 @@ export default function CleoChat({ lang = "en", profile = null }) {
                       background: mine ? C.accent : C.bgSoft,
                       color: mine ? "#fff" : C.textMuted, fontSize: 12,
                     }}>
-                      <span aria-hidden="true">📎</span>
+                      <AttachIcon size={13} />
                       <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.fileName}</span>
                     </div>
                   )}
@@ -288,6 +302,8 @@ export default function CleoChat({ lang = "en", profile = null }) {
                     <CleoActionCard
                       action={m.action}
                       t={t.action}
+                      lang={lang}
+                      fileName={m.file?.name || ""}
                       onRun={(a) => executeCleoAction(a, { navigate, profile, lang, file: m.file })}
                       onNavigate={(to) => { setOpen(false); navigate(to); }}
                     />
@@ -319,7 +335,7 @@ export default function CleoChat({ lang = "en", profile = null }) {
                     background: C.accentSoft, border: `1px solid ${C.accent}33`,
                     color: C.text, fontSize: 12.5,
                   }}>
-                    <span aria-hidden="true">📎</span>
+                    <AttachIcon size={14} />
                     <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 230 }}>{attachedFile.name}</span>
                     <button
                       onClick={() => { setAttachedFile(null); setFileError(""); }}
@@ -352,9 +368,9 @@ export default function CleoChat({ lang = "en", profile = null }) {
                   color: attachedFile ? C.accent : C.textMuted,
                   border: `1px solid ${C.border}`,
                   cursor: loading ? "default" : "pointer",
-                  display: "grid", placeItems: "center", fontSize: 18,
+                  display: "grid", placeItems: "center",
                 }}
-              >📎</button>
+              ><AttachIcon size={18} /></button>
               <input
                 ref={inputRef}
                 value={input}

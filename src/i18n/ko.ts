@@ -321,6 +321,13 @@ const ko: Locale = {
       attach: "문서 첨부",
       removeFile: "파일 제거",
       fileTooBig: "파일이 너무 커요 (최대 {mb} MB).",
+      fieldLanguage: "언어",
+      fieldImages: "이미지",
+      optYes: "예",
+      optNo: "아니요",
+      createCta: "만들기",
+      titlePlaceholder: "퀴즈 이름",
+      aiImagesNote: "AI 이미지는 시간이 더 걸려요.",
     },
   },
 

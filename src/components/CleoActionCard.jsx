@@ -1,8 +1,12 @@
 // ─── CleoActionCard ──────────────────────────────────────────────────────────
 // Inline confirmation card for an action Cleo proposed (create class / unit /
-// review quiz). The teacher confirms here BEFORE anything is written — Cleo
-// never acts on her own. Read-only `navigate` actions don't use this card; the
-// chat runs them immediately.
+// deck / review quiz). The teacher confirms here BEFORE anything is written —
+// Cleo never acts on her own. Read-only `navigate` actions don't use this card.
+//
+// create_deck is special: instead of just a confirm button, it shows a tiny
+// FORM (name + language + count + images) so the teacher sets the deck up by
+// tapping options — Cleo proposes sensible defaults, she never silently assumes
+// the language/length/name. Other actions stay a simple details + Confirm.
 //
 // Self-contained status: idle → running → done | error (or canceled). On
 // success it shows a short confirmation + a deep-link button to what was made.
@@ -12,16 +16,17 @@ import { C } from "./tokens";
 const sectionLabel = (s, t) =>
   s === "warmup" ? t.sectionWarmup : s === "exit_ticket" ? t.sectionExit : t.sectionGeneral;
 
-// Which fields to show per action, in order. Each is [label, value].
-const FIELD_ROWS = {
+// Read-only detail rows shown at the top of the card. Each is [label, value].
+const DETAIL_ROWS = {
   create_class: (a, t) => [[t.fieldName, a.name], [t.fieldGrade, a.grade], [t.fieldSubject, a.subject]],
   create_unit: (a, t) => [[t.fieldClass, a.className], [t.fieldName, a.name]],
   generate_review_deck: (a, t) => [[t.fieldClass, a.className], [t.fieldUnit, a.unitName]],
-  create_deck: (a, t) => [
+  // create_deck: class + type + what it's built from (the editable bits live in
+  // the form below, so they're not repeated here).
+  create_deck: (a, t, fileName) => [
     [t.fieldClass, a.className],
     [t.fieldSection, sectionLabel(a.section, t)],
-    [t.fieldSource, a.source === "document" ? t.sourceDocument : (a.topic || t.sourceTopic)],
-    [t.fieldCount, a.numQuestions],
+    [t.fieldSource, a.source === "document" ? (fileName || t.sourceDocument) : (a.topic || t.sourceTopic)],
   ],
 };
 const TITLE = {
@@ -31,19 +36,43 @@ const TITLE = {
   create_deck: (t) => t.createDeckTitle,
 };
 
-export default function CleoActionCard({ action, t, onRun, onNavigate }) {
+const LANGS = [["en", "EN"], ["es", "ES"], ["ko", "KO"]];
+const COUNTS = [3, 5, 10, 15, 20];
+
+export default function CleoActionCard({ action, t, onRun, onNavigate, lang = "en", fileName = "" }) {
   const [status, setStatus] = useState("idle"); // idle | running | done | error | canceled
   const [result, setResult] = useState(null);
 
-  const rows = (FIELD_ROWS[action.type] || (() => []))(action, t);
-  const title = (TITLE[action.type] || (() => ""))(t);
-  // These run an AI generation step, so they take a while — show the longer
-  // "building…" message instead of the quick "working…".
-  const isSlow = action.type === "generate_review_deck" || action.type === "create_deck";
+  const isDeck = action.type === "create_deck";
+  const isPptx = /\.pptx$/i.test(fileName || "");
+
+  // create_deck form state — seeded from Cleo's proposal + the UI language, so
+  // the teacher just tweaks instead of typing everything.
+  const [title, setTitle] = useState(
+    action.title || action.topic || (fileName ? fileName.replace(/\.[^.]+$/, "") : "")
+  );
+  const [dLang, setDLang] = useState(action.language || lang || "en");
+  const [count, setCount] = useState(COUNTS.includes(action.numQuestions) ? action.numQuestions : 5);
+  // Default to reusing a PPTX's own images; off otherwise (AI images are opt-in).
+  const [images, setImages] = useState(action.source === "document" && isPptx);
+
+  const rows = (DETAIL_ROWS[action.type] || (() => []))(action, t, fileName);
+  const heading = (TITLE[action.type] || (() => ""))(t);
+  // These run an AI generation step, so they take a while.
+  const isSlow = action.type === "generate_review_deck" || isDeck;
 
   const confirm = async () => {
     setStatus("running");
-    const res = await onRun(action);
+    const payload = isDeck
+      ? {
+          ...action,
+          title: title.trim() || action.title || action.topic || "",
+          language: dLang,
+          numQuestions: count,
+          images: images ? "on" : "off",
+        }
+      : action;
+    const res = await onRun(payload);
     if (res?.ok) { setResult(res); setStatus("done"); }
     else setStatus("error");
   };
@@ -75,12 +104,22 @@ export default function CleoActionCard({ action, t, onRun, onNavigate }) {
     color: primary ? "#fff" : C.textMuted,
   });
 
+  const pill = (active) => ({
+    padding: "5px 11px", borderRadius: 8, fontSize: 12, fontWeight: 600,
+    fontFamily: "'Outfit',sans-serif", cursor: "pointer", lineHeight: 1.3,
+    border: `1px solid ${active ? C.accent : C.border}`,
+    background: active ? C.accentSoft : "transparent",
+    color: active ? C.accent : C.textMuted,
+  });
+  const fieldLabel = { fontSize: 11, fontWeight: 600, color: C.textMuted, margin: "0 0 5px" };
+  const pillRow = { display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 12 };
+
   return (
     <div style={{
       border: `1px solid ${C.border}`, borderRadius: 12, background: C.bg,
       padding: 12, marginTop: 8, maxWidth: "92%",
     }}>
-      <div style={{ fontSize: 12.5, fontWeight: 700, color: C.text, marginBottom: 8 }}>{title}</div>
+      <div style={{ fontSize: 12.5, fontWeight: 700, color: C.text, marginBottom: 8 }}>{heading}</div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 10 }}>
         {rows.map(([label, val]) => (
@@ -91,7 +130,54 @@ export default function CleoActionCard({ action, t, onRun, onNavigate }) {
         ))}
       </div>
 
-      {status === "idle" && (
+      {/* create_deck: the editable mini-form */}
+      {status === "idle" && isDeck && (
+        <div>
+          <p style={fieldLabel}>{t.fieldName}</p>
+          <input
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder={t.titlePlaceholder}
+            maxLength={120}
+            style={{
+              width: "100%", padding: "8px 10px", borderRadius: 8, marginBottom: 12,
+              border: `1px solid ${C.border}`, background: C.bg, color: C.text,
+              fontSize: 13, fontFamily: "'Outfit',sans-serif", outline: "none", boxSizing: "border-box",
+            }}
+          />
+
+          <p style={fieldLabel}>{t.fieldLanguage}</p>
+          <div style={pillRow}>
+            {LANGS.map(([code, lbl]) => (
+              <button key={code} style={pill(dLang === code)} onClick={() => setDLang(code)}>{lbl}</button>
+            ))}
+          </div>
+
+          <p style={fieldLabel}>{t.fieldCount}</p>
+          <div style={pillRow}>
+            {COUNTS.map((n) => (
+              <button key={n} style={pill(count === n)} onClick={() => setCount(n)}>{n}</button>
+            ))}
+          </div>
+
+          <p style={fieldLabel}>{t.fieldImages}</p>
+          <div style={{ ...pillRow, marginBottom: images && !isPptx ? 6 : 12 }}>
+            <button style={pill(images)} onClick={() => setImages(true)}>{t.optYes}</button>
+            <button style={pill(!images)} onClick={() => setImages(false)}>{t.optNo}</button>
+          </div>
+          {images && !isPptx && (
+            <p style={{ fontSize: 11, color: C.textMuted, margin: "0 0 12px", lineHeight: 1.4 }}>{t.aiImagesNote}</p>
+          )}
+
+          <div style={{ display: "flex", gap: 8 }}>
+            <button style={btn(false)} onClick={() => setStatus("canceled")}>{t.cancel}</button>
+            <button style={btn(true)} onClick={confirm}>{t.createCta}</button>
+          </div>
+        </div>
+      )}
+
+      {/* other actions: a plain confirm */}
+      {status === "idle" && !isDeck && (
         <div style={{ display: "flex", gap: 8 }}>
           <button style={btn(false)} onClick={() => setStatus("canceled")}>{t.cancel}</button>
           <button style={btn(true)} onClick={confirm}>{t.confirm}</button>
@@ -116,7 +202,7 @@ export default function CleoActionCard({ action, t, onRun, onNavigate }) {
       {status === "error" && (
         <div>
           <div style={{ fontSize: 12.5, color: C.red, marginBottom: 8 }}>{t.failed}</div>
-          <button style={btn(true)} onClick={confirm}>{t.confirm}</button>
+          <button style={btn(true)} onClick={confirm}>{isDeck ? t.createCta : t.confirm}</button>
         </div>
       )}
 

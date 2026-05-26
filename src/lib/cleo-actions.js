@@ -151,6 +151,14 @@ export async function executeCleoAction(action, { navigate, profile, lang = 'en'
 
       const language = action.language || lang || 'en';
       const lessonContext = sectionToLessonContext(action.section);
+      const isPptx = !!useFile && /\.pptx$/i.test(useFile.name);
+      // Image choice comes from the card's Yes/No toggle (action.images). "on"
+      // reuses a PPTX's own images, else generates with AI; "off" = no images.
+      // When unset (legacy/tests), fall back to "reuse PPTX images, else none".
+      let imageSource;
+      if (action.images === 'on') imageSource = isPptx ? 'document' : 'ai';
+      else if (action.images === 'off') imageSource = 'none';
+      else imageSource = isPptx ? 'document' : 'none';
       let gen;
       try {
         gen = await generateQuestions({
@@ -162,9 +170,7 @@ export async function executeCleoAction(action, { navigate, profile, lang = 'en'
           language,
           file: useFile,
           lessonContext,
-          // Reuse a PPTX's own embedded images; otherwise no images (the rich
-          // image-source controls live in the editor, not the chat).
-          imageSource: useFile && /\.pptx$/i.test(useFile.name) ? 'document' : 'none',
+          imageSource,
           imageMode: 'illustrate',
         });
       } catch (err) {

@@ -321,6 +321,13 @@ const es: Locale = {
       attach: "Adjuntar un documento",
       removeFile: "Quitar archivo",
       fileTooBig: "Ese archivo es muy grande (máx {mb} MB).",
+      fieldLanguage: "Idioma",
+      fieldImages: "Imágenes",
+      optYes: "Sí",
+      optNo: "No",
+      createCta: "Crear",
+      titlePlaceholder: "Nombra tu quiz",
+      aiImagesNote: "Las imágenes con IA tardan más.",
     },
   },
 

@@ -325,6 +325,13 @@ const en = {
       attach: "Attach a document",
       removeFile: "Remove file",
       fileTooBig: "That file is too big (max {mb} MB).",
+      fieldLanguage: "Language",
+      fieldImages: "Images",
+      optYes: "Yes",
+      optNo: "No",
+      createCta: "Create",
+      titlePlaceholder: "Name your quiz",
+      aiImagesNote: "AI images add time.",
     },
   },
 
