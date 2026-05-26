@@ -113,6 +113,8 @@ export const buildRoute = {
   classDetail: (classId: string) => `/classes/${enc(classId)}`,
   // Class insights — per-deck aggregated stats for a class
   classInsights: (classId: string) => `/classes/${enc(classId)}/insights`,
+  // Class report — Cleo-opened printable snapshot (KPIs + charts)
+  classReport: (classId: string) => `/classes/${enc(classId)}/report`,
   // Student-facing per-session results page — landed from a "graded"
   // notification. Shows the student's own answers + teacher feedback.
   myResults: (sessionId: string) => `/sessions/${enc(sessionId)}/my-results`,
@@ -147,6 +149,7 @@ export const ROUTE_PATTERNS = {
   CLASSES: "/classes",
   CLASSES_DETAIL: "/classes/:classId",
   CLASSES_INSIGHTS: "/classes/:classId/insights",
+  CLASSES_REPORT: "/classes/:classId/report",
   STUDENT_JOIN: "/join-session",
   PRACTICE: "/practice/:deckId",
   ACHIEVEMENTS: "/achievements",
@@ -236,6 +239,9 @@ export function pathToPage(pathname: string | null | undefined): string | null {
   // /classes startsWith, otherwise this is captured as "myClasses" and the
   // user lands on the class list with the URL still saying /insights.
   if (/^\/classes\/[^/]+\/insights\/?$/.test(pathname)) return "classInsights";
+  // /classes/:classId/report → its own page (Cleo-opened class report). MUST
+  // come before the generic /classes startsWith.
+  if (/^\/classes\/[^/]+\/report\/?$/.test(pathname)) return "classReport";
   if (pathname.startsWith("/classes"))     return "myClasses";
   if (pathname === "/join-session")        return "studentJoin";
   if (pathname.startsWith("/practice/"))   return "studentJoin"; // practice usa StudentJoin
