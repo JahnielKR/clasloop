@@ -9,7 +9,7 @@
 // uniqueness across all classes.
 
 import { useState } from "react";
-import { supabase } from "../lib/supabase";
+import { createClass } from "../lib/classes";
 import { CIcon } from "./Icons";
 import { C } from "./tokens";
 import { SUBJECTS } from "../lib/constants";
@@ -32,26 +32,15 @@ export default function CreateClassModal({ userId, t, onClose, onCreated }) {
     if (!name.trim() || !grade.trim()) { setError(t.classNamePlaceholder); return; }
     setError("");
     setCreating(true);
-    // Generate friendly code via Supabase RPC (e.g. "MATH-8B").
-    const { data: rpcCode, error: rpcErr } = await supabase.rpc("generate_class_code", {
-      p_subject: subject,
-      p_grade: grade.trim(),
-    });
-    if (rpcErr || !rpcCode) {
-      setCreating(false);
-      setError(rpcErr?.message || "Could not generate class code");
-      return;
-    }
-    const { data, error: err } = await supabase.from("classes").insert({
-      teacher_id: userId,
-      name: name.trim(),
+    const { class: created, error: err } = await createClass({
+      teacherId: userId,
+      name,
       subject,
-      grade: grade.trim(),
-      class_code: rpcCode,
-    }).select().single();
+      grade,
+    });
     setCreating(false);
-    if (err) { setError(err.message); return; }
-    onCreated(data);
+    if (err || !created) { setError(err || "Could not create class"); return; }
+    onCreated(created);
   };
 
   return (

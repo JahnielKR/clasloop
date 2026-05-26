@@ -12,7 +12,7 @@
 // Env required in Vercel: GEMINI_API_KEY (Google AI Studio key).
 import { requireTeacher } from './_lib/auth.js';
 import { SYSTEM } from './_lib/cleo-knowledge.js';
-import { TOOL_DECLARATIONS, executeCleoTool } from './_lib/cleo-tools.js';
+import { TOOL_DECLARATIONS, ACTION_TOOL_NAMES, executeCleoTool, normalizeCleoAction } from './_lib/cleo-tools.js';
 
 const MODEL = 'gemini-3.5-flash';
 const MAX_HISTORY = 8;       // keep the last N turns (context + cost cap)
@@ -58,9 +58,16 @@ export default async function handler(req, res) {
   const contents = messages.map((m) => ({ role: m.role, parts: [{ text: m.text }] }));
 
   try {
+    // Light page/entity context so Cleo can tailor help and resolve "this
+    // class". Built server-side (the class name is looked up scoped to this
+    // teacher, so it doubles as isolation).
+    const systemText = SYSTEM + (await buildContextNote(supabase, teacherId, body.context));
+
     let reply = '';
+    let pendingAction = null; // a normalized action awaiting the client (card / navigate)
+
     for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
-      const data = await callGemini(GEMINI_API_KEY, contents);
+      const data = await callGemini(GEMINI_API_KEY, contents, systemText);
       if (!data) return res.status(502).json({ error: 'upstream_error' });
 
       const parts = data?.candidates?.[0]?.content?.parts || [];
@@ -72,24 +79,52 @@ export default async function handler(req, res) {
         break;
       }
 
-      // Append the model's function-call turn verbatim, run each tool, then
-      // feed the results back so the model can compose the final answer.
+      // Append the model's function-call turn verbatim, then build a response
+      // for each call: read tools execute now; action tools DON'T run here —
+      // we normalize them into a proposed action for the client to confirm.
       contents.push({ role: 'model', parts });
       const responseParts = [];
       for (const call of calls) {
-        const result = await executeCleoTool(call.name, call.args || {}, { supabase, teacherId });
+        let response;
+        if (ACTION_TOOL_NAMES.has(call.name)) {
+          if (pendingAction) {
+            // One action per turn — let the model wrap up the first.
+            response = { status: 'skipped', note: 'Only one action at a time. Confirm the first one.' };
+          } else {
+            const norm = await normalizeCleoAction(call.name, call.args || {}, { supabase, teacherId });
+            if (norm.action) {
+              pendingAction = norm.action;
+              response = {
+                status: 'proposed',
+                awaiting_user_confirmation: true,
+                note: 'The teacher will see a confirmation card. In ONE short sentence, tell them what you set up and ask them to confirm. Do not call more tools and do not claim it is done.',
+              };
+            } else {
+              // Couldn't resolve (e.g. class not found) — feed the error back
+              // so Cleo can ask the teacher to clarify.
+              response = norm;
+            }
+          }
+        } else {
+          response = await executeCleoTool(call.name, call.args || {}, { supabase, teacherId });
+        }
         responseParts.push({
           functionResponse: {
             name: call.name,
             // Gemini 3 emits a per-call id that must be echoed back.
             ...(call.id ? { id: call.id } : {}),
-            response: result,
+            response,
           },
         });
       }
       contents.push({ role: 'user', parts: responseParts });
     }
 
+    // A proposed action goes back with whatever sentence Cleo composed (the
+    // client falls back to a default prompt if the reply is empty).
+    if (pendingAction) {
+      return res.status(200).json({ reply, action: pendingAction });
+    }
     if (!reply) {
       // Safety filter, empty completion, or hit the tool-round cap without a
       // final answer. Surface a graceful non-error signal for the client.
@@ -103,16 +138,44 @@ export default async function handler(req, res) {
   }
 }
 
+// Build a short context note appended to the system prompt. Resolves the
+// current class name scoped to this teacher (also acts as tenant isolation —
+// another teacher's class id never resolves). Returns '' when there's nothing
+// useful to add. Never throws (context is best-effort).
+async function buildContextNote(supabase, teacherId, context) {
+  try {
+    if (!context || typeof context !== 'object') return '';
+    const lines = [];
+    if (typeof context.page === 'string' && context.page.trim()) {
+      lines.push(`The teacher is currently on the "${context.page.trim()}" page of Clasloop.`);
+    }
+    if (typeof context.classId === 'string' && context.classId) {
+      const { data } = await supabase
+        .from('classes')
+        .select('name')
+        .eq('id', context.classId)
+        .eq('teacher_id', teacherId)
+        .maybeSingle();
+      if (data?.name) {
+        lines.push(`They are viewing the class "${data.name}" — if they say "this class", they mean this one.`);
+      }
+    }
+    return lines.length ? `\n\nCURRENT CONTEXT:\n${lines.join('\n')}` : '';
+  } catch {
+    return '';
+  }
+}
+
 // One generateContent call with the tools declared. Returns the parsed JSON, or
 // null on a non-2xx (logged server-side, never echoed to the client).
-async function callGemini(apiKey, contents) {
+async function callGemini(apiKey, contents, systemText) {
   const resp = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${apiKey}`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        systemInstruction: { parts: [{ text: SYSTEM }] },
+        systemInstruction: { parts: [{ text: systemText || SYSTEM }] },
         contents,
         tools: [{ functionDeclarations: TOOL_DECLARATIONS }],
         toolConfig: { functionCallingConfig: { mode: 'AUTO' } },

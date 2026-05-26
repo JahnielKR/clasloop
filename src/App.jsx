@@ -1098,7 +1098,7 @@ export default function App() {
 
       {/* In-app Cleo help bot — floating "Ask Cleo" for teachers (how things
           work / where to find them). Gated to teachers; the authed shell only. */}
-      {profile?.role === "teacher" && <CleoChat lang={lang} />}
+      {profile?.role === "teacher" && <CleoChat lang={lang} profile={profile} />}
 
       {/* PR 26: gating modal for students with no class membership.
           Renders on top of the dimmed app shell — the student CAN see
