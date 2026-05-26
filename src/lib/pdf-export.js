@@ -38,9 +38,10 @@ import { drawScanSheet } from "./pdf-styles/scanner";
 const STYLES = { classic, modern, editorial, framed };
 
 // Track A: styles whose renderers draw real LaTeX (KaTeX rasterised inline).
-// These receive the raw deck; others get the latexToAscii fallback. Grows as
-// each style is migrated; once all 4 are in, the ASCII fallback can be dropped.
-const MATH_NATIVE_STYLES = new Set(["classic"]);
+// These receive the raw deck (with $…$); any non-listed style would get the
+// latexToAscii fallback. All four styles are migrated now — the ASCII fallback
+// remains only for the scanner sheet (a b+w utility page that isn't math-aware).
+const MATH_NATIVE_STYLES = new Set(["classic", "modern", "editorial", "framed"]);
 
 // Style preferences for default fonts. Framed uses serif (times) for the
 // academic-paper feel; the others use the dispatcher's chosen font
