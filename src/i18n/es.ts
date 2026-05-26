@@ -328,6 +328,11 @@ const es: Locale = {
       createCta: "Crear",
       titlePlaceholder: "Nombra tu quiz",
       aiImagesNote: "Las imágenes con IA tardan más.",
+      scheduleTitle: "Programar unidad",
+      fieldDate: "Fecha",
+      dateToday: "Hoy",
+      dateTomorrow: "Mañana",
+      doneSchedule: "Listo — “{name}” quedó en el calendario.",
     },
   },
 

@@ -22,7 +22,7 @@ import { createClass } from './classes';
 import { createUnit } from './units';
 import { createDeck } from './decks';
 import { generateQuestions } from './ai';
-import { sectionToLessonContext } from './class-hierarchy';
+import { sectionToLessonContext, setDayDate } from './class-hierarchy';
 import { getUnitRetentionSummary } from './spaced-repetition';
 import { generateSuggestedReviewQuestions, saveReviewDeck } from './close-unit-ai';
 import { ROUTES, buildRoute, buildPathWithOpts } from '../routes';
@@ -204,6 +204,28 @@ export async function executeCleoAction(action, { navigate, profile, lang = 'en'
         result: { kind: 'deck', id: saved.deck.id, name: saved.deck.title, count: questions.length },
         to: buildPathWithOpts(ROUTES.DECKS, { focusClassId: action.classId }, 'decks'),
       };
+    }
+
+    case 'schedule_unit': {
+      // The card supplies the chosen date (defaults to today). Day 1 of the
+      // unit gets that date, so it surfaces in "Today" / the scheduled plan.
+      const when = action.date || new Date();
+      const res = await setDayDate(action.unitId, 1, when);
+      if (res?.error) {
+        return { ok: false, error: typeof res.error === 'string' ? res.error : 'schedule_failed' };
+      }
+      return {
+        ok: true,
+        result: { kind: 'scheduled_unit', id: action.unitId, name: action.unitName, date: action.date || '' },
+        to: buildRoute.classDetail(action.classId),
+      };
+    }
+
+    case 'launch_session': {
+      // Read-only: open the live-session launch screen for the deck. Never
+      // auto-starts the session — the teacher presses go there.
+      if (navigate && action.deckId) navigate(buildRoute.sessionsOptions(action.deckId));
+      return { ok: true, navigated: true };
     }
 
     default:

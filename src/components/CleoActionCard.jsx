@@ -31,6 +31,7 @@ const DETAIL_ROWS = {
     [t.fieldClass, a.className],
     [t.fieldSource, a.source === "document" ? (fileName || t.sourceDocument) : (a.topic || t.sourceTopic)],
   ],
+  schedule_unit: (a, t) => [[t.fieldClass, a.className], [t.fieldUnit, a.unitName]],
 };
 
 const SECTION_CODES = ["warmup", "exit_ticket", "general_review"];
@@ -39,7 +40,16 @@ const TITLE = {
   create_unit: (t) => t.createUnitTitle,
   generate_review_deck: (t) => t.reviewDeckTitle,
   create_deck: (t) => t.createDeckTitle,
+  schedule_unit: (t) => t.scheduleTitle,
 };
+
+// Local YYYY-MM-DD (not UTC) so "today" matches the teacher's calendar day.
+function ymd(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
 
 const LANGS = [["en", "EN"], ["es", "ES"], ["ko", "KO"]];
 const COUNTS = [3, 5, 10, 15, 20];
@@ -50,7 +60,13 @@ export default function CleoActionCard({
   status = "idle", result = null,
 }) {
   const isDeck = action.type === "create_deck";
+  const isSchedule = action.type === "schedule_unit";
   const isPptx = /\.pptx$/i.test(fileName || "");
+
+  // schedule_unit form state: which date to put the unit on (defaults today).
+  const today = ymd(new Date());
+  const tomorrow = ymd(new Date(Date.now() + 86400000));
+  const [date, setDate] = useState(today);
 
   // create_deck form state — seeded from Cleo's proposal + the UI language, so
   // the teacher just tweaks instead of typing everything.
@@ -82,6 +98,8 @@ export default function CleoActionCard({
           numQuestions: count,
           images: images ? "on" : "off",
         }
+      : isSchedule
+      ? { ...action, date }
       : action;
     onRun(payload);
   };
@@ -93,6 +111,7 @@ export default function CleoActionCard({
     if (k === "unit") return t.doneUnit.replace("{name}", name);
     if (k === "review_deck") return t.doneReview;
     if (k === "deck") return t.doneDeck.replace("{name}", name).replace("{count}", String(result?.result?.count ?? ""));
+    if (k === "scheduled_unit") return t.doneSchedule.replace("{name}", name);
     return "";
   };
   const viewLabel = () => {
@@ -101,6 +120,7 @@ export default function CleoActionCard({
     if (k === "unit") return t.viewUnit;
     if (k === "review_deck") return t.viewReview;
     if (k === "deck") return t.viewDeck;
+    if (k === "scheduled_unit") return t.viewClass;
     return "";
   };
 
@@ -192,8 +212,33 @@ export default function CleoActionCard({
         </div>
       )}
 
+      {/* schedule_unit: pick the date (defaults to today) */}
+      {status === "idle" && isSchedule && (
+        <div>
+          <p style={fieldLabel}>{t.fieldDate}</p>
+          <div style={pillRow}>
+            <button style={pill(date === today)} onClick={() => setDate(today)}>{t.dateToday}</button>
+            <button style={pill(date === tomorrow)} onClick={() => setDate(tomorrow)}>{t.dateTomorrow}</button>
+          </div>
+          <input
+            type="date"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+            style={{
+              width: "100%", padding: "8px 10px", borderRadius: 8, marginBottom: 12,
+              border: `1px solid ${C.border}`, background: C.bg, color: C.text,
+              fontSize: 13, fontFamily: "'Outfit',sans-serif", outline: "none", boxSizing: "border-box",
+            }}
+          />
+          <div style={{ display: "flex", gap: 8 }}>
+            <button style={btn(false)} onClick={onCancel}>{t.cancel}</button>
+            <button style={btn(true)} onClick={confirm}>{t.confirm}</button>
+          </div>
+        </div>
+      )}
+
       {/* other actions: a plain confirm */}
-      {status === "idle" && !isDeck && (
+      {status === "idle" && !isDeck && !isSchedule && (
         <div style={{ display: "flex", gap: 8 }}>
           <button style={btn(false)} onClick={onCancel}>{t.cancel}</button>
           <button style={btn(true)} onClick={confirm}>{t.confirm}</button>
