@@ -78,8 +78,11 @@ export default function AIGeneratePanel({
   //     never spend on AI images without an explicit opt-in.
   //   imageMode — how they're used: "illustrate" (visual support) or "about"
   //     (the picture carries what the question asks). Hidden when source=none.
+  //   imageCoverage — for AI images, how many questions get one: "few" (model
+  //     decides), "some" (~30%, default), or "all". Only shown for source="ai".
   const [imageSource, setImageSource] = useState("none");
   const [imageMode, setImageMode] = useState("illustrate");
+  const [imageCoverage, setImageCoverage] = useState("some");
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState("");
   const aiFileInputRef = useRef(null);
@@ -127,6 +130,7 @@ export default function AIGeneratePanel({
         lessonContext,
         imageSource,
         imageMode,
+        imageCoverage,
       });
       // generateQuestions ahora devuelve { questions, warnings }.
       // Tolerante a la versión vieja que devolvía solo el array (ej. de un
@@ -360,6 +364,21 @@ export default function AIGeneratePanel({
             >
               <option value="illustrate">{t.aiImgModeIllustrate}</option>
               <option value="about">{t.aiImgModeAbout}</option>
+            </select>
+          </div>
+        )}
+        {imageSource === "ai" && imageMode !== "about" && (
+          <div style={{ flex: "1 1 180px", minWidth: 0 }}>
+            <FieldLabel dense>{t.aiImgCoverageLabel}</FieldLabel>
+            <select
+              value={imageCoverage}
+              onChange={(e) => setImageCoverage(e.target.value)}
+              disabled={generating}
+              style={{ ...sel, padding: "7px 28px 7px 10px", fontSize: 12, width: "100%" }}
+            >
+              <option value="few">{t.aiImgCoverageFew}</option>
+              <option value="some">{t.aiImgCoverageSome}</option>
+              <option value="all">{t.aiImgCoverageAll}</option>
             </select>
           </div>
         )}

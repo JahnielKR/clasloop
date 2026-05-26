@@ -290,31 +290,37 @@ export function imageRules(language, count, mode = "illustrate") {
 const AI_IMAGE_RULES = {
   en: {
     head: `AI-GENERATED IMAGES
-For questions that benefit from a picture, add an "image_prompt" field: a short English description (one sentence) of a clear, simple illustration to generate for that question. Make the description SPECIFIC and accurate to the question's actual concept — depict that concept literally, not a generic, decorative, or merely cheerful picture that doesn't represent the content. Describe the subject and visual style only — the image must contain NO text, letters, numbers, or labels (image models render text unreliably). Keep it classroom-appropriate and factual, with no real logos or copyrighted characters.`,
+For questions that benefit from a picture, add an "image_prompt" field: a short English description (one sentence) of a clear, simple illustration to generate for that question. Make the description SPECIFIC and accurate to the question's actual concept — depict that concept literally, not a generic, decorative, or merely cheerful picture that doesn't represent the content. Name the exact subject the question is about — if it asks about coconuts the prompt must say "coconuts", if rain then "rain"; never a vague stand-in. Describe the subject and visual style only — the image must contain NO text, letters, numbers, or labels (image models render text unreliably). Keep it classroom-appropriate and factual, with no real logos or copyrighted characters.`,
     illustrate: `Add an image_prompt only where a picture genuinely supports the question. The question MUST stay fully answerable WITHOUT the image — the picture is context, never the source of the answer.`,
     about: `Write questions the image supports and give each an "image_prompt" describing what to show. The image is AI-generated, so do NOT ask about fine details it could get wrong (exact counts, specific text, precise measurements) — ask about the main subject or concept the illustration clearly conveys.`,
     tail: `Add image_prompt only to questions that truly need one — most sets need just a few, and never more than 6. Omit it entirely for questions that don't need an image.`,
+    tailMany: `Write an image_prompt for as many questions as you can illustrate faithfully — ideally EVERY question. Each prompt must be specific to its own question and accurate to its concept; do not reuse the same scene across questions.`,
   },
   es: {
     head: `IMÁGENES GENERADAS CON IA
-Para las preguntas que se benefician de una imagen, agrega un campo "image_prompt": una descripción breve EN INGLÉS (una oración) de una ilustración clara y simple para generar para esa pregunta. Haz la descripción ESPECÍFICA y fiel al concepto real de la pregunta — representa ese concepto de forma literal, no una imagen genérica, decorativa o simplemente "simpática" que no represente el contenido. Describe solo el tema y el estilo visual — la imagen NO debe contener texto, letras, números ni etiquetas (los modelos de imagen renderizan texto de forma poco fiable). Mantenla apropiada para el aula y factual, sin logos reales ni personajes con derechos de autor.`,
+Para las preguntas que se benefician de una imagen, agrega un campo "image_prompt": una descripción breve EN INGLÉS (una oración) de una ilustración clara y simple para generar para esa pregunta. Haz la descripción ESPECÍFICA y fiel al concepto real de la pregunta — representa ese concepto de forma literal, no una imagen genérica, decorativa o simplemente "simpática" que no represente el contenido. Nombra el sujeto exacto del que trata la pregunta — si pregunta por cocos el prompt debe decir "coconuts", si por lluvia entonces "rain"; nunca un sustituto vago. Describe solo el tema y el estilo visual — la imagen NO debe contener texto, letras, números ni etiquetas (los modelos de imagen renderizan texto de forma poco fiable). Mantenla apropiada para el aula y factual, sin logos reales ni personajes con derechos de autor.`,
     illustrate: `Agrega un image_prompt solo donde una imagen de verdad apoye la pregunta. La pregunta DEBE poder responderse por completo SIN la imagen — la imagen es contexto, nunca la fuente de la respuesta.`,
     about: `Escribe preguntas que la imagen apoye y dale a cada una un "image_prompt" que describa qué mostrar. La imagen la genera la IA, así que NO preguntes por detalles finos que podría equivocar (conteos exactos, texto específico, medidas precisas) — pregunta por el tema o concepto principal que la ilustración transmite con claridad.`,
     tail: `Agrega image_prompt solo a las preguntas que de verdad lo necesiten — la mayoría de los sets necesitan solo unas pocas, y nunca más de 6. Omítelo por completo en las preguntas que no necesitan imagen.`,
+    tailMany: `Escribe un image_prompt para tantas preguntas como puedas ilustrar con fidelidad — idealmente CADA pregunta. Cada prompt debe ser específico de su pregunta y fiel a su concepto; no reutilices la misma escena en varias preguntas.`,
   },
   ko: {
     head: `AI 생성 이미지
-이미지가 도움이 되는 문제에는 "image_prompt" 필드를 추가하세요: 그 문제를 위해 생성할 명확하고 단순한 삽화를 영어로 한 문장으로 간단히 묘사합니다. 설명은 문제의 실제 개념에 구체적이고 정확해야 합니다 — 그 개념을 문자 그대로 묘사하고, 내용을 나타내지 않는 일반적이거나 장식적이거나 단지 귀여운 이미지는 만들지 마세요. 주제와 시각적 스타일만 묘사하세요 — 이미지에는 텍스트, 글자, 숫자, 라벨이 없어야 합니다(이미지 모델은 텍스트를 정확히 렌더링하지 못합니다). 교실에 적합하고 사실에 기반하며 실제 로고나 저작권 캐릭터가 없어야 합니다.`,
+이미지가 도움이 되는 문제에는 "image_prompt" 필드를 추가하세요: 그 문제를 위해 생성할 명확하고 단순한 삽화를 영어로 한 문장으로 간단히 묘사합니다. 설명은 문제의 실제 개념에 구체적이고 정확해야 합니다 — 그 개념을 문자 그대로 묘사하고, 내용을 나타내지 않는 일반적이거나 장식적이거나 단지 귀여운 이미지는 만들지 마세요. 문제가 다루는 정확한 대상을 명시하세요 — 코코넛에 관한 문제면 프롬프트에 "coconuts", 비에 관한 문제면 "rain"이라고 쓰고, 모호한 대체물은 절대 쓰지 마세요. 주제와 시각적 스타일만 묘사하세요 — 이미지에는 텍스트, 글자, 숫자, 라벨이 없어야 합니다(이미지 모델은 텍스트를 정확히 렌더링하지 못합니다). 교실에 적합하고 사실에 기반하며 실제 로고나 저작권 캐릭터가 없어야 합니다.`,
     illustrate: `이미지가 문제를 진정으로 뒷받침하는 경우에만 image_prompt를 추가하세요. 문제는 이미지 없이도 완전히 답할 수 있어야 합니다 — 이미지는 맥락이며 답의 출처가 아닙니다.`,
     about: `이미지가 뒷받침하는 문제를 만들고 각 문제에 무엇을 보여줄지 묘사하는 "image_prompt"를 주세요. 이미지는 AI가 생성하므로 틀릴 수 있는 세부 사항(정확한 개수, 특정 텍스트, 정밀한 측정값)은 묻지 말고, 삽화가 명확히 전달하는 주요 주제나 개념을 물으세요.`,
     tail: `정말 필요한 문제에만 image_prompt를 추가하세요 — 대부분의 세트는 몇 개만 필요하며 6개를 넘지 마세요. 이미지가 필요 없는 문제에는 완전히 생략하세요.`,
+    tailMany: `충실하게 삽화로 표현할 수 있는 가능한 한 많은 문제에 — 이상적으로는 모든 문제에 — image_prompt를 작성하세요. 각 프롬프트는 그 문제에 특정되고 개념에 정확해야 하며, 같은 장면을 여러 문제에 재사용하지 마세요.`,
   },
 };
 
-export function aiImageRules(language, mode = "illustrate") {
+export function aiImageRules(language, mode = "illustrate", coverage = "some") {
   const r = AI_IMAGE_RULES[language] || AI_IMAGE_RULES.en;
   const directive = mode === "about" ? r.about : r.illustrate;
-  return `${r.head}\n${directive}\n${r.tail}`;
+  // coverage "few" keeps the sparse default; "some"/"all" push the model to write
+  // a prompt for (ideally) every question, so code can pick how many to render.
+  const tail = coverage === "few" ? r.tail : (r.tailMany || r.tail);
+  return `${r.head}\n${directive}\n${tail}`;
 }
 
 // ─── Public API ──────────────────────────────────────────────
