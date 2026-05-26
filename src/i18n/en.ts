@@ -310,7 +310,7 @@ const en = {
       doneReview: "Done — your review quiz is saved as a draft.",
       viewClass: "Open class",
       viewUnit: "Open class",
-      viewReview: "Open the quiz",
+      viewReview: "View in Library",
     },
   },
 

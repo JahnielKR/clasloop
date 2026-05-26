@@ -306,7 +306,7 @@ const es: Locale = {
       doneReview: "Listo — tu repaso quedó guardado como borrador.",
       viewClass: "Abrir clase",
       viewUnit: "Abrir clase",
-      viewReview: "Abrir el repaso",
+      viewReview: "Ver en la biblioteca",
     },
   },
 

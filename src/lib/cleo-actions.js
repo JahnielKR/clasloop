@@ -114,10 +114,14 @@ export async function executeCleoAction(action, { navigate, profile, lang = 'en'
       });
       if (!saved.ok) return { ok: false, error: saved.error || 'save_failed' };
 
+      // Land in the Library focused on the deck's class tab (where a
+      // general_review deck lives), not the editor — a cold deep-link to
+      // /decks/:id/edit falls back to the list on the first tab, which felt
+      // lost. ?class= now also selects that class's tab (see Decks.jsx).
       return {
         ok: true,
         result: { kind: 'review_deck', id: saved.deckId, name: summary.unit?.name || '' },
-        to: buildRoute.deckEdit(saved.deckId),
+        to: buildPathWithOpts(ROUTES.DECKS, { focusClassId: action.classId }, 'decks'),
       };
     }
 

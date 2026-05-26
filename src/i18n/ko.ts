@@ -306,7 +306,7 @@ const ko: Locale = {
       doneReview: "완료 — 복습 퀴즈를 초안으로 저장했어요.",
       viewClass: "수업 열기",
       viewUnit: "수업 열기",
-      viewReview: "퀴즈 열기",
+      viewReview: "라이브러리에서 보기",
     },
   },
 
