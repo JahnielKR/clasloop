@@ -131,6 +131,32 @@ const ACTION_DECLARATIONS = [
       required: ['class_name', 'unit_name'],
     },
   },
+  {
+    name: 'create_deck',
+    description:
+      "Create a full quiz/deck for a class and generate its questions with AI — from an attached document if the teacher attached one, otherwise from a topic they describe. Gather the class (and a topic if no document is attached). The teacher confirms before it generates, and generation takes a little while. Saves it as a draft they can review and launch.",
+    parameters: {
+      type: 'object',
+      properties: {
+        class_name: { type: 'string' },
+        section: {
+          type: 'string',
+          enum: ['warmup', 'exit_ticket', 'general_review'],
+          description: "Kind of deck. Default 'general_review' unless the teacher says a warmup (start of class) or exit ticket (end of class).",
+        },
+        source: {
+          type: 'string',
+          enum: ['document', 'topic'],
+          description: "Use 'document' when the teacher attached a file to build from; otherwise 'topic'.",
+        },
+        topic: { type: 'string', description: 'The topic to generate from. Required when no document is attached.' },
+        title: { type: 'string', description: 'A short title for the deck. Optional — infer from the topic if not given.' },
+        num_questions: { type: 'integer', description: 'How many questions, 3-20. Default 5.' },
+        language: { type: 'string', enum: ['en', 'es', 'ko'], description: "Deck language. Default the teacher's current UI language." },
+      },
+      required: ['class_name'],
+    },
+  },
 ];
 
 // The full set declared to Gemini (read tools + action tools).
@@ -403,6 +429,38 @@ export async function normalizeCleoAction(name, args, { supabase, teacherId }) {
             className: cls.name,
             unitId: unit.id,
             unitName: unit.name,
+          },
+        };
+      }
+
+      case 'create_deck': {
+        const classes = await getTeacherClasses(supabase, teacherId);
+        const cls = matchClass(classes, a.class_name);
+        if (!cls) return { error: 'class_not_found', your_classes: classes.map((c) => c.name) };
+        const SECTIONS = ['warmup', 'exit_ticket', 'general_review'];
+        const section = SECTIONS.includes(a.section) ? a.section : 'general_review';
+        // The file (if any) lives client-side; the model signals it via source.
+        const source = a.source === 'document' ? 'document' : 'topic';
+        const topic = (a.topic || '').trim();
+        // Without a document we need a topic to generate from.
+        if (source === 'topic' && topic.length < 3) return { error: 'need_topic' };
+        let n = parseInt(a.num_questions, 10);
+        if (!Number.isFinite(n)) n = 5;
+        n = Math.max(3, Math.min(20, n));
+        const language = ['en', 'es', 'ko'].includes(a.language) ? a.language : null;
+        const title = (a.title || '').trim() || topic; // executor fills from the file name if still empty
+        return {
+          action: {
+            type: 'create_deck',
+            confirm: true,
+            classId: cls.id,
+            className: cls.name,
+            section,
+            source,
+            topic,
+            title,
+            numQuestions: n,
+            language,
           },
         };
       }

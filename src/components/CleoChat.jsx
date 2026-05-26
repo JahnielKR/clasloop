@@ -18,6 +18,7 @@ import { useUserIdle } from "../hooks/useUserIdle";
 import { IDLE_TIMING } from "./Cleo/motion/idle";
 import { pathToPage } from "../routes";
 import { executeCleoAction } from "../lib/cleo-actions";
+import { SUPPORTED_FILES } from "../lib/ai";
 import CleoActionCard from "./CleoActionCard";
 
 // Light page/entity context sent with each message so Cleo can tailor help and
@@ -72,8 +73,26 @@ export default function CleoChat({ lang = "en", profile = null }) {
   const [messages, setMessages] = useState([{ role: "model", text: t.greeting, ui: true }]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  // A document the teacher attached for Cleo to build a deck from. Stays
+  // client-side: only a filename note is sent to the chat API; the File itself
+  // is handed to the create_deck executor on confirm.
+  const [attachedFile, setAttachedFile] = useState(null);
+  const [fileError, setFileError] = useState("");
   const endRef = useRef(null);
   const inputRef = useRef(null);
+  const fileInputRef = useRef(null);
+
+  const pickFile = (e) => {
+    const f = e.target.files?.[0];
+    if (e.target) e.target.value = ""; // allow re-picking the same file
+    if (!f) return;
+    if (f.size > SUPPORTED_FILES.maxSizeMB * 1024 * 1024) {
+      setFileError((t.action?.fileTooBig || "That file is too big (max {mb} MB).").replace("{mb}", SUPPORTED_FILES.maxSizeMB));
+      return;
+    }
+    setFileError("");
+    setAttachedFile(f);
+  };
 
   // Idle easter-eggs for the always-visible FAB: after a stretch of inactivity
   // Cleo plays with her bow, then dozes off (waking on the next activity). Off
@@ -95,24 +114,28 @@ export default function CleoChat({ lang = "en", profile = null }) {
 
   const send = async () => {
     const text = input.trim();
-    if (!text || loading) return;
+    const sentFile = attachedFile; // snapshot: the file as it was at send time
+    if ((!text && !sentFile) || loading) return;
 
     // Tour request? Launch the matching guided tour instead of asking the AI.
-    // If we can't launch it cold (needs an open class, or it's the student
-    // view) we fall through and let the AI explain the feature in words.
-    const tourId = detectTourIntent(text);
-    if (tourId) {
-      const url = resolveTourRoute(tourId);
-      if (url) {
-        setMessages((m) => [...m, { role: "user", text }, { role: "model", text: t.tourLaunch }]);
-        setInput("");
-        setOpen(false);
-        navigate(url);
-        return;
+    // Only on a plain text ask (a file attached means they want a deck, not a tour).
+    if (text && !sentFile) {
+      const tourId = detectTourIntent(text);
+      if (tourId) {
+        const url = resolveTourRoute(tourId);
+        if (url) {
+          setMessages((m) => [...m, { role: "user", text }, { role: "model", text: t.tourLaunch }]);
+          setInput("");
+          setOpen(false);
+          navigate(url);
+          return;
+        }
       }
     }
 
-    const next = [...messages, { role: "user", text }];
+    // The bubble shows the typed text + a file chip; the payload's last user
+    // message also carries a note so Cleo knows a document is attached.
+    const next = [...messages, { role: "user", text, fileName: sentFile?.name || null }];
     setMessages(next);
     setInput("");
     setLoading(true);
@@ -120,6 +143,11 @@ export default function CleoChat({ lang = "en", profile = null }) {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) throw new Error("no_session");
       const payload = next.filter((m) => !m.ui).map((m) => ({ role: m.role, text: m.text }));
+      if (sentFile && payload.length) {
+        const note = `\n\n[The teacher attached a document: "${sentFile.name}". If they want a deck/quiz, build it from this document (use create_deck with source="document").]`;
+        const lastText = (text || `Make a deck from "${sentFile.name}".`) + note;
+        payload[payload.length - 1] = { role: "user", text: lastText };
+      }
       const resp = await fetch("/api/cleo-chat", {
         method: "POST",
         headers: {
@@ -139,8 +167,15 @@ export default function CleoChat({ lang = "en", profile = null }) {
         await executeCleoAction(action, { navigate, profile, lang });
         setOpen(false);
       } else if (action) {
-        // A write — show Cleo's sentence + a confirmation card under it.
-        setMessages((m) => [...m, { role: "model", text: reply || t.action.confirmPrompt, action }]);
+        // A write — show Cleo's sentence + a confirmation card under it. For
+        // create_deck, freeze the attached file onto the message so the card
+        // generates from exactly what was attached, then clear the composer.
+        const msg = { role: "model", text: reply || t.action.confirmPrompt, action };
+        if (action.type === "create_deck") {
+          msg.file = sentFile;
+          setAttachedFile(null);
+        }
+        setMessages((m) => [...m, msg]);
       } else {
         setMessages((m) => [...m, { role: "model", text: reply || t.blocked }]);
       }
@@ -225,21 +260,35 @@ export default function CleoChat({ lang = "en", profile = null }) {
               const mine = m.role === "user";
               return (
                 <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: mine ? "flex-end" : "flex-start" }}>
-                  <div style={{
-                    maxWidth: "82%", padding: "9px 13px", borderRadius: 14,
-                    fontSize: 14, lineHeight: 1.45, whiteSpace: "pre-wrap", wordBreak: "break-word",
-                    background: mine ? C.accent : C.bgSoft,
-                    color: mine ? "#fff" : C.text,
-                    borderBottomRightRadius: mine ? 4 : 14,
-                    borderBottomLeftRadius: mine ? 14 : 4,
-                  }}>
-                    {m.text}
-                  </div>
+                  {(m.text || !m.fileName) && (
+                    <div style={{
+                      maxWidth: "82%", padding: "9px 13px", borderRadius: 14,
+                      fontSize: 14, lineHeight: 1.45, whiteSpace: "pre-wrap", wordBreak: "break-word",
+                      background: mine ? C.accent : C.bgSoft,
+                      color: mine ? "#fff" : C.text,
+                      borderBottomRightRadius: mine ? 4 : 14,
+                      borderBottomLeftRadius: mine ? 14 : 4,
+                    }}>
+                      {m.text}
+                    </div>
+                  )}
+                  {m.fileName && (
+                    <div style={{
+                      marginTop: m.text ? 4 : 0, maxWidth: "82%",
+                      display: "inline-flex", alignItems: "center", gap: 6,
+                      padding: "6px 10px", borderRadius: 10,
+                      background: mine ? C.accent : C.bgSoft,
+                      color: mine ? "#fff" : C.textMuted, fontSize: 12,
+                    }}>
+                      <span aria-hidden="true">📎</span>
+                      <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.fileName}</span>
+                    </div>
+                  )}
                   {m.action && (
                     <CleoActionCard
                       action={m.action}
                       t={t.action}
-                      onRun={(a) => executeCleoAction(a, { navigate, profile, lang })}
+                      onRun={(a) => executeCleoAction(a, { navigate, profile, lang, file: m.file })}
                       onNavigate={(to) => { setOpen(false); navigate(to); }}
                     />
                   )}
@@ -258,34 +307,81 @@ export default function CleoChat({ lang = "en", profile = null }) {
             <div ref={endRef} />
           </div>
 
-          {/* Input */}
-          <div style={{ display: "flex", gap: 8, padding: 12, borderTop: `1px solid ${C.border}` }}>
-            <input
-              ref={inputRef}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={onKeyDown}
-              placeholder={t.placeholder}
-              maxLength={1000}
-              style={{
-                flex: 1, padding: "10px 12px", borderRadius: 10,
-                border: `1px solid ${C.border}`, background: C.bg, color: C.text,
-                fontSize: 14, fontFamily: "'Outfit', sans-serif", outline: "none",
-              }}
-            />
-            <button
-              className="clc-send"
-              onClick={send}
-              disabled={!input.trim() || loading}
-              aria-label={t.send}
-              style={{
-                flexShrink: 0, width: 42, borderRadius: 10,
-                background: C.accent, color: "#fff", border: "none",
-                cursor: "pointer", display: "grid", placeItems: "center",
-              }}
-            >
-              <CIcon name="rocket" inline size={18} />
-            </button>
+          {/* Composer */}
+          <div style={{ borderTop: `1px solid ${C.border}` }}>
+            {/* Attached document chip + any file error, above the input row */}
+            {(attachedFile || fileError) && (
+              <div style={{ padding: "10px 12px 0" }}>
+                {attachedFile && (
+                  <div style={{
+                    display: "inline-flex", alignItems: "center", gap: 8, maxWidth: "100%",
+                    padding: "6px 10px", borderRadius: 10,
+                    background: C.accentSoft, border: `1px solid ${C.accent}33`,
+                    color: C.text, fontSize: 12.5,
+                  }}>
+                    <span aria-hidden="true">📎</span>
+                    <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 230 }}>{attachedFile.name}</span>
+                    <button
+                      onClick={() => { setAttachedFile(null); setFileError(""); }}
+                      aria-label={t.action?.removeFile || "Remove file"}
+                      style={{ background: "transparent", border: "none", color: C.textMuted, cursor: "pointer", fontSize: 16, lineHeight: 1, padding: 0 }}
+                    >×</button>
+                  </div>
+                )}
+                {fileError && <p style={{ fontSize: 11.5, color: C.red, margin: "6px 0 0" }}>{fileError}</p>}
+              </div>
+            )}
+
+            <div style={{ display: "flex", gap: 8, padding: 12 }}>
+              {/* Attach a document for Cleo to build a deck from */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept={SUPPORTED_FILES.accept}
+                onChange={pickFile}
+                style={{ display: "none" }}
+              />
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={loading}
+                aria-label={t.action?.attach || "Attach a document"}
+                title={t.action?.attach || "Attach a document"}
+                style={{
+                  flexShrink: 0, width: 42, borderRadius: 10,
+                  background: attachedFile ? C.accentSoft : "transparent",
+                  color: attachedFile ? C.accent : C.textMuted,
+                  border: `1px solid ${C.border}`,
+                  cursor: loading ? "default" : "pointer",
+                  display: "grid", placeItems: "center", fontSize: 18,
+                }}
+              >📎</button>
+              <input
+                ref={inputRef}
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={onKeyDown}
+                placeholder={t.placeholder}
+                maxLength={1000}
+                style={{
+                  flex: 1, padding: "10px 12px", borderRadius: 10,
+                  border: `1px solid ${C.border}`, background: C.bg, color: C.text,
+                  fontSize: 14, fontFamily: "'Outfit', sans-serif", outline: "none",
+                }}
+              />
+              <button
+                className="clc-send"
+                onClick={send}
+                disabled={(!input.trim() && !attachedFile) || loading}
+                aria-label={t.send}
+                style={{
+                  flexShrink: 0, width: 42, borderRadius: 10,
+                  background: C.accent, color: "#fff", border: "none",
+                  cursor: "pointer", display: "grid", placeItems: "center",
+                }}
+              >
+                <CIcon name="rocket" inline size={18} />
+              </button>
+            </div>
           </div>
         </div>
       )}

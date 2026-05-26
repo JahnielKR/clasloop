@@ -9,16 +9,26 @@
 import { useState } from "react";
 import { C } from "./tokens";
 
+const sectionLabel = (s, t) =>
+  s === "warmup" ? t.sectionWarmup : s === "exit_ticket" ? t.sectionExit : t.sectionGeneral;
+
 // Which fields to show per action, in order. Each is [label, value].
 const FIELD_ROWS = {
   create_class: (a, t) => [[t.fieldName, a.name], [t.fieldGrade, a.grade], [t.fieldSubject, a.subject]],
   create_unit: (a, t) => [[t.fieldClass, a.className], [t.fieldName, a.name]],
   generate_review_deck: (a, t) => [[t.fieldClass, a.className], [t.fieldUnit, a.unitName]],
+  create_deck: (a, t) => [
+    [t.fieldClass, a.className],
+    [t.fieldSection, sectionLabel(a.section, t)],
+    [t.fieldSource, a.source === "document" ? t.sourceDocument : (a.topic || t.sourceTopic)],
+    [t.fieldCount, a.numQuestions],
+  ],
 };
 const TITLE = {
   create_class: (t) => t.createClassTitle,
   create_unit: (t) => t.createUnitTitle,
   generate_review_deck: (t) => t.reviewDeckTitle,
+  create_deck: (t) => t.createDeckTitle,
 };
 
 export default function CleoActionCard({ action, t, onRun, onNavigate }) {
@@ -27,7 +37,9 @@ export default function CleoActionCard({ action, t, onRun, onNavigate }) {
 
   const rows = (FIELD_ROWS[action.type] || (() => []))(action, t);
   const title = (TITLE[action.type] || (() => ""))(t);
-  const isReview = action.type === "generate_review_deck";
+  // These run an AI generation step, so they take a while — show the longer
+  // "building…" message instead of the quick "working…".
+  const isSlow = action.type === "generate_review_deck" || action.type === "create_deck";
 
   const confirm = async () => {
     setStatus("running");
@@ -42,6 +54,7 @@ export default function CleoActionCard({ action, t, onRun, onNavigate }) {
     if (k === "class") return t.doneClass.replace("{name}", name);
     if (k === "unit") return t.doneUnit.replace("{name}", name);
     if (k === "review_deck") return t.doneReview;
+    if (k === "deck") return t.doneDeck.replace("{name}", name).replace("{count}", String(result?.result?.count ?? ""));
     return "";
   };
   const viewLabel = () => {
@@ -49,6 +62,7 @@ export default function CleoActionCard({ action, t, onRun, onNavigate }) {
     if (k === "class") return t.viewClass;
     if (k === "unit") return t.viewUnit;
     if (k === "review_deck") return t.viewReview;
+    if (k === "deck") return t.viewDeck;
     return "";
   };
 
@@ -86,7 +100,7 @@ export default function CleoActionCard({ action, t, onRun, onNavigate }) {
 
       {status === "running" && (
         <div style={{ fontSize: 12.5, color: C.textMuted }}>
-          {isReview ? t.generating : t.working}
+          {isSlow ? t.generating : t.working}
         </div>
       )}
 

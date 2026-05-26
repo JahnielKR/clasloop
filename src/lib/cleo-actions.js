@@ -20,9 +20,16 @@
 import { supabase } from './supabase';
 import { createClass } from './classes';
 import { createUnit } from './units';
+import { createDeck } from './decks';
+import { generateQuestions } from './ai';
+import { sectionToLessonContext } from './class-hierarchy';
 import { getUnitRetentionSummary } from './spaced-repetition';
 import { generateSuggestedReviewQuestions, saveReviewDeck } from './close-unit-ai';
 import { ROUTES, buildRoute, buildPathWithOpts } from '../routes';
+
+// Question types the editor renders — used to drop malformed AI output before
+// saving (mirrors AIGeneratePanel's defensive clean for "mix" mode).
+const VALID_Q_TYPES = new Set(['mcq', 'tf', 'fill', 'order', 'match', 'free', 'sentence', 'slider']);
 
 // Pure: map a navigate action to a destination path. Exported for tests.
 export function routeForNavigate(action) {
@@ -47,8 +54,10 @@ export function routeForNavigate(action) {
 }
 
 // Execute a confirmed (or read-only) action.
-//   deps = { navigate, profile, lang }
-export async function executeCleoAction(action, { navigate, profile, lang = 'en' } = {}) {
+//   deps = { navigate, profile, lang, file }
+//   `file` is the document the teacher attached in the chat (only used by
+//   create_deck with source 'document'); it never leaves the client.
+export async function executeCleoAction(action, { navigate, profile, lang = 'en', file = null } = {}) {
   if (!action || typeof action !== 'object') return { ok: false, error: 'bad_action' };
 
   switch (action.type) {
@@ -121,6 +130,72 @@ export async function executeCleoAction(action, { navigate, profile, lang = 'en'
       return {
         ok: true,
         result: { kind: 'review_deck', id: saved.deckId, name: summary.unit?.name || '' },
+        to: buildPathWithOpts(ROUTES.DECKS, { focusClassId: action.classId }, 'decks'),
+      };
+    }
+
+    case 'create_deck': {
+      // Need the class row for subject/grade (drives generation + the saved deck).
+      const { data: classRow } = await supabase
+        .from('classes')
+        .select('id, name, subject, grade')
+        .eq('id', action.classId)
+        .maybeSingle();
+      const classObj = classRow || { id: action.classId, name: action.className };
+
+      const useFile = action.source === 'document' ? file : null;
+      // A 'document' action with no usable file and no topic can't generate.
+      if (action.source === 'document' && !useFile && !action.topic) {
+        return { ok: false, error: 'no_document' };
+      }
+
+      const language = action.language || lang || 'en';
+      const lessonContext = sectionToLessonContext(action.section);
+      let gen;
+      try {
+        gen = await generateQuestions({
+          topic: action.topic || (useFile ? useFile.name : ''),
+          grade: classObj.grade,
+          subject: classObj.subject,
+          activityType: 'mix',
+          numQuestions: action.numQuestions || 5,
+          language,
+          file: useFile,
+          lessonContext,
+          // Reuse a PPTX's own embedded images; otherwise no images (the rich
+          // image-source controls live in the editor, not the chat).
+          imageSource: useFile && /\.pptx$/i.test(useFile.name) ? 'document' : 'none',
+          imageMode: 'illustrate',
+        });
+      } catch (err) {
+        return { ok: false, error: err?.code || err?.message || 'generation_failed' };
+      }
+
+      const raw = Array.isArray(gen) ? gen : (gen?.questions || []);
+      const questions = raw.filter((q) => q && typeof q === 'object' && VALID_Q_TYPES.has(q.type));
+      if (questions.length === 0) return { ok: false, error: 'no_questions' };
+
+      const title =
+        action.title ||
+        action.topic ||
+        (useFile ? useFile.name.replace(/\.[^.]+$/, '') : '') ||
+        'New deck';
+
+      const saved = await createDeck({
+        teacherId: profile?.id,
+        classId: action.classId,
+        section: action.section,
+        title,
+        subject: classObj.subject,
+        grade: classObj.grade,
+        language,
+        questions,
+      });
+      if (saved.error || !saved.deck) return { ok: false, error: saved.error || 'save_failed' };
+
+      return {
+        ok: true,
+        result: { kind: 'deck', id: saved.deck.id, name: saved.deck.title, count: questions.length },
         to: buildPathWithOpts(ROUTES.DECKS, { focusClassId: action.classId }, 'decks'),
       };
     }
