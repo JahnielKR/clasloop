@@ -157,6 +157,32 @@ const ACTION_DECLARATIONS = [
       required: ['class_name'],
     },
   },
+  {
+    name: 'schedule_unit',
+    description:
+      "Take the teacher to a unit's planner so they can put its days on the calendar. A unit's days map to whichever class days the teacher actually meets (Day 1 might be Monday, Day 2 Wednesday), so you DON'T pick dates — you just open that unit's planner. Use for 'schedule …', 'put … on the calendar', 'add … to my plan'.",
+    parameters: {
+      type: 'object',
+      properties: {
+        class_name: { type: 'string' },
+        unit_name: { type: 'string' },
+      },
+      required: ['class_name', 'unit_name'],
+    },
+  },
+  {
+    name: 'launch_session',
+    description:
+      "Take the teacher to the live-session launch screen for one of their decks (theme + start). This does NOT start the session — it just opens the launch screen so they press go. Use for 'launch …', 'run … live', 'start a session with …'.",
+    parameters: {
+      type: 'object',
+      properties: {
+        deck_title: { type: 'string', description: 'The deck to launch.' },
+        class_name: { type: 'string', description: 'Optional class to disambiguate decks with similar names.' },
+      },
+      required: ['deck_title'],
+    },
+  },
 ];
 
 // The full set declared to Gemini (read tools + action tools).
@@ -371,6 +397,30 @@ function matchUnit(units, name) {
   );
 }
 
+// Decks the teacher owns (across their classes), optionally scoped to one
+// class. Used to resolve a deck by title for launch_session.
+async function getTeacherDecks(supabase, teacherId, classId) {
+  const classes = await getTeacherClasses(supabase, teacherId);
+  let ids = classes.map((c) => c.id);
+  if (classId) ids = ids.filter((id) => id === classId);
+  if (ids.length === 0) return [];
+  const { data } = await supabase
+    .from('decks')
+    .select('id, title, class_id')
+    .in('class_id', ids);
+  return data || [];
+}
+
+function matchDeck(decks, title) {
+  if (!title) return null;
+  const target = norm(title);
+  return (
+    decks.find((d) => norm(d.title) === target) ||
+    decks.find((d) => norm(d.title).includes(target) || target.includes(norm(d.title))) ||
+    null
+  );
+}
+
 // Targets that need a resolved class to make sense.
 const CLASS_SCOPED_TARGETS = new Set(['class_decks', 'class_detail', 'class_insights']);
 
@@ -463,6 +513,37 @@ export async function normalizeCleoAction(name, args, { supabase, teacherId }) {
             language,
           },
         };
+      }
+
+      case 'schedule_unit': {
+        const classes = await getTeacherClasses(supabase, teacherId);
+        const cls = matchClass(classes, a.class_name);
+        if (!cls) return { error: 'class_not_found', your_classes: classes.map((c) => c.name) };
+        const units = await getClassUnits(supabase, cls.id);
+        if (units.length === 0) return { error: 'no_units_in_class', class: cls.name };
+        const unit = matchUnit(units, a.unit_name);
+        if (!unit) return { error: 'unit_not_found', units_in_class: units.map((u) => u.name) };
+        // Shows a card that explains + offers a button to the unit's planner
+        // (where the teacher sets each day's date). We never auto-assign dates —
+        // a unit's days map to the teacher's real (often irregular) class days.
+        return {
+          action: { type: 'schedule_unit', confirm: true, classId: cls.id, className: cls.name, unitId: unit.id, unitName: unit.name },
+        };
+      }
+
+      case 'launch_session': {
+        let classId = null;
+        if (a.class_name) {
+          const classes = await getTeacherClasses(supabase, teacherId);
+          const cls = matchClass(classes, a.class_name);
+          if (cls) classId = cls.id;
+        }
+        const decks = await getTeacherDecks(supabase, teacherId, classId);
+        if (decks.length === 0) return { error: 'no_decks' };
+        const deck = matchDeck(decks, a.deck_title);
+        if (!deck) return { error: 'deck_not_found', your_decks: decks.slice(0, 12).map((d) => d.title) };
+        // Read-only: just open the launch screen (no confirmation card).
+        return { action: { type: 'launch_session', confirm: false, deckId: deck.id, deckTitle: deck.title } };
       }
 
       default:

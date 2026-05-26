@@ -328,6 +328,8 @@ const ko: Locale = {
       createCta: "만들기",
       titlePlaceholder: "퀴즈 이름",
       aiImagesNote: "AI 이미지는 시간이 더 걸려요.",
+      scheduleTitle: "단원 일정",
+      goToPlanner: "플래너 열기",
     },
   },
 

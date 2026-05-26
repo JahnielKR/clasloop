@@ -206,6 +206,13 @@ export async function executeCleoAction(action, { navigate, profile, lang = 'en'
       };
     }
 
+    case 'launch_session': {
+      // Read-only: open the live-session launch screen for the deck. Never
+      // auto-starts the session — the teacher presses go there.
+      if (navigate && action.deckId) navigate(buildRoute.sessionsOptions(action.deckId));
+      return { ok: true, navigated: true };
+    }
+
     default:
       return { ok: false, error: 'unknown_action' };
   }

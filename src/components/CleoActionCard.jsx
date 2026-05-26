@@ -16,6 +16,7 @@
 // fields are local — they only matter before the first run.
 import { useState } from "react";
 import { C } from "./tokens";
+import { buildRoute } from "../routes";
 
 const sectionLabel = (s, t) =>
   s === "warmup" ? t.sectionWarmup : s === "exit_ticket" ? t.sectionExit : t.sectionGeneral;
@@ -31,6 +32,7 @@ const DETAIL_ROWS = {
     [t.fieldClass, a.className],
     [t.fieldSource, a.source === "document" ? (fileName || t.sourceDocument) : (a.topic || t.sourceTopic)],
   ],
+  schedule_unit: (a, t) => [[t.fieldClass, a.className], [t.fieldUnit, a.unitName]],
 };
 
 const SECTION_CODES = ["warmup", "exit_ticket", "general_review"];
@@ -39,6 +41,7 @@ const TITLE = {
   create_unit: (t) => t.createUnitTitle,
   generate_review_deck: (t) => t.reviewDeckTitle,
   create_deck: (t) => t.createDeckTitle,
+  schedule_unit: (t) => t.scheduleTitle,
 };
 
 const LANGS = [["en", "EN"], ["es", "ES"], ["ko", "KO"]];
@@ -50,7 +53,15 @@ export default function CleoActionCard({
   status = "idle", result = null,
 }) {
   const isDeck = action.type === "create_deck";
+  const isSchedule = action.type === "schedule_unit";
   const isPptx = /\.pptx$/i.test(fileName || "");
+
+  // schedule_unit doesn't write — it opens the unit's planner where the teacher
+  // sets each day's date (dates map to their real class days, so we never pick
+  // them). The card just explains + offers this "go" button.
+  const scheduleTo = isSchedule
+    ? buildRoute.classDetail(action.classId) + (action.unitId ? `?unit=${encodeURIComponent(action.unitId)}` : "")
+    : null;
 
   // create_deck form state — seeded from Cleo's proposal + the UI language, so
   // the teacher just tweaks instead of typing everything.
@@ -192,8 +203,17 @@ export default function CleoActionCard({
         </div>
       )}
 
+      {/* schedule_unit: a "go to the planner" CTA (no write — the teacher sets
+          the dates there, since a unit's days map to their real class days) */}
+      {status === "idle" && isSchedule && (
+        <div style={{ display: "flex", gap: 8 }}>
+          <button style={btn(false)} onClick={onCancel}>{t.cancel}</button>
+          <button style={btn(true)} onClick={() => onNavigate(scheduleTo)}>{t.goToPlanner}</button>
+        </div>
+      )}
+
       {/* other actions: a plain confirm */}
-      {status === "idle" && !isDeck && (
+      {status === "idle" && !isDeck && !isSchedule && (
         <div style={{ display: "flex", gap: 8 }}>
           <button style={btn(false)} onClick={onCancel}>{t.cancel}</button>
           <button style={btn(true)} onClick={confirm}>{t.confirm}</button>

@@ -9,21 +9,15 @@ import { normalizeCleoAction, ACTION_TOOL_NAMES } from '../../../api/_lib/cleo-t
 // Minimal chainable mock: from(table).select(...).eq(...) resolves to { data }
 // chosen by table. Mirrors getTeacherClasses / getClassUnits which both do a
 // single .eq() then await.
-function makeSupabase({ classes = [], units = [] } = {}) {
+function makeSupabase({ classes = [], units = [], decks = [] } = {}) {
   const resolve = (data) => Promise.resolve({ data, error: null });
+  const pick = (table) =>
+    table === 'classes' ? classes : table === 'units' ? units : table === 'decks' ? decks : [];
   return {
     from(table) {
-      return {
-        select() {
-          return {
-            eq() {
-              if (table === 'classes') return resolve(classes);
-              if (table === 'units') return resolve(units);
-              return resolve([]);
-            },
-          };
-        },
-      };
+      // getTeacherClasses/getClassUnits use .eq(); getTeacherDecks uses .in().
+      const r = () => resolve(pick(table));
+      return { select() { return { eq: r, in: r }; } };
     },
   };
 }
@@ -40,7 +34,7 @@ const run = (name, args, opts) =>
 describe('ACTION_TOOL_NAMES', () => {
   it('marks exactly the write/navigate tools', () => {
     expect([...ACTION_TOOL_NAMES].sort()).toEqual(
-      ['create_class', 'create_deck', 'create_unit', 'generate_review_deck', 'navigate'].sort(),
+      ['create_class', 'create_deck', 'create_unit', 'generate_review_deck', 'launch_session', 'navigate', 'schedule_unit'].sort(),
     );
   });
 });
@@ -175,6 +169,38 @@ describe('create_deck', () => {
   it('errors on unknown class', async () => {
     const { error } = await run('create_deck', { class_name: 'Chemistry', source: 'document' }, { classes: CLASSES });
     expect(error).toBe('class_not_found');
+  });
+});
+
+describe('schedule_unit', () => {
+  const UNITS = [{ id: 'u1', name: 'World War II' }];
+
+  it('resolves class + unit into a card action that opens the planner (no date)', async () => {
+    const { action } = await run('schedule_unit', { class_name: 'history', unit_name: 'world war' }, { classes: CLASSES, units: UNITS });
+    expect(action).toMatchObject({ type: 'schedule_unit', confirm: true, classId: 'c1', unitId: 'u1', unitName: 'World War II' });
+  });
+
+  it('errors on unknown class / unit', async () => {
+    expect((await run('schedule_unit', { class_name: 'Chem', unit_name: 'x' }, { classes: CLASSES, units: UNITS })).error).toBe('class_not_found');
+    expect((await run('schedule_unit', { class_name: 'history', unit_name: 'Renaissance' }, { classes: CLASSES, units: UNITS })).error).toBe('unit_not_found');
+  });
+});
+
+describe('launch_session', () => {
+  const DECKS = [
+    { id: 'd1', title: 'Unit 1 Warmup', class_id: 'c1' },
+    { id: 'd2', title: 'Fractions Quiz', class_id: 'c2' },
+  ];
+
+  it('resolves a deck by title into a read-only launch action', async () => {
+    const { action } = await run('launch_session', { deck_title: 'fractions quiz' }, { classes: CLASSES, decks: DECKS });
+    expect(action).toMatchObject({ type: 'launch_session', confirm: false, deckId: 'd2', deckTitle: 'Fractions Quiz' });
+  });
+
+  it('reports deck_not_found with the teacher\'s decks', async () => {
+    const res = await run('launch_session', { deck_title: 'Nonexistent' }, { classes: CLASSES, decks: DECKS });
+    expect(res.error).toBe('deck_not_found');
+    expect(res.your_decks).toEqual(['Unit 1 Warmup', 'Fractions Quiz']);
   });
 });
 
