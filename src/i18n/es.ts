@@ -328,6 +328,8 @@ const es: Locale = {
       createCta: "Crear",
       titlePlaceholder: "Nombra tu quiz",
       aiImagesNote: "Las imágenes con IA tardan más.",
+      scheduleTitle: "Programar unidad",
+      goToPlanner: "Ir al planner",
     },
   },
 

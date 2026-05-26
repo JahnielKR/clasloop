@@ -332,6 +332,8 @@ const en = {
       createCta: "Create",
       titlePlaceholder: "Name your quiz",
       aiImagesNote: "AI images add time.",
+      scheduleTitle: "Schedule unit",
+      goToPlanner: "Go to the planner",
     },
   },
 

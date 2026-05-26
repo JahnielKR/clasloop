@@ -206,16 +206,6 @@ export async function executeCleoAction(action, { navigate, profile, lang = 'en'
       };
     }
 
-    case 'schedule_unit': {
-      // Read-only: open the unit's planner (?unit=<id>) where the teacher sets
-      // each day's date. We never auto-assign dates — a unit's days map to the
-      // teacher's real (often irregular) class days (Day 1 Mon, Day 2 Wed…).
-      if (navigate && action.classId) {
-        navigate(`${buildRoute.classDetail(action.classId)}?unit=${encodeURIComponent(action.unitId || '')}`);
-      }
-      return { ok: true, navigated: true };
-    }
-
     case 'launch_session': {
       // Read-only: open the live-session launch screen for the deck. Never
       // auto-starts the session — the teacher presses go there.

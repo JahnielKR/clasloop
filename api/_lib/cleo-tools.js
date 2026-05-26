@@ -523,11 +523,11 @@ export async function normalizeCleoAction(name, args, { supabase, teacherId }) {
         if (units.length === 0) return { error: 'no_units_in_class', class: cls.name };
         const unit = matchUnit(units, a.unit_name);
         if (!unit) return { error: 'unit_not_found', units_in_class: units.map((u) => u.name) };
-        // Read-only: open this unit's planner (the teacher sets each day's date
-        // there). We don't auto-assign dates — a unit's days map to the
-        // teacher's real (often irregular) class days.
+        // Shows a card that explains + offers a button to the unit's planner
+        // (where the teacher sets each day's date). We never auto-assign dates —
+        // a unit's days map to the teacher's real (often irregular) class days.
         return {
-          action: { type: 'schedule_unit', confirm: false, classId: cls.id, className: cls.name, unitId: unit.id, unitName: unit.name },
+          action: { type: 'schedule_unit', confirm: true, classId: cls.id, className: cls.name, unitId: unit.id, unitName: unit.name },
         };
       }
 

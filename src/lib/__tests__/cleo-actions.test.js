@@ -175,9 +175,9 @@ describe('create_deck', () => {
 describe('schedule_unit', () => {
   const UNITS = [{ id: 'u1', name: 'World War II' }];
 
-  it('resolves class + unit into a read-only navigate action (no date — opens the planner)', async () => {
+  it('resolves class + unit into a card action that opens the planner (no date)', async () => {
     const { action } = await run('schedule_unit', { class_name: 'history', unit_name: 'world war' }, { classes: CLASSES, units: UNITS });
-    expect(action).toMatchObject({ type: 'schedule_unit', confirm: false, classId: 'c1', unitId: 'u1', unitName: 'World War II' });
+    expect(action).toMatchObject({ type: 'schedule_unit', confirm: true, classId: 'c1', unitId: 'u1', unitName: 'World War II' });
   });
 
   it('errors on unknown class / unit', async () => {
