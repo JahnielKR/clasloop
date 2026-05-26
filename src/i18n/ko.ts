@@ -328,11 +328,6 @@ const ko: Locale = {
       createCta: "만들기",
       titlePlaceholder: "퀴즈 이름",
       aiImagesNote: "AI 이미지는 시간이 더 걸려요.",
-      scheduleTitle: "단원 일정 잡기",
-      fieldDate: "날짜",
-      dateToday: "오늘",
-      dateTomorrow: "내일",
-      doneSchedule: "완료 — “{name}”을(를) 일정에 넣었어요.",
     },
   },
 

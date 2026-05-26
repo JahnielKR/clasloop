@@ -22,7 +22,7 @@ import { createClass } from './classes';
 import { createUnit } from './units';
 import { createDeck } from './decks';
 import { generateQuestions } from './ai';
-import { sectionToLessonContext, setDayDate } from './class-hierarchy';
+import { sectionToLessonContext } from './class-hierarchy';
 import { getUnitRetentionSummary } from './spaced-repetition';
 import { generateSuggestedReviewQuestions, saveReviewDeck } from './close-unit-ai';
 import { ROUTES, buildRoute, buildPathWithOpts } from '../routes';
@@ -207,18 +207,13 @@ export async function executeCleoAction(action, { navigate, profile, lang = 'en'
     }
 
     case 'schedule_unit': {
-      // The card supplies the chosen date (defaults to today). Day 1 of the
-      // unit gets that date, so it surfaces in "Today" / the scheduled plan.
-      const when = action.date || new Date();
-      const res = await setDayDate(action.unitId, 1, when);
-      if (res?.error) {
-        return { ok: false, error: typeof res.error === 'string' ? res.error : 'schedule_failed' };
+      // Read-only: open the unit's planner (?unit=<id>) where the teacher sets
+      // each day's date. We never auto-assign dates — a unit's days map to the
+      // teacher's real (often irregular) class days (Day 1 Mon, Day 2 Wed…).
+      if (navigate && action.classId) {
+        navigate(`${buildRoute.classDetail(action.classId)}?unit=${encodeURIComponent(action.unitId || '')}`);
       }
-      return {
-        ok: true,
-        result: { kind: 'scheduled_unit', id: action.unitId, name: action.unitName, date: action.date || '' },
-        to: buildRoute.classDetail(action.classId),
-      };
+      return { ok: true, navigated: true };
     }
 
     case 'launch_session': {

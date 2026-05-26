@@ -563,6 +563,25 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
     // eslint-disable-next-line react-hooks/exhaustive-deps -- reads currentUnitIdx to preserve selection but must not re-run on it (would loop)
   }, [units, notFound]);
 
+  // Cleo's "schedule a unit" action deep-links here with ?unit=<id> to land the
+  // teacher on THAT unit's planner (where they set each day's date — dates map
+  // to whichever class days they actually meet, so we never auto-assign them).
+  // Focus the unit once units load, then strip the param.
+  useEffect(() => {
+    const id = searchParams.get("unit");
+    if (!id || units.length === 0) return;
+    const idx = units.findIndex(u => u.id === id);
+    if (idx >= 0) {
+      setTopTab("current");
+      setCurrentUnitIdx(idx);
+      firstUnitLoadRef.current = false; // don't let the active-unit effect override
+    }
+    const next = new URLSearchParams(searchParams);
+    next.delete("unit");
+    setSearchParams(next, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- run on unit load / param change
+  }, [units, searchParams.get("unit")]);
+
   // When the section changes, reset the unit filter — filters are scoped
   // to one section at a time. Also close any open unit-creation form so
   // we don't leave half-typed input lying around when switching tabs.

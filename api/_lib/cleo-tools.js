@@ -160,7 +160,7 @@ const ACTION_DECLARATIONS = [
   {
     name: 'schedule_unit',
     description:
-      "Put a unit on the calendar so it shows up in 'Today'. Find the class and unit; the teacher picks the date on the confirmation card (defaults to today). Use for 'schedule …', 'put … on Monday', 'add … to today'.",
+      "Take the teacher to a unit's planner so they can put its days on the calendar. A unit's days map to whichever class days the teacher actually meets (Day 1 might be Monday, Day 2 Wednesday), so you DON'T pick dates — you just open that unit's planner. Use for 'schedule …', 'put … on the calendar', 'add … to my plan'.",
     parameters: {
       type: 'object',
       properties: {
@@ -523,9 +523,11 @@ export async function normalizeCleoAction(name, args, { supabase, teacherId }) {
         if (units.length === 0) return { error: 'no_units_in_class', class: cls.name };
         const unit = matchUnit(units, a.unit_name);
         if (!unit) return { error: 'unit_not_found', units_in_class: units.map((u) => u.name) };
-        // The teacher picks the actual date on the card (defaults to today).
+        // Read-only: open this unit's planner (the teacher sets each day's date
+        // there). We don't auto-assign dates — a unit's days map to the
+        // teacher's real (often irregular) class days.
         return {
-          action: { type: 'schedule_unit', confirm: true, classId: cls.id, className: cls.name, unitId: unit.id, unitName: unit.name },
+          action: { type: 'schedule_unit', confirm: false, classId: cls.id, className: cls.name, unitId: unit.id, unitName: unit.name },
         };
       }
 

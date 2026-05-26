@@ -332,11 +332,6 @@ const en = {
       createCta: "Create",
       titlePlaceholder: "Name your quiz",
       aiImagesNote: "AI images add time.",
-      scheduleTitle: "Schedule unit",
-      fieldDate: "Date",
-      dateToday: "Today",
-      dateTomorrow: "Tomorrow",
-      doneSchedule: "Done — “{name}” is on the calendar.",
     },
   },
 
