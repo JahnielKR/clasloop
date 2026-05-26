@@ -51,6 +51,11 @@ describe('navigate', () => {
     expect(action).toMatchObject({ target: 'class_insights', classId: 'c1', className: 'History 2' });
   });
 
+  it('resolves class_report (the class summary) to a class-scoped navigate', async () => {
+    const { action } = await run('navigate', { target: 'class_report', class_name: 'math' }, { classes: CLASSES });
+    expect(action).toMatchObject({ type: 'navigate', confirm: false, target: 'class_report', classId: 'c2' });
+  });
+
   it('requires a class for class-scoped targets when none is given', async () => {
     const { action, error } = await run('navigate', { target: 'class_detail' }, { classes: CLASSES });
     expect(action).toBeUndefined();

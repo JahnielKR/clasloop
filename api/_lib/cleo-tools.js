@@ -77,14 +77,14 @@ const ACTION_DECLARATIONS = [
   {
     name: 'navigate',
     description:
-      "Take the teacher to a page, or open the deck editor pre-filled for a class so they can make a warmup/exit-ticket/quiz. Use for 'take me to…', 'open…', 'make a warmup for <class>'. This only moves them — it never creates or changes data.",
+      "Take the teacher to a page, open the deck editor pre-filled for a class, or open a class's report/summary. Use for 'take me to…', 'open…', 'make a warmup for <class>', 'give me a summary/report of <class>'. This only moves them — it never creates or changes data.",
     parameters: {
       type: 'object',
       properties: {
         target: {
           type: 'string',
-          enum: ['new_deck', 'class_decks', 'class_detail', 'class_insights', 'classes', 'sessions', 'scanner', 'review', 'community', 'settings'],
-          description: "Where to go. 'new_deck' opens the deck editor to create a deck (pass class_name to tie it to a class).",
+          enum: ['new_deck', 'class_decks', 'class_detail', 'class_insights', 'class_report', 'classes', 'sessions', 'scanner', 'review', 'community', 'settings'],
+          description: "Where to go. 'new_deck' opens the deck editor to create a deck (pass class_name to tie it to a class). 'class_report' opens a printable class summary (KPIs, hardest topics, students who need help) — use it when the teacher asks for a summary/report of a class.",
         },
         class_name: { type: 'string', description: 'Optional class to focus/scope the destination.' },
       },
@@ -422,7 +422,7 @@ function matchDeck(decks, title) {
 }
 
 // Targets that need a resolved class to make sense.
-const CLASS_SCOPED_TARGETS = new Set(['class_decks', 'class_detail', 'class_insights']);
+const CLASS_SCOPED_TARGETS = new Set(['class_decks', 'class_detail', 'class_insights', 'class_report']);
 
 export async function normalizeCleoAction(name, args, { supabase, teacherId }) {
   try {

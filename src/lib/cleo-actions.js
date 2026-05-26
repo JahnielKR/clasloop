@@ -43,6 +43,8 @@ export function routeForNavigate(action) {
       return classId ? buildRoute.classDetail(classId) : ROUTES.CLASSES;
     case 'class_insights':
       return classId ? buildRoute.classInsights(classId) : ROUTES.CLASSES;
+    case 'class_report':
+      return classId ? buildRoute.classReport(classId) : ROUTES.CLASSES;
     case 'classes':    return ROUTES.CLASSES;
     case 'sessions':   return ROUTES.SESSIONS;
     case 'scanner':    return ROUTES.SCAN;

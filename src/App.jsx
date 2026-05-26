@@ -69,6 +69,7 @@ const importAdminAIStats   = () => import('./pages/AdminAIStats');
 const importReview         = () => import('./pages/Review');
 const importDeckResults    = () => import('./pages/DeckResults');
 const importClassInsights  = () => import('./pages/ClassInsights');
+const importClassReport    = () => import('./pages/ClassReport');
 const importMyResults      = () => import('./pages/MyResults');
 const importSessionRecap   = () => import('./pages/SessionRecap');
 const importFavorites      = () => import('./pages/Favorites');
@@ -90,6 +91,7 @@ const AdminAIStats     = lazy(importAdminAIStats);
 const Review           = lazy(importReview);
 const DeckResults      = lazy(importDeckResults);
 const ClassInsights    = lazy(importClassInsights);
+const ClassReport      = lazy(importClassReport);
 const MyResults        = lazy(importMyResults);
 const SessionRecap     = lazy(importSessionRecap);
 const Favorites        = lazy(importFavorites);
@@ -128,7 +130,7 @@ function MyClassesByRole(props) {
   return <MyClasses {...props} />;
 }
 
-const COMPONENTS = { sessions: SessionFlow, studentJoin: StudentJoin, community: Community, achievements: Achievements, settings: Settings, director: Director, notifications: Notifications, decks: Decks, myClasses: MyClassesByRole, teacherProfile: TeacherProfile, adminAIStats: AdminAIStats, review: Review, deckResults: DeckResults, classInsights: ClassInsights, myResults: MyResults, sessionRecap: SessionRecap, favorites: Favorites, scan: Scanner };
+const COMPONENTS = { sessions: SessionFlow, studentJoin: StudentJoin, community: Community, achievements: Achievements, settings: Settings, director: Director, notifications: Notifications, decks: Decks, myClasses: MyClassesByRole, teacherProfile: TeacherProfile, adminAIStats: AdminAIStats, review: Review, deckResults: DeckResults, classInsights: ClassInsights, classReport: ClassReport, myResults: MyResults, sessionRecap: SessionRecap, favorites: Favorites, scan: Scanner };
 
 // Data-dense surfaces render in "compact" density (TradingView/Sheets-like);
 // everything else stays "comfortable" (Notion-like). One system, two rhythms.
