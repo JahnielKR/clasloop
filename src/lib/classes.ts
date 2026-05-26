@@ -1,4 +1,47 @@
 import { supabase } from './supabase';
+import type { ClassRow } from './db-types';
+
+// ─── Create a class (teacher) ───────────────────────
+//
+// Generates a friendly join code server-side via the generate_class_code RPC
+// (e.g. "MATH-8B") and inserts the class row. Runs under the teacher's own
+// RLS (the same path the create-class modal used inline before PR-Cleo-B2).
+//
+// Centralized here so BOTH the CreateClassModal and Cleo's action layer
+// (src/lib/cleo-actions.js) create classes through one path instead of
+// duplicating the RPC + insert. Returns { class } on success or { error }
+// with a human-readable message — never throws.
+export async function createClass(args: {
+  teacherId: string;
+  name: string;
+  subject: string;
+  grade: string;
+}): Promise<{ class?: ClassRow; error?: string }> {
+  const teacherId = args.teacherId;
+  const name = (args.name || '').trim();
+  const subject = (args.subject || '').trim();
+  const grade = (args.grade || '').trim();
+
+  if (!teacherId) return { error: 'You must be signed in to create a class.' };
+  if (!name || !grade) return { error: 'A class needs a name and a grade.' };
+
+  // Friendly, unique join code (e.g. "MATH-8B").
+  const { data: rpcCode, error: rpcErr } = await supabase.rpc('generate_class_code', {
+    p_subject: subject,
+    p_grade: grade,
+  });
+  if (rpcErr || !rpcCode) {
+    return { error: rpcErr?.message || 'Could not generate class code' };
+  }
+
+  const { data, error } = await supabase
+    .from('classes')
+    .insert({ teacher_id: teacherId, name, subject, grade, class_code: rpcCode })
+    .select()
+    .single();
+  if (error) return { error: error.message };
+  return { class: data as ClassRow };
+}
 
 // ─── Join a class (student) ─────────────────────────
 //

@@ -195,6 +195,11 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
     // below: newMatch / editMatch from useMatch.
     if (newMatch || editMatch) return;
     setTab("myDecks");
+    // Select that class's tab in the Library layout (PR 7 tabs) so arriving
+    // with ?class= lands on the right class — not the auto-selected first one.
+    // Used by "Create class" from Sessions AND by Cleo's actions deep-linking
+    // to where a class/review deck she just made lives.
+    setActiveClassTab(id);
     setGroupBy("class");
     setExpandedGroups(prev => ({ ...prev, [id]: true }));
     // Strip the param so it doesn't keep firing this effect.

@@ -5,7 +5,7 @@
 // (Gemini Flash, grounded server-side). Conversation lives only in local state —
 // nothing is persisted.
 import { useState, useRef, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import Cleo from "./Cleo";
 import { C } from "./tokens";
 import { CIcon } from "./Icons";
@@ -16,6 +16,21 @@ import { detectTourIntent } from "../onboarding/chatTourIntent";
 import { resolveTourRoute } from "../onboarding/tourRoutes";
 import { useUserIdle } from "../hooks/useUserIdle";
 import { IDLE_TIMING } from "./Cleo/motion/idle";
+import { pathToPage } from "../routes";
+import { executeCleoAction } from "../lib/cleo-actions";
+import CleoActionCard from "./CleoActionCard";
+
+// Light page/entity context sent with each message so Cleo can tailor help and
+// resolve "this class". We parse the current URL here (CleoChat is mounted at
+// the app root, outside any param'd route, so useParams would be empty).
+function readContext(pathname) {
+  const ctx = {};
+  const page = pathToPage(pathname);
+  if (page) ctx.page = page;
+  const cls = pathname.match(/^\/classes\/([^/]+)/);
+  if (cls) ctx.classId = cls[1];
+  return ctx;
+}
 
 const css = `
   @keyframes clc-pop  { from { opacity:0; transform:translateY(12px) scale(.96) } to { opacity:1; transform:none } }
@@ -46,12 +61,13 @@ const css = `
   }
 `;
 
-export default function CleoChat({ lang = "en" }) {
+export default function CleoChat({ lang = "en", profile = null }) {
   const t = useT("cleoChat", lang);
   // Hide this FAB while a guided tour is on screen — there's only one Cleo, and
   // she's "out" giving the tour. She glides back into this corner when it ends.
   const tourActive = useTourActive();
   const navigate = useNavigate();
+  const location = useLocation();
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState([{ role: "model", text: t.greeting, ui: true }]);
   const [input, setInput] = useState("");
@@ -110,12 +126,24 @@ export default function CleoChat({ lang = "en" }) {
           "Content-Type": "application/json",
           Authorization: `Bearer ${session.access_token}`,
         },
-        body: JSON.stringify({ messages: payload, lang }),
+        body: JSON.stringify({ messages: payload, lang, context: readContext(location.pathname) }),
       });
       const data = await resp.json().catch(() => ({}));
       if (!resp.ok) throw new Error(data?.error || "request_failed");
       const reply = (data.reply || "").trim();
-      setMessages((m) => [...m, { role: "model", text: reply || t.blocked }]);
+      const action = data.action || null;
+
+      if (action && action.confirm === false) {
+        // Read-only movement (navigate) — run it immediately, like a tour.
+        if (reply) setMessages((m) => [...m, { role: "model", text: reply }]);
+        await executeCleoAction(action, { navigate, profile, lang });
+        setOpen(false);
+      } else if (action) {
+        // A write — show Cleo's sentence + a confirmation card under it.
+        setMessages((m) => [...m, { role: "model", text: reply || t.action.confirmPrompt, action }]);
+      } else {
+        setMessages((m) => [...m, { role: "model", text: reply || t.blocked }]);
+      }
     } catch {
       setMessages((m) => [...m, { role: "model", text: t.error }]);
     } finally {
@@ -196,7 +224,7 @@ export default function CleoChat({ lang = "en" }) {
             {messages.map((m, i) => {
               const mine = m.role === "user";
               return (
-                <div key={i} style={{ display: "flex", justifyContent: mine ? "flex-end" : "flex-start" }}>
+                <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: mine ? "flex-end" : "flex-start" }}>
                   <div style={{
                     maxWidth: "82%", padding: "9px 13px", borderRadius: 14,
                     fontSize: 14, lineHeight: 1.45, whiteSpace: "pre-wrap", wordBreak: "break-word",
@@ -207,6 +235,14 @@ export default function CleoChat({ lang = "en" }) {
                   }}>
                     {m.text}
                   </div>
+                  {m.action && (
+                    <CleoActionCard
+                      action={m.action}
+                      t={t.action}
+                      onRun={(a) => executeCleoAction(a, { navigate, profile, lang })}
+                      onNavigate={(to) => { setOpen(false); navigate(to); }}
+                    />
+                  )}
                 </div>
               );
             })}

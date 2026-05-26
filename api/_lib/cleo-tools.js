@@ -11,7 +11,7 @@
 // builder with parameterized .eq()/.in() filters; name matching happens in JS
 // over rows we already scoped.
 
-export const TOOL_DECLARATIONS = [
+const READ_DECLARATIONS = [
   {
     name: 'list_classes',
     description:
@@ -64,6 +64,80 @@ export const TOOL_DECLARATIONS = [
     },
   },
 ];
+
+// ─── Action (write) tools — Track B2 ─────────────────────────────────────────
+//
+// These don't run on the server. When the model calls one, api/cleo-chat.js
+// normalizes the args here (resolving class/unit names → ids, scoped to the
+// teacher's own classes) and hands the teacher a CONFIRMATION CARD; the write
+// only happens client-side, under the teacher's RLS, after they confirm.
+// `navigate` is the exception — it's read-only movement, so the client runs it
+// immediately (no card).
+const ACTION_DECLARATIONS = [
+  {
+    name: 'navigate',
+    description:
+      "Take the teacher to a page, or open the deck editor pre-filled for a class so they can make a warmup/exit-ticket/quiz. Use for 'take me to…', 'open…', 'make a warmup for <class>'. This only moves them — it never creates or changes data.",
+    parameters: {
+      type: 'object',
+      properties: {
+        target: {
+          type: 'string',
+          enum: ['new_deck', 'class_decks', 'class_detail', 'class_insights', 'classes', 'sessions', 'scanner', 'review', 'community', 'settings'],
+          description: "Where to go. 'new_deck' opens the deck editor to create a deck (pass class_name to tie it to a class).",
+        },
+        class_name: { type: 'string', description: 'Optional class to focus/scope the destination.' },
+      },
+      required: ['target'],
+    },
+  },
+  {
+    name: 'create_class',
+    description:
+      "Create a new class for the teacher. Gather the name, grade and subject first (ask if the teacher didn't say). The teacher confirms before it's created.",
+    parameters: {
+      type: 'object',
+      properties: {
+        name: { type: 'string', description: 'Class name, e.g. "History 2".' },
+        grade: { type: 'string', description: 'Grade/level, e.g. "8" or "10th".' },
+        subject: { type: 'string', description: 'Subject, e.g. "Math", "History", "Science".' },
+      },
+      required: ['name', 'grade'],
+    },
+  },
+  {
+    name: 'create_unit',
+    description:
+      "Create a new unit (a folder that groups a class's decks for planning) inside one of the teacher's classes. The teacher confirms before it's created.",
+    parameters: {
+      type: 'object',
+      properties: {
+        class_name: { type: 'string', description: 'The class the unit belongs to.' },
+        name: { type: 'string', description: 'Unit name, e.g. "World War II".' },
+      },
+      required: ['class_name', 'name'],
+    },
+  },
+  {
+    name: 'generate_review_deck',
+    description:
+      "Generate and save a recap quiz that targets the weakest topics of a UNIT (uses the class's spaced-repetition data). Saves it as a draft the teacher can review and launch. The teacher confirms before it's generated. Needs the class and the unit; if unsure of the unit name, look it up or ask.",
+    parameters: {
+      type: 'object',
+      properties: {
+        class_name: { type: 'string' },
+        unit_name: { type: 'string', description: 'The unit to build the review from.' },
+      },
+      required: ['class_name', 'unit_name'],
+    },
+  },
+];
+
+// The full set declared to Gemini (read tools + action tools).
+export const TOOL_DECLARATIONS = [...READ_DECLARATIONS, ...ACTION_DECLARATIONS];
+
+// Names the chat loop must treat as "propose, don't execute".
+export const ACTION_TOOL_NAMES = new Set(ACTION_DECLARATIONS.map((d) => d.name));
 
 const round = (n) => (typeof n === 'number' ? Math.round(n) : n);
 const norm = (s) => (s || '').trim().toLowerCase();
@@ -242,4 +316,101 @@ async function getWeakTopics(supabase, teacherId, { class_name }) {
       interval_days: r.interval_days,
     })),
   };
+}
+
+// ─── Action normalization (Track B2) ─────────────────────────────────────────
+//
+// Turns a model's action tool call into a concrete, teacher-scoped action the
+// CleoChat client can render as a confirmation card and execute. Resolves
+// class/unit names → ids using ONLY this teacher's own rows (same isolation as
+// the read tools). Returns { action } on success, or { error, ... } which the
+// chat loop feeds back to the model so Cleo can ask the teacher to clarify
+// (e.g. "which class?"). Never throws.
+
+async function getClassUnits(supabase, classId) {
+  const { data } = await supabase
+    .from('units')
+    .select('id, name')
+    .eq('class_id', classId);
+  return data || [];
+}
+
+function matchUnit(units, name) {
+  if (!name) return null;
+  const target = norm(name);
+  return (
+    units.find((u) => norm(u.name) === target) ||
+    units.find((u) => norm(u.name).includes(target) || target.includes(norm(u.name))) ||
+    null
+  );
+}
+
+// Targets that need a resolved class to make sense.
+const CLASS_SCOPED_TARGETS = new Set(['class_decks', 'class_detail', 'class_insights']);
+
+export async function normalizeCleoAction(name, args, { supabase, teacherId }) {
+  try {
+    const a = args || {};
+    switch (name) {
+      case 'navigate': {
+        const target = a.target;
+        let classId = null;
+        let className = null;
+        if (a.class_name) {
+          const classes = await getTeacherClasses(supabase, teacherId);
+          const cls = matchClass(classes, a.class_name);
+          if (cls) { classId = cls.id; className = cls.name; }
+          else if (CLASS_SCOPED_TARGETS.has(target)) {
+            return { error: 'class_not_found', your_classes: classes.map((c) => c.name) };
+          }
+        } else if (CLASS_SCOPED_TARGETS.has(target)) {
+          const classes = await getTeacherClasses(supabase, teacherId);
+          return { error: 'class_required', your_classes: classes.map((c) => c.name) };
+        }
+        return { action: { type: 'navigate', confirm: false, target, classId, className } };
+      }
+
+      case 'create_class': {
+        const className = (a.name || '').trim();
+        const grade = (a.grade || '').trim();
+        const subject = (a.subject || '').trim() || 'General';
+        if (!className || !grade) return { error: 'missing_fields', need: ['name', 'grade'] };
+        return { action: { type: 'create_class', confirm: true, name: className, grade, subject } };
+      }
+
+      case 'create_unit': {
+        const classes = await getTeacherClasses(supabase, teacherId);
+        const cls = matchClass(classes, a.class_name);
+        if (!cls) return { error: 'class_not_found', your_classes: classes.map((c) => c.name) };
+        const unitName = (a.name || '').trim();
+        if (!unitName) return { error: 'missing_fields', need: ['name'] };
+        return { action: { type: 'create_unit', confirm: true, classId: cls.id, className: cls.name, name: unitName } };
+      }
+
+      case 'generate_review_deck': {
+        const classes = await getTeacherClasses(supabase, teacherId);
+        const cls = matchClass(classes, a.class_name);
+        if (!cls) return { error: 'class_not_found', your_classes: classes.map((c) => c.name) };
+        const units = await getClassUnits(supabase, cls.id);
+        if (units.length === 0) return { error: 'no_units_in_class', class: cls.name };
+        const unit = matchUnit(units, a.unit_name);
+        if (!unit) return { error: 'unit_not_found', units_in_class: units.map((u) => u.name) };
+        return {
+          action: {
+            type: 'generate_review_deck',
+            confirm: true,
+            classId: cls.id,
+            className: cls.name,
+            unitId: unit.id,
+            unitName: unit.name,
+          },
+        };
+      }
+
+      default:
+        return { error: `unknown_action: ${name}` };
+    }
+  } catch (err) {
+    return { error: String(err?.message || err) };
+  }
 }
