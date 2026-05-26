@@ -21,14 +21,15 @@ const DETAIL_ROWS = {
   create_class: (a, t) => [[t.fieldName, a.name], [t.fieldGrade, a.grade], [t.fieldSubject, a.subject]],
   create_unit: (a, t) => [[t.fieldClass, a.className], [t.fieldName, a.name]],
   generate_review_deck: (a, t) => [[t.fieldClass, a.className], [t.fieldUnit, a.unitName]],
-  // create_deck: class + type + what it's built from (the editable bits live in
-  // the form below, so they're not repeated here).
+  // create_deck: class + what it's built from. Type/name/language/count/images
+  // are all editable in the form below, so they're not repeated here.
   create_deck: (a, t, fileName) => [
     [t.fieldClass, a.className],
-    [t.fieldSection, sectionLabel(a.section, t)],
     [t.fieldSource, a.source === "document" ? (fileName || t.sourceDocument) : (a.topic || t.sourceTopic)],
   ],
 };
+
+const SECTION_CODES = ["warmup", "exit_ticket", "general_review"];
 const TITLE = {
   create_class: (t) => t.createClassTitle,
   create_unit: (t) => t.createUnitTitle,
@@ -51,6 +52,9 @@ export default function CleoActionCard({ action, t, onRun, onNavigate, lang = "e
   const [title, setTitle] = useState(
     action.title || action.topic || (fileName ? fileName.replace(/\.[^.]+$/, "") : "")
   );
+  const [section, setSection] = useState(
+    SECTION_CODES.includes(action.section) ? action.section : "general_review"
+  );
   const [dLang, setDLang] = useState(action.language || lang || "en");
   const [count, setCount] = useState(COUNTS.includes(action.numQuestions) ? action.numQuestions : 5);
   // Default to reusing a PPTX's own images; off otherwise (AI images are opt-in).
@@ -66,6 +70,7 @@ export default function CleoActionCard({ action, t, onRun, onNavigate, lang = "e
     const payload = isDeck
       ? {
           ...action,
+          section,
           title: title.trim() || action.title || action.topic || "",
           language: dLang,
           numQuestions: count,
@@ -145,6 +150,13 @@ export default function CleoActionCard({ action, t, onRun, onNavigate, lang = "e
               fontSize: 13, fontFamily: "'Outfit',sans-serif", outline: "none", boxSizing: "border-box",
             }}
           />
+
+          <p style={fieldLabel}>{t.fieldSection}</p>
+          <div style={pillRow}>
+            {SECTION_CODES.map((code) => (
+              <button key={code} style={pill(section === code)} onClick={() => setSection(code)}>{sectionLabel(code, t)}</button>
+            ))}
+          </div>
 
           <p style={fieldLabel}>{t.fieldLanguage}</p>
           <div style={pillRow}>
