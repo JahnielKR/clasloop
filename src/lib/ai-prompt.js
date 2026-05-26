@@ -56,6 +56,7 @@ UNIVERSAL RULES (apply always)
 - Do NOT use placeholder phrasing like "according to the text", "in the document", "in the slides". Ask about the concept directly.
 - Vary difficulty across the set: roughly 30% easy recall, 50% medium application, 20% harder reasoning.
 - Vary question stems: don't start every question with "What is...".
+- MATH & SCIENCE NOTATION: when a question involves a formula, fraction, exponent, root, or a symbol like × ÷ ≤ ≥ √ π θ, write THAT notation as LaTeX between $…$ inline (e.g. $\\frac{3}{4}$, $x^2$, $\\sqrt{16}$, $\\pi r^2$) or $$…$$ for a standalone equation. Only wrap real math notation — write ordinary words normally, and write money as words ("5 dollars") so the $ isn't read as math.
 
 TIME LIMITS (per question)
 Each question MUST include a "time_limit" field in seconds. Choose ONE value from the allowed set for that question's type, based on the actual cognitive load of THAT question (stem length, options length, complexity of reasoning required). Short/simple → lower value. Long stem or reasoning → higher value. Match the value to the real difficulty, don't just always pick the middle.
@@ -102,6 +103,7 @@ REGLAS UNIVERSALES (aplican siempre)
 - NO uses frases comodín como "según el texto", "en el documento", "en las diapositivas". Pregunta sobre el concepto directamente.
 - Varía la dificultad del set: aproximadamente 30% recordar fácil, 50% aplicación media, 20% razonamiento más exigente.
 - Varía los inicios de las preguntas: no empieces todas con "¿Qué es...?".
+- NOTACIÓN MATEMÁTICA Y CIENTÍFICA: cuando una pregunta tenga una fórmula, fracción, exponente, raíz o un símbolo como × ÷ ≤ ≥ √ π θ, escribe ESA notación como LaTeX entre $…$ en línea (ej. $\\frac{3}{4}$, $x^2$, $\\sqrt{16}$, $\\pi r^2$) o $$…$$ para una ecuación aparte. Solo envuelve notación matemática real — escribe las palabras normales con normalidad, y el dinero en palabras ("5 dólares") para que el $ no se confunda con matemática.
 
 LÍMITES DE TIEMPO (por pregunta)
 Cada pregunta DEBE incluir un campo "time_limit" en segundos. Elige UN valor del set permitido para el tipo de esa pregunta, basándote en la carga cognitiva real de ESA pregunta (largo del enunciado, largo de las opciones, complejidad del razonamiento). Corta/simple → valor bajo. Enunciado largo o razonamiento → valor alto. Ajusta el valor a la dificultad real, no elijas siempre el medio.
@@ -148,6 +150,7 @@ ${getTypeRules("ko", activityType)}
 - "본문에 따르면", "문서에서", "슬라이드에서" 같은 placeholder 표현을 쓰지 마세요. 개념 자체를 직접 묻습니다.
 - 난이도를 다양하게: 약 30% 쉬운 회상, 50% 중간 적용, 20% 더 어려운 추론.
 - 문제 시작을 다양하게: 모든 문제를 "...은(는) 무엇인가요?"로 시작하지 마세요.
+- 수학·과학 표기: 문제에 수식, 분수, 지수, 근호, 또는 × ÷ ≤ ≥ √ π θ 같은 기호가 있으면 그 표기를 LaTeX로 $…$ 안에(예: $\\frac{3}{4}$, $x^2$, $\\sqrt{16}$, $\\pi r^2$) 또는 별도 수식은 $$…$$ 안에 작성하세요. 실제 수학 표기만 감싸고, 일반 단어는 그대로 쓰며, 돈은 단어로("5달러") 써서 $가 수식으로 오해되지 않게 하세요.
 
 시간 제한 (문제별)
 모든 문제는 "time_limit" 필드(초 단위)를 포함해야 합니다. 해당 문제 유형의 허용된 값 중에서 그 문제의 실제 인지 부하(지문 길이, 보기 길이, 추론 복잡도)에 맞춰 하나를 선택하세요. 짧고 간단한 문제 → 낮은 값. 긴 지문이나 추론이 필요한 문제 → 높은 값. 항상 가운데 값을 고르지 말고 실제 난이도에 맞추세요.

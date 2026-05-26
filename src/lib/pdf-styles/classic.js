@@ -24,6 +24,8 @@ import {
   fetchImageAsDataURL, scaleImageToFit,
   groupQuestionsBySection,
 } from "./shared";
+import { hasMath } from "../latex";
+import { preloadMathImages, drawRichText } from "../pdf-math";
 
 const PAGE = {
   ...PAGE_A4,
@@ -99,6 +101,9 @@ export async function renderExam(doc, deck, classObj, opts = {}) {
   let y = PAGE.marginY;
 
   const imageCache = await preloadImages(deck.questions || []);
+  // Track A: rasterise every $…$ / $$…$$ span once up front (like images),
+  // so drawQuestion can place them synchronously.
+  const mathCache = await preloadMathImages(deck.questions || []);
   const { selection, written } = groupQuestionsBySection(deck.questions || []);
   const totalQ = (deck.questions || []).length;
 
@@ -120,7 +125,7 @@ export async function renderExam(doc, deck, classObj, opts = {}) {
       // PR 29.1.4: widow check removed — was breaking pages early and
       // leaving big empty space on page 1. Natural flow wins.
       y = ensureSpace(doc, y, estH);
-      y = drawQuestion(doc, q, y, fontFamily, lang, imageCache, /* dotted */ false);
+      y = drawQuestion(doc, q, y, fontFamily, lang, imageCache, /* dotted */ false, mathCache);
       y += (q.type === "fill") ? Math.round(SPACING.betweenQuestions * 0.55) : SPACING.betweenQuestions;
     }
   }
@@ -139,7 +144,7 @@ export async function renderExam(doc, deck, classObj, opts = {}) {
       const q = written[i];
       const estH = estimateQuestionHeight(q, imageCache);
       y = ensureSpace(doc, y, estH);
-      y = drawQuestion(doc, q, y, fontFamily, lang, imageCache, /* dotted */ true);
+      y = drawQuestion(doc, q, y, fontFamily, lang, imageCache, /* dotted */ true, mathCache);
       y += SPACING.betweenQuestions;
     }
   }
@@ -174,6 +179,7 @@ export async function renderAnswerKey(doc, deck, classObj, opts = {}) {
   // otherwise the numbers won't match. Re-group via the same helper.
   const { selection, written } = groupQuestionsBySection(deck.questions || []);
   const orderedQuestions = [...selection, ...written];
+  const mathCache = await preloadMathImages(deck.questions || []);
   const lineHeight = 7;
   for (let i = 0; i < orderedQuestions.length; i++) {
     const q = orderedQuestions[i];
@@ -187,14 +193,22 @@ export async function renderAnswerKey(doc, deck, classObj, opts = {}) {
       continue;
     }
     const answerText = formatAnswerForKey(q, labels);
-    const wrapped = doc.splitTextToSize(`${displayNum}. ${answerText}`, PAGE.contentWidth);
-    for (const line of wrapped) {
-      if (y + lineHeight > PAGE.height - PAGE.marginY - 8) {
-        doc.addPage();
-        y = PAGE.marginY;
+    const answerLine = `${displayNum}. ${answerText}`;
+    if (hasMath(answerLine)) {
+      y = drawRichText(doc, answerLine, PAGE.marginX, y, PAGE.contentWidth, lineHeight - 2, { fontSizePt: FONT.questionText, mathCache });
+      doc.setFont(fontFamily, "normal");
+      doc.setFontSize(FONT.questionText);
+      setColor(doc, COLOR.textDark);
+    } else {
+      const wrapped = doc.splitTextToSize(answerLine, PAGE.contentWidth);
+      for (const line of wrapped) {
+        if (y + lineHeight > PAGE.height - PAGE.marginY - 8) {
+          doc.addPage();
+          y = PAGE.marginY;
+        }
+        doc.text(line, PAGE.marginX, y);
+        y += lineHeight;
       }
-      doc.text(line, PAGE.marginX, y);
-      y += lineHeight;
     }
   }
 
@@ -417,7 +431,7 @@ async function preloadImages(questions) {
 // Single-question renderer. The `dotted` flag tells us whether this
 // question is in the written-response section (uses dotted writing
 // lines + dashed circle around the number) or selection (solid).
-function drawQuestion(doc, q, startY, fontFamily, lang, imageCache, dotted) {
+function drawQuestion(doc, q, startY, fontFamily, lang, imageCache, dotted, mathCache) {
   let y = startY;
   const labels = LABELS[lang] || LABELS.en;
   const num = q._originalNum;
@@ -460,7 +474,9 @@ function drawQuestion(doc, q, startY, fontFamily, lang, imageCache, dotted) {
   setColor(doc, COLOR.textDark);
   const questionText = q.q || q.prompt || q.question || "";
   const promptMaxW = PAGE.contentWidth - (textX - PAGE.marginX);
-  y = drawWrappedText(doc, questionText, textX, y, promptMaxW, FONT.questionText * 0.45);
+  y = hasMath(questionText)
+    ? drawRichText(doc, questionText, textX, y, promptMaxW, FONT.questionText * 0.45, { fontSizePt: FONT.questionText, mathCache })
+    : drawWrappedText(doc, questionText, textX, y, promptMaxW, FONT.questionText * 0.45);
   y += SPACING.afterQuestionNum;
 
   // Image (if present)
@@ -482,11 +498,11 @@ function drawQuestion(doc, q, startY, fontFamily, lang, imageCache, dotted) {
 
   // Type-specific response area
   switch (q.type) {
-    case "mcq": y = drawMCQOptions(doc, q, y, fontFamily, textX); break;
+    case "mcq": y = drawMCQOptions(doc, q, y, fontFamily, textX, mathCache); break;
     case "tf": y = drawTFOptions(doc, y, fontFamily, labels, textX); break;
     case "fill": y = drawFillBlankHint(y); break;
-    case "match": y = drawMatchPairs(doc, q, y, fontFamily); break;
-    case "order": y = drawOrderItems(doc, q, y, fontFamily, textX); break;
+    case "match": y = drawMatchPairs(doc, q, y, fontFamily, mathCache); break;
+    case "order": y = drawOrderItems(doc, q, y, fontFamily, textX, mathCache); break;
     case "slider": y = drawSliderTrack(doc, q, y, fontFamily, labels); break;
     case "sentence":
     case "free":
@@ -496,8 +512,13 @@ function drawQuestion(doc, q, startY, fontFamily, lang, imageCache, dotted) {
         doc.setFont(fontFamily, "italic");
         doc.setFontSize(FONT.hint);
         setColor(doc, COLOR.textMute);
-        doc.text(`(${labels.useWord}: "${q.required_word}")`, textX, y);
-        y += 4.5;
+        const hint = `(${labels.useWord}: "${q.required_word}")`;
+        if (hasMath(hint)) {
+          y = drawRichText(doc, hint, textX, y, promptMaxW, FONT.hint * 0.45, { fontSizePt: FONT.hint, mathCache });
+        } else {
+          doc.text(hint, textX, y);
+          y += 4.5;
+        }
       }
       y = drawDottedLines(doc, y, q.type === "open" || q.type === "free" ? 5 : 3);
       break;
@@ -505,7 +526,7 @@ function drawQuestion(doc, q, startY, fontFamily, lang, imageCache, dotted) {
   return y;
 }
 
-function drawMCQOptions(doc, q, startY, fontFamily, textX) {
+function drawMCQOptions(doc, q, startY, fontFamily, textX, mathCache) {
   let y = startY;
   doc.setFont(fontFamily, "normal");
   doc.setFontSize(FONT.option);
@@ -525,10 +546,21 @@ function drawMCQOptions(doc, q, startY, fontFamily, textX) {
     doc.text(`${letters[i]})`, textX + 8, y);
     doc.setFont(fontFamily, "normal");
     const optionText = String(options[i] ?? "");
-    const wrapped = doc.splitTextToSize(optionText, PAGE.contentWidth - (textX - PAGE.marginX) - 15);
-    for (let j = 0; j < wrapped.length; j++) {
-      doc.text(wrapped[j], textX + 14, y);
-      if (j < wrapped.length - 1) y += 4.5;
+    const optMaxW = PAGE.contentWidth - (textX - PAGE.marginX) - 15;
+    if (hasMath(optionText)) {
+      // drawRichText returns one advance past the last baseline; the manual
+      // path below ends AT the last baseline, so pull back one line-advance
+      // (here 4.5) to keep the trailing betweenOptions gap consistent.
+      y = drawRichText(doc, optionText, textX + 14, y, optMaxW, 2.5, { fontSizePt: FONT.option, mathCache }) - 4.5;
+      doc.setFont(fontFamily, "normal");
+      doc.setFontSize(FONT.option);
+      setColor(doc, COLOR.textDark);
+    } else {
+      const wrapped = doc.splitTextToSize(optionText, optMaxW);
+      for (let j = 0; j < wrapped.length; j++) {
+        doc.text(wrapped[j], textX + 14, y);
+        if (j < wrapped.length - 1) y += 4.5;
+      }
     }
     y += SPACING.betweenOptions;
   }
@@ -561,7 +593,22 @@ function drawFillBlankHint(startY) {
   return startY + 3;
 }
 
-function drawMatchPairs(doc, q, startY, fontFamily) {
+// Draw one match cell (text or math) at baseline y; returns the extra height
+// beyond the first line (so the row advances by the taller of its two cells).
+function drawMatchCell(doc, text, x, y, maxW, fontFamily, mathCache) {
+  if (hasMath(text)) {
+    const end = drawRichText(doc, text, x, y, maxW, 2.5, { fontSizePt: FONT.option, mathCache });
+    doc.setFont(fontFamily, "normal");
+    doc.setFontSize(FONT.option);
+    setColor(doc, COLOR.textDark);
+    return Math.max(0, (end - y) - 4.5); // total height minus the first line's advance
+  }
+  const wrapped = doc.splitTextToSize(String(text), maxW);
+  doc.text(wrapped, x, y);
+  return (wrapped.length - 1) * 4;
+}
+
+function drawMatchPairs(doc, q, startY, fontFamily, mathCache) {
   let y = startY;
   doc.setFont(fontFamily, "normal");
   doc.setFontSize(FONT.option);
@@ -584,26 +631,23 @@ function drawMatchPairs(doc, q, startY, fontFamily) {
     if (y + lineHeight > PAGE.height - PAGE.marginY - 8) break;
     doc.setFont(fontFamily, "bold");
     doc.text(`${i + 1}.`, xLeft, y);
-    doc.setFont(fontFamily, "normal");
-    const leftWrapped = doc.splitTextToSize(lefts[i], colWidth - 8);
-    doc.text(leftWrapped, xLeft + 6, y);
     const letter = String.fromCharCode(65 + i);
-    doc.setFont(fontFamily, "bold");
     doc.text(`${letter}.`, xRight, y);
     doc.setFont(fontFamily, "normal");
-    const rightWrapped = doc.splitTextToSize(shuffled[i].text, colWidth - 8);
-    doc.text(rightWrapped, xRight + 6, y);
-    y += lineHeight + (Math.max(leftWrapped.length, rightWrapped.length) - 1) * 4;
+    const leftExtra = drawMatchCell(doc, lefts[i], xLeft + 6, y, colWidth - 8, fontFamily, mathCache);
+    const rightExtra = drawMatchCell(doc, shuffled[i].text, xRight + 6, y, colWidth - 8, fontFamily, mathCache);
+    y += lineHeight + Math.max(leftExtra, rightExtra);
   }
   return y + 2;
 }
 
-function drawOrderItems(doc, q, startY, fontFamily, textX) {
+function drawOrderItems(doc, q, startY, fontFamily, textX, mathCache) {
   let y = startY;
   doc.setFont(fontFamily, "normal");
   doc.setFontSize(FONT.option);
   setColor(doc, COLOR.textDark);
   const items = q.items || q.options || [];
+  const itemMaxW = PAGE.contentWidth - (textX - PAGE.marginX) - 12;
   for (let i = 0; i < items.length; i++) {
     if (y + 6 > PAGE.height - PAGE.marginY - 8) break;
     // Position number underline (gray)
@@ -611,9 +655,17 @@ function drawOrderItems(doc, q, startY, fontFamily, textX) {
     doc.setLineWidth(0.35);
     doc.line(textX, y + 0.5, textX + 8, y + 0.5);
     const itemText = String(items[i]);
-    const wrapped = doc.splitTextToSize(itemText, PAGE.contentWidth - (textX - PAGE.marginX) - 12);
-    doc.text(wrapped, textX + 10, y);
-    y += 6 + (wrapped.length - 1) * 4;
+    if (hasMath(itemText)) {
+      const end = drawRichText(doc, itemText, textX + 10, y, itemMaxW, 2.5, { fontSizePt: FONT.option, mathCache });
+      doc.setFont(fontFamily, "normal");
+      doc.setFontSize(FONT.option);
+      setColor(doc, COLOR.textDark);
+      y += 6 + Math.max(0, (end - y) - 4.5);
+    } else {
+      const wrapped = doc.splitTextToSize(itemText, itemMaxW);
+      doc.text(wrapped, textX + 10, y);
+      y += 6 + (wrapped.length - 1) * 4;
+    }
   }
   return y;
 }
@@ -695,8 +747,16 @@ function estimateQuestionHeight(q, imageCache) {
     q.type === "slider" ? 12 :
     (q.type === "free" || q.type === "open") ? 5 * SPACING.dottedLineGap :
     3 * SPACING.dottedLineGap;
+  // Track A: formulas rasterise taller than a text line. Reserve extra room
+  // for math-bearing fields so a question with math doesn't overflow the page
+  // bottom (over-reserving slightly is safe — it just breaks a touch early).
+  let mathBump = 0;
+  if (hasMath(q.q || q.prompt || q.question || "")) mathBump += 10;
+  (q.options || []).forEach((o) => { if (hasMath(typeof o === "string" ? o : o && o.text)) mathBump += 6; });
+  (q.items || []).forEach((it) => { if (hasMath(it)) mathBump += 6; });
+  (q.pairs || []).forEach((p) => { if (p && (hasMath(p.left) || hasMath(p.right))) mathBump += 6; });
   // First prompt line ~ 7mm absorbed into base; extra lines ~ 6mm each
-  return base + promptLines * 6 + imageH + typeH;
+  return base + promptLines * 6 + imageH + typeH + mathBump;
 }
 
 function drawMatchAnswerBlock(doc, q, num, startY, fontFamily) {

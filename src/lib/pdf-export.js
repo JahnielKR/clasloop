@@ -23,6 +23,7 @@
 
 import jsPDF from "jspdf";
 import { ensureKoreanFont } from "./pdf-fonts";
+import { sanitizeQuestionMath } from "./latex";
 import { sanitizeFilename } from "./pdf-styles/shared";
 import { getPalette } from "./pdf-styles/palettes";
 import { savePdfCrossPlatform } from "./native-pdf";
@@ -35,6 +36,12 @@ import { drawScanSheet } from "./pdf-styles/scanner";
 // PR 46: scanner ya NO es un estilo. Sigue siendo una página que se
 // puede prepender al exam pero el style picker no lo muestra.
 const STYLES = { classic, modern, editorial, framed };
+
+// Track A: styles whose renderers draw real LaTeX (KaTeX rasterised inline).
+// These receive the raw deck (with $…$); any non-listed style would get the
+// latexToAscii fallback. All four styles are migrated now — the ASCII fallback
+// remains only for the scanner sheet (a b+w utility page that isn't math-aware).
+const MATH_NATIVE_STYLES = new Set(["classic", "modern", "editorial", "framed"]);
 
 // Style preferences for default fonts. Framed uses serif (times) for the
 // academic-paper feel; the others use the dispatcher's chosen font
@@ -101,17 +108,32 @@ export async function exportPDF(deck, classObj, opts = {}) {
 
   const renderOpts = { lang, fontFamily, palette };
 
+  // Track A (A1): the PDF fonts (Helvetica for en/es, a content-subset
+  // NotoSansKR for ko) don't carry math glyphs like π, √ or ≤, so render any
+  // $…$ LaTeX as readable ASCII before drawing. Doing it once here covers every
+  // style + the answer key + the scan sheet. The on-screen quiz renders the
+  // exact formula (KaTeX); this is the print-safe approximation. Korean
+  // detection above runs on the raw deck, so it's unaffected.
+  // Styles migrated to render real LaTeX (KaTeX rasterised inline) get the RAW
+  // deck (with $…$); the rest still get the ASCII fallback until they're
+  // migrated too. The scanner sheet is always ASCII — it's a b+w utility page,
+  // not math-aware.
+  const asciiDeck = Array.isArray(deck.questions)
+    ? { ...deck, questions: deck.questions.map(sanitizeQuestionMath) }
+    : deck;
+  const pdfDeck = MATH_NATIVE_STYLES.has(style) ? deck : asciiDeck;
+
   if (variant === "answer_key") {
-    await renderer.renderAnswerKey(doc, deck, classObj, renderOpts);
+    await renderer.renderAnswerKey(doc, pdfDeck, classObj, renderOpts);
   } else if (variant === "exam_with_scan") {
     // Página 1: scan sheet (b+w, sin estilo). Helvetica forzada para
     // que sea legible en cualquier impresora, sin importar el style.
-    await drawScanSheet(doc, deck, classObj, { lang, fontFamily: useKorean ? "NotoSansKR" : "helvetica" });
+    await drawScanSheet(doc, asciiDeck, classObj, { lang, fontFamily: useKorean ? "NotoSansKR" : "helvetica" });
     doc.addPage();
     // Páginas 2..N: exam normal con el style elegido
-    await renderer.renderExam(doc, deck, classObj, renderOpts);
+    await renderer.renderExam(doc, pdfDeck, classObj, renderOpts);
   } else {
-    await renderer.renderExam(doc, deck, classObj, renderOpts);
+    await renderer.renderExam(doc, pdfDeck, classObj, renderOpts);
   }
 
   let suffix = "_exam";
