@@ -38,9 +38,9 @@ const run = (name, args, opts) =>
   normalizeCleoAction(name, args, { supabase: makeSupabase(opts), teacherId: TEACHER });
 
 describe('ACTION_TOOL_NAMES', () => {
-  it('marks exactly the four write/navigate tools', () => {
+  it('marks exactly the write/navigate tools', () => {
     expect([...ACTION_TOOL_NAMES].sort()).toEqual(
-      ['create_class', 'create_unit', 'generate_review_deck', 'navigate'].sort(),
+      ['create_class', 'create_deck', 'create_unit', 'generate_review_deck', 'navigate'].sort(),
     );
   });
 });
@@ -130,6 +130,51 @@ describe('generate_review_deck', () => {
     const res = await run('generate_review_deck', { class_name: 'history', unit_name: 'Renaissance' }, { classes: CLASSES, units: UNITS });
     expect(res.error).toBe('unit_not_found');
     expect(res.units_in_class).toEqual(['World War II', 'Cold War']);
+  });
+});
+
+describe('create_deck', () => {
+  it('builds a document-source action with sane defaults', async () => {
+    const { action } = await run('create_deck', { class_name: 'history', source: 'document' }, { classes: CLASSES });
+    expect(action).toMatchObject({
+      type: 'create_deck', confirm: true,
+      classId: 'c1', className: 'History 2',
+      section: 'general_review', source: 'document', numQuestions: 5,
+    });
+  });
+
+  it('requires a topic when no document is attached', async () => {
+    const { action, error } = await run('create_deck', { class_name: 'history', source: 'topic', topic: 'hi' }, { classes: CLASSES });
+    expect(action).toBeUndefined();
+    expect(error).toBe('need_topic');
+  });
+
+  it('accepts a topic source with section, count and language', async () => {
+    const { action } = await run(
+      'create_deck',
+      { class_name: 'math', source: 'topic', topic: 'Fractions basics', num_questions: 8, section: 'warmup', language: 'es' },
+      { classes: CLASSES },
+    );
+    expect(action).toMatchObject({
+      classId: 'c2', section: 'warmup', source: 'topic',
+      topic: 'Fractions basics', numQuestions: 8, language: 'es',
+    });
+  });
+
+  it('clamps num_questions to 3..20 and defaults an unknown section', async () => {
+    const { action } = await run('create_deck', { class_name: 'history', source: 'document', num_questions: 99, section: 'weird' }, { classes: CLASSES });
+    expect(action.numQuestions).toBe(20);
+    expect(action.section).toBe('general_review');
+  });
+
+  it('nulls an invalid language so the executor can fall back', async () => {
+    const { action } = await run('create_deck', { class_name: 'history', source: 'document', language: 'fr' }, { classes: CLASSES });
+    expect(action.language).toBeNull();
+  });
+
+  it('errors on unknown class', async () => {
+    const { error } = await run('create_deck', { class_name: 'Chemistry', source: 'document' }, { classes: CLASSES });
+    expect(error).toBe('class_not_found');
   });
 });
 
