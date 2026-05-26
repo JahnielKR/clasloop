@@ -142,13 +142,17 @@ export default async function handler(req, res) {
     });
 
     if (!geminiResult.ok) {
-      // No echo del error crudo del upstream — puede tener detalles internos.
-      // Loguear server-side, devolver genérico.
+      // Log server-side, return a generic AI-service error. CRITICAL: do NOT
+      // echo the upstream status. A Gemini 403 (bad/disabled key, billing off,
+      // model not enabled) or 429 (Gemini quota) would collide with OUR OWN 403
+      // (teacher gate) and 429 (daily limit) in the client, showing a
+      // misleading "only teachers can generate" / "daily limit" message. Always
+      // surface AI failures as 502 so the client maps them to a clear
+      // "AI service error".
       console.error(`[generate] Gemini ${geminiResult.status}: ${(geminiResult.error || '').slice(0, 500)}`);
-      const status = geminiResult.status >= 400 && geminiResult.status < 600 ? geminiResult.status : 502;
-      return res.status(status).json({
-        error: 'upstream_error',
-        status: geminiResult.status,
+      return res.status(502).json({
+        error: 'ai_service_error',
+        upstream_status: geminiResult.status,
       });
     }
 

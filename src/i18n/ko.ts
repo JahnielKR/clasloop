@@ -1403,6 +1403,7 @@ const ko: Locale = {
     aiQualityFilteredHard: "{requested}개 중 {delivered}개만 품질 검사를 통과했습니다. 더 풍부한 자료를 사용하거나 단일 문제 유형을 선택해 보세요.",
     aiQualityReason: "가장 흔한 이유: \"{reason}\"",
     aiError: "문제가 발생했습니다. 다시 시도하세요.",
+    aiServiceError: "AI 서비스에 일시적인 문제가 있습니다. 잠시 후 다시 시도해 주세요.",
     aiDroppedSomeMsg: "{kept}개 추가됨 · {dropped}개 건너뜀 (불완전함)",
     aiAllDroppedMsg: "{dropped}개 문제가 모두 불완전했습니다. 다시 생성하거나, 자료를 변경하거나, 단일 유형을 선택하세요.",
     libraryEmptyTitle: "아직 수업이 없습니다",

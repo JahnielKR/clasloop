@@ -61,12 +61,11 @@ export default async function handler(req, res) {
     const result = await callGeminiImage({ apiKey: GEMINI_API_KEY, prompt: safePrompt });
 
     if (!result.ok) {
-      // Log server-side, return a generic AI-service error. CRITICAL: this code
-      // is distinct from the teacher gate's 403 so the client can show "the AI
-      // image service had a problem" instead of "only teachers can do this".
+      // Log server-side, return a generic AI-service error. Always 502 — do NOT
+      // echo the upstream status, or a Gemini 403/429 would read as the teacher
+      // gate / daily limit in the client.
       console.error(`[generate-image] Gemini ${result.status}: ${(result.error || '').slice(0, 500)}`);
-      const status = result.status >= 400 && result.status < 600 ? result.status : 502;
-      return res.status(status).json({ error: 'image_generation_failed', status: result.status });
+      return res.status(502).json({ error: 'ai_service_error', upstream_status: result.status });
     }
 
     // Log for metrics + to feed the daily cap counter. Awaited because Vercel

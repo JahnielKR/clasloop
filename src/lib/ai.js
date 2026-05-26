@@ -453,6 +453,18 @@ export async function generateQuestions({
           status: 403, code: "forbidden",
         });
       }
+      // Any server-side / AI-service failure (Gemini upstream 502, or a 500 like
+      // server_misconfigured / an unhandled exception). The endpoint surfaces
+      // these as 5xx so they never collide with our own 401/403/429 gates above
+      // — a misconfigured key or Gemini quota must NOT read as "only teachers
+      // can generate" or "daily limit reached", and a raw "server_misconfigured"
+      // code must never reach the teacher.
+      if (response.status >= 500 || payload?.error === "ai_service_error") {
+        throw new AIError(
+          "The AI service is having a problem right now. Please try again in a moment.",
+          { status: response.status || 502, code: "ai_service_error" }
+        );
+      }
       if (response.status === 413) {
         // Vercel function rechazó el body por tamaño. No deberíamos llegar
         // acá si los caps de cliente funcionan, pero por las dudas damos

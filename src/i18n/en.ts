@@ -1407,6 +1407,7 @@ const en = {
     aiQualityFilteredHard: "Only {delivered} of {requested} passed the quality check. Try a richer source or a single question type.",
     aiQualityReason: "Most common reason: \"{reason}\"",
     aiError: "Something went wrong. Try again.",
+    aiServiceError: "The AI service is having a problem right now. Please try again in a moment.",
     aiDroppedSomeMsg: "{kept} questions added · {dropped} skipped (incomplete)",
     aiAllDroppedMsg: "All {dropped} questions came back incomplete. Try generating again, change the source, or pick a single type.",
     // PR 7: new Library layout (class tabs + drag-reorder grid)

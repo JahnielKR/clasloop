@@ -1403,6 +1403,7 @@ const es: Locale = {
     aiQualityFilteredHard: "Solo {delivered} de {requested} pasaron el control de calidad. Prueba con material más extenso o un solo tipo de pregunta.",
     aiQualityReason: "Motivo más común: \"{reason}\"",
     aiError: "Algo salió mal. Intenta de nuevo.",
+    aiServiceError: "El servicio de IA está teniendo un problema en este momento. Inténtalo de nuevo en un momento.",
     aiDroppedSomeMsg: "{kept} preguntas agregadas · {dropped} descartadas (incompletas)",
     aiAllDroppedMsg: "Las {dropped} preguntas vinieron incompletas. Intenta generar de nuevo, cambia el material, o elige un solo tipo.",
     libraryEmptyTitle: "Aún no hay clases",

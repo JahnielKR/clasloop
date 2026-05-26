@@ -165,6 +165,7 @@ export default function AIGeneratePanel({
         if (err.code === "rate_limited") setError(err.message || t.aiRateLimited);
         else if (err.code === "unauthorized") setError(t.aiSessionExpired);
         else if (err.code === "forbidden") setError(t.aiTeachersOnly);
+        else if (err.code === "ai_service_error") setError(t.aiServiceError);
         else if (err.code === "bad_output") setError(t.aiBadOutput);
         else if (err.code === "extraction_empty") setError(err.message || t.aiExtractionEmpty);
         else if (err.code === "extraction_failed") setError(err.message || t.aiExtractionFailed);
