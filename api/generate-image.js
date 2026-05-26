@@ -7,7 +7,7 @@
 //   1. JWT + teacher gate (shared api/_lib/auth.js).
 //   2. Daily cap scoped to activity_type='image_generation' so it has its own
 //      budget, separate from question generation.
-//   3. Calls gemini-2.5-flash-image (callGeminiImage adapter) and returns the
+//   3. Calls the image model (callGeminiImage adapter) and returns the
 //      base64 image + mimeType. The client uploads it to Storage and sets the
 //      question's image_url — the same field the editor, live quiz and PDF
 //      export already render.
@@ -17,7 +17,7 @@
 //   - SUPABASE_URL, SUPABASE_SERVICE_KEY
 
 import { requireTeacher, requireDailyRateLimit } from './_lib/auth.js';
-import { callGeminiImage, GEMINI_IMAGE_MODEL } from './_lib/gemini.js';
+import { callGemini, callGeminiImage, GEMINI_IMAGE_MODEL } from './_lib/gemini.js';
 
 // Image generation costs more than text, so it gets its own, separate daily
 // budget. 120/day comfortably covers a real teacher prepping a week of decks
@@ -28,6 +28,54 @@ const IMAGE_RATE_LIMIT_PER_DAY = 120;
 // is almost certainly junk pasted in. Cap defensively (the client builds these,
 // but the endpoint must not trust its input).
 const MAX_PROMPT_CHARS = 1000;
+
+// ─── Image judge (LLM-as-judge, multimodal) ─────────────────────────────────
+// Mirrors the question validator in api/generate.js: a second model call that
+// reviews the generated image against the question's concept. gemini-2.5-flash
+// is multimodal, so it actually sees the picture. Strict on subject fidelity and
+// stray text. Fail-open everywhere — a judge problem must never block images.
+const IMAGE_JUDGE_MODEL = 'gemini-2.5-flash';
+
+const JUDGE_SYSTEM = `You are a strict reviewer of AI-generated classroom illustrations. You are shown ONE image and the concept it is meant to depict. Pass it only if the image clearly and faithfully depicts that concept: the correct main subject, nothing off-topic or inappropriate, and no visible or garbled text, letters, or numbers. A wrong or generic subject, or visible text, is a FAIL. Respond with ONLY a JSON object: {"ok": true|false, "reason": "<short reason>"}.`;
+
+// Returns { rejected, reason? }. rejected=true ONLY on an explicit ok:false
+// verdict; any error or unparseable output fails open (rejected=false).
+async function judgeImage({ apiKey, image, mimeType, imagePrompt, concept }) {
+  const subject = concept || imagePrompt || '';
+  if (!subject) return { rejected: false };
+
+  const messages = [{
+    role: 'user',
+    content: [
+      { type: 'image', source: { type: 'base64', media_type: mimeType || 'image/png', data: image } },
+      { type: 'text', text: `Concept this image must depict: "${subject}". Intended illustration: "${imagePrompt}". Does the image clearly and faithfully depict that concept, with the correct subject and no visible/garbled text? Respond JSON {"ok":boolean,"reason":string}.` },
+    ],
+  }];
+
+  let res;
+  try {
+    res = await callGemini({ apiKey, model: IMAGE_JUDGE_MODEL, system: JUDGE_SYSTEM, messages, maxTokens: 200, temperature: 0 });
+  } catch {
+    return { rejected: false };
+  }
+  if (!res || !res.ok || !res.text) return { rejected: false };
+
+  const verdict = parseVerdict(res.text);
+  if (!verdict) return { rejected: false };
+  return { rejected: verdict.ok === false, reason: verdict.reason };
+}
+
+function parseVerdict(text) {
+  try {
+    const m = String(text).match(/\{[\s\S]*\}/);
+    if (!m) return null;
+    const obj = JSON.parse(m[0]);
+    if (typeof obj.ok !== 'boolean') return null;
+    return { ok: obj.ok, reason: typeof obj.reason === 'string' ? obj.reason : '' };
+  } catch {
+    return null;
+  }
+}
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -58,7 +106,12 @@ export default async function handler(req, res) {
     }
     const safePrompt = prompt.trim().slice(0, MAX_PROMPT_CHARS);
 
-    const result = await callGeminiImage({ apiKey: GEMINI_API_KEY, prompt: safePrompt });
+    // Wrap the model-written prompt with a constant style+accuracy reinforcement.
+    // Subject first so it stays the focus; this guarantees a baseline (literal,
+    // text-free, neutral) regardless of how the question generator phrased it.
+    const finalPrompt = `${safePrompt} — a clear, simple, accurate educational illustration. Depict the subject literally and correctly. Plain neutral background. No text, letters, numbers, or labels.`;
+
+    const result = await callGeminiImage({ apiKey: GEMINI_API_KEY, prompt: finalPrompt });
 
     if (!result.ok) {
       // Log server-side, return a generic AI-service error. Always 502 — do NOT
@@ -85,6 +138,24 @@ export default async function handler(req, res) {
       if (insertErr) console.error('ai_generations (image) insert failed:', insertErr);
     } catch (logErr) {
       console.error('ai_generations (image) insert threw:', logErr);
+    }
+
+    // Judge the image against the question concept (logged above, so the spend
+    // counts even if rejected). A rejected image is not returned — the client
+    // sees no `image` and drops the question ("se va todo").
+    const concept = typeof req.body?.concept === 'string'
+      ? req.body.concept.trim().slice(0, MAX_PROMPT_CHARS)
+      : '';
+    const verdict = await judgeImage({
+      apiKey: GEMINI_API_KEY,
+      image: result.image,
+      mimeType: result.mimeType,
+      imagePrompt: safePrompt,
+      concept,
+    });
+    if (verdict.rejected) {
+      console.warn(`[generate-image] judge rejected: ${(verdict.reason || '').slice(0, 200)}`);
+      return res.status(200).json({ rejected: true, reason: verdict.reason || 'judge' });
     }
 
     return res.status(200).json({ image: result.image, mimeType: result.mimeType });

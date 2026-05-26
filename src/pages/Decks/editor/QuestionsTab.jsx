@@ -789,15 +789,17 @@ export default function QuestionsTab({ ed, t, l }) {
                   return <div key={i}>{msg}</div>;
                 }
                 if (w.code === "ai_images") {
-                  // AI-generated images: success, partial (some failed or the
-                  // batch was capped), or total failure. Questions are fine
-                  // either way — this only reports the picture outcome.
+                  // AI images: each selected question keeps a judge-approved
+                  // image or is dropped ("se va todo"). Report how many landed
+                  // and how many questions were removed for lack of one.
+                  const dropped = w.dropped || 0;
                   const msg = w.generated === 0
-                    ? (t.aiImagesAiFailedMsg || "Couldn't generate AI images this time. Your questions are ready without them.")
-                    : w.generated < w.found
-                    ? (t.aiImagesAiPartialMsg || "Added {generated} of {found} AI-generated images — the rest couldn't be generated this time.")
+                    ? (t.aiImagesAiFailedMsg || "Couldn't generate usable AI images this time. Removed {dropped} question(s) that were set to have one.")
+                        .replace("{dropped}", String(dropped))
+                    : dropped > 0
+                    ? (t.aiImagesAiPartialMsg || "Added {generated} AI-generated image(s). Removed {dropped} question(s) whose image didn't pass the quality check.")
                         .replace("{generated}", String(w.generated))
-                        .replace("{found}", String(w.found))
+                        .replace("{dropped}", String(dropped))
                     : (t.aiImagesAiAddedMsg || "Added {generated} AI-generated image(s) to your questions.")
                         .replace("{generated}", String(w.generated));
                   return <div key={i}>{msg}</div>;

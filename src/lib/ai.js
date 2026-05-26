@@ -242,12 +242,16 @@ export async function generateQuestions({
   lessonContext = "general", // "warmup" | "exitTicket" | "general" — Bloque 3 lo conectará desde la UI
   // Track A (A-img-3): two-axis image control.
   //   imageSource: "document" (reuse a PPTX's own embedded images) | "ai"
-  //     (generate with gemini-2.5-flash-image) | "none".
+  //     (generate with the AI image model) | "none".
   //   imageMode: "illustrate" (picture as visual support, question stands
   //     without it) | "about" (the picture carries what the question asks).
   //     Ignored when imageSource is "none".
+  //   imageCoverage: how many questions get an AI image — "few" (model decides,
+  //     sparse), "some" (~30%, the default), "all" (every question). Code
+  //     enforces the count; the model just writes the prompts.
   imageSource = "none",
   imageMode = "illustrate",
+  imageCoverage = "some",
 }) {
   let fileContent = null;
   let messageContent = [];
@@ -356,7 +360,7 @@ export async function generateQuestions({
   if (imageSource === "ai") {
     promptParts = {
       ...promptParts,
-      system: `${promptParts.system}\n\n${aiImageRules(language, imageMode)}`,
+      system: `${promptParts.system}\n\n${aiImageRules(language, imageMode, imageCoverage)}`,
     };
   }
 
@@ -510,22 +514,26 @@ export async function generateQuestions({
       warnings.push({ code: "doc_images", found: docImages.length, attached });
     }
 
-    // Track A — AI image source: generate a picture for every question the model
-    // tagged with an image_prompt, upload it, and set image_url. Strips
-    // image_prompt regardless. Image failures never block the questions (the
-    // teacher keeps the questions, minus the picture that failed).
+    // Track A — AI image source: render images for a coverage-selected subset of
+    // the questions the model tagged, judge each one, and set image_url. Strips
+    // image_prompt regardless. A question selected for an image that ends up
+    // without an approved one (judge reject or generation failure) is DROPPED
+    // entirely — every surviving selected question carries a correct image.
     if (imageSource === "ai") {
       const imgRes = await generateQuestionImages(parsed, {
         accessToken: session.access_token,
         userId: session.user?.id,
+        coverage: imageCoverage,
+        mode: imageMode,
       });
       parsed = imgRes.questions;
       if (imgRes.found > 0) {
         warnings.push({
           code: "ai_images",
           found: imgRes.found,
+          selected: imgRes.selected,
           generated: imgRes.generated,
-          failed: imgRes.failed,
+          dropped: imgRes.dropped,
         });
       }
     }

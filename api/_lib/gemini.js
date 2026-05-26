@@ -16,11 +16,11 @@
 
 const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 
-// Gemini's image-generation model ("Nano Banana"). Same generateContent
+// Gemini's image-generation model ("Nano Banana 2"). Same generateContent
 // endpoint as the text models, but the response carries the picture as an
 // inlineData part instead of text. Exported so the endpoint can log which
 // model produced an image.
-export const GEMINI_IMAGE_MODEL = 'gemini-2.5-flash-image';
+export const GEMINI_IMAGE_MODEL = 'gemini-3.1-flash-image-preview';
 
 // One Anthropic content block → one Gemini part. Unknown blocks return null and
 // are filtered out by the caller. base64 image/document blocks map to inlineData.
@@ -100,10 +100,11 @@ export async function callGemini({ apiKey, model, system, messages, maxTokens, t
 export async function callGeminiImage({ apiKey, prompt, model = GEMINI_IMAGE_MODEL }) {
   const body = {
     contents: [{ role: 'user', parts: [{ text: prompt }] }],
-    // The image model rejects thinkingConfig; it just needs IMAGE in the
-    // response modalities. If a future API revision demands TEXT too, switch
-    // to ['TEXT', 'IMAGE'] — we already parse defensively for the image part.
-    generationConfig: { responseModalities: ['IMAGE'] },
+    // Nano Banana 2 only emits an image when TEXT is also requested; it may
+    // return a stray text part alongside the picture, which we drop below when
+    // we pick out the inlineData part. (thinkingConfig stays off — image models
+    // reject it.)
+    generationConfig: { responseModalities: ['TEXT', 'IMAGE'] },
   };
 
   let resp;

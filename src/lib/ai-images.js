@@ -8,64 +8,126 @@
 // `image_url` — the same field the editor, the live quiz and the PDF export
 // already render.
 //
-// Cost + latency live here. We cap how many images we generate per batch and
-// run them in parallel, so a 6-image batch is one ~15s wait instead of six
-// sequential ones. An image failure never blocks the questions: the teacher
-// keeps every question, just without the picture that failed. `image_prompt` is
-// always stripped so it never leaks into saved deck data.
+// Cost + latency live here. A coverage setting decides how many of the tagged
+// questions actually get an image (the model writes the prompts; we pick the
+// count), capped at MAX_IMAGES and run in parallel. Each image is judged
+// server-side; a selected question whose image is rejected or fails to generate
+// is dropped entirely ("se va todo"). `image_prompt` is always stripped so it
+// never leaks into saved deck data.
 
 import { uploadDeckCover } from "./deck-image-upload";
 
-const MAX_IMAGES = 6;
+const MAX_IMAGES = 20;
+
+// "some" coverage target as a fraction of total questions (rounded up).
+const SOME_FRACTION = 0.30;
 
 /**
- * For each question carrying an `image_prompt`, generate + upload an image and
- * set `image_url`. Returns { questions, found, generated, failed } where
- * `found` is how many questions asked for an image (before the cap), `generated`
- * how many succeeded, `failed` how many were attempted but errored.
+ * Render AI images for a coverage-selected subset of the questions the model
+ * tagged with an `image_prompt`, judge each one (server-side), and set
+ * `image_url`. `image_prompt` is stripped regardless.
+ *
+ * Coverage (how many of the tagged questions to render):
+ *   "all"  → every tagged question        (capped at `max`)
+ *   "some" → ceil(0.30 * total questions)  (capped, the default)
+ *   "few"  → every tagged question         (the model already kept it sparse)
+ * "about" mode always renders every tagged question (its image is load-bearing).
+ *
+ * "Se va todo": a selected question that ends up WITHOUT an approved image
+ * (judge reject or generation failure) is dropped from the output entirely, so
+ * every surviving selected question carries a correct, judge-approved image.
+ *
+ * Returns { questions, found, selected, generated, dropped }:
+ *   found     = tagged questions, selected = how many we tried to render,
+ *   generated = images that succeeded and passed the judge,
+ *   dropped   = selected questions removed for lack of an approved image.
  */
-export async function generateQuestionImages(questions, { accessToken, userId, max = MAX_IMAGES } = {}) {
+export async function generateQuestionImages(
+  questions,
+  { accessToken, userId, max = MAX_IMAGES, coverage = "some", mode = "illustrate" } = {}
+) {
   const stripped = stripAll(questions);
-  if (!Array.isArray(questions) || !accessToken || !userId) {
-    return { questions: stripped, found: 0, generated: 0, failed: 0 };
-  }
+  const empty = { questions: stripped, found: 0, selected: 0, generated: 0, dropped: 0 };
+  if (!Array.isArray(questions) || !accessToken || !userId) return empty;
 
-  // Collect the questions that asked for an image, in order, capped for cost.
-  const targets = [];
-  let found = 0;
+  // Tagged question indices, in document order.
+  const tagged = [];
   for (let i = 0; i < questions.length; i++) {
-    const prompt = promptOf(questions[i]);
-    if (!prompt) continue;
-    found++;
-    if (targets.length < max) targets.push({ i, prompt });
+    if (promptOf(questions[i])) tagged.push(i);
   }
-  if (targets.length === 0) return { questions: stripped, found, generated: 0, failed: 0 };
+  const found = tagged.length;
+  if (found === 0) return empty;
 
-  // Generate in parallel — each call is several seconds; sequential would stack
-  // into a minute-plus wait. allSettled so one failure doesn't sink the batch.
+  // How many to render. "about" images are load-bearing → render all tagged.
+  let target;
+  if (mode === "about" || coverage === "all" || coverage === "few") {
+    target = tagged.length;
+  } else {
+    target = Math.ceil(SOME_FRACTION * questions.length); // "some" (default)
+  }
+  target = Math.min(target, tagged.length, max);
+
+  // Pick `target` tagged questions spread evenly across the exam (not the first
+  // N), so images are distributed rather than clustered.
+  const chosenIdx = pickSpread(tagged, target);
+  const targets = chosenIdx.map((i) => ({
+    i,
+    prompt: promptOf(questions[i]),
+    concept: conceptOf(questions[i]),
+  }));
+
+  // Generate + judge in parallel — each call is several seconds; sequential would
+  // stack into a long wait. allSettled so one failure doesn't sink the batch.
   const results = await Promise.allSettled(
-    targets.map((t) => generateOne(t.prompt, accessToken, userId))
+    targets.map((t) => generateOne(t.prompt, t.concept, accessToken, userId))
   );
 
   const urlByIndex = new Map();
-  let failed = 0;
   results.forEach((r, k) => {
-    const idx = targets[k].i;
-    if (r.status === "fulfilled" && r.value) urlByIndex.set(idx, r.value);
-    else failed++;
+    if (r.status === "fulfilled" && r.value) urlByIndex.set(targets[k].i, r.value);
   });
 
-  const out = questions.map((q, i) => {
-    const bare = strip(q);
-    const url = urlByIndex.get(i);
-    return url ? { ...bare, image_url: url } : bare;
-  });
+  const selectedSet = new Set(chosenIdx);
+  const out = [];
+  for (let i = 0; i < questions.length; i++) {
+    const bare = strip(questions[i]);
+    if (selectedSet.has(i)) {
+      const url = urlByIndex.get(i);
+      if (url) out.push({ ...bare, image_url: url });
+      // else: selected but no approved image → "se va todo", drop the question.
+    } else {
+      out.push(bare); // never selected for an image — keep as-is.
+    }
+  }
 
-  return { questions: out, found, generated: urlByIndex.size, failed };
+  const generated = urlByIndex.size;
+  const selected = targets.length;
+  return { questions: out, found, selected, generated, dropped: selected - generated };
 }
 
-// One prompt → uploaded public URL (or null on any failure). Never throws.
-async function generateOne(prompt, accessToken, userId) {
+// Pick `n` index values from ascending `arr`, spread evenly across it.
+function pickSpread(arr, n) {
+  if (n >= arr.length) return arr.slice();
+  if (n <= 0) return [];
+  if (n === 1) return [arr[0]];
+  const chosen = new Set();
+  for (let k = 0; k < n; k++) {
+    chosen.add(arr[Math.round((k * (arr.length - 1)) / (n - 1))]);
+  }
+  // Rounding can collide; backfill in order until we reach n.
+  if (chosen.size < n) {
+    for (const x of arr) {
+      if (chosen.size >= n) break;
+      chosen.add(x);
+    }
+  }
+  return [...chosen].sort((a, b) => a - b);
+}
+
+// One prompt → uploaded public URL (or null on any failure / judge rejection).
+// Never throws. `concept` is the question stem, sent so the server-side judge
+// can verify the image against the real question, not just the image_prompt.
+async function generateOne(prompt, concept, accessToken, userId) {
   let resp;
   try {
     resp = await fetch("/api/generate-image", {
@@ -74,7 +136,7 @@ async function generateOne(prompt, accessToken, userId) {
         "Content-Type": "application/json",
         Authorization: `Bearer ${accessToken}`,
       },
-      body: JSON.stringify({ prompt }),
+      body: JSON.stringify({ prompt, concept }),
     });
   } catch {
     return null;
@@ -99,6 +161,14 @@ function promptOf(q) {
   if (!q || typeof q !== "object") return "";
   const p = typeof q.image_prompt === "string" ? q.image_prompt.trim() : "";
   return p.length >= 3 ? p : "";
+}
+
+// The question stem (field "q") — the judge's reference concept. Falls back to
+// other common text fields, then empty (the endpoint falls back to the prompt).
+function conceptOf(q) {
+  if (!q || typeof q !== "object") return "";
+  const c = q.q || q.question || q.prompt || q.text || "";
+  return typeof c === "string" ? c.slice(0, 500) : "";
 }
 
 function strip(q) {
