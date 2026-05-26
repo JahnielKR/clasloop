@@ -8,8 +8,12 @@
 // tapping options — Cleo proposes sensible defaults, she never silently assumes
 // the language/length/name. Other actions stay a simple details + Confirm.
 //
-// Self-contained status: idle → running → done | error (or canceled). On
-// success it shows a short confirmation + a deep-link button to what was made.
+// The action's lifecycle (idle → running → done | error | canceled) and its
+// result are CONTROLLED by the parent (CleoChat stores them on the chat
+// message). That's deliberate: the chat panel unmounts when closed, so keeping
+// status here would reset to "idle" on reopen and let the teacher run a
+// finished action again (e.g. create a second deck). Only the create_deck form
+// fields are local — they only matter before the first run.
 import { useState } from "react";
 import { C } from "./tokens";
 
@@ -40,10 +44,11 @@ const TITLE = {
 const LANGS = [["en", "EN"], ["es", "ES"], ["ko", "KO"]];
 const COUNTS = [3, 5, 10, 15, 20];
 
-export default function CleoActionCard({ action, t, onRun, onNavigate, lang = "en", fileName = "" }) {
-  const [status, setStatus] = useState("idle"); // idle | running | done | error | canceled
-  const [result, setResult] = useState(null);
-
+export default function CleoActionCard({
+  action, t, onRun, onCancel, onNavigate,
+  lang = "en", fileName = "",
+  status = "idle", result = null,
+}) {
   const isDeck = action.type === "create_deck";
   const isPptx = /\.pptx$/i.test(fileName || "");
 
@@ -65,8 +70,9 @@ export default function CleoActionCard({ action, t, onRun, onNavigate, lang = "e
   // These run an AI generation step, so they take a while.
   const isSlow = action.type === "generate_review_deck" || isDeck;
 
-  const confirm = async () => {
-    setStatus("running");
+  // Hand the (possibly form-edited) action up; the parent runs it and flips the
+  // message's status, so this card just reflects the `status` prop.
+  const confirm = () => {
     const payload = isDeck
       ? {
           ...action,
@@ -77,9 +83,7 @@ export default function CleoActionCard({ action, t, onRun, onNavigate, lang = "e
           images: images ? "on" : "off",
         }
       : action;
-    const res = await onRun(payload);
-    if (res?.ok) { setResult(res); setStatus("done"); }
-    else setStatus("error");
+    onRun(payload);
   };
 
   const doneMsg = () => {
@@ -182,7 +186,7 @@ export default function CleoActionCard({ action, t, onRun, onNavigate, lang = "e
           )}
 
           <div style={{ display: "flex", gap: 8 }}>
-            <button style={btn(false)} onClick={() => setStatus("canceled")}>{t.cancel}</button>
+            <button style={btn(false)} onClick={onCancel}>{t.cancel}</button>
             <button style={btn(true)} onClick={confirm}>{t.createCta}</button>
           </div>
         </div>
@@ -191,7 +195,7 @@ export default function CleoActionCard({ action, t, onRun, onNavigate, lang = "e
       {/* other actions: a plain confirm */}
       {status === "idle" && !isDeck && (
         <div style={{ display: "flex", gap: 8 }}>
-          <button style={btn(false)} onClick={() => setStatus("canceled")}>{t.cancel}</button>
+          <button style={btn(false)} onClick={onCancel}>{t.cancel}</button>
           <button style={btn(true)} onClick={confirm}>{t.confirm}</button>
         </div>
       )}

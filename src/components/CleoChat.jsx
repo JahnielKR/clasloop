@@ -200,6 +200,27 @@ export default function CleoChat({ lang = "en", profile = null }) {
     }
   };
 
+  // Run / cancel a proposed action. State lives on the MESSAGE (not the card)
+  // so it survives the panel closing — otherwise a finished card would reset to
+  // "idle" on reopen and let the teacher run it again (e.g. a duplicate deck).
+  // Running here (not in the card) also lets a slow generation finish even if
+  // the panel is closed mid-way.
+  const runAction = async (idx, payloadAction, file) => {
+    setMessages((m) => m.map((msg, i) => (i === idx ? { ...msg, actionStatus: "running" } : msg)));
+    let res;
+    try {
+      res = await executeCleoAction(payloadAction, { navigate, profile, lang, file });
+    } catch {
+      res = { ok: false, error: "failed" };
+    }
+    setMessages((m) => m.map((msg, i) => (
+      i === idx ? { ...msg, actionStatus: res?.ok ? "done" : "error", actionResult: res } : msg
+    )));
+  };
+  const cancelAction = (idx) => {
+    setMessages((m) => m.map((msg, i) => (i === idx ? { ...msg, actionStatus: "canceled" } : msg)));
+  };
+
   const onKeyDown = (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -304,7 +325,10 @@ export default function CleoChat({ lang = "en", profile = null }) {
                       t={t.action}
                       lang={lang}
                       fileName={m.file?.name || ""}
-                      onRun={(a) => executeCleoAction(a, { navigate, profile, lang, file: m.file })}
+                      status={m.actionStatus || "idle"}
+                      result={m.actionResult || null}
+                      onRun={(a) => runAction(i, a, m.file)}
+                      onCancel={() => cancelAction(i)}
                       onNavigate={(to) => { setOpen(false); navigate(to); }}
                     />
                   )}
