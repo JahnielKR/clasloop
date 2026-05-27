@@ -272,7 +272,10 @@ export function evaluateAnswer(
       // meets the min word count. All-or-nothing for now.
       const text = String(raw || "");
       const required = String(q.required_word || "").trim().toLowerCase();
-      const minWords = Number.isFinite(q.min_words) ? (q.min_words as number) : 3;
+      // Coerce min_words (may arrive as a numeric string from a JSON column or
+      // AI output), the way the slider case coerces its numbers; fall back to 3.
+      const mw = Number(q.min_words);
+      const minWords = Number.isFinite(mw) ? mw : 3;
       const wordCount = (text.trim().match(/\S+/g) || []).length;
       const containsRequired = required
         ? text.toLowerCase().includes(required)

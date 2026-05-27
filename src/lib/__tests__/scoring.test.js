@@ -288,6 +288,14 @@ describe("evaluateAnswer — sentence", () => {
     expect(evaluateAnswer(q2, "sentence", "uno dos tres").isCorrect).toBe(true);
     expect(evaluateAnswer(q2, "sentence", "solo dos").isCorrect).toBe(false);
   });
+
+  it("honors a numeric-string min_words instead of falling back to 3", () => {
+    // min_words can arrive as a string (JSON column / AI output). A 4-word
+    // sentence would pass under the old default (3) but must fail at "5".
+    const qStr = { required_word: "casa", min_words: "5" };
+    expect(evaluateAnswer(qStr, "sentence", "Mi casa es grande").isCorrect).toBe(false);
+    expect(evaluateAnswer(qStr, "sentence", "Mi casa es muy grande").isCorrect).toBe(true);
+  });
 });
 
 // ═══════════════════════════════════════════════════════════════════════
