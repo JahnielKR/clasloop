@@ -45,6 +45,11 @@ describe("latexToAscii", () => {
     expect(latexToAscii("$\\frac{1}{2}$")).toBe("(1)/(2)");
     expect(latexToAscii("$\\sqrt{9}$")).toBe("sqrt(9)");
     expect(latexToAscii("$\\sqrt[3]{8}$")).toBe("root[3](8)");
+    // Deeply nested fractions fully resolve (the loop repeats until none
+    // remain) instead of leaving a stray "frac".
+    expect(latexToAscii("$\\frac{\\frac{\\frac{\\frac{1}{2}}{3}}{4}}{5}$")).toBe(
+      "((((1)/(2))/(3))/(4))/(5)"
+    );
   });
 
   it("renders super/subscripts", () => {

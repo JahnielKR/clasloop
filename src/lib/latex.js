@@ -81,9 +81,14 @@ function mathToAscii(tex) {
   s = s.replace(/\\([%$#&_{}])/g, "$1");
   // Font/text wrappers → their content.
   s = s.replace(/\\(?:text|mathrm|mathbf|mathbb|mathit|mathsf|operatorname)\s*\{([^{}]*)\}/g, "$1");
-  // \frac{A}{B} → (A)/(B). Looped a few times for shallow nesting.
-  for (let i = 0; i < 3; i++) {
-    s = s.replace(/\\[dt]?frac\s*\{([^{}]*)\}\s*\{([^{}]*)\}/g, "($1)/($2)");
+  // \frac{A}{B} → (A)/(B). Each pass resolves the innermost level (whose args
+  // hold no braces); repeat until none remain so arbitrarily nested fractions
+  // fully convert instead of leaving a stray "frac" in the output. Bounded as
+  // a guard against pathological input.
+  for (let i = 0; i < 24; i++) {
+    const next = s.replace(/\\[dt]?frac\s*\{([^{}]*)\}\s*\{([^{}]*)\}/g, "($1)/($2)");
+    if (next === s) break;
+    s = next;
   }
   // Roots.
   s = s.replace(/\\sqrt\s*\[([^\]]*)\]\s*\{([^{}]*)\}/g, "root[$1]($2)");
