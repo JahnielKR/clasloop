@@ -108,7 +108,7 @@ const ACTION_DECLARATIONS = [
   {
     name: 'create_unit',
     description:
-      "Create a new unit (a folder that groups a class's decks for planning) inside one of the teacher's classes. The teacher confirms before it's created.",
+      "Create a SINGLE new unit (a folder that groups a class's decks for planning) inside one of the teacher's classes. For several at once (a range like 'units 1 to 8'), use create_units instead. The teacher confirms before it's created.",
     parameters: {
       type: 'object',
       properties: {
@@ -116,6 +116,25 @@ const ACTION_DECLARATIONS = [
         name: { type: 'string', description: 'Unit name, e.g. "World War II".' },
       },
       required: ['class_name', 'name'],
+    },
+  },
+  {
+    name: 'create_units',
+    description:
+      "Create SEVERAL units at once inside one of the teacher's classes — a numbered range (e.g. 'units 1 to 8') OR a list of names the teacher gives. Use THIS instead of calling create_unit many times. The teacher sees one card listing the names and confirms before any are created; they can rename each one there.",
+    parameters: {
+      type: 'object',
+      properties: {
+        class_name: { type: 'string', description: 'The class the units belong to.' },
+        count: { type: 'integer', description: 'How many units for a numbered range, e.g. 8 → "Unit 1"…"Unit 8". Max 20.' },
+        start: { type: 'integer', description: 'First number of the range. Default 1.' },
+        names: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Explicit unit names, in order. Use when the teacher names them; overrides count.',
+        },
+      },
+      required: ['class_name'],
     },
   },
   {
@@ -193,6 +212,18 @@ export const ACTION_TOOL_NAMES = new Set(ACTION_DECLARATIONS.map((d) => d.name))
 
 const round = (n) => (typeof n === 'number' ? Math.round(n) : n);
 const norm = (s) => (s || '').trim().toLowerCase();
+
+// Cap on a single bulk create_units call (anti-abuse; one step can make this many).
+const MAX_BULK_UNITS = 20;
+
+// Default names for a numbered unit range, localized by the teacher's UI lang.
+// "Unit 1" (en) / "Unidad 1" (es) / "1단원" (ko).
+function defaultUnitNames(count, start, lang) {
+  const n = Math.max(1, Math.min(MAX_BULK_UNITS, count));
+  const s = Number.isFinite(start) ? start : 1;
+  const label = (i) => (lang === 'es' ? `Unidad ${i}` : lang === 'ko' ? `${i}단원` : `Unit ${i}`);
+  return Array.from({ length: n }, (_, k) => label(s + k));
+}
 
 async function getTeacherClasses(supabase, teacherId) {
   const { data, error } = await supabase
@@ -424,7 +455,7 @@ function matchDeck(decks, title) {
 // Targets that need a resolved class to make sense.
 const CLASS_SCOPED_TARGETS = new Set(['class_decks', 'class_detail', 'class_insights', 'class_report']);
 
-export async function normalizeCleoAction(name, args, { supabase, teacherId }) {
+export async function normalizeCleoAction(name, args, { supabase, teacherId, lang }) {
   try {
     const a = args || {};
     switch (name) {
@@ -461,6 +492,22 @@ export async function normalizeCleoAction(name, args, { supabase, teacherId }) {
         const unitName = (a.name || '').trim();
         if (!unitName) return { error: 'missing_fields', need: ['name'] };
         return { action: { type: 'create_unit', confirm: true, classId: cls.id, className: cls.name, name: unitName } };
+      }
+
+      case 'create_units': {
+        const classes = await getTeacherClasses(supabase, teacherId);
+        const cls = matchClass(classes, a.class_name);
+        if (!cls) return { error: 'class_not_found', your_classes: classes.map((c) => c.name) };
+        let names = [];
+        if (Array.isArray(a.names) && a.names.length) {
+          names = a.names.map((s) => (typeof s === 'string' ? s.trim() : '')).filter(Boolean);
+        } else {
+          const count = parseInt(a.count, 10);
+          if (Number.isFinite(count)) names = defaultUnitNames(count, parseInt(a.start, 10), lang);
+        }
+        names = names.slice(0, MAX_BULK_UNITS);
+        if (names.length === 0) return { error: 'need_count_or_names' };
+        return { action: { type: 'create_units', confirm: true, classId: cls.id, className: cls.name, names } };
       }
 
       case 'generate_review_deck': {

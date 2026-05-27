@@ -95,6 +95,28 @@ export async function executeCleoAction(action, { navigate, profile, lang = 'en'
       };
     }
 
+    case 'create_units': {
+      const names = Array.isArray(action.names)
+        ? action.names.map((n) => String(n || '').trim()).filter(Boolean)
+        : [];
+      if (names.length === 0) return { ok: false, error: 'no_names' };
+      // Sequential on purpose: createUnit derives each position from max+1, so
+      // running them in order keeps the units numbered 1..N. We keep going if
+      // one fails and report the tally, rather than aborting the whole batch.
+      const created = [];
+      const failed = [];
+      for (const name of names) {
+        const { unit, error } = await createUnit({ classId: action.classId, name });
+        if (error || !unit) failed.push({ name, error: error || 'create_failed' });
+        else created.push({ id: unit.id, name: unit.name });
+      }
+      return {
+        ok: created.length > 0,
+        result: { kind: 'units', created, failed, classId: action.classId },
+        to: buildRoute.classDetail(action.classId),
+      };
+    }
+
     case 'generate_review_deck': {
       // Needs the class row (subject/grade) + the unit's retention summary.
       const { data: classRow } = await supabase

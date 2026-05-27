@@ -20,6 +20,14 @@ import { pathToPage } from "../routes";
 import { executeCleoAction } from "../lib/cleo-actions";
 import { SUPPORTED_FILES } from "../lib/ai";
 import CleoActionCard from "./CleoActionCard";
+import CleoPlanCard from "./CleoPlanCard";
+
+// Step types that actually write (run via executeCleoAction on confirm). The
+// rest (navigate / launch_session / schedule_unit) are read-only movement,
+// shown as link buttons — never auto-run inside a plan.
+const PLAN_WRITE_TYPES = new Set([
+  "create_class", "create_unit", "create_units", "create_deck", "generate_review_deck",
+]);
 
 // Monochrome line icon (inherits currentColor) for the attach affordance —
 // matches the sidebar's line-icon style rather than a colored CIcon (whose
@@ -173,19 +181,42 @@ export default function CleoChat({ lang = "en", profile = null }) {
       const data = await resp.json().catch(() => ({}));
       if (!resp.ok) throw new Error(data?.error || "request_failed");
       const reply = (data.reply || "").trim();
-      const action = data.action || null;
+      // The server returns a `plan` (ordered steps); a single step also rides
+      // as `action` for the legacy single-card path.
+      const steps = Array.isArray(data.plan) && data.plan.length
+        ? data.plan
+        : (data.action ? [data.action] : []);
+      const single = steps.length === 1 ? steps[0] : null;
 
-      if (action && action.confirm === false) {
-        // Read-only movement (navigate) — run it immediately, like a tour.
+      if (single && single.confirm === false) {
+        // Read-only movement (navigate / launch) — run it immediately, like a tour.
         if (reply) setMessages((m) => [...m, { role: "model", text: reply }]);
-        await executeCleoAction(action, { navigate, profile, lang });
+        await executeCleoAction(single, { navigate, profile, lang });
         setOpen(false);
-      } else if (action) {
-        // A write — show Cleo's sentence + a confirmation card under it. For
+      } else if (single && single.type !== "create_units") {
+        // A single ordinary write — Cleo's sentence + the confirmation card. For
         // create_deck, freeze the attached file onto the message so the card
         // generates from exactly what was attached, then clear the composer.
-        const msg = { role: "model", text: reply || t.action.confirmPrompt, action };
-        if (action.type === "create_deck") {
+        const msg = { role: "model", text: reply || t.action.confirmPrompt, action: single };
+        if (single.type === "create_deck") {
+          msg.file = sentFile;
+          setAttachedFile(null);
+        }
+        setMessages((m) => [...m, msg]);
+      } else if (steps.length) {
+        // A multi-step plan, or a single bulk create_units — ONE confirmation
+        // for the whole thing (CleoPlanCard). Freeze the file if a deck step
+        // builds from a document.
+        const usesFile = steps.some((s) => s.type === "create_deck" && s.source === "document");
+        const msg = {
+          role: "model",
+          text: reply || t.plan.prompt,
+          plan: steps,
+          planStatus: "idle",
+          stepStatuses: [],
+          results: [],
+        };
+        if (usesFile) {
           msg.file = sentFile;
           setAttachedFile(null);
         }
@@ -219,6 +250,50 @@ export default function CleoChat({ lang = "en", profile = null }) {
   };
   const cancelAction = (idx) => {
     setMessages((m) => m.map((msg, i) => (i === idx ? { ...msg, actionStatus: "canceled" } : msg)));
+  };
+
+  // Patch one step's status/result on a plan message (immutably).
+  const patchStep = (idx, k, status, result) => {
+    setMessages((m) => m.map((msg, i) => {
+      if (i !== idx) return msg;
+      const stepStatuses = [...(msg.stepStatuses || [])];
+      stepStatuses[k] = status;
+      const results = [...(msg.results || [])];
+      if (result !== undefined) results[k] = result;
+      return { ...msg, stepStatuses, results };
+    }));
+  };
+
+  // Run a confirmed plan: execute the WRITE steps in order (movement steps are
+  // link buttons, never auto-run). State lives on the MESSAGE so closing the
+  // panel mid-run doesn't restart it. `prevStatuses` lets a retry skip steps
+  // that already succeeded — so we never double-create a unit or deck.
+  const runPlan = async (idx, finalSteps, file, prevStatuses = []) => {
+    const doneAlready = (k) => prevStatuses[k] === "done";
+    setMessages((m) => m.map((msg, i) => {
+      if (i !== idx) return msg;
+      const stepStatuses = finalSteps.map((s, k) =>
+        !PLAN_WRITE_TYPES.has(s.type) ? undefined : (doneAlready(k) ? "done" : "pending"));
+      return { ...msg, plan: finalSteps, planStatus: "running", stepStatuses, results: msg.results || [] };
+    }));
+
+    for (let k = 0; k < finalSteps.length; k++) {
+      const step = finalSteps[k];
+      if (!PLAN_WRITE_TYPES.has(step.type) || doneAlready(k)) continue;
+      patchStep(idx, k, "running");
+      let res;
+      try {
+        res = await executeCleoAction(step, { navigate, profile, lang, file });
+      } catch {
+        res = { ok: false, error: "failed" };
+      }
+      patchStep(idx, k, res?.ok ? "done" : "error", res);
+    }
+
+    setMessages((m) => m.map((msg, i) => (i === idx ? { ...msg, planStatus: "done" } : msg)));
+  };
+  const cancelPlan = (idx) => {
+    setMessages((m) => m.map((msg, i) => (i === idx ? { ...msg, planStatus: "canceled" } : msg)));
   };
 
   const onKeyDown = (e) => {
@@ -329,6 +404,20 @@ export default function CleoChat({ lang = "en", profile = null }) {
                       result={m.actionResult || null}
                       onRun={(a) => runAction(i, a, m.file)}
                       onCancel={() => cancelAction(i)}
+                      onNavigate={(to) => { setOpen(false); navigate(to); }}
+                    />
+                  )}
+                  {m.plan && (
+                    <CleoPlanCard
+                      steps={m.plan}
+                      t={t}
+                      lang={lang}
+                      file={m.file || null}
+                      planStatus={m.planStatus || "idle"}
+                      stepStatuses={m.stepStatuses || []}
+                      results={m.results || []}
+                      onRunPlan={(finalSteps) => runPlan(i, finalSteps, m.file || null, m.stepStatuses || [])}
+                      onCancel={() => cancelPlan(i)}
                       onNavigate={(to) => { setOpen(false); navigate(to); }}
                     />
                   )}
