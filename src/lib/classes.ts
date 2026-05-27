@@ -94,3 +94,39 @@ export async function joinClass(
   // El RPC devuelve { class, member } como jsonb.
   return { class: data?.class, member: data?.member };
 }
+
+// ─── Rename a class (teacher) ───────────────────────────────────────────
+//
+// Updates only the name (the EditClass modal updates name/subject/grade
+// together; Cleo just renames). Runs under the teacher's own RLS. Returns
+// { class } or { error } — never throws.
+export async function renameClass(args: {
+  classId: string;
+  name: string;
+}): Promise<{ class?: ClassRow; error?: string }> {
+  const name = (args.name || '').trim();
+  if (!args.classId) return { error: 'A class is required.' };
+  if (!name) return { error: 'A class needs a name.' };
+
+  const { data, error } = await supabase
+    .from('classes')
+    .update({ name })
+    .eq('id', args.classId)
+    .select()
+    .single();
+  if (error) return { error: error.message };
+  return { class: data as ClassRow };
+}
+
+// ─── Delete a class (teacher) — everything cascades ─────────────────────
+//
+// A bare delete; the DB cascades members/units/decks/sessions (the same path
+// the EditClass modal's danger zone uses — EditClassModal.jsx:242). Cleo gates
+// this behind a type-the-class-name confirmation in the card, so this only
+// runs after the teacher explicitly confirms. Runs under RLS.
+export async function deleteClass(classId: string): Promise<{ ok?: boolean; error?: string }> {
+  if (!classId) return { error: 'A class is required.' };
+  const { error } = await supabase.from('classes').delete().eq('id', classId);
+  if (error) return { error: error.message };
+  return { ok: true };
+}

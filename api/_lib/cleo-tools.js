@@ -202,6 +202,49 @@ const ACTION_DECLARATIONS = [
       required: ['deck_title'],
     },
   },
+  {
+    name: 'rename_item',
+    description:
+      "Rename one of the teacher's classes, units, or decks. Set `type` to what's being renamed; for a unit or deck pass class_name to scope the lookup. The teacher confirms before the rename.",
+    parameters: {
+      type: 'object',
+      properties: {
+        type: { type: 'string', enum: ['class', 'unit', 'deck'], description: 'What to rename.' },
+        name: { type: 'string', description: 'The current name/title of the item.' },
+        new_name: { type: 'string', description: 'The new name/title.' },
+        class_name: { type: 'string', description: 'The class that owns the unit/deck (to scope the lookup). Not needed for type=class.' },
+      },
+      required: ['type', 'name', 'new_name'],
+    },
+  },
+  {
+    name: 'delete_item',
+    description:
+      "Delete one of the teacher's classes, units, or decks. Set `type`. A DECK deletes with a normal confirmation. A UNIT deletes only if it's EMPTY (no decks) — if it has decks, tell the teacher to clear it first. A CLASS deletes everything inside it (students, units, decks, sessions) and is gated behind typing the class name to confirm. For a unit/deck, pass class_name to scope the lookup.",
+    parameters: {
+      type: 'object',
+      properties: {
+        type: { type: 'string', enum: ['class', 'unit', 'deck'], description: 'What to delete.' },
+        name: { type: 'string', description: 'The name/title of the item.' },
+        class_name: { type: 'string', description: 'The class that owns the unit/deck. Not needed for type=class.' },
+      },
+      required: ['type', 'name'],
+    },
+  },
+  {
+    name: 'move_deck',
+    description:
+      "Move a deck into a unit, or back out to the class level. Pass the deck title and the destination unit name; omit to_unit (or set it to 'none') to move it out of any unit, up to the class level. Pass class_name to disambiguate. The teacher confirms before the move.",
+    parameters: {
+      type: 'object',
+      properties: {
+        deck_title: { type: 'string', description: 'The deck to move.' },
+        to_unit: { type: 'string', description: "Destination unit name. Omit or 'none' to move it to the class level (no unit)." },
+        class_name: { type: 'string', description: 'Optional class to disambiguate the deck/unit.' },
+      },
+      required: ['deck_title'],
+    },
+  },
 ];
 
 // The full set declared to Gemini (read tools + action tools).
@@ -452,6 +495,42 @@ function matchDeck(decks, title) {
   );
 }
 
+// Resolve a deck the teacher owns by title, optionally scoped to a class.
+// Returns { deck } (deck has id, title, class_id) or { error } (a plain object
+// the chat loop feeds back to the model).
+async function resolveDeck(supabase, teacherId, className, title) {
+  let classId = null;
+  if (className) {
+    const classes = await getTeacherClasses(supabase, teacherId);
+    const cls = matchClass(classes, className);
+    if (cls) classId = cls.id;
+  }
+  const decks = await getTeacherDecks(supabase, teacherId, classId);
+  if (decks.length === 0) return { error: { error: 'no_decks' } };
+  const deck = matchDeck(decks, title);
+  if (!deck) return { error: { error: 'deck_not_found', your_decks: decks.slice(0, 12).map((d) => d.title) } };
+  return { deck };
+}
+
+// How many decks sit inside a unit (for the "delete only empty units" rule).
+async function countDecksInUnit(supabase, unitId) {
+  const { count } = await supabase
+    .from('decks')
+    .select('id', { count: 'exact', head: true })
+    .eq('unit_id', unitId);
+  return count || 0;
+}
+
+// Students + decks in a class — shown in the destructive delete-class card so
+// the teacher sees exactly what a full delete takes with it.
+async function classCounts(supabase, classId) {
+  const [{ count: students }, { count: decks }] = await Promise.all([
+    supabase.from('class_members').select('id', { count: 'exact', head: true }).eq('class_id', classId),
+    supabase.from('decks').select('id', { count: 'exact', head: true }).eq('class_id', classId),
+  ]);
+  return { students: students || 0, decks: decks || 0 };
+}
+
 // Targets that need a resolved class to make sense.
 const CLASS_SCOPED_TARGETS = new Set(['class_decks', 'class_detail', 'class_insights', 'class_report']);
 
@@ -591,6 +670,86 @@ export async function normalizeCleoAction(name, args, { supabase, teacherId, lan
         if (!deck) return { error: 'deck_not_found', your_decks: decks.slice(0, 12).map((d) => d.title) };
         // Read-only: just open the launch screen (no confirmation card).
         return { action: { type: 'launch_session', confirm: false, deckId: deck.id, deckTitle: deck.title } };
+      }
+
+      case 'rename_item': {
+        const newName = (a.new_name || '').trim();
+        if (!newName) return { error: 'missing_fields', need: ['new_name'] };
+        if (a.type === 'class') {
+          const classes = await getTeacherClasses(supabase, teacherId);
+          const cls = matchClass(classes, a.name);
+          if (!cls) return { error: 'class_not_found', your_classes: classes.map((c) => c.name) };
+          return { action: { type: 'rename_class', confirm: true, classId: cls.id, className: cls.name, newName } };
+        }
+        if (a.type === 'unit') {
+          const classes = await getTeacherClasses(supabase, teacherId);
+          const cls = matchClass(classes, a.class_name);
+          if (!cls) return { error: 'class_not_found', your_classes: classes.map((c) => c.name) };
+          const units = await getClassUnits(supabase, cls.id);
+          const unit = matchUnit(units, a.name);
+          if (!unit) return { error: 'unit_not_found', units_in_class: units.map((u) => u.name) };
+          return { action: { type: 'rename_unit', confirm: true, classId: cls.id, className: cls.name, unitId: unit.id, unitName: unit.name, newName } };
+        }
+        if (a.type === 'deck') {
+          const { deck, error } = await resolveDeck(supabase, teacherId, a.class_name, a.name);
+          if (error) return error;
+          return { action: { type: 'rename_deck', confirm: true, deckId: deck.id, deckTitle: deck.title, classId: deck.class_id, newName } };
+        }
+        return { error: 'bad_type' };
+      }
+
+      case 'delete_item': {
+        if (a.type === 'deck') {
+          const { deck, error } = await resolveDeck(supabase, teacherId, a.class_name, a.name);
+          if (error) return error;
+          return { action: { type: 'delete_deck', confirm: true, destructive: true, deckId: deck.id, deckTitle: deck.title, classId: deck.class_id } };
+        }
+        if (a.type === 'unit') {
+          const classes = await getTeacherClasses(supabase, teacherId);
+          const cls = matchClass(classes, a.class_name);
+          if (!cls) return { error: 'class_not_found', your_classes: classes.map((c) => c.name) };
+          const units = await getClassUnits(supabase, cls.id);
+          const unit = matchUnit(units, a.name);
+          if (!unit) return { error: 'unit_not_found', units_in_class: units.map((u) => u.name) };
+          const deckCount = await countDecksInUnit(supabase, unit.id);
+          // Only EMPTY units delete via Cleo — hand a non-empty one back so she
+          // tells the teacher to clear/move its decks first (no card shown).
+          if (deckCount > 0) return { error: 'unit_not_empty', unit: unit.name, deck_count: deckCount };
+          return { action: { type: 'delete_unit', confirm: true, destructive: true, classId: cls.id, className: cls.name, unitId: unit.id, unitName: unit.name } };
+        }
+        if (a.type === 'class') {
+          const classes = await getTeacherClasses(supabase, teacherId);
+          const cls = matchClass(classes, a.name);
+          if (!cls) return { error: 'class_not_found', your_classes: classes.map((c) => c.name) };
+          const counts = await classCounts(supabase, cls.id);
+          // Full delete (everything cascades) gated behind typing the class name —
+          // the card enforces `confirmName`. studentCount/deckCount drive the warning.
+          return {
+            action: {
+              type: 'delete_class', confirm: true, destructive: true,
+              classId: cls.id, className: cls.name, confirmName: cls.name,
+              studentCount: counts.students, deckCount: counts.decks,
+            },
+          };
+        }
+        return { error: 'bad_type' };
+      }
+
+      case 'move_deck': {
+        const { deck, error } = await resolveDeck(supabase, teacherId, a.class_name, a.deck_title);
+        if (error) return error;
+        let toUnitId = null;
+        let toUnitName = null;
+        const dest = norm(a.to_unit);
+        const TO_CLASS_LEVEL = new Set(['', 'none', 'class', 'class level', 'ninguna', 'ninguno', 'clase', 'nivel de clase']);
+        if (a.to_unit && !TO_CLASS_LEVEL.has(dest)) {
+          const units = await getClassUnits(supabase, deck.class_id);
+          const unit = matchUnit(units, a.to_unit);
+          if (!unit) return { error: 'unit_not_found', units_in_class: units.map((u) => u.name) };
+          toUnitId = unit.id;
+          toUnitName = unit.name;
+        }
+        return { action: { type: 'move_deck', confirm: true, deckId: deck.id, deckTitle: deck.title, classId: deck.class_id, toUnitId, toUnitName } };
       }
 
       default:

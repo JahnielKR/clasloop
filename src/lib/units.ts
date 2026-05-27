@@ -49,3 +49,38 @@ export async function createUnit(args: {
   if (error) return { error: error.message };
   return { unit: data as UnitRow };
 }
+
+// ─── Rename a unit (teacher) ────────────────────────────────────────────
+//
+// Updates only the name — same as PlanView's inline rename (PlanView.jsx:160).
+// Centralized so Cleo's action layer renames through one path. Runs under the
+// teacher's own RLS. Returns { unit } on success or { error } — never throws.
+export async function renameUnit(args: {
+  unitId: string;
+  name: string;
+}): Promise<{ unit?: UnitRow; error?: string }> {
+  const name = (args.name || '').trim();
+  if (!args.unitId) return { error: 'A unit is required.' };
+  if (!name) return { error: 'A unit needs a name.' };
+
+  const { data, error } = await supabase
+    .from('units')
+    .update({ name })
+    .eq('id', args.unitId)
+    .select()
+    .single();
+  if (error) return { error: error.message };
+  return { unit: data as UnitRow };
+}
+
+// ─── Delete a unit (teacher) ────────────────────────────────────────────
+//
+// Deletes the unit row. Cleo only calls this for an EMPTY unit — the
+// "no decks" check lives server-side in api/_lib/cleo-tools.js so a non-empty
+// unit never reaches here. Runs under RLS. Returns { ok } or { error }.
+export async function deleteUnit(unitId: string): Promise<{ ok?: boolean; error?: string }> {
+  if (!unitId) return { error: 'A unit is required.' };
+  const { error } = await supabase.from('units').delete().eq('id', unitId);
+  if (error) return { error: error.message };
+  return { ok: true };
+}

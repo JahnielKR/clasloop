@@ -10,7 +10,9 @@ import { normalizeCleoAction, ACTION_TOOL_NAMES } from '../../../api/_lib/cleo-t
 // chosen by table. Mirrors getTeacherClasses / getClassUnits which both do a
 // single .eq() then await.
 function makeSupabase({ classes = [], units = [], decks = [] } = {}) {
-  const resolve = (data) => Promise.resolve({ data, error: null });
+  // `count` mirrors a head:true count query (the mock ignores .eq() filters, so
+  // craft per-test rows to drive the empty-unit / class-counts paths).
+  const resolve = (data) => Promise.resolve({ data, count: Array.isArray(data) ? data.length : 0, error: null });
   const pick = (table) =>
     table === 'classes' ? classes : table === 'units' ? units : table === 'decks' ? decks : [];
   return {
@@ -37,7 +39,7 @@ const runL = (name, args, opts, lang) =>
 describe('ACTION_TOOL_NAMES', () => {
   it('marks exactly the write/navigate tools', () => {
     expect([...ACTION_TOOL_NAMES].sort()).toEqual(
-      ['create_class', 'create_deck', 'create_unit', 'create_units', 'generate_review_deck', 'launch_session', 'navigate', 'schedule_unit'].sort(),
+      ['create_class', 'create_deck', 'create_unit', 'create_units', 'delete_item', 'generate_review_deck', 'launch_session', 'move_deck', 'navigate', 'rename_item', 'schedule_unit'].sort(),
     );
   });
 });
@@ -138,6 +140,101 @@ describe('create_units (bulk)', () => {
   it('errors on unknown class', async () => {
     const res = await run('create_units', { class_name: 'Chemistry', count: 3 }, { classes: CLASSES });
     expect(res.error).toBe('class_not_found');
+  });
+});
+
+describe('rename_item', () => {
+  it('renames a class', async () => {
+    const { action } = await run('rename_item', { type: 'class', name: 'history', new_name: 'History 3' }, { classes: CLASSES });
+    expect(action).toMatchObject({ type: 'rename_class', confirm: true, classId: 'c1', className: 'History 2', newName: 'History 3' });
+  });
+
+  it('renames a unit, scoped to its class', async () => {
+    const { action } = await run(
+      'rename_item',
+      { type: 'unit', name: 'world war', new_name: 'WWII', class_name: 'history' },
+      { classes: CLASSES, units: [{ id: 'u1', name: 'World War II' }] },
+    );
+    expect(action).toMatchObject({ type: 'rename_unit', unitId: 'u1', classId: 'c1', newName: 'WWII' });
+  });
+
+  it('renames a deck (carries classId for the view link)', async () => {
+    const { action } = await run(
+      'rename_item',
+      { type: 'deck', name: 'fractions quiz', new_name: 'Fractions 1' },
+      { classes: CLASSES, decks: [{ id: 'd2', title: 'Fractions Quiz', class_id: 'c2' }] },
+    );
+    expect(action).toMatchObject({ type: 'rename_deck', deckId: 'd2', classId: 'c2', newName: 'Fractions 1' });
+  });
+
+  it('errors on a blank new name', async () => {
+    const res = await run('rename_item', { type: 'class', name: 'history', new_name: '  ' }, { classes: CLASSES });
+    expect(res.error).toBe('missing_fields');
+  });
+});
+
+describe('delete_item', () => {
+  it('deletes a deck (destructive, no empty check)', async () => {
+    const { action } = await run(
+      'delete_item',
+      { type: 'deck', name: 'fractions quiz' },
+      { classes: CLASSES, decks: [{ id: 'd2', title: 'Fractions Quiz', class_id: 'c2' }] },
+    );
+    expect(action).toMatchObject({ type: 'delete_deck', confirm: true, destructive: true, deckId: 'd2' });
+  });
+
+  it('deletes an EMPTY unit', async () => {
+    const { action } = await run(
+      'delete_item',
+      { type: 'unit', name: 'world war', class_name: 'history' },
+      { classes: CLASSES, units: [{ id: 'u1', name: 'World War II' }], decks: [] },
+    );
+    expect(action).toMatchObject({ type: 'delete_unit', destructive: true, unitId: 'u1' });
+  });
+
+  it('refuses a NON-empty unit with the deck count', async () => {
+    const res = await run(
+      'delete_item',
+      { type: 'unit', name: 'world war', class_name: 'history' },
+      { classes: CLASSES, units: [{ id: 'u1', name: 'World War II' }], decks: [{ id: 'd9', title: 'x', class_id: 'c1' }] },
+    );
+    expect(res.error).toBe('unit_not_empty');
+    expect(res.deck_count).toBe(1);
+  });
+
+  it('deletes a class with a type-to-confirm payload + counts', async () => {
+    const { action } = await run(
+      'delete_item',
+      { type: 'class', name: 'history' },
+      { classes: CLASSES, decks: [{ id: 'd1', title: 'a', class_id: 'c1' }] },
+    );
+    expect(action).toMatchObject({
+      type: 'delete_class', destructive: true, classId: 'c1',
+      confirmName: 'History 2', deckCount: 1, studentCount: 0,
+    });
+  });
+});
+
+describe('move_deck', () => {
+  const DECKS = [{ id: 'd2', title: 'Fractions Quiz', class_id: 'c2' }];
+
+  it('moves a deck into a unit', async () => {
+    const { action } = await run(
+      'move_deck',
+      { deck_title: 'fractions quiz', to_unit: 'cold war', class_name: 'math' },
+      { classes: CLASSES, decks: DECKS, units: [{ id: 'u2', name: 'Cold War' }] },
+    );
+    expect(action).toMatchObject({ type: 'move_deck', deckId: 'd2', classId: 'c2', toUnitId: 'u2', toUnitName: 'Cold War' });
+  });
+
+  it('moves a deck to the class level when to_unit is omitted', async () => {
+    const { action } = await run('move_deck', { deck_title: 'fractions quiz' }, { classes: CLASSES, decks: DECKS });
+    expect(action).toMatchObject({ type: 'move_deck', deckId: 'd2', toUnitId: null, toUnitName: null });
+  });
+
+  it("treats 'none' as the class level", async () => {
+    const { action } = await run('move_deck', { deck_title: 'fractions quiz', to_unit: 'none' }, { classes: CLASSES, decks: DECKS });
+    expect(action.toUnitId).toBeNull();
   });
 });
 
