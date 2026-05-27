@@ -50,3 +50,17 @@ export function retentionTier(pct: number): ScoreTier {
   if (pct >= RETENTION_TIERS.orange) return "orange";
   return "red";
 }
+
+// ── REVIEWS DUE ───────────────────────────────────────────────────────────
+// A topic is "due for review" once its retention decays below this cutoff.
+// This is a DISTINCT axis from the green/orange color tiers above — it answers
+// "should the student revisit this?", not "what color is the chip?", so it is
+// intentionally not RETENTION_TIERS.green/orange. Centralised here because the
+// bare `65` was inlined in both useStudentClasses (class-card badge count) and
+// MyClasses (the reviews tab); a single source keeps the two from drifting.
+export const REVIEW_DUE_THRESHOLD = 65;
+
+// Missing retention defaults to 100 (a brand-new topic isn't "due" yet).
+export function isReviewDue(retentionScore: number | null | undefined): boolean {
+  return (retentionScore ?? 100) < REVIEW_DUE_THRESHOLD;
+}

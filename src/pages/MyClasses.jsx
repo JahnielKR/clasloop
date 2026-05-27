@@ -14,6 +14,7 @@ import UICard from "../components/ui/Card";
 import Skeleton from "../components/ui/Skeleton";
 import { C, MONO } from "../components/tokens";
 import { getPracticeTimerPref, setPracticeTimerPref } from "../lib/practice-timer-pref";
+import { isReviewDue } from "../lib/scoring-thresholds";
 import { ROUTES, buildRoute } from "../routes";
 // PR 77: i18n centralizado
 import { useT } from "../i18n";
@@ -651,9 +652,9 @@ function ClassDetail({ cls, profile, t, lang, onBack, onLaunchPractice }) {
   const decks = cdData?.decks ?? [];
   const progress = cdData?.progress ?? [];
 
-  // Reviews due (retention < 65%)
+  // Reviews due (retention below the shared REVIEW_DUE_THRESHOLD)
   const reviewsDue = progress
-    .filter(p => (p.retention_score ?? 100) < 65)
+    .filter(p => isReviewDue(p.retention_score))
     .sort((a, b) => (a.retention_score ?? 100) - (b.retention_score ?? 100));
 
   // Counts for tabs

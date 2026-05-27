@@ -15,6 +15,7 @@
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "../lib/supabase";
+import { isReviewDue } from "../lib/scoring-thresholds";
 
 export const studentClassesKey = (profileId, tick) => ["studentClasses", profileId, tick];
 
@@ -38,7 +39,7 @@ async function fetchStudentClasses(profileId) {
         .select("retention_score, last_reviewed_at")
         .eq("student_id", profileId)
         .eq("class_id", cls.id);
-      const reviewsDue = (progress || []).filter((p) => (p.retention_score ?? 100) < 65).length;
+      const reviewsDue = (progress || []).filter((p) => isReviewDue(p.retention_score)).length;
       const avgRetention =
         progress && progress.length > 0
           ? Math.round(progress.reduce((s, p) => s + (p.retention_score || 0), 0) / progress.length)
