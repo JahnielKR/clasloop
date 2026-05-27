@@ -4416,10 +4416,6 @@ CREATE POLICY "session_participants_guest_read" ON "public"."session_participant
 
 
 
-CREATE POLICY "session_participants_guest_self_update" ON "public"."session_participants" FOR UPDATE USING (("is_guest" = true));
-
-
-
 ALTER TABLE "public"."sessions" ENABLE ROW LEVEL SECURITY;
 
 
