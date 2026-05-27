@@ -15,7 +15,6 @@
 // usable if a key is missing.
 
 import { useRef, useState } from "react";
-import { CIcon } from "./Icons";
 import { C } from "./tokens";
 import Modal from "./Modal";
 import { importClassFromJson, validateImportJson, IMPORT_LIMITS, ImportError } from "../lib/class-import";

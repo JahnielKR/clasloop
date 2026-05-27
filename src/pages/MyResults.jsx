@@ -14,7 +14,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
-import { CIcon } from "../components/Icons";
 import { C, MONO } from "../components/tokens";
 import { ROUTES } from "../routes";
 import PageHeader from "../components/PageHeader";

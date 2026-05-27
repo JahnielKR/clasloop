@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { supabase } from "../lib/supabase";
 import { LogoMark, CIcon } from "../components/Icons";
 import { validateGuestName, loadGuestSession, clearGuestSession } from "../lib/guest-session";
 import StudentJoin from "./StudentJoin";

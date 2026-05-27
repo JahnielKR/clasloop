@@ -1,15 +1,12 @@
 import { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { useLocation, useNavigate, useMatch } from 'react-router-dom';
-import { Capacitor } from '@capacitor/core';
 import { ROUTES, PAGE_TO_ROUTE, pathToPage, defaultRouteForRole, buildRoute, buildPathWithOpts, isPageAllowedForRole } from './routes';
 import { supabase } from './lib/supabase';
 import { useQueryClient } from '@tanstack/react-query';
-import { DECKS_PAGE_KEY } from './hooks/useDecks';
 import { getStrings } from './i18n';
 import { resolveInitialLang } from './lib/locale';
 import { safeGet, safeSet, safeRemove } from './lib/safe-storage';
-import { googleOAuthNative } from './lib/native-oauth';
-import { LogoMark, TeacherInline, StudentInline, TeacherAvatar, StudentAvatar } from './components/Icons';
+import { LogoMark } from './components/Icons';
 // PublicHome and AvatarOnboarding are eagerly imported because they paint
 // before the authed shell — making them lazy would just add a Suspense
 // fallback to the very first screen the user sees.
@@ -17,9 +14,6 @@ import PublicHome from './pages/PublicHome';
 import AvatarOnboarding from './pages/AvatarOnboarding';
 import RoleOnboarding from './pages/RoleOnboarding';
 import TeacherWelcome from './pages/TeacherWelcome';
-// First-warmup flow: the "Crear mi primer warmup" CTA opens this directly
-// (a warmup needs a class). Eager — it overlays the shell on a fresh signup.
-import CreateClassModal from './components/CreateClassModal';
 // Cleo speech bubble shown above the create-class modal in the first-warmup
 // flow ("first a class, then the warmup").
 // In-app Cleo help bot (floating "Ask Cleo"). Eager — it's tiny and renders in

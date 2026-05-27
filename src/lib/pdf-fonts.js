@@ -24,7 +24,6 @@
 // `scripts/prepare-fonts.cjs`. Si Google actualiza la font y queremos
 // la versión nueva, corremos `npm run prepare-fonts` y commiteamos.
 
-import jsPDF from "jspdf";
 
 // Cache del módulo importado dinámicamente. Una vez cargado en la sesión,
 // reusa la misma referencia para todas las exportaciones siguientes.

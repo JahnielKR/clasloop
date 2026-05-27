@@ -36,10 +36,9 @@
 // is wrapped in an object URL and shown in an iframe. Regenerated each
 // time the style or variant changes.
 
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import jsPDF from "jspdf";
 import { ensureKoreanFont } from "../lib/pdf-fonts";
-import { sanitizeFilename } from "../lib/pdf-styles/shared";
 import { PALETTES, getPalette, DEFAULT_PALETTE_ID } from "../lib/pdf-styles/palettes";
 import * as classic from "../lib/pdf-styles/classic";
 import * as modern from "../lib/pdf-styles/modern";

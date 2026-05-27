@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { C, MONO } from "../../../components/tokens";
+import { C } from "../../../components/tokens";
 import { getTheme } from "../../../lib/themes";
 import { getSectionLabel } from "../../../lib/section-theme";
 import { useReveal } from "../useReveal";

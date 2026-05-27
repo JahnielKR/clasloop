@@ -27,7 +27,7 @@ import {
 } from "./shared";
 import { hasMath } from "../latex";
 import { preloadMathImages, drawRichText } from "../pdf-math";
-import { resolvePaletteToModern, lighten } from "./palettes";
+import { resolvePaletteToModern } from "./palettes";
 
 const PAGE = {
   ...PAGE_A4,

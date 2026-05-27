@@ -1,9 +1,8 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { CIcon } from "../components/Icons";
-import { Avatar, AvatarPicker, AVATARS, getAvatarById, getDefaultAvatarFor } from "../components/Avatars";
+import { Avatar, AvatarPicker, getAvatarById } from "../components/Avatars";
 import { uploadProfileAvatar, deleteProfileAvatar } from "../lib/avatar-storage";
-import { useIsMobile } from "../components/MobileMenuButton";
 import PageHeader from "../components/PageHeader";
 import { C } from "../components/tokens";
 import DeleteAccountModal from "../components/DeleteAccountModal";

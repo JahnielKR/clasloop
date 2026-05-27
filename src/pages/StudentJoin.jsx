@@ -4,7 +4,7 @@ import { supabase } from "../lib/supabase";
 import { LogoMark, CIcon } from "../components/Icons";
 import { Avatar } from "../components/Avatars";
 import { checkAndGrantUnlocks } from "../lib/unlock-checker";
-import { generateGuestToken, saveGuestSession, validateGuestName, clearGuestSession } from "../lib/guest-session";
+import { generateGuestToken, saveGuestSession, clearGuestSession } from "../lib/guest-session";
 import { C, MONO } from "../components/tokens";
 import { resolveTimeLimit } from "../lib/time-limits";
 import { getPracticeTimerPref, setPracticeTimerPref } from "../lib/practice-timer-pref";

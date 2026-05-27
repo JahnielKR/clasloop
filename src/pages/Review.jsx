@@ -28,7 +28,6 @@ import { supabase } from "../lib/supabase";
 import { CIcon } from "../components/Icons";
 import PageHeader from "../components/PageHeader";
 import { C } from "../components/tokens";
-import { ROUTES } from "../routes";
 import { teacherGradeToPoints, describeCorrectAnswer } from "../lib/scoring";
 // PR 76: i18n centralizado
 import { useT } from "../i18n";

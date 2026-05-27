@@ -35,7 +35,7 @@ import { useT } from "../i18n";
 
 import { useState, useEffect, useMemo, useRef } from "react";
 import { supabase } from "../lib/supabase";
-import { C, MONO } from "./tokens";
+import { C } from "./tokens";
 import Modal from "./Modal";
 import SectionBadge, { sectionAccent } from "./SectionBadge";
 

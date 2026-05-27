@@ -4,7 +4,6 @@ import { useTeacherProfile, useTeacherProfileCache } from "../hooks/useTeacherPr
 import { CIcon } from "../components/Icons";
 import { Avatar as CatalogAvatar } from "../components/Avatars";
 import { DeckCover, resolveColor, colorTint } from "../lib/deck-cover";
-import { useIsMobile } from "../components/MobileMenuButton";
 import PageHeader from "../components/PageHeader";
 import SectionBadge from "../components/SectionBadge";
 import { C } from "../components/tokens";
