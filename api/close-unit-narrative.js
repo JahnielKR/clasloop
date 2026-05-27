@@ -160,7 +160,10 @@ export default async function handler(req, res) {
       maxTokens: MAX_TOKENS,
     });
     if (!writerResp.ok) {
-      return res.status(502).json({ error: 'writer_failed', detail: writerResp.error });
+      // Log the upstream detail server-side only; don't echo it to the client
+      // (matches generate.js / generate-image.js, which return a generic 502).
+      console.error('[close-unit-narrative] writer call failed:', writerResp.error);
+      return res.status(502).json({ error: 'writer_failed' });
     }
     narrative = parseJson(writerResp.text);
     if (!narrative || typeof narrative.whatWorked !== 'string' || typeof narrative.whatDidnt !== 'string') {
@@ -194,6 +197,14 @@ export default async function handler(req, res) {
     if (verifierResult.ok) break;
     lastIssues = verifierResult.issues || ['unspecified'];
     // Loop continues for the second attempt
+  }
+
+  // Both attempts failed to yield a valid draft (parseJson returned null or the
+  // shape was wrong). Without this guard `narrative.whatWorked` below throws a
+  // raw 500 (FUNCTION_INVOCATION_FAILED). Fail cleanly with a 502 instead.
+  if (!narrative || typeof narrative.whatWorked !== 'string' || typeof narrative.whatDidnt !== 'string') {
+    console.error('[close-unit-narrative] writer produced no valid draft after 2 attempts');
+    return res.status(502).json({ error: 'writer_failed' });
   }
 
   // ── 6. Persist on the unit ─────────────────────────────
