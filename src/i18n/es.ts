@@ -743,6 +743,7 @@ const es: Locale = {
   // ─── PR 76 ───────────────────────────────────────────────────────────
 
   scanner: {
+    saveError: "No se pudo guardar. Probá de nuevo.",
     railHeading: "Esta sesión", railScanned: "escaneadas", railNoScans: "Sin escaneos aún", railDeck: "Examen", railHelpHeading: "Cómo funciona", railHelp: "Imprimí la hoja de respuestas, luego escaneá la de cada alumno para calificarla al instante.",
     pageTitle: "Escáner",
     pageSubtitle: "Escaneá las hojas de respuestas y mirá el puntaje al instante.",

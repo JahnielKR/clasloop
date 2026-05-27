@@ -747,6 +747,7 @@ const en = {
   // ─── PR 76 ───────────────────────────────────────────────────────────
 
   scanner: {
+    saveError: "Could not save. Try again.",
     railHeading: "This session", railScanned: "scanned", railNoScans: "No scans yet", railDeck: "Deck", railHelpHeading: "How it works", railHelp: "Print the answer sheet, then scan each student's sheet to grade it instantly.",
     pageTitle: "Scanner",
     pageSubtitle: "Scan student answer sheets and see the score instantly.",
