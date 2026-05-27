@@ -18,6 +18,7 @@ const MODEL = 'gemini-3.5-flash';
 const MAX_HISTORY = 8;       // keep the last N turns (context + cost cap)
 const MAX_MSG_CHARS = 1000;  // per-message length cap (anti-abuse)
 const MAX_TOOL_ROUNDS = 5;   // safety cap on the function-calling loop
+const MAX_PLAN_STEPS = 8;    // most actions Cleo will chain into one confirmation
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -38,6 +39,7 @@ export default async function handler(req, res) {
 
   // ── Parse + sanitize the conversation ──────────────────
   const body = req.body || {};
+  const lang = ['en', 'es', 'ko'].includes(body.lang) ? body.lang : 'en';
   const raw = Array.isArray(body.messages) ? body.messages : [];
   const messages = raw
     .slice(-MAX_HISTORY)
@@ -64,7 +66,7 @@ export default async function handler(req, res) {
     const systemText = SYSTEM + (await buildContextNote(supabase, teacherId, body.context));
 
     let reply = '';
-    let pendingAction = null; // a normalized action awaiting the client (card / navigate)
+    const plannedSteps = []; // ordered actions awaiting ONE confirmation (the plan)
 
     for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
       const data = await callGemini(GEMINI_API_KEY, contents, systemText);
@@ -81,28 +83,32 @@ export default async function handler(req, res) {
 
       // Append the model's function-call turn verbatim, then build a response
       // for each call: read tools execute now; action tools DON'T run here —
-      // we normalize them into a proposed action for the client to confirm.
+      // we normalize each into a proposed step and QUEUE it. The teacher
+      // confirms the whole plan once; nothing is written until then.
       contents.push({ role: 'model', parts });
       const responseParts = [];
       for (const call of calls) {
         let response;
         if (ACTION_TOOL_NAMES.has(call.name)) {
-          if (pendingAction) {
-            // One action per turn — let the model wrap up the first.
-            response = { status: 'skipped', note: 'Only one action at a time. Confirm the first one.' };
+          if (plannedSteps.length >= MAX_PLAN_STEPS) {
+            response = {
+              status: 'plan_full',
+              note: `The plan already has ${MAX_PLAN_STEPS} steps — the most I can do at once. Wrap up in one short sentence and don't add more.`,
+            };
           } else {
-            const norm = await normalizeCleoAction(call.name, call.args || {}, { supabase, teacherId });
-            if (norm.action) {
-              pendingAction = norm.action;
+            const normd = await normalizeCleoAction(call.name, call.args || {}, { supabase, teacherId, lang });
+            if (normd.action) {
+              plannedSteps.push(normd.action);
               response = {
-                status: 'proposed',
+                status: 'queued',
+                position: plannedSteps.length,
                 awaiting_user_confirmation: true,
-                note: 'The teacher will see a confirmation card. In ONE short sentence, tell them what you set up and ask them to confirm. Do not call more tools and do not claim it is done.',
+                note: 'Added to the plan. The teacher confirms the whole plan ONCE. If they asked for more, keep adding; otherwise summarize the WHOLE plan in ONE short sentence and stop calling tools — never claim anything is done yet.',
               };
             } else {
               // Couldn't resolve (e.g. class not found) — feed the error back
               // so Cleo can ask the teacher to clarify.
-              response = norm;
+              response = normd;
             }
           }
         } else {
@@ -120,10 +126,14 @@ export default async function handler(req, res) {
       contents.push({ role: 'user', parts: responseParts });
     }
 
-    // A proposed action goes back with whatever sentence Cleo composed (the
-    // client falls back to a default prompt if the reply is empty).
-    if (pendingAction) {
-      return res.status(200).json({ reply, action: pendingAction });
+    // The proposed plan goes back with whatever sentence Cleo composed (the
+    // client falls back to a default prompt if the reply is empty). A single
+    // step also rides along as `action` so the existing single-card path keeps
+    // working untouched.
+    if (plannedSteps.length) {
+      const payload = { reply, plan: plannedSteps };
+      if (plannedSteps.length === 1) payload.action = plannedSteps[0];
+      return res.status(200).json(payload);
     }
     if (!reply) {
       // Safety filter, empty completion, or hit the tool-round cap without a

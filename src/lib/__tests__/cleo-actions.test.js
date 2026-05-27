@@ -30,11 +30,14 @@ const CLASSES = [
 
 const run = (name, args, opts) =>
   normalizeCleoAction(name, args, { supabase: makeSupabase(opts), teacherId: TEACHER });
+// Same, but also passes the teacher's UI language (used for default unit names).
+const runL = (name, args, opts, lang) =>
+  normalizeCleoAction(name, args, { supabase: makeSupabase(opts), teacherId: TEACHER, lang });
 
 describe('ACTION_TOOL_NAMES', () => {
   it('marks exactly the write/navigate tools', () => {
     expect([...ACTION_TOOL_NAMES].sort()).toEqual(
-      ['create_class', 'create_deck', 'create_unit', 'generate_review_deck', 'launch_session', 'navigate', 'schedule_unit'].sort(),
+      ['create_class', 'create_deck', 'create_unit', 'create_units', 'generate_review_deck', 'launch_session', 'navigate', 'schedule_unit'].sort(),
     );
   });
 });
@@ -102,6 +105,39 @@ describe('create_unit', () => {
   it('errors on missing unit name', async () => {
     const { error } = await run('create_unit', { class_name: 'math', name: '  ' }, { classes: CLASSES });
     expect(error).toBe('missing_fields');
+  });
+});
+
+describe('create_units (bulk)', () => {
+  it('expands a count into localized default names (en)', async () => {
+    const { action } = await runL('create_units', { class_name: 'history', count: 3 }, { classes: CLASSES }, 'en');
+    expect(action).toMatchObject({ type: 'create_units', confirm: true, classId: 'c1', className: 'History 2' });
+    expect(action.names).toEqual(['Unit 1', 'Unit 2', 'Unit 3']);
+  });
+
+  it('localizes default names by lang and honors start', async () => {
+    const { action } = await runL('create_units', { class_name: 'math', count: 2, start: 4 }, { classes: CLASSES }, 'es');
+    expect(action.names).toEqual(['Unidad 4', 'Unidad 5']);
+  });
+
+  it('uses explicit names over count (trimmed, empties dropped)', async () => {
+    const { action } = await runL('create_units', { class_name: 'history', count: 9, names: ['  Intro ', '', 'Atoms'] }, { classes: CLASSES }, 'en');
+    expect(action.names).toEqual(['Intro', 'Atoms']);
+  });
+
+  it('caps the batch at 20 units', async () => {
+    const { action } = await runL('create_units', { class_name: 'history', count: 50 }, { classes: CLASSES }, 'en');
+    expect(action.names).toHaveLength(20);
+  });
+
+  it('errors when neither count nor names is given', async () => {
+    const res = await run('create_units', { class_name: 'history' }, { classes: CLASSES });
+    expect(res.error).toBe('need_count_or_names');
+  });
+
+  it('errors on unknown class', async () => {
+    const res = await run('create_units', { class_name: 'Chemistry', count: 3 }, { classes: CLASSES });
+    expect(res.error).toBe('class_not_found');
   });
 });
 
