@@ -23,6 +23,19 @@ describe("parseMathSegments", () => {
   it("recognises display math $$…$$", () => {
     expect(parseMathSegments("$$a+b$$")).toEqual([{ type: "math", value: "a+b", display: true }]);
   });
+
+  it("leaves a money word problem as plain text (currency-safe)", () => {
+    expect(parseMathSegments("Tienes $5 y gastas $3")).toEqual([
+      { type: "text", value: "Tienes $5 y gastas $3" },
+    ]);
+  });
+
+  it("still renders real math that starts with a number", () => {
+    expect(parseMathSegments("$90^\\circ$ turn")).toEqual([
+      { type: "math", value: "90^\\circ", display: false },
+      { type: "text", value: " turn" },
+    ]);
+  });
 });
 
 describe("hasMath", () => {
@@ -32,6 +45,13 @@ describe("hasMath", () => {
     expect(hasMath("no math here")).toBe(false);
     expect(hasMath("costs $5")).toBe(false);
   });
+
+  it("does not treat money amounts as math, but keeps number-leading math", () => {
+    expect(hasMath("a pen costs $5 and a book $3")).toBe(false);
+    expect(hasMath("$5+$3")).toBe(false);
+    expect(hasMath("Angle is $90^\\circ$")).toBe(true);
+    expect(hasMath("Area $5 \\times 3$ cm")).toBe(true);
+  });
 });
 
 describe("latexToAscii", () => {
@@ -39,6 +59,8 @@ describe("latexToAscii", () => {
     expect(latexToAscii(undefined)).toBe(undefined);
     expect(latexToAscii(42)).toBe(42);
     expect(latexToAscii("just text")).toBe("just text");
+    // a money word problem has "$" but no real math span → returned unchanged
+    expect(latexToAscii("Pay $5 and $3 now")).toBe("Pay $5 and $3 now");
   });
 
   it("renders fractions and roots", () => {

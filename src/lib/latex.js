@@ -17,16 +17,23 @@
 //                             through latexToAscii, for the PDF dispatcher.
 //
 // Delimiters are $…$ / $$…$$ (the universal LaTeX convention, and JSON-safe so
-// the AI generator can emit them without backslash-escaping headaches). Caveat:
-// two literal "$" amounts in one field (e.g. "$5 and $3") look like a math
-// span — the AI is told to write currency as words to avoid this.
+// the AI generator can emit them without backslash-escaping headaches).
+//
+// Currency-safe inline rule so money word problems ("a pen costs $5 and a book
+// $3") aren't mangled into a math span. The AI is told to write money as words,
+// but doesn't always comply, so the parser — not the prompt — has to be robust:
+// an inline span opens on a "$" NOT followed by whitespace, its content may not
+// END in whitespace, and the closing "$" must NOT be followed by a digit. That
+// leaves "$5 and $3" and "$5+$3" as plain text, while real math that legitimately
+// starts with a number ("$90^\circ$", "$5 \times 3$") still renders. Deliberately
+// no lookbehind — older iOS Safari (<16.4) throws a SyntaxError on it.
 
 // $$…$$ (display) is matched before $…$ (inline). Inline spans don't cross
 // newlines, which keeps a stray "$" from swallowing a whole paragraph.
-const SEGMENT_RE = /\$\$([\s\S]+?)\$\$|\$([^$\n]+?)\$/g;
+const SEGMENT_RE = /\$\$([\s\S]+?)\$\$|\$(?!\s)([^$\n]*[^$\n\s])\$(?!\d)/g;
 
 export function hasMath(str) {
-  return typeof str === "string" && (/\$\$[\s\S]+?\$\$/.test(str) || /\$[^$\n]+?\$/.test(str));
+  return typeof str === "string" && (/\$\$[\s\S]+?\$\$/.test(str) || /\$(?!\s)[^$\n]*[^$\n\s]\$(?!\d)/.test(str));
 }
 
 /**
