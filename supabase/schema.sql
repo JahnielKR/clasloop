@@ -4394,10 +4394,6 @@ ALTER TABLE "public"."profiles" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "public"."responses" ENABLE ROW LEVEL SECURITY;
 
 
-CREATE POLICY "responses_guest_insert" ON "public"."responses" FOR INSERT WITH CHECK (true);
-
-
-
 ALTER TABLE "public"."saved_decks" ENABLE ROW LEVEL SECURITY;
 
 

@@ -1,0 +1,18 @@
+-- Drop the `responses_guest_insert` policy that re-opened direct INSERTs.
+--
+-- This policy (FOR INSERT WITH CHECK (true)) was added directly through the
+-- Supabase dashboard and never captured as a migration, so it drifted out of
+-- the repo's history. It silently overrode the deliberate hardening from
+-- 20240101000034_hardening_rpcs.sql, whose "Direct inserts blocked — use
+-- submit_response RPC" policy (WITH CHECK (false)) forces every insert through
+-- the validated, SECURITY DEFINER `submit_response` RPC (caller-owns-participant
+-- + session-active + identity checks). Postgres OR's permissive INSERT policies,
+-- so WITH CHECK (true) let any anon client POST directly to /rest/v1/responses
+-- and forge rows (falsified scores, answers on closed or other students'
+-- sessions), bypassing every check in submit_response.
+--
+-- The app only ever inserts via submit_response (src/pages/StudentJoin.jsx),
+-- which is SECURITY DEFINER and therefore bypasses RLS — dropping this policy
+-- does not affect legitimate submissions. The check-(false) policy remains as
+-- the explicit "no direct inserts" marker.
+drop policy if exists "responses_guest_insert" on public.responses;
