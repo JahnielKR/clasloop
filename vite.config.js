@@ -13,7 +13,7 @@ import react from '@vitejs/plugin-react'
 // `npm run test:run` (single run, para CI).
 //
 // PR 88 (bundle slimming): ver bloque `build.rollupOptions` abajo.
-//   - external: saca html2canvas + dompurify + canvg del bundle
+//   - external: saca dompurify + canvg del bundle (NO html2canvas: ver nota)
 //   - manualChunks: separa libs vendor en chunks cacheables
 //   Resultado medido: chunk principal 984 KB → 414 KB, Decks 1180 → 818 KB.
 // ─────────────────────────────────────────────────────────────────────────
@@ -38,17 +38,23 @@ export default defineConfig({
     chunkSizeWarningLimit: 1500,
 
     rollupOptions: {
-      // PR 88: html2canvas, dompurify y canvg están listados como
-      // optionalDependencies de jsPDF. jsPDF SOLO los importa si llamás
-      // doc.html() (renderizar HTML a PDF). Clasloop nunca usa doc.html()
-      // — solo doc.addImage() con dataURLs. Así que esas 3 libs son
-      // ~220 KB de código muerto en el bundle.
+      // dompurify y canvg están listados como optionalDependencies de
+      // jsPDF. jsPDF SOLO los importa si llamás doc.html() (renderizar
+      // HTML a PDF). Clasloop nunca usa doc.html() — solo doc.addImage()
+      // con dataURLs. Así que son código muerto y los externalizamos.
       //
       // IMPORTANTE: marcarlas external (en lugar de borrarlas de
       // package.json) es la forma correcta. Borrarlas del package.json
       // no sirve porque `npm install` las re-instala como optionalDeps
       // de jspdf. Acá le decimos a Rollup "no las metas en el bundle".
-      external: ['html2canvas', 'dompurify', 'canvg'],
+      //
+      // OJO — html2canvas NO va acá aunque también sea optionalDep de
+      // jsPDF: src/lib/pdf-math.js lo importa de verdad para rasterizar
+      // fórmulas KaTeX al exportar PDF. Si lo externalizás, Rollup deja
+      // `import "html2canvas"` (bare specifier) en el bundle y el browser
+      // tira "Failed to resolve module specifier html2canvas" al abrir el
+      // modal de descarga. Debe quedar bundleado.
+      external: ['dompurify', 'canvg'],
 
       output: {
         // PR 88: agrupar libs en chunks lógicos. El browser cachea por
@@ -74,13 +80,13 @@ export default defineConfig({
       },
 
       // PR 88: silenciar el warning de Rollup "Failed to resolve import"
-      // para las 3 deps que excluimos a propósito. jsPDF las importa
+      // para las deps que excluimos a propósito. jsPDF las importa
       // dinámicamente; sin esto Rollup tira un warning por cada una en
       // cada build aunque sea intencional.
       onwarn(warning, warn) {
         if (
           warning.code === 'UNRESOLVED_IMPORT' &&
-          ['html2canvas', 'dompurify', 'canvg'].includes(warning.source)
+          ['dompurify', 'canvg'].includes(warning.source)
         ) {
           return
         }
