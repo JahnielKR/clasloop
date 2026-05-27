@@ -1262,8 +1262,14 @@ export default function PlanView({
       return () => clearTimeout(inTimer);
     }, 200);
     return () => clearTimeout(swapTimer);
+    // Depend on the activeUnit OBJECT, not just its id. A same-id refetch
+    // (e.g. after saving a day's date via invalidateClassPage) hands down a new
+    // unit object; the shallow-update branch above must run so renderUnit — and
+    // the date it feeds getDayDate — refreshes without a full reload. shownUnit
+    // is an element of the React Query units array, so it's referentially stable
+    // between renders (no loop) and only changes on an actual refetch.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeUnit?.id]);
+  }, [activeUnit]);
 
   // Wrap the prev/next handlers so they capture direction BEFORE the
   // index actually moves. This way the effect above already knows
