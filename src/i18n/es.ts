@@ -1413,6 +1413,9 @@ const es: Locale = {
     sentenceHint: "Auto-evaluado: verifica que use la palabra requerida y tenga suficientes palabras.",
     sliderHint: "El estudiante ve un slider de mín a máx, arrastra para estimar. ✓ si está dentro de la tolerancia.",
     addQuestionImage: "+ Agregar imagen", removeQuestionImage: "Quitar imagen", changeQuestionImage: "Cambiar imagen",
+    generateImageAI: "Generar con IA", aiImagePromptPlaceholder: "Describe la imagen a generar…",
+    generate: "Generar", generatingImage: "Generando…", cancelImageAI: "Cancelar",
+    aiImageFailed: "No se pudo generar la imagen. Probá de nuevo.",
     questionImageHint: "Imagen opcional que se muestra con la pregunta",
     imageAltPlaceholder: "Describí la imagen para lectores de pantalla (opcional)",
     // ── AI generation panel ──

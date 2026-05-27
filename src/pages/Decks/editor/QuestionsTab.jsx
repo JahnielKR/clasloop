@@ -16,6 +16,7 @@ import AIGeneratePanel from "./AIGeneratePanel";
 import { ACTIVITY_TYPES, addMiniBtn, miniDeleteBtn, iconOverImageBtn } from "./constants";
 import { inputStyle as inp } from "../../../components/forms/field-styles";
 import { FieldLabel } from "../../../components/forms/FieldLabel";
+import QuestionImageAI from "./QuestionImageAI";
 
 export default function QuestionsTab({ ed, t, l }) {
   const {
@@ -64,6 +65,8 @@ export default function QuestionsTab({ ed, t, l }) {
     qImageUploading,
     triggerQImageUpload,
     removeQImage,
+    qImageGenerating,
+    generateQImage,
     removeQ,
     isQComplete,
     shortType,
@@ -313,6 +316,7 @@ export default function QuestionsTab({ ed, t, l }) {
                         />
                         </>
                       ) : (
+                        <>
                         <button
                           type="button"
                           onClick={() => triggerQImageUpload(qi)}
@@ -323,6 +327,13 @@ export default function QuestionsTab({ ed, t, l }) {
                           <CIcon name="art" size={12} inline />
                           {qImageUploading[qi] ? t.uploading : t.addQuestionImage}
                         </button>
+                        <QuestionImageAI
+                          defaultPrompt={q.q || ""}
+                          generating={!!qImageGenerating[qi]}
+                          onGenerate={(prompt) => generateQImage(qi, prompt)}
+                          t={t}
+                        />
+                        </>
                       )}
                       {/* MCQ */}
                       {(q.type === "mcq" || (!q.type && activityType === "mcq")) && q.options && (() => {

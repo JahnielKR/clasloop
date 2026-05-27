@@ -105,6 +105,17 @@ export async function generateQuestionImages(
   return { questions: out, found, selected, generated, dropped: selected - generated };
 }
 
+// Generate ONE question's image on demand — the editor's per-question
+// "Generate with AI" button. Reuses the same generate → judge → upload
+// pipeline as the bulk path. Returns the uploaded image URL, or null on any
+// failure (never throws). `concept` (the question stem) is sent so the judge
+// verifies the picture against the real question.
+export async function generateOneQuestionImage({ prompt, concept = "", accessToken, userId } = {}) {
+  const p = typeof prompt === "string" ? prompt.trim() : "";
+  if (!p || !accessToken || !userId) return null;
+  return generateOne(p, concept, accessToken, userId);
+}
+
 // Pick `n` index values from ascending `arr`, spread evenly across it.
 function pickSpread(arr, n) {
   if (n >= arr.length) return arr.slice();

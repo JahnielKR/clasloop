@@ -1417,6 +1417,9 @@ const en = {
     sentenceHint: "Auto-graded: checks the required word is present and the sentence is long enough.",
     sliderHint: "Student sees a slider from min to max, drags to estimate, ✓ if within tolerance.",
     addQuestionImage: "+ Add image", removeQuestionImage: "Remove image", changeQuestionImage: "Change image",
+    generateImageAI: "Generate with AI", aiImagePromptPlaceholder: "Describe the image to generate…",
+    generate: "Generate", generatingImage: "Generating…", cancelImageAI: "Cancel",
+    aiImageFailed: "Couldn't generate an image. Try again.",
     questionImageHint: "Optional image displayed with the question",
     imageAltPlaceholder: "Describe the image for screen readers (optional)",
     // ── AI generation panel ──

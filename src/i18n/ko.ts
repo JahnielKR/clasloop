@@ -1413,6 +1413,9 @@ const ko: Locale = {
     sentenceHint: "자동 채점: 필수 단어 포함 여부와 단어 수를 확인합니다.",
     sliderHint: "학생이 슬라이더를 드래그하여 추정합니다. 허용 오차 내면 ✓.",
     addQuestionImage: "+ 이미지 추가", removeQuestionImage: "이미지 제거", changeQuestionImage: "이미지 변경",
+    generateImageAI: "AI로 생성", aiImagePromptPlaceholder: "생성할 이미지를 설명하세요…",
+    generate: "생성", generatingImage: "생성 중…", cancelImageAI: "취소",
+    aiImageFailed: "이미지를 생성할 수 없습니다. 다시 시도하세요.",
     questionImageHint: "문제에 표시되는 선택적 이미지",
     imageAltPlaceholder: "스크린 리더용 이미지 설명 (선택)",
     // ── AI 생성 패널 ──
