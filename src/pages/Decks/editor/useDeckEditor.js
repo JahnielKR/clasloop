@@ -12,6 +12,7 @@ import {
   SUBJ_ICON,
 } from "../../../lib/deck-cover";
 import { uploadDeckCover, deleteDeckCover } from "../../../lib/deck-image-upload";
+import { generateOneQuestionImage } from "../../../lib/ai-images";
 import { analyzeDerivation } from "../../../lib/deck-derivation";
 import { useIsMobile } from "../../../components/MobileMenuButton";
 import { DEFAULT_SECTION, isValidSection } from "../../../lib/class-hierarchy";
@@ -580,6 +581,7 @@ export function useDeckEditor({ t, l, onCreated, userId, userClasses, existingDe
 
   // ── Question-level image (attached to the question itself, not options) ──
   const [qImageUploading, setQImageUploading] = useState({}); // { qi: true }
+  const [qImageGenerating, setQImageGenerating] = useState({}); // { qi: true }
   const qImageFileRef = useRef(null);
   const qImageTargetRef = useRef(null); // { qi }
 
@@ -615,6 +617,38 @@ export function useDeckEditor({ t, l, onCreated, userId, userClasses, existingDe
     if (q.image_url) deleteDeckCover(q.image_url);
     return { ...q, image_url: null };
   }));
+
+  // Per-question "Generate with AI": render an image from the (editable) prompt
+  // and attach it to this question. Reuses the same pipeline as bulk AI gen.
+  const generateQImage = async (qi, prompt) => {
+    const q = questions[qi];
+    if (!q || qImageGenerating[qi]) return;
+    setQImageGenerating(prev => ({ ...prev, [qi]: true }));
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        toast.error(t.aiImageFailed || "Couldn't generate an image. Try again.");
+        return;
+      }
+      const url = await generateOneQuestionImage({
+        prompt,
+        concept: q.q || "",
+        accessToken: session.access_token,
+        userId: session.user?.id,
+      });
+      if (url) {
+        setQuestions(prev => prev.map((qq, i) => {
+          if (i !== qi) return qq;
+          if (qq.image_url) deleteDeckCover(qq.image_url); // replace → clean up old
+          return { ...qq, image_url: url };
+        }));
+      } else {
+        toast.error(t.aiImageFailed || "Couldn't generate an image. Try again.");
+      }
+    } finally {
+      setQImageGenerating(prev => { const { [qi]: _omit, ...rest } = prev; return rest; });
+    }
+  };
 
   const removeQ = (idx) => {
     setQuestions(prev => {
@@ -985,6 +1019,8 @@ export function useDeckEditor({ t, l, onCreated, userId, userClasses, existingDe
     triggerQImageUpload,
     handleQImageFileChange,
     removeQImage,
+    qImageGenerating,
+    generateQImage,
     removeQ,
     moveQuestion,
     isQComplete,
