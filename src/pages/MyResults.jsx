@@ -233,7 +233,7 @@ export default function MyResults({ profile, lang = "en", setLang, onOpenMobileM
                 {t.questionLabel.replace("{n}", String(r.question_index + 1))}
               </div>
               <div style={{ fontSize: 14, color: C.text, marginBottom: 12, lineHeight: 1.5, fontWeight: 500 }}>
-                {q.prompt || q.question || ""}
+                {q.q || q.prompt || q.question || ""}
               </div>
 
               {/* Your answer */}
