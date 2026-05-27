@@ -715,6 +715,7 @@ const ko: Locale = {
     newPassword: "새 비밀번호", confirmPassword: "비밀번호 확인", updatePassword: "업데이트",
     updatingPassword: "업데이트 중...", passwordUpdated: "비밀번호 업데이트됨!", passwordError: "업데이트 오류",
     passwordMismatch: "비밀번호가 일치하지 않습니다", passwordTooShort: "최소 6자",
+    signOut: "로그아웃", signOutDesc: "이 기기에서 로그아웃합니다.",
     dangerZone: "위험 구역", deleteAccount: "계정 삭제",
     deleteAccountDesc: "계정과 데이터를 영구 삭제합니다.",
     deleteAccountBtn: "내 계정 삭제", exportData: "데이터 내보내기",

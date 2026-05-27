@@ -715,6 +715,7 @@ const es: Locale = {
     newPassword: "Nueva contraseña", confirmPassword: "Confirmar contraseña", updatePassword: "Actualizar",
     updatingPassword: "Actualizando...", passwordUpdated: "¡Contraseña actualizada!", passwordError: "Error al actualizar",
     passwordMismatch: "Las contraseñas no coinciden", passwordTooShort: "Mínimo 6 caracteres",
+    signOut: "Cerrar sesión", signOutDesc: "Cierra tu sesión en este dispositivo.",
     dangerZone: "Zona de peligro", deleteAccount: "Eliminar cuenta",
     deleteAccountDesc: "Elimina tu cuenta y datos permanentemente.",
     deleteAccountBtn: "Eliminar mi cuenta", exportData: "Exportar datos",

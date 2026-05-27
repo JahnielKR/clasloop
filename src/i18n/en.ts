@@ -719,6 +719,7 @@ const en = {
     newPassword: "New password", confirmPassword: "Confirm password", updatePassword: "Update password",
     updatingPassword: "Updating...", passwordUpdated: "Password updated!", passwordError: "Error updating password",
     passwordMismatch: "Passwords don't match", passwordTooShort: "Password must be at least 6 characters",
+    signOut: "Sign out", signOutDesc: "Sign out of your account on this device.",
     dangerZone: "Danger zone", deleteAccount: "Delete account",
     deleteAccountDesc: "Permanently delete your account and all data. Cannot be undone.",
     deleteAccountBtn: "Delete my account", exportData: "Export data",
