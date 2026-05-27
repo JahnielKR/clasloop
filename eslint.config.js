@@ -68,6 +68,11 @@ export default [
       'no-empty': ['warn', { allowEmptyCatch: true }],
       // The Vite/React 17+ automatic JSX runtime means React need not be in scope.
       'react/react-in-jsx-scope': 'off',
+      // Mark bindings referenced in JSX as "used" so no-unused-vars stops
+      // false-flagging component/icon imports (CIcon, MathText, …) that are
+      // only referenced inside JSX. The rule reports nothing itself — it just
+      // feeds usage info to no-unused-vars.
+      'react/jsx-uses-vars': 'error',
       // react-hooks enforcement (rules-of-hooks since PR 168; exhaustive-deps
       // tightened to error in PR 143 once all violations were triaged):
       'react-hooks/rules-of-hooks': 'error',
