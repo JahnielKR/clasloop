@@ -22,3 +22,18 @@ ios/App/build/
 /test-results/
 /playwright-report/
 /playwright/.cache/
+
+# Claude Code / local agent tooling — kept out of the repo. All local and
+# regenerated: agent worktrees, personal skills, preview launch config, the
+# Playwright MCP snapshots, and the Supabase CLI temp dir.
+.claude/
+.playwright-mcp/
+supabase/.temp/
+
+# AI-session planning / audit docs — generated during agent sessions, kept
+# local rather than tracked as project source. Use `git add -f` to commit one
+# deliberately.
+/ANALYSIS.md
+/ANALYSIS_vs_HANDOFF.md
+/AUDITORIA.md
+/PRs/
