@@ -636,6 +636,16 @@ export default function Settings({ lang: pageLang = "en", setLang: pageSetLang, 
             </Section>
 
             <Section>
+              <SettingRow label={t.signOut} desc={t.signOutDesc} right={
+                <button
+                  className="st-btn-secondary"
+                  onClick={async () => { await supabase.auth.signOut(); }}
+                  style={{ padding: "8px 16px", borderRadius: 8, fontSize: 13, fontWeight: 600, background: C.bgSoft, color: C.textSecondary, border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: "'Outfit',sans-serif" }}
+                >{t.signOut}</button>
+              } />
+            </Section>
+
+            <Section>
               <SettingRow label={t.exportData} desc={t.exportDataDesc} right={
                 <button className="st-btn-secondary" onClick={exportUserData} style={{ padding: "6px 16px", borderRadius: 6, fontSize: 13, fontWeight: 500, background: C.bgSoft, color: C.textSecondary, border: `1px solid ${C.border}`, cursor: "pointer", fontFamily: "'Outfit',sans-serif" }}>{t.exportBtn}</button>
               } />
