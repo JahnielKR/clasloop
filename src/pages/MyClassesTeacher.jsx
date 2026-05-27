@@ -93,7 +93,7 @@ function ClassCard({ cls, t, lang, onOpen, onOpenThemeSelector, deckCount = 0, s
           flexShrink: 0,
           boxShadow: `0 1px 3px ${accent}33`,
         }}>
-          <CIcon name="school" size={20} inline />
+          <CIcon name="school" size={20} inline color="#fff" />
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 16, fontWeight: 700, color: C.text, lineHeight: 1.25, wordBreak: "break-word" }}>

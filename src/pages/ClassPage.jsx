@@ -996,7 +996,7 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
               flexShrink: 0,
               boxShadow: `0 1px 3px ${accent}33`,
             }}>
-              <CIcon name="school" size={22} inline />
+              <CIcon name="school" size={22} inline color="#fff" />
             </div>
             <div style={{ minWidth: 0, flex: 1 }}>
               <h1 style={{
