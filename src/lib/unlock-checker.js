@@ -94,23 +94,37 @@ export async function getStudentStats(studentId) {
 // today OR yesterday (to be lenient — finishing late on day N still counts
 // when checked on day N+1 morning). Returns 0 if the most recent session is
 // older than yesterday.
-function computeStreakDays(sessions) {
+
+// Local YYYY-MM-DD for a Date. Uses LOCAL calendar components on purpose:
+// streaks are about the student's own days. `toISOString()` would bucket by
+// UTC, so an evening session in a negative-offset zone (the Americas) lands on
+// the next UTC day and silently breaks the streak. Both the session dates and
+// the today/yesterday anchors below must go through this same function so they
+// can't drift apart.
+export function localDayKey(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+export function computeStreakDays(sessions) {
   if (!sessions || sessions.length === 0) return 0;
 
-  // Reduce to a set of unique YYYY-MM-DD strings.
+  // Reduce to a set of unique local YYYY-MM-DD strings.
   const days = new Set(
     sessions
-      .map(s => s.joined_at ? new Date(s.joined_at).toISOString().slice(0, 10) : null)
+      .map(s => s.joined_at ? localDayKey(new Date(s.joined_at)) : null)
       .filter(Boolean)
   );
   if (days.size === 0) return 0;
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const todayStr = today.toISOString().slice(0, 10);
+  const todayStr = localDayKey(today);
   const yesterday = new Date(today);
   yesterday.setDate(yesterday.getDate() - 1);
-  const yesterdayStr = yesterday.toISOString().slice(0, 10);
+  const yesterdayStr = localDayKey(yesterday);
 
   // The streak must end today or yesterday — otherwise it's broken.
   let cursor;
@@ -119,7 +133,7 @@ function computeStreakDays(sessions) {
   else return 0;
 
   let streak = 0;
-  while (days.has(cursor.toISOString().slice(0, 10))) {
+  while (days.has(localDayKey(cursor))) {
     streak++;
     cursor.setDate(cursor.getDate() - 1);
   }
