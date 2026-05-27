@@ -30,6 +30,12 @@ export default [
       'coverage/**',
       'playwright-report/**',
       'test-results/**',
+      // Local-only agent scratch dirs. `.claude/worktrees/` holds full repo
+      // copies whose .jsx carry react-hooks disable comments; without this,
+      // `eslint .` lints those copies and reports "rule not found" for rules
+      // only registered under the src/** block — phantom errors CI never sees
+      // (it checks out clean). Keep local lint == CI.
+      '.claude/**',
       'src/lib/noto-sans-kr-data.js', // generated, multi-MB subset font data
     ],
   },
