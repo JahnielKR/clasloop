@@ -743,6 +743,7 @@ const ko: Locale = {
   // ─── PR 76 ───────────────────────────────────────────────────────────
 
   scanner: {
+    saveError: "저장할 수 없습니다. 다시 시도하세요.",
     railHeading: "이번 세션", railScanned: "스캔됨", railNoScans: "아직 스캔 없음", railDeck: "덱", railHelpHeading: "사용 방법", railHelp: "답안지를 인쇄한 뒤 학생별 답안지를 스캔하면 즉시 채점됩니다.",
     pageTitle: "스캐너",
     pageSubtitle: "답안지를 스캔하고 즉시 점수를 확인하세요.",

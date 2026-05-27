@@ -221,7 +221,7 @@ export default function Scanner({ lang = "en", profile, onOpenMobileMenu }) {
 
       if (insertErr) {
         console.error("[scanner] insert failed:", insertErr);
-        toast.error("Error saving scan. Try again.", { reportError: insertErr, context: { source: "Scanner.save", phase: "insert" } });
+        toast.error(t.saveError, { reportError: insertErr, context: { source: "Scanner.save", phase: "insert" } });
         setSaving(false);
         return;
       }
@@ -240,7 +240,7 @@ export default function Scanner({ lang = "en", profile, onOpenMobileMenu }) {
       }
     } catch (err) {
       console.error("[scanner] save error:", err);
-      toast.error("Error saving scan. Try again.", { reportError: err, context: { source: "Scanner.save", phase: "exception" } });
+      toast.error(t.saveError, { reportError: err, context: { source: "Scanner.save", phase: "exception" } });
     } finally {
       setSaving(false);
     }
@@ -543,7 +543,7 @@ function ReviewUncertainStage({ t, deck, answers, onConfirm, onDone }) {
               }}
             >
               <div style={{ fontSize: 13, color: C.textMuted, marginBottom: 6 }}>
-                {t.questionLabel(ans.qNum)} · {t.detectedAs}: <strong>{ans.marked || t.noAnswer}</strong>
+                {t.questionLabel(ans.qNum)} · {t.detectedAs}: <strong>{ans.marked?.length ? ans.marked.join("/") : t.noAnswer}</strong>
               </div>
               <div style={{ fontSize: 11, color: C.textMuted, marginBottom: 10 }}>
                 {t.chooseAnswer}:
@@ -670,9 +670,11 @@ function ResultStage({
           gap: 8,
         }}>
           {answers.map(ans => {
-            const bg = ans.is_correct ? "#22c55e22" : (ans.marked === null ? "#94a3b822" : "#ef444422");
-            const border = ans.is_correct ? "#22c55e" : (ans.marked === null ? "#94a3b8" : "#ef4444");
-            const color = ans.is_correct ? "#16a34a" : (ans.marked === null ? "#64748b" : "#dc2626");
+            const isBlank = !ans.marked || ans.marked.length === 0;
+            const markedText = isBlank ? null : ans.marked.join("/");
+            const bg = ans.is_correct ? "#22c55e22" : (isBlank ? "#94a3b822" : "#ef444422");
+            const border = ans.is_correct ? "#22c55e" : (isBlank ? "#94a3b8" : "#ef4444");
+            const color = ans.is_correct ? "#16a34a" : (isBlank ? "#64748b" : "#dc2626");
             return (
               <div
                 key={ans.question_id}
@@ -681,13 +683,13 @@ function ResultStage({
                   background: bg, border: `1.5px solid ${border}`,
                   textAlign: "center", fontFamily: "'DM Sans',sans-serif",
                 }}
-                title={`Correct: ${ans.correct || "?"}, Marked: ${ans.marked || "blank"}`}
+                title={`Correct: ${ans.correct || "?"}, Marked: ${markedText || "blank"}`}
               >
                 <div style={{ fontSize: 11, color: C.textMuted, marginBottom: 2 }}>
                   {ans.qNum}
                 </div>
                 <div style={{ fontSize: 16, fontWeight: 700, color }}>
-                  {ans.marked || "—"}
+                  {markedText || "—"}
                 </div>
               </div>
             );
