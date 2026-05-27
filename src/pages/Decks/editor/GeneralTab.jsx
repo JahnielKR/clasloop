@@ -68,7 +68,7 @@ export default function GeneralTab({ ed, t, l, userClasses, onNeedClass }) {
                   display: "inline-flex", alignItems: "center", justifyContent: "center",
                   flexShrink: 0,
                 }}>
-                  <CIcon name="school" size={14} inline />
+                  <CIcon name="school" size={14} inline color="#fff" />
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 10, fontWeight: 600, color: C.textMuted, textTransform: "uppercase", letterSpacing: ".05em" }}>

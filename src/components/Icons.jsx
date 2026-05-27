@@ -590,12 +590,15 @@ const ICON_DEFS = {
   </> },
 };
 
-export function CIcon({ name, size = 24, inline = false }) {
+export function CIcon({ name, size = 24, inline = false, color = null }) {
   const def = ICON_DEFS[name];
   if (!def) return <span style={{ fontSize: size * 0.8 }}>{name}</span>;
 
   const iconSize = inline ? size : size * 0.55;
-  const c = def.color;
+  // `color` overrides the icon's own brand color — e.g. white when the icon
+  // sits on a solid class-accent square, where the default tone would vanish
+  // against colors like green (#0F7B6C).
+  const c = color || def.color;
 
   const svg = S(iconSize, "0 0 24 24", <>
     {def.d && <path d={def.d} fill={inline ? "none" : c} opacity={inline ? 1 : 0.2} stroke={c} strokeWidth="1.8" strokeLinejoin="round" strokeLinecap="round"/>}
