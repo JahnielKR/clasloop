@@ -2,7 +2,7 @@ import { useState, useRef } from "react";
 import { useStudentClasses, useStudentClassesCache, useClassDetail } from "../hooks/useStudentClasses";
 import { useNavigate, useMatch } from "react-router-dom";
 import { supabase } from "../lib/supabase";
-import { CIcon, LogoMark } from "../components/Icons";
+import { CIcon } from "../components/Icons";
 import { Avatar } from "../components/Avatars";
 import { DeckCover, colorTint } from "../lib/deck-cover";
 import { useIsMobile } from "../components/MobileMenuButton";

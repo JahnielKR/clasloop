@@ -1,11 +1,11 @@
-import { useState, useEffect, useMemo, useRef, lazy, Suspense } from "react";
+import { useState, useEffect, useMemo, lazy, Suspense } from "react";
 import { useDecksPage, useDecksCache } from "../hooks/useDecks";
 import { useQueryClient } from "@tanstack/react-query";
 import { classPageKey, teacherClassesKey } from "../hooks/useClasses";
 import { useSearchParams, useNavigate, useMatch } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { CIcon } from "../components/Icons";
-import { DeckCover, SUBJ_ICON, SUBJ_COLOR, resolveColor, colorTint, DECK_COLORS } from "../lib/deck-cover";
+import { DeckCover, SUBJ_ICON, resolveColor } from "../lib/deck-cover";
 import { analyzeDerivation } from "../lib/deck-derivation";
 import { useIsMobile } from "../components/MobileMenuButton";
 import PageHeader from "../components/PageHeader";
@@ -37,36 +37,13 @@ const PDFExportModal = lazy(() => import("../components/PDFExportModal"));
 import { useT } from "../i18n";
 import TwoColPage from "../components/TwoColPage";
 import LibraryRail from "./Decks.rail";
-// PR 7: drag-to-reorder decks within a unit. Same dnd-kit setup as the
-// old All-decks view in ClassPage (which is still in the file as dead
-// code from PR 5). We re-implement here rather than extracting into a
-// shared component because the wiring is small and the contexts differ
-// (Library reorders within unit-section pairs across multiple classes).
-import {
-  DndContext,
-  PointerSensor,
-  KeyboardSensor,
-  useSensor,
-  useSensors,
-  closestCenter,
-  DragOverlay,
-} from "@dnd-kit/core";
-import {
-  SortableContext,
-  arrayMove,
-  rectSortingStrategy,
-  useSortable,
-  sortableKeyboardCoordinates,
-} from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
+// arrayMove powers the list reorder helpers; the dnd-kit drag context that
+// used to live here was removed in a refactor.
+import { arrayMove } from "@dnd-kit/sortable";
 import { useToast } from "../lib/toast";
 
 const GRADES = ["6th-7th", "7th-8th", "8th-9th", "9th-10th", "10th-11th", "11th-12th"];
 
-// Input/select styling for the list-view filters. The editor has its own
-// copy in CreateDeckEditor.jsx — we don't share to avoid coupling the two
-// files through a tiny utility module.
-import { inputStyle as inp, selectStyle as sel } from "../components/forms/field-styles";
 
 
 // PR 79: el bloque i18n local fue movido a src/i18n/{en,es,ko}.js

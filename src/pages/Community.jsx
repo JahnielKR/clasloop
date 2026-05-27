@@ -3,7 +3,6 @@ import { useCommunity, useCommunityCache } from "../hooks/useCommunity";
 import { supabase } from "../lib/supabase";
 import { CIcon } from "../components/Icons";
 import { DeckCover, colorTint } from "../lib/deck-cover";
-import { useIsMobile } from "../components/MobileMenuButton";
 import PageHeader from "../components/PageHeader";
 import Skeleton from "../components/ui/Skeleton";
 import SectionBadge from "../components/SectionBadge";

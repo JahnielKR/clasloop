@@ -8,13 +8,13 @@ import CreateClassModal from "../components/CreateClassModal";
 import ImportClassModal from "../components/ImportClassModal";
 // PR 22: theme selector modal launched from each class card
 import LobbyThemeSelector from "../components/LobbyThemeSelector";
-import { C, R, MONO } from "../components/tokens";
+import { C, MONO } from "../components/tokens";
 import Button from "../components/ui/Button";
 import Card from "../components/ui/Card";
 import Skeleton from "../components/ui/Skeleton";
 import EmptyState from "../components/EmptyState";
 import PageHeader from "../components/PageHeader";
-import { ROUTES, QUERY, buildPathWithOpts, buildRoute } from "../routes";
+import { ROUTES, QUERY, buildRoute } from "../routes";
 import { resolveClassAccent } from "../lib/class-hierarchy";
 import {
   DndContext,

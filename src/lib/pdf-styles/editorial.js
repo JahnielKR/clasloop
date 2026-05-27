@@ -40,7 +40,7 @@
 // distinction is in typography and rhythm, not pigment.
 
 import {
-  PAGE_A4, DEFAULT_MARGINS, LABELS,
+  PAGE_A4, LABELS,
   drawWrappedText, deterministicShuffle, formatAnswerForKey,
   fetchImageAsDataURL, scaleImageToFit,
   groupQuestionsBySection,

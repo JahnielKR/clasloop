@@ -39,7 +39,7 @@
 // All grayscale + black by default. PR 32 will add color customization.
 
 import {
-  PAGE_A4, DEFAULT_MARGINS, LABELS,
+  PAGE_A4, LABELS,
   drawWrappedText, deterministicShuffle, formatAnswerForKey,
   fetchImageAsDataURL, scaleImageToFit,
   groupQuestionsBySection,

@@ -19,7 +19,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { C, MONO } from "../components/tokens";
 import PageHeader from "../components/PageHeader";
-import { ROUTES, buildRoute } from "../routes";
+import { ROUTES } from "../routes";
 import {
   fetchDeckQuestionStats,
   pctCorrect,

@@ -21,7 +21,7 @@ import { useToast } from "../lib/toast";
 // bajo el namespace "sessionFlow".
 
 // ─── Styles ────────────────────────────────────────────────────────────────
-import { inputStyle as inp, selectStyle as sel } from "../components/forms/field-styles";
+import { selectStyle as sel } from "../components/forms/field-styles";
 
 const css = `
   .ns-card { transition: transform .15s ease, box-shadow .15s ease; }
