@@ -1202,18 +1202,28 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
     let cancelled = false;
     (async () => {
       try {
-        await supabase
-          .from("session_participants")
-          .update({ completed_at: new Date().toISOString() })
-          .eq("id", participant.id)
-          .is("completed_at", null); // idempotent — only set on first arrival
+        if (isGuest) {
+          // The broad guest RLS policy was dropped; guests now mark completion
+          // through the token-validated mark_guest_completed RPC instead of a
+          // direct update (which RLS no longer permits).
+          await supabase.rpc("mark_guest_completed", {
+            p_participant_id: participant.id,
+            p_guest_token: participant.guest_token,
+          });
+        } else {
+          await supabase
+            .from("session_participants")
+            .update({ completed_at: new Date().toISOString() })
+            .eq("id", participant.id)
+            .is("completed_at", null); // idempotent — only set on first arrival
+        }
         // Soft fail by design: if the update errors (network, RLS edge case),
         // the student's experience is unaffected. The teacher just doesn't
         // see the ✓ for this student. Better than blocking the results UI.
       } catch (_) { /* swallow */ }
     })();
     return () => { cancelled = true; };
-  }, [step, participant?.id, isPractice]);
+  }, [step, participant?.id, participant?.guest_token, isPractice, isGuest]);
 
   // ── Phase 3: when student reaches results, evaluate avatar unlocks ──
   useEffect(() => {
@@ -1753,11 +1763,18 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
     // soft fail keeps UX clean.
     if (participant?.id && !isPractice) {
       try {
-        await supabase
-          .from("session_participants")
-          .update({ completed_at: new Date().toISOString() })
-          .eq("id", participant.id)
-          .is("completed_at", null);
+        if (isGuest) {
+          await supabase.rpc("mark_guest_completed", {
+            p_participant_id: participant.id,
+            p_guest_token: participant.guest_token,
+          });
+        } else {
+          await supabase
+            .from("session_participants")
+            .update({ completed_at: new Date().toISOString() })
+            .eq("id", participant.id)
+            .is("completed_at", null);
+        }
       } catch (_) { /* ignore */ }
     }
     setStep("join");
