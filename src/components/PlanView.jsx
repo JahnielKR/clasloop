@@ -558,8 +558,14 @@ function UnitSwitcher({ allUnits, activeUnit, classId, lang = "en", onSwitched }
 // Shown only on slots whose deck has NEVER been used (no sessions
 // attached). Click the three dots → small popover with two items.
 // Outside-click and Esc close it.
-function KebabMenu({ deck, t, onRemove, onEdit }) {
+function KebabMenu({ deck, t, onRemove, onEdit, onOpenChange }) {
   const [open, setOpen] = useState(false);
+
+  // Tell the parent Slot when the menu is open so it can lift its z-index above
+  // the sibling slot below. Each filled slot gets a hover `transform`, which
+  // creates its own stacking context — without this the dropdown is painted
+  // under the next day-slot card (the reported "covered by the exit ticket").
+  useEffect(() => { onOpenChange?.(open); }, [open, onOpenChange]);
 
   // Close on outside-click + Esc
   useEffect(() => {
@@ -690,6 +696,7 @@ function Slot({ deck, slotKind, t, lang, onLaunch, onSlotClick, isUsed, onRemove
   // slotKind: "warmup" | "exit" — used for the empty-slot label and
   // for routing the new-deck flow (so the deck editor pre-fills the
   // section).
+  const [menuOpen, setMenuOpen] = useState(false);
 
   if (deck) {
     // Filled slot: matches the YourPlanCard look from Today
@@ -699,6 +706,10 @@ function Slot({ deck, slotKind, t, lang, onLaunch, onSlotClick, isUsed, onRemove
       <div
         onClick={() => onLaunch(deck)}
         style={{
+          // Lift above the sibling slot below while this card's kebab menu is
+          // open, so the dropdown isn't painted under the next card.
+          position: "relative",
+          zIndex: menuOpen ? 20 : undefined,
           background: C.bg,
           border: `1px solid ${C.border}`,
           borderLeft: `3px solid ${stripe}`,
@@ -757,6 +768,7 @@ function Slot({ deck, slotKind, t, lang, onLaunch, onSlotClick, isUsed, onRemove
             t={t}
             onRemove={onRemove}
             onEdit={onEdit}
+            onOpenChange={setMenuOpen}
           />
         )}
       </div>
