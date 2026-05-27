@@ -1171,7 +1171,14 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
     const mode = session?.session_settings?.time_mode;
     if (mode !== "total") return;
     if (!showResult) submitAnswer(null);
-    setCurrent(questions.length - 1);
+    // End the quiz: go straight to the results screen (this is what the
+    // comment above always intended). The previous `setCurrent(last)` only
+    // moved the student onto the last question and never advanced `step`, so
+    // they got stuck on that question with no way forward but the manual
+    // "see results" button. setStep("results") matches handleNext's own
+    // end-of-quiz transition; the results screen reads `answers`, not
+    // `current`, so no setCurrent is needed.
+    setStep("results");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [totalTimeLeft, step]);
 
