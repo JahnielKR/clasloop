@@ -10,6 +10,8 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { StudioShell } from "../../components/analytics";
 import KpiBand from "../../components/analytics/KpiBand";
 import CleoStrip from "../../components/analytics/CleoStrip";
+import TrendPanel from "../../components/analytics/TrendPanel";
+import ResponseCompositionPanel from "../../components/analytics/ResponseCompositionPanel";
 import { useClassAnalytics } from "../../hooks/useClassAnalytics";
 import { useClassTimeseries } from "../../hooks/useClassTimeseries";
 import { ROUTES } from "../../routes";
@@ -39,11 +41,12 @@ export default function ClassDetail() {
   const classId = match ? decodeURIComponent(match[1]) : null;
 
   const [period, setPeriod] = useState("d30");
+  const [metric, setMetric] = useState("pct_correct");
   const { from, to } = periodToRange(period);
 
   const analyticsQ = useClassAnalytics(classId, { from, to });
   const timeseriesQ = useClassTimeseries(classId, {
-    metric: "pct_correct",
+    metric,
     granularity: "day",
     from,
     to,
@@ -99,8 +102,13 @@ export default function ClassDetail() {
                 .map((t) => t.topic)}
             />
             <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 10 }}>
-              <div data-block="TrendPanel" />
-              <div data-block="ResponseCompositionPanel" />
+              <TrendPanel
+                metric={metric}
+                onMetricChange={setMetric}
+                data={ts}
+                loading={timeseriesQ.isPending}
+              />
+              <ResponseCompositionPanel kpis={a?.kpis ?? {}} />
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
               <div data-block="TopicBarListPanel" data-variant="dominated" />
