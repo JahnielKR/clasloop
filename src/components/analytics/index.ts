@@ -4,3 +4,5 @@
 
 export { default as StudioShell } from "./StudioShell";
 export { default as PeriodChips } from "./PeriodChips";
+export { default as KpiBand } from "./KpiBand";
+export { default as StatCardWithSparkline } from "./StatCardWithSparkline";
