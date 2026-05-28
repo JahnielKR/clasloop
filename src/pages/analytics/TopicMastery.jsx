@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { StudioShell } from "../../components/analytics";
 import TopicMatrix from "../../components/analytics/TopicMatrix";
+import TopicTrendPanel from "../../components/analytics/TopicTrendPanel";
 import { useClassAnalytics } from "../../hooks/useClassAnalytics";
 import { useTopicDetail } from "../../hooks/useTopicDetail";
 import { ROUTES } from "../../routes";
@@ -86,7 +87,11 @@ export default function TopicMastery() {
             />
             {selectedTopic && (
               <>
-                <div data-block="TopicTrendPanel" />
+                <TopicTrendPanel
+                  topic={selectedTopic}
+                  data={detail?.weekly_trend ?? []}
+                  loading={topicQ.isPending && !detail}
+                />
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                   <div data-block="MisconceptionPanel" />
                   <div data-block="QuestionsList" />

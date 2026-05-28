@@ -18,3 +18,4 @@ export { default as TrajectoryPanel } from "./TrajectoryPanel";
 export { default as StudentMostFailedList } from "./StudentMostFailedList";
 export { default as SessionHistoryTable } from "./SessionHistoryTable";
 export { default as TopicMatrix } from "./TopicMatrix";
+export { default as TopicTrendPanel } from "./TopicTrendPanel";
