@@ -14,6 +14,8 @@ import TrendPanel from "../../components/analytics/TrendPanel";
 import ResponseCompositionPanel from "../../components/analytics/ResponseCompositionPanel";
 import TopicBarListPanel from "../../components/analytics/TopicBarListPanel";
 import MostMissedList from "../../components/analytics/MostMissedList";
+import RosterTable from "../../components/analytics/RosterTable";
+import { useDirector } from "../../hooks/useDirector";
 import { buildRoute } from "../../routes";
 import { useClassAnalytics } from "../../hooks/useClassAnalytics";
 import { useClassTimeseries } from "../../hooks/useClassTimeseries";
@@ -54,6 +56,11 @@ export default function ClassDetail() {
     from,
     to,
   });
+  // F1: reuse the cached useDirector to get per-class students_snapshot.
+  // React Query caches under DIRECTOR_KEY; si Director ya está cargado es gratis.
+  // F2 introduces student_detail RPC y la tabla migra a su propio fetch.
+  const directorQ = useDirector();
+  const students = directorQ.data?.studentData?.[classId] ?? [];
 
   useEffect(() => {
     if (!classId) navigate(ROUTES.SCHOOL, { replace: true });
@@ -124,7 +131,7 @@ export default function ClassDetail() {
                 }}
               />
             </div>
-            <div data-block="RosterTable" />
+            <RosterTable students={students} />
           </>
         )}
       </div>
