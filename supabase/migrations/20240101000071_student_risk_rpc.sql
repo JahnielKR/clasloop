@@ -68,6 +68,12 @@ BEGIN
   ),
   -- 4 semanas más recientes por alumno (pct_correct semanal — para slope
   -- en cliente con metrics.trendSlope).
+  -- NOTA: el rango es FIJO 28 días, INDEPENDIENTE de p_window_days. La
+  -- regresión lineal de risk.ts necesita ~4 puntos para un slope
+  -- significativo; aunque el caller pase p_window_days=7 (vista corta),
+  -- igual queremos las 4 semanas de historia para la detección de
+  -- tendencias. recent_pct_correct (per_student arriba) sí honra v_from;
+  -- este array es deliberadamente más ancho.
   weekly AS (
     SELECT
       sp.student_name,
