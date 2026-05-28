@@ -22,3 +22,5 @@ export { default as TopicTrendPanel } from "./TopicTrendPanel";
 export { default as MisconceptionPanel } from "./MisconceptionPanel";
 export { default as TopicQuestionsList } from "./TopicQuestionsList";
 export { default as CompareToggle } from "./CompareToggle";
+export { default as RiskBadge } from "./RiskBadge";
+export { default as StudentRiskCard } from "./StudentRiskCard";
