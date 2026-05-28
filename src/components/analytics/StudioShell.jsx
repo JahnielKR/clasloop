@@ -16,13 +16,13 @@ import { useState } from "react";
 import PeriodChips from "./PeriodChips";
 
 const NAV_ITEMS = [
-  { id: "overview", label: "Resumen", enabled: true },
-  { id: "class", label: "Clase", enabled: false },
-  { id: "student", label: "Estudiante", enabled: false },
-  { id: "topics", label: "Temas", enabled: false },
-  { id: "live", label: "En vivo", enabled: false },
-  { id: "reports", label: "Reportes", enabled: false },
-  { id: "ask", label: "Analista Cleo", enabled: false },
+  { id: "overview", label: "Resumen", staticEnabled: true },
+  { id: "class", label: "Clase", staticEnabled: false },
+  { id: "student", label: "Estudiante", staticEnabled: false },
+  { id: "topics", label: "Temas", staticEnabled: false },
+  { id: "live", label: "En vivo", staticEnabled: false },
+  { id: "reports", label: "Reportes", staticEnabled: false },
+  { id: "ask", label: "Analista Cleo", staticEnabled: false },
 ];
 
 export default function StudioShell({
@@ -35,6 +35,15 @@ export default function StudioShell({
   const [internalPeriod, setInternalPeriod] = useState(period);
   const effectivePeriod = onPeriodChange ? period : internalPeriod;
   const handlePeriod = onPeriodChange || setInternalPeriod;
+
+  // Per-render enablement: in F1, 'class' is enabled only when we're already
+  // on a class detail page (so the sidebar item highlights). You don't reach
+  // class detail from the sidebar — you click a class card in Director
+  // (Task 12). The other 5 items stay disabled until their F1+ tasks land.
+  const items = NAV_ITEMS.map((item) => ({
+    ...item,
+    enabled: item.staticEnabled || (item.id === "class" && view === "class"),
+  }));
 
   return (
     <div style={{ display: "flex", minHeight: "100%" }}>
@@ -59,7 +68,7 @@ export default function StudioShell({
         >
           Analytics
         </div>
-        {NAV_ITEMS.map((item) => {
+        {items.map((item) => {
           const active = item.id === view;
           return (
             <div

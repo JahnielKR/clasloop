@@ -11,3 +11,7 @@
 
 export { default as RetentionDonut } from "./RetentionDonut";
 export { default as RetentionBars } from "./RetentionBars";
+export { default as TrendBarChart } from "./TrendBarChart";
+export { default as Donut } from "./Donut";
+export { default as HorizontalBarList } from "./HorizontalBarList";
+export { default as SparklineCell } from "./SparklineCell";
