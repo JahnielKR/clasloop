@@ -27,6 +27,8 @@ import CleoPlanCard from "./CleoPlanCard";
 // shown as link buttons — never auto-run inside a plan.
 const PLAN_WRITE_TYPES = new Set([
   "create_class", "create_unit", "create_units", "create_deck", "generate_review_deck",
+  "rename_class", "rename_unit", "rename_deck", "move_deck",
+  "delete_deck", "delete_unit", "delete_class",
 ]);
 
 // Monochrome line icon (inherits currentColor) for the attach affordance —

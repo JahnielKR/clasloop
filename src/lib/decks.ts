@@ -51,3 +51,52 @@ export async function createDeck(args: {
   if (error) return { error: error.message };
   return { deck: data as { id: string; title: string } };
 }
+
+// ─── Rename a deck (teacher) ────────────────────────────────────────────
+//
+// Updates only the title. Centralized so Cleo's action layer renames through
+// one path. Runs under the teacher's own RLS. Returns { deck } or { error }.
+export async function renameDeck(args: {
+  deckId: string;
+  title: string;
+}): Promise<{ deck?: { id: string; title: string }; error?: string }> {
+  const title = (args.title || '').trim();
+  if (!args.deckId) return { error: 'A deck is required.' };
+  if (!title) return { error: 'A deck needs a title.' };
+
+  const { data, error } = await supabase
+    .from('decks')
+    .update({ title })
+    .eq('id', args.deckId)
+    .select('id, title')
+    .single();
+  if (error) return { error: error.message };
+  return { deck: data as { id: string; title: string } };
+}
+
+// ─── Delete a deck (teacher) ────────────────────────────────────────────
+//
+// Mirrors the inline delete in Decks.jsx:250. Runs under RLS.
+export async function deleteDeck(deckId: string): Promise<{ ok?: boolean; error?: string }> {
+  if (!deckId) return { error: 'A deck is required.' };
+  const { error } = await supabase.from('decks').delete().eq('id', deckId);
+  if (error) return { error: error.message };
+  return { ok: true };
+}
+
+// ─── Move a deck to a unit, or back to class level (teacher) ────────────
+//
+// `unitId` null files the deck at the class level (no unit) — same as the
+// inline moves in ClassPage.jsx:746 / PlanView.jsx:1313. Runs under RLS.
+export async function moveDeck(args: {
+  deckId: string;
+  unitId: string | null;
+}): Promise<{ ok?: boolean; error?: string }> {
+  if (!args.deckId) return { error: 'A deck is required.' };
+  const { error } = await supabase
+    .from('decks')
+    .update({ unit_id: args.unitId ?? null })
+    .eq('id', args.deckId);
+  if (error) return { error: error.message };
+  return { ok: true };
+}

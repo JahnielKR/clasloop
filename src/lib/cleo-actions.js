@@ -18,9 +18,9 @@
 // `to` is a deep-link the card turns into a "view it" button.
 
 import { supabase } from './supabase';
-import { createClass } from './classes';
-import { createUnit } from './units';
-import { createDeck } from './decks';
+import { createClass, renameClass, deleteClass } from './classes';
+import { createUnit, renameUnit, deleteUnit } from './units';
+import { createDeck, renameDeck, deleteDeck, moveDeck } from './decks';
 import { generateQuestions } from './ai';
 import { sectionToLessonContext } from './class-hierarchy';
 import { getUnitRetentionSummary } from './spaced-repetition';
@@ -115,6 +115,60 @@ export async function executeCleoAction(action, { navigate, profile, lang = 'en'
         result: { kind: 'units', created, failed, classId: action.classId },
         to: buildRoute.classDetail(action.classId),
       };
+    }
+
+    // ── Edit / move / delete (Track B3) ──────────────────────────────────
+    // Each reuses the centralized lib mutation (runs under the teacher's RLS).
+    // Renames/moves land a "view it" deep-link; deletes have nothing to view.
+
+    case 'rename_class': {
+      const { class: c, error } = await renameClass({ classId: action.classId, name: action.newName });
+      if (error || !c) return { ok: false, error: error || 'rename_failed' };
+      return { ok: true, result: { kind: 'class_renamed', name: c.name }, to: buildRoute.classDetail(action.classId) };
+    }
+
+    case 'rename_unit': {
+      const { unit, error } = await renameUnit({ unitId: action.unitId, name: action.newName });
+      if (error || !unit) return { ok: false, error: error || 'rename_failed' };
+      return { ok: true, result: { kind: 'unit_renamed', name: unit.name }, to: buildRoute.classDetail(action.classId) };
+    }
+
+    case 'rename_deck': {
+      const { deck, error } = await renameDeck({ deckId: action.deckId, title: action.newName });
+      if (error || !deck) return { ok: false, error: error || 'rename_failed' };
+      return {
+        ok: true,
+        result: { kind: 'deck_renamed', name: deck.title },
+        to: action.classId ? buildPathWithOpts(ROUTES.DECKS, { focusClassId: action.classId }, 'decks') : ROUTES.DECKS,
+      };
+    }
+
+    case 'move_deck': {
+      const { ok, error } = await moveDeck({ deckId: action.deckId, unitId: action.toUnitId || null });
+      if (!ok) return { ok: false, error: error || 'move_failed' };
+      return {
+        ok: true,
+        result: { kind: 'deck_moved', name: action.deckTitle, unitName: action.toUnitName || null },
+        to: action.classId ? buildPathWithOpts(ROUTES.DECKS, { focusClassId: action.classId }, 'decks') : ROUTES.DECKS,
+      };
+    }
+
+    case 'delete_deck': {
+      const { ok, error } = await deleteDeck(action.deckId);
+      if (!ok) return { ok: false, error: error || 'delete_failed' };
+      return { ok: true, result: { kind: 'deck_deleted', name: action.deckTitle } };
+    }
+
+    case 'delete_unit': {
+      const { ok, error } = await deleteUnit(action.unitId);
+      if (!ok) return { ok: false, error: error || 'delete_failed' };
+      return { ok: true, result: { kind: 'unit_deleted', name: action.unitName }, to: buildRoute.classDetail(action.classId) };
+    }
+
+    case 'delete_class': {
+      const { ok, error } = await deleteClass(action.classId);
+      if (!ok) return { ok: false, error: error || 'delete_failed' };
+      return { ok: true, result: { kind: 'class_deleted', name: action.className }, to: ROUTES.CLASSES };
     }
 
     case 'generate_review_deck': {

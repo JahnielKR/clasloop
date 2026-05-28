@@ -9,8 +9,9 @@
 // simpler CleoActionCard.
 //
 // Two kinds of step:
-//   • WRITE steps (create_class/unit/units/deck/review) run via
-//     executeCleoAction when the teacher confirms.
+//   • WRITE steps (create/rename/move/delete) run via executeCleoAction when
+//     the teacher confirms. Destructive ones show in red; a delete_class step
+//     makes the teacher type the class name (which gates the whole plan).
 //   • LINK steps (navigate incl. a class report, launch_session, schedule_unit)
 //     never auto-run mid-plan — they show a button the teacher taps to go
 //     there (which closes the panel), so a chain never yanks them away.
@@ -23,9 +24,12 @@ import { C } from "./tokens";
 import { buildRoute } from "../routes";
 import { routeForNavigate } from "../lib/cleo-actions";
 import DeckOptionsForm from "./DeckOptionsForm";
+import { confirmMatches } from "./CleoActionCard";
 
 const WRITE_TYPES = new Set([
   "create_class", "create_unit", "create_units", "create_deck", "generate_review_deck",
+  "rename_class", "rename_unit", "rename_deck", "move_deck",
+  "delete_deck", "delete_unit", "delete_class",
 ]);
 const isWrite = (step) => WRITE_TYPES.has(step?.type);
 
@@ -47,6 +51,13 @@ function stepSummary(step, tp) {
     case "create_units": return tp.sumCreateUnits.replace("{n}", String(step.names?.length || 0)).replace("{class}", step.className || "");
     case "create_deck": return tp.sumCreateDeck.replace("{class}", step.className || "");
     case "generate_review_deck": return tp.sumReview.replace("{unit}", step.unitName || "").replace("{class}", step.className || "");
+    case "rename_class": return tp.sumRenameClass.replace("{class}", step.className || "").replace("{new}", step.newName || "");
+    case "rename_unit": return tp.sumRenameUnit.replace("{unit}", step.unitName || "").replace("{new}", step.newName || "").replace("{class}", step.className || "");
+    case "rename_deck": return tp.sumRenameDeck.replace("{deck}", step.deckTitle || "").replace("{new}", step.newName || "");
+    case "move_deck": return tp.sumMoveDeck.replace("{deck}", step.deckTitle || "").replace("{to}", step.toUnitName || tp.classLevel);
+    case "delete_deck": return tp.sumDeleteDeck.replace("{deck}", step.deckTitle || "");
+    case "delete_unit": return tp.sumDeleteUnit.replace("{unit}", step.unitName || "").replace("{class}", step.className || "");
+    case "delete_class": return tp.sumDeleteClass.replace("{class}", step.className || "");
     case "navigate": return step.target === "class_report" ? tp.sumReport.replace("{class}", step.className || "") : tp.sumOpen;
     case "launch_session": return tp.sumLaunch.replace("{deck}", step.deckTitle || "");
     case "schedule_unit": return tp.sumSchedule.replace("{unit}", step.unitName || "");
@@ -69,9 +80,9 @@ export default function CleoPlanCard({
   const tp = t.plan;
   const idle = planStatus === "idle";
 
-  // Editable bits (only matter before the first run): the per-unit names for a
-  // create_units step (the "quiz"), the deck options for a create_deck step,
-  // and which inline editors are expanded.
+  // Editable bits (only matter before the first run): per-unit names for a
+  // create_units step (the "quiz"), deck options for a create_deck step, which
+  // inline editors are open, and the typed confirmation for a delete_class step.
   const [unitNames, setUnitNames] = useState(() => {
     const m = {};
     steps.forEach((s, i) => { if (s.type === "create_units") m[i] = [...(s.names || [])]; });
@@ -79,6 +90,7 @@ export default function CleoPlanCard({
   });
   const [deckPayloads, setDeckPayloads] = useState({});
   const [openEditor, setOpenEditor] = useState({});
+  const [confirmTexts, setConfirmTexts] = useState({});
 
   const toggleEditor = (i) => setOpenEditor((o) => ({ ...o, [i]: !o[i] }));
   const setName = (i, k, val) =>
@@ -104,12 +116,16 @@ export default function CleoPlanCard({
   const doneCount = writeIdx.filter((i) => stepStatuses[i] === "done").length;
   const failCount = writeIdx.filter((i) => stepStatuses[i] === "error").length;
 
-  const btn = (primary) => ({
+  // Every delete_class step must have its name typed before the plan can run.
+  const classDeleteIdx = steps.map((_, i) => i).filter((i) => steps[i].type === "delete_class");
+  const allConfirmed = classDeleteIdx.every((i) => confirmMatches(confirmTexts[i], steps[i].confirmName, t.action.deleteKeyword));
+
+  const btn = (primary, danger) => ({
     flex: primary ? 1 : "0 0 auto",
     padding: "8px 14px", borderRadius: 9, fontSize: 13, fontWeight: 600,
     fontFamily: "'Outfit',sans-serif", cursor: "pointer",
     border: primary ? "none" : `1px solid ${C.border}`,
-    background: primary ? C.accent : "transparent",
+    background: primary ? (danger ? C.red : C.accent) : "transparent",
     color: primary ? "#fff" : C.textMuted,
   });
   const linkBtn = {
@@ -132,9 +148,11 @@ export default function CleoPlanCard({
     return <span style={{ fontSize: 12, color: C.textMuted }}>•</span>;
   };
 
+  const hasDanger = steps.some((s) => s.destructive);
+
   return (
     <div style={{
-      border: `1px solid ${C.border}`, borderRadius: 12, background: C.bg,
+      border: `1px solid ${hasDanger ? `${C.red}55` : C.border}`, borderRadius: 12, background: C.bg,
       padding: 12, marginTop: 8, maxWidth: "92%",
     }}>
       <div style={{ fontSize: 12.5, fontWeight: 700, color: C.text, marginBottom: 10 }}>{tp.heading}</div>
@@ -153,7 +171,7 @@ export default function CleoPlanCard({
                 }}>{i + 1}</span>
 
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, color: C.text, lineHeight: 1.4 }}>{stepSummary(step, tp)}</div>
+                  <div style={{ fontSize: 13, color: step.destructive ? C.red : C.text, lineHeight: 1.4 }}>{stepSummary(step, tp)}</div>
 
                   {/* create_units: names preview + the rename "quiz" */}
                   {step.type === "create_units" && (
@@ -200,6 +218,23 @@ export default function CleoPlanCard({
                       )}
                     </div>
                   )}
+
+                  {/* delete_class: warning + type-the-name to confirm (gates the plan) */}
+                  {step.type === "delete_class" && idle && (
+                    <div style={{ marginTop: 6 }}>
+                      <p style={{ fontSize: 11.5, color: C.red, margin: "0 0 6px", lineHeight: 1.4 }}>
+                        {t.action.deleteClassWarn
+                          .replace("{students}", String(step.studentCount ?? 0))
+                          .replace("{decks}", String(step.deckCount ?? 0))}
+                      </p>
+                      <input
+                        value={confirmTexts[i] || ""}
+                        onChange={(e) => setConfirmTexts((c) => ({ ...c, [i]: e.target.value }))}
+                        placeholder={step.confirmName || ""}
+                        style={nameInput}
+                      />
+                    </div>
+                  )}
                 </div>
 
                 {/* right rail: link button (movement steps) or status (writes) */}
@@ -227,7 +262,11 @@ export default function CleoPlanCard({
         {idle && (
           <div style={{ display: "flex", gap: 8 }}>
             <button style={btn(false)} onClick={onCancel}>{tp.cancel}</button>
-            <button style={btn(true)} onClick={() => onRunPlan(buildFinal())}>{tp.confirm}</button>
+            <button
+              style={{ ...btn(true, hasDanger), opacity: allConfirmed ? 1 : 0.5 }}
+              disabled={!allConfirmed}
+              onClick={() => allConfirmed && onRunPlan(buildFinal())}
+            >{tp.confirm}</button>
           </div>
         )}
         {planStatus === "running" && (
