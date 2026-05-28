@@ -5,6 +5,7 @@ import { CIcon } from "../components/Icons";
 import { useIsMobile } from "../components/MobileMenuButton";
 import PageHeader from "../components/PageHeader";
 import Skeleton from "../components/ui/Skeleton";
+import { StudioShell } from "../components/analytics";
 import { C as BASE_C, MONO } from "../components/tokens";
 import { useDensity } from "../components/ui/density";
 import { selectableChip } from "../components/ui/selectable";
@@ -115,18 +116,20 @@ export default function Director({ lang: pageLang = "en", setLang: pageSetLang, 
   );
 
   if (loading) return (
-    <div style={{ padding: "28px 20px" }}>
-      <style>{css}</style>
-      {backBar}
-      <PageHeader title={t.pageTitle} lang={l} setLang={setLang} maxWidth={860} onOpenMobileMenu={onOpenMobileMenu} />
-      <div style={{ maxWidth: 860, margin: "0 auto" }}>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 12, marginBottom: 16 }}>
-          {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} height={88} radius={12} />)}
+    <StudioShell view="overview" title="Analytics">
+      <div style={{ padding: "28px 20px" }}>
+        <style>{css}</style>
+        {backBar}
+        <PageHeader title={t.pageTitle} lang={l} setLang={setLang} maxWidth={860} onOpenMobileMenu={onOpenMobileMenu} />
+        <div style={{ maxWidth: 860, margin: "0 auto" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 12, marginBottom: 16 }}>
+            {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} height={88} radius={12} />)}
+          </div>
+          <Skeleton height={220} radius={12} style={{ marginBottom: 12 }} />
+          <Skeleton height={160} radius={12} />
         </div>
-        <Skeleton height={220} radius={12} style={{ marginBottom: 12 }} />
-        <Skeleton height={160} radius={12} />
       </div>
-    </div>
+    </StudioShell>
   );
 
   // Aggregate stats
@@ -156,10 +159,11 @@ export default function Director({ lang: pageLang = "en", setLang: pageSetLang, 
   const alertCount = atRiskStudents.length + lowTopics.length;
 
   return (
-    <div style={{ padding: "28px 20px" }}>
-      <style>{css}</style>
-      {backBar}
-      <PageHeader title={t.pageTitle} lang={l} setLang={setLang} maxWidth={860} onOpenMobileMenu={onOpenMobileMenu} />
+    <StudioShell view="overview" title="Analytics">
+      <div style={{ padding: "28px 20px" }}>
+        <style>{css}</style>
+        {backBar}
+        <PageHeader title={t.pageTitle} lang={l} setLang={setLang} maxWidth={860} onOpenMobileMenu={onOpenMobileMenu} />
 
       <div style={{ maxWidth: 860, margin: "0 auto" }}>
         <p style={{ fontSize: 14, color: C.textSecondary, marginBottom: 20 }}>{t.subtitle}</p>
@@ -392,5 +396,6 @@ export default function Director({ lang: pageLang = "en", setLang: pageSetLang, 
         )}
       </div>
     </div>
+    </StudioShell>
   );
 }
