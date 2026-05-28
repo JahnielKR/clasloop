@@ -12,6 +12,7 @@ import KpiBand from "../../components/analytics/KpiBand";
 import CleoStrip from "../../components/analytics/CleoStrip";
 import TrendPanel from "../../components/analytics/TrendPanel";
 import ResponseCompositionPanel from "../../components/analytics/ResponseCompositionPanel";
+import TopicBarListPanel from "../../components/analytics/TopicBarListPanel";
 import { useClassAnalytics } from "../../hooks/useClassAnalytics";
 import { useClassTimeseries } from "../../hooks/useClassTimeseries";
 import { ROUTES } from "../../routes";
@@ -111,8 +112,8 @@ export default function ClassDetail() {
               <ResponseCompositionPanel kpis={a?.kpis ?? {}} />
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
-              <div data-block="TopicBarListPanel" data-variant="dominated" />
-              <div data-block="TopicBarListPanel" data-variant="critical" />
+              <TopicBarListPanel variant="dominated" topicMastery={a?.topic_mastery ?? []} />
+              <TopicBarListPanel variant="critical" topicMastery={a?.topic_mastery ?? []} />
               <div data-block="MostMissedList" />
             </div>
             <div data-block="RosterTable" />
