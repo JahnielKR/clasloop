@@ -11,3 +11,5 @@
 
 export { default as RetentionDonut } from "./RetentionDonut";
 export { default as RetentionBars } from "./RetentionBars";
+export { default as TrendBarChart } from "./TrendBarChart";
+export { default as Donut } from "./Donut";
