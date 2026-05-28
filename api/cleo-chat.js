@@ -170,6 +170,42 @@ async function buildContextNote(supabase, teacherId, context) {
         lines.push(`They are viewing the class "${data.name}" — if they say "this class", they mean this one.`);
       }
     }
+
+    // F5: Analista Cleo — el front-end pasa analyticsClassId para que Cleo
+    // razone sobre los datos en vivo de esa clase. Llamamos class_analytics
+    // server-side (RPC tiene ownership guard) y agregamos un resumen al system.
+    if (typeof context.analyticsClassId === 'string' && context.analyticsClassId) {
+      try {
+        const { data: ca } = await supabase.rpc('class_analytics', {
+          p_class_id: context.analyticsClassId,
+          p_from: null,
+          p_to: null,
+        });
+        if (ca) {
+          // Resumen ULTRA compacto (< 1KB) para no inflar el prompt
+          const k = ca.kpis || {};
+          const top3Weak = (ca.topic_mastery || [])
+            .filter((t) => t.retention_score != null)
+            .sort((a, b) => a.retention_score - b.retention_score)
+            .slice(0, 3)
+            .map((t) => `${t.topic} (${t.retention_score}%)`)
+            .join(', ');
+          const missed = (ca.most_missed || [])
+            .slice(0, 3)
+            .map((m) => `Q${m.question_index + 1}/${m.topic || '?'} ${Math.round(m.error_rate)}% err`)
+            .join('; ');
+          lines.push(`ANALYTICS CONTEXT — class "${ca.class_id?.slice(0, 8) || ''}":
+- pct_correct ${k.pct_correct ?? '?'}%, participants ${k.unique_participants ?? '?'}, responses ${k.responses_total ?? '?'}.
+- Weakest topics: ${top3Weak || '(none)'}.
+- Top missed questions: ${missed || '(none)'}.
+Use these numbers when the teacher asks about THIS class. Do NOT echo them verbatim — interpret them.`);
+        }
+      } catch (e) {
+        // Soft fail — la conversación sigue sin context
+        console.warn('[cleo-chat] analytics context fetch failed:', e?.message);
+      }
+    }
+
     return lines.length ? `\n\nCURRENT CONTEXT:\n${lines.join('\n')}` : '';
   } catch {
     return '';

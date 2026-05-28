@@ -51,6 +51,7 @@ export const ROUTES = {
   // DECKS_EDIT: "/decks/:deckId/edit"   → buildRoute.deckEdit(deckId)
 
   SCHOOL: "/school",                    // Director (label en sidebar dice "School")
+  ANALYTICS_ASK: "/school/ask",         // F5: Analista Cleo chat view
   COMMUNITY: "/community",
   SCAN: "/scan",                        // PR 49: Scanner — teacher only
   // TEACHER: "/teacher/:teacherId"      → buildRoute.teacher(id)
@@ -123,6 +124,10 @@ export const buildRoute = {
   // Analytics Studio — Topic Mastery (F3+). Acepta ?topic=<name> en query
   // string para preselección desde ClassDetail's TopicBarListPanel.
   analyticsTopics: (classId: string) => `/school/topics/${enc(classId)}`,
+  // Analytics Studio — Analista Cleo (F5+). Acepta ?class=<classId> para
+  // preseleccionar la clase al abrir la vista chat.
+  analyticsAsk: (classId?: string) =>
+    classId ? `/school/ask?class=${enc(classId)}` : `/school/ask`,
   // Class report — Cleo-opened printable snapshot (KPIs + charts)
   classReport: (classId: string) => `/classes/${enc(classId)}/report`,
   // Student-facing per-session results page — landed from a "graded"
@@ -152,6 +157,7 @@ export const ROUTE_PATTERNS = {
   DECKS_RESULTS: "/decks/:deckId/results",
 
   SCHOOL: "/school",
+  ANALYTICS_ASK: "/school/ask",
   ANALYTICS_CLASS: "/school/class/:classId",
   ANALYTICS_STUDENT: "/school/student/:classId/:studentRef",
   ANALYTICS_TOPICS: "/school/topics/:classId",
@@ -249,6 +255,9 @@ export function pathToPage(pathname: string | null | undefined): string | null {
   if (/^\/school\/student\/[^/]+\/[^/]+\/?$/.test(pathname)) return "analyticsStudentProfile";
   // /school/topics/:classId → Analytics Studio Topic Mastery (F3).
   if (/^\/school\/topics\/[^/]+\/?$/.test(pathname)) return "analyticsTopicMastery";
+  // /school/ask → Analytics Studio Analista Cleo (F5). MUST come before
+  // the /school equality below.
+  if (pathname === "/school/ask") return "analyticsAsk";
   // /school/class/:classId → Analytics Studio Class Detail (F1). MUST come
   // before the /school equality below, otherwise more specific paths would
   // either fall through or — worse — match "director".
@@ -317,6 +326,7 @@ const TEACHER_ONLY_PAGES = new Set([
   "analyticsClassDetail", // F1: /school/class/:classId — Analytics Studio Class Detail page
   "analyticsStudentProfile", // F2: /school/student/:classId/:studentRef — Analytics Studio Student Profile
   "analyticsTopicMastery", // F3: /school/topics/:classId — Analytics Studio Topic Mastery
+  "analyticsAsk",   // F5: /school/ask — Analista Cleo chat view
   "adminAIStats",   // additionally requires is_admin, checked at the page level
   "scan",           // PR 49: Scanner — only teachers grade exams
 ]);

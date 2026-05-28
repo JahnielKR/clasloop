@@ -71,6 +71,7 @@ const importScanner        = () => import('./pages/Scanner');
 const importClassDetail    = () => import('./pages/analytics/ClassDetail');
 const importStudentProfile = () => import('./pages/analytics/StudentProfile');
 const importTopicMastery   = () => import('./pages/analytics/TopicMastery');
+const importCleoAnalyst    = () => import('./pages/analytics/CleoAnalyst');
 
 const SessionFlow      = lazy(importSessionFlow);
 const StudentJoin      = lazy(importStudentJoin);
@@ -96,6 +97,7 @@ const Scanner          = lazy(importScanner);
 const ClassDetail      = lazy(importClassDetail);
 const StudentProfile   = lazy(importStudentProfile);
 const TopicMastery     = lazy(importTopicMastery);
+const CleoAnalyst      = lazy(importCleoAnalyst);
 import { useIsMobile } from './components/MobileMenuButton';
 import { countVisibleNotifications, countPendingReviewsForTeacher } from './lib/notifications';
 import { C } from './components/tokens';
@@ -130,7 +132,7 @@ function MyClassesByRole(props) {
   return <MyClasses {...props} />;
 }
 
-const COMPONENTS = { sessions: SessionFlow, studentJoin: StudentJoin, community: Community, achievements: Achievements, settings: Settings, director: Director, notifications: Notifications, decks: Decks, myClasses: MyClassesByRole, teacherProfile: TeacherProfile, adminAIStats: AdminAIStats, review: Review, deckResults: DeckResults, classInsights: ClassInsights, classReport: ClassReport, myResults: MyResults, sessionRecap: SessionRecap, favorites: Favorites, scan: Scanner, analyticsClassDetail: ClassDetail, analyticsStudentProfile: StudentProfile, analyticsTopicMastery: TopicMastery };
+const COMPONENTS = { sessions: SessionFlow, studentJoin: StudentJoin, community: Community, achievements: Achievements, settings: Settings, director: Director, notifications: Notifications, decks: Decks, myClasses: MyClassesByRole, teacherProfile: TeacherProfile, adminAIStats: AdminAIStats, review: Review, deckResults: DeckResults, classInsights: ClassInsights, classReport: ClassReport, myResults: MyResults, sessionRecap: SessionRecap, favorites: Favorites, scan: Scanner, analyticsClassDetail: ClassDetail, analyticsStudentProfile: StudentProfile, analyticsTopicMastery: TopicMastery, analyticsAsk: CleoAnalyst };
 
 // Data-dense surfaces render in "compact" density (TradingView/Sheets-like);
 // everything else stays "comfortable" (Notion-like). One system, two rhythms.
