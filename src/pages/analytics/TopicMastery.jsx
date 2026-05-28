@@ -6,6 +6,7 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { StudioShell } from "../../components/analytics";
+import TopicMatrix from "../../components/analytics/TopicMatrix";
 import { useClassAnalytics } from "../../hooks/useClassAnalytics";
 import { useTopicDetail } from "../../hooks/useTopicDetail";
 import { ROUTES } from "../../routes";
@@ -78,7 +79,11 @@ export default function TopicMastery() {
           <div style={{ opacity: 0.55, fontSize: 14 }}>Cargando temas…</div>
         ) : (
           <>
-            <div data-block="TopicMatrix" data-selected={selectedTopic ?? ""} />
+            <TopicMatrix
+              topics={topics}
+              selectedTopic={selectedTopic}
+              onSelect={(t) => setSelectedTopic(t === selectedTopic ? null : t)}
+            />
             {selectedTopic && (
               <>
                 <div data-block="TopicTrendPanel" />
