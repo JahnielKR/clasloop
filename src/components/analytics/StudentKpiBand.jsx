@@ -8,7 +8,9 @@ import {
   formatPercent,
   formatNumber,
   formatDurationShort,
+  formatDelta,
 } from "../../lib/analytics/formatters";
+import { pctChangeOrNull } from "../../lib/analytics/benchmark";
 
 function tone(delta) {
   if (delta == null) return "neutral";
@@ -22,6 +24,7 @@ export default function StudentKpiBand({
   trajectory = [],
   topicMastery = [],
   classAvgRetention = 0,
+  compareKpis = null,
 }) {
   const studentAvgRetention =
     topicMastery.length > 0
@@ -37,20 +40,37 @@ export default function StudentKpiBand({
 
   const pctSpark = trajectory.map((t) => Number(t.value) || 0);
 
+  // F4: derive delta chip per tile from compareKpis (period-prev fetch).
+  // Polarity nit: avg_time_ms "more = worse" but F4 keeps "more = good"
+  // universally — documented as out of scope in the plan.
+  function deltaProps(field) {
+    if (compareKpis == null) return null;
+    const pct = pctChangeOrNull(compareKpis[field], kpis[field]);
+    if (pct == null) return null;
+    const rounded = Math.round(pct);
+    return {
+      label: formatDelta(rounded),
+      tone: rounded > 0 ? "good" : rounded < 0 ? "bad" : "neutral",
+    };
+  }
+
   return (
     <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 8 }}>
       <StatCardWithSparkline
         label="% correcto"
         value={formatPercent(kpis.pct_correct)}
         sparkPoints={pctSpark}
+        delta={deltaProps("pct_correct")}
       />
       <StatCardWithSparkline
         label="Sesiones"
         value={formatNumber(kpis.session_count)}
+        delta={deltaProps("session_count")}
       />
       <StatCardWithSparkline
         label="Tiempo medio"
         value={formatDurationShort(kpis.avg_time_ms)}
+        delta={deltaProps("avg_time_ms")}
       />
       <StatCardWithSparkline
         label="Retención media"

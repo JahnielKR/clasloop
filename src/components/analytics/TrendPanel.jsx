@@ -29,6 +29,7 @@ export default function TrendPanel({
   metric = "pct_correct",
   onMetricChange,
   data = [],
+  compareData = null,
   loading = false,
 }) {
   const def = METRICS.find((m) => m.id === metric) || METRICS[0];
@@ -56,7 +57,7 @@ export default function TrendPanel({
           );
         })}
         <span style={{ marginLeft: "auto", opacity: 0.65, fontSize: 11 }}>
-          — pronóstico y comparar llegan en F4/F5
+          — pronóstico llega en F5
         </span>
       </div>
       {loading ? (
@@ -68,7 +69,12 @@ export default function TrendPanel({
           Sin datos en esta ventana.
         </div>
       ) : (
-        <TrendBarChart data={data} yLabel={def.label} yFormatter={def.formatter} />
+        <TrendBarChart
+          data={data}
+          compareData={compareData}
+          yLabel={def.label}
+          yFormatter={def.formatter}
+        />
       )}
     </div>
   );

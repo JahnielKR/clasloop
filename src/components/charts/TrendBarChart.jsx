@@ -3,12 +3,10 @@
 // F1 Analytics Studio: bar chart de tendencia (estilo Semrush).
 // Recibe datos de useClassTimeseries: [{ bucket, value, responses_total, unique_participants }].
 //
-// Props:
-//   data: array as above
-//   yLabel: string para tooltip (ej. "% correcto")
-//   yFormatter: (value:number)=>string para tooltip + eje (default: x => `${x}`)
-//
-// Forecast band, compare overlay y brush quedan para fases posteriores (F4/F5).
+// F4: opcional compareData (mismo shape) → segunda serie translúcida overlay
+// del período comparado. Tooltip + Legend etiqueta la serie como
+// "Período anterior". Back-compat: si compareData es null, comportamiento
+// idéntico a F1.
 
 import {
   ResponsiveContainer,
@@ -18,9 +16,11 @@ import {
   YAxis,
   Tooltip,
   CartesianGrid,
+  Legend,
 } from "recharts";
 
 const ACCENT = "#2563eb";
+const COMPARE = "#bfdbfe"; // azul translúcido para el período comparado
 const AXIS_COLOR = "#94a3b8";
 
 function defaultFormatter(v) {
@@ -29,14 +29,24 @@ function defaultFormatter(v) {
 
 export default function TrendBarChart({
   data = [],
+  compareData = null,
   yLabel = "valor",
   yFormatter = defaultFormatter,
   height = 180,
 }) {
+  // Merge by index para que recharts comparta el eje x. Si compareData
+  // no está, renderiza solo la serie principal (back-compat con F1/F3).
+  const merged = compareData
+    ? data.map((d, i) => ({
+        ...d,
+        compare_value: compareData[i]?.value ?? null,
+      }))
+    : data;
+
   return (
     <div style={{ width: "100%", height }}>
       <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={data} margin={{ top: 8, right: 4, bottom: 4, left: 0 }}>
+        <BarChart data={merged} margin={{ top: 8, right: 4, bottom: 4, left: 0 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#eef2f7" vertical={false} />
           <XAxis
             dataKey="bucket"
@@ -59,10 +69,20 @@ export default function TrendBarChart({
               fontSize: 12,
               padding: "6px 10px",
             }}
-            formatter={(value) => [yFormatter(value), yLabel]}
+            formatter={(value, name) => {
+              if (name === "compare_value") return [yFormatter(value), "Período anterior"];
+              return [yFormatter(value), yLabel];
+            }}
             labelFormatter={(label) => `${label}`}
           />
+          {compareData && <Bar dataKey="compare_value" fill={COMPARE} radius={[2, 2, 0, 0]} />}
           <Bar dataKey="value" fill={ACCENT} radius={[3, 3, 0, 0]} />
+          {compareData && (
+            <Legend
+              wrapperStyle={{ fontSize: 11, paddingTop: 4 }}
+              formatter={(value) => (value === "compare_value" ? "Período anterior" : yLabel)}
+            />
+          )}
         </BarChart>
       </ResponsiveContainer>
     </div>

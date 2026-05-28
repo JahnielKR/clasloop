@@ -6,7 +6,11 @@
 import { TrendBarChart } from "../charts";
 import { formatPercent } from "../../lib/analytics/formatters";
 
-export default function TrajectoryPanel({ data = [], loading = false }) {
+export default function TrajectoryPanel({
+  data = [],
+  compareData = null,
+  loading = false,
+}) {
   return (
     <div
       style={{
@@ -20,7 +24,7 @@ export default function TrajectoryPanel({ data = [], loading = false }) {
       <div style={{ display: "flex", gap: 12, fontSize: 13, marginBottom: 8 }}>
         <b>Trayectoria · % correcto semanal</b>
         <span style={{ marginLeft: "auto", opacity: 0.65, fontSize: 11 }}>
-          — pronóstico y comparar llegan en F4/F5
+          — pronóstico llega en F5
         </span>
       </div>
       {loading ? (
@@ -34,6 +38,7 @@ export default function TrajectoryPanel({ data = [], loading = false }) {
       ) : (
         <TrendBarChart
           data={data}
+          compareData={compareData}
           yLabel="% correcto"
           yFormatter={(v) => formatPercent(v)}
         />

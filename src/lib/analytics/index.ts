@@ -3,3 +3,4 @@
 export * from "./metrics";
 export * from "./formatters";
 export * from "./misconceptions";
+export * from "./benchmark";
