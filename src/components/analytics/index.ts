@@ -7,3 +7,5 @@ export { default as PeriodChips } from "./PeriodChips";
 export { default as KpiBand } from "./KpiBand";
 export { default as StatCardWithSparkline } from "./StatCardWithSparkline";
 export { default as CleoStrip } from "./CleoStrip";
+export { default as TrendPanel } from "./TrendPanel";
+export { default as ResponseCompositionPanel } from "./ResponseCompositionPanel";
