@@ -15,6 +15,8 @@ import SessionHistoryTable from "../../components/analytics/SessionHistoryTable"
 import CompareToggle from "../../components/analytics/CompareToggle";
 import { previousPeriod } from "../../lib/analytics/benchmark";
 import { useStudentDetail } from "../../hooks/useStudentDetail";
+import StudentRiskCard from "../../components/analytics/StudentRiskCard";
+import { useStudentRisk } from "../../hooks/useStudentRisk";
 import { ROUTES, buildRoute } from "../../routes";
 
 function periodToRange(period) {
@@ -54,6 +56,17 @@ export default function StudentProfile() {
     compareMode === "prev" ? studentRef : null,
     { from: compareRange.from, to: compareRange.to },
   );
+
+  const riskQ = useStudentRisk(classId);
+  const myRisk = (riskQ.data?.students ?? []).find((s) => s.student_name === studentRef);
+  const riskInputs = myRisk
+    ? {
+        recentPctCorrect: myRisk.recent_pct_correct,
+        weeklyPctCorrect: Array.isArray(myRisk.weekly_pct_correct) ? myRisk.weekly_pct_correct : [],
+        recentParticipation: myRisk.recent_participation,
+        daysSinceLastActivity: myRisk.days_since_last_activity,
+      }
+    : null;
 
   useEffect(() => {
     if (!classId || !studentRef) navigate(ROUTES.SCHOOL, { replace: true });
@@ -107,6 +120,7 @@ export default function StudentProfile() {
                   : null
               }
             />
+            <StudentRiskCard inputs={riskInputs} loading={riskQ.isPending && !riskQ.data} studentName={studentRef} />
             <CleoStudentStrip
               studentRef={studentRef}
               weakTopics={(d?.topic_mastery ?? [])

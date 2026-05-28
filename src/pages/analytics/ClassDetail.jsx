@@ -22,6 +22,7 @@ import { buildRoute } from "../../routes";
 import { useAnalyticsOverview } from "../../hooks/useAnalyticsOverview";
 import { useClassAnalytics } from "../../hooks/useClassAnalytics";
 import { useClassTimeseries } from "../../hooks/useClassTimeseries";
+import { useStudentRisk } from "../../hooks/useStudentRisk";
 import { ROUTES } from "../../routes";
 
 // Map period chip → from/to timestamps. F1 keeps it simple; Custom no-ops.
@@ -77,6 +78,18 @@ export default function ClassDetail() {
   // F2 introduces student_detail RPC y la tabla migra a su propio fetch.
   const directorQ = useDirector();
   const students = directorQ.data?.studentData?.[classId] ?? [];
+
+  const riskQ = useStudentRisk(classId);
+  // Map student_name → input object para que RosterTable lookup por nombre.
+  const riskInputsByName = (riskQ.data?.students ?? []).reduce((acc, s) => {
+    acc[s.student_name] = {
+      recentPctCorrect: s.recent_pct_correct,
+      weeklyPctCorrect: Array.isArray(s.weekly_pct_correct) ? s.weekly_pct_correct : [],
+      recentParticipation: s.recent_participation,
+      daysSinceLastActivity: s.days_since_last_activity,
+    };
+    return acc;
+  }, {});
 
   // F4: percentile rank de la retention_avg de la clase actual vs el resto
   // de las clases del docente. Computado client-side desde useAnalyticsOverview
@@ -186,6 +199,7 @@ export default function ClassDetail() {
             </div>
             <RosterTable
               students={students}
+              riskInputsByName={riskInputsByName}
               onRowClick={(s) => navigate(buildRoute.analyticsStudent(classId, s.name))}
             />
           </>

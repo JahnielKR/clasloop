@@ -13,6 +13,8 @@ import { SparklineCell } from "../charts";
 // Import explícito: barrel `../../lib/analytics` choca con
 // `src/lib/analytics.ts` (PostHog wrapper). Ver KpiBand.jsx.
 import { formatRelativeDay } from "../../lib/analytics/formatters";
+import RiskBadge from "./RiskBadge";
+import { riskScore } from "../../lib/analytics/risk";
 
 function badgeStyle(tone) {
   return {
@@ -68,7 +70,7 @@ function topicRetentionPoints(s) {
   return arr.map((t) => Number(t.retention_score) || 0);
 }
 
-export default function RosterTable({ students = [], onRowClick }) {
+export default function RosterTable({ students = [], riskInputsByName = {}, onRowClick }) {
   return (
     <div style={{ background: "#fff", border: "1px solid #e4e4e7", borderRadius: 8, padding: 12 }}>
       <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Roster</div>
@@ -91,6 +93,7 @@ export default function RosterTable({ students = [], onRowClick }) {
               <th>Retención</th>
               <th>Disp. por tema</th>
               <th>Última actividad</th>
+              <th>Riesgo</th>
               <th>Estado</th>
             </tr>
           </thead>
@@ -99,6 +102,8 @@ export default function RosterTable({ students = [], onRowClick }) {
               const status = statusFor(s);
               const lastDate = lastReviewedDate(s);
               const points = topicRetentionPoints(s);
+              const riskInputs = riskInputsByName[s.name];
+              const risk = riskInputs ? riskScore(riskInputs) : null;
               const clickable = !!onRowClick;
               return (
                 <tr
@@ -132,6 +137,13 @@ export default function RosterTable({ students = [], onRowClick }) {
                     <SparklineCell points={points} trend="flat" width={70} height={16} />
                   </td>
                   <td>{formatRelativeDay(lastDate)}</td>
+                  <td>
+                    {risk ? (
+                      <RiskBadge level={risk.level} score={risk.score} compact />
+                    ) : (
+                      <span style={{ opacity: 0.4 }}>—</span>
+                    )}
+                  </td>
                   <td>
                     <span style={badgeStyle(status.tone)}>{status.label}</span>
                   </td>
