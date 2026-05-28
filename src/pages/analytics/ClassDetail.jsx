@@ -8,6 +8,7 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { StudioShell } from "../../components/analytics";
+import KpiBand from "../../components/analytics/KpiBand";
 import { useClassAnalytics } from "../../hooks/useClassAnalytics";
 import { useClassTimeseries } from "../../hooks/useClassTimeseries";
 import { ROUTES } from "../../routes";
@@ -84,7 +85,11 @@ export default function ClassDetail() {
           <>
             {/* Bloques reales se enchufan en tasks 6-11. En F1 task 5 el
                 shell + data fetch + slots están listos. */}
-            <div data-block="KpiBand" />
+            <KpiBand
+              kpis={a?.kpis ?? {}}
+              timeseries={ts}
+              topicMastery={a?.topic_mastery ?? []}
+            />
             <div data-block="CleoStrip" />
             <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 10 }}>
               <div data-block="TrendPanel" />
