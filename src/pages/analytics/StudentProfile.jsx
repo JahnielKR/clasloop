@@ -9,8 +9,10 @@ import { StudioShell } from "../../components/analytics";
 import StudentKpiBand from "../../components/analytics/StudentKpiBand";
 import CleoStudentStrip from "../../components/analytics/CleoStudentStrip";
 import TrajectoryPanel from "../../components/analytics/TrajectoryPanel";
+import TopicBarListPanel from "../../components/analytics/TopicBarListPanel";
+import StudentMostFailedList from "../../components/analytics/StudentMostFailedList";
 import { useStudentDetail } from "../../hooks/useStudentDetail";
-import { ROUTES } from "../../routes";
+import { ROUTES, buildRoute } from "../../routes";
 
 function periodToRange(period) {
   const now = new Date();
@@ -107,8 +109,18 @@ export default function StudentProfile() {
             />
             <TrajectoryPanel data={d?.trajectory ?? []} loading={loading && !d} />
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-              <div data-block="TopicBarListPanel" data-variant="student-mastery" />
-              <div data-block="StudentMostFailedList" />
+              <TopicBarListPanel
+                variant="critical"
+                topicMastery={d?.topic_mastery ?? []}
+              />
+              <StudentMostFailedList
+                classId={classId}
+                studentRef={studentRef}
+                items={d?.most_failed ?? []}
+                onItemClick={(it) => {
+                  if (it.deck_id) navigate(buildRoute.deckResults(it.deck_id));
+                }}
+              />
             </div>
             <div data-block="SessionHistoryTable" />
           </>
