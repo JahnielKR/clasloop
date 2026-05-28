@@ -28,6 +28,7 @@ ios/App/build/
 # Playwright MCP snapshots, and the Supabase CLI temp dir.
 .claude/
 .playwright-mcp/
+.superpowers/
 supabase/.temp/
 
 # AI-session planning / audit docs — generated during agent sessions, kept
