@@ -139,10 +139,12 @@ export default function Director({ lang: pageLang = "en", setLang: pageSetLang, 
   const avgRetention = allRetentions.length > 0 ? Math.round(allRetentions.reduce((s, r) => s + r.average, 0) / allRetentions.length) : 0;
 
   // All students across classes
+  // F2 Task 9: preserve classId per row so the Students tab can drill into
+  // /school/student/:classId/:studentRef (StudentProfile).
   const allStudents = [];
   Object.entries(studentData).forEach(([classId, students]) => {
     const cls = classes.find(c => c.id === classId);
-    (students || []).forEach(s => allStudents.push({ ...s, className: cls?.name || "" }));
+    (students || []).forEach(s => allStudents.push({ ...s, classId, className: cls?.name || "" }));
   });
 
   // Alerts
@@ -315,9 +317,20 @@ export default function Director({ lang: pageLang = "en", setLang: pageSetLang, 
                         <span>{t.students}</span><span>{t.className}</span><span>{t.retention}</span><span>{t.sessions}</span>
                       </div>
                     )}
-                    {[...allStudents].sort((a, b) => b.avgRetention - a.avgRetention).map((s, i) => (
-                      isMobile ? (
-                        <div key={i} className="sd-row" style={{ padding: `${space.sm}px ${space.md}px`, borderBottom: `1px solid ${C.border}`, background: i % 2 === 0 ? C.bgSoft : C.bg }}>
+                    {[...allStudents].sort((a, b) => b.avgRetention - a.avgRetention).map((s, i) => {
+                      // F2 Task 9: click row → /school/student/:classId/:studentRef
+                      const goToProfile = () => navigate(buildRoute.analyticsStudent(s.classId, s.name));
+                      const onKey = (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); goToProfile(); } };
+                      return isMobile ? (
+                        <div
+                          key={i}
+                          className="sd-row"
+                          onClick={goToProfile}
+                          role="button"
+                          tabIndex={0}
+                          onKeyDown={onKey}
+                          style={{ padding: `${space.sm}px ${space.md}px`, borderBottom: `1px solid ${C.border}`, background: i % 2 === 0 ? C.bgSoft : C.bg, cursor: "pointer" }}
+                        >
                           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 8 }}>
                             <div style={{ minWidth: 0, flex: 1 }}>
                               <div style={{ fontSize: 14, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.name}</div>
@@ -332,7 +345,15 @@ export default function Director({ lang: pageLang = "en", setLang: pageSetLang, 
                           </div>
                         </div>
                       ) : (
-                        <div key={i} className="sd-row" style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", gap: 0, padding: `${space.sm}px ${space.md}px`, borderBottom: `1px solid ${C.border}`, alignItems: "center", background: i % 2 === 0 ? C.bgSoft : C.bg }}>
+                        <div
+                          key={i}
+                          className="sd-row"
+                          onClick={goToProfile}
+                          role="button"
+                          tabIndex={0}
+                          onKeyDown={onKey}
+                          style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", gap: 0, padding: `${space.sm}px ${space.md}px`, borderBottom: `1px solid ${C.border}`, alignItems: "center", background: i % 2 === 0 ? C.bgSoft : C.bg, cursor: "pointer" }}
+                        >
                           <div>
                             <div style={{ fontSize: 14, fontWeight: 500 }}>{s.name}</div>
                             <div style={{ fontSize: 11, color: C.textMuted }}>{s.strongTopics} {t.strong.toLowerCase()} · {s.weakTopics} {t.weak.toLowerCase()}</div>
@@ -344,8 +365,8 @@ export default function Director({ lang: pageLang = "en", setLang: pageSetLang, 
                           </div>
                           <span style={{ fontSize: 13, fontFamily: MONO }}>{s.topics.length}</span>
                         </div>
-                      )
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>
