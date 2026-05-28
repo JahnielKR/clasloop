@@ -13,6 +13,8 @@ import CleoStrip from "../../components/analytics/CleoStrip";
 import TrendPanel from "../../components/analytics/TrendPanel";
 import ResponseCompositionPanel from "../../components/analytics/ResponseCompositionPanel";
 import TopicBarListPanel from "../../components/analytics/TopicBarListPanel";
+import MostMissedList from "../../components/analytics/MostMissedList";
+import { buildRoute } from "../../routes";
 import { useClassAnalytics } from "../../hooks/useClassAnalytics";
 import { useClassTimeseries } from "../../hooks/useClassTimeseries";
 import { ROUTES } from "../../routes";
@@ -114,7 +116,13 @@ export default function ClassDetail() {
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
               <TopicBarListPanel variant="dominated" topicMastery={a?.topic_mastery ?? []} />
               <TopicBarListPanel variant="critical" topicMastery={a?.topic_mastery ?? []} />
-              <div data-block="MostMissedList" />
+              <MostMissedList
+                classId={classId}
+                items={a?.most_missed ?? []}
+                onItemClick={(it) => {
+                  if (it.deck_id) navigate(buildRoute.deckResults(it.deck_id));
+                }}
+              />
             </div>
             <div data-block="RosterTable" />
           </>
