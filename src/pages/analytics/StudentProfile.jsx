@@ -11,6 +11,7 @@ import CleoStudentStrip from "../../components/analytics/CleoStudentStrip";
 import TrajectoryPanel from "../../components/analytics/TrajectoryPanel";
 import TopicBarListPanel from "../../components/analytics/TopicBarListPanel";
 import StudentMostFailedList from "../../components/analytics/StudentMostFailedList";
+import SessionHistoryTable from "../../components/analytics/SessionHistoryTable";
 import { useStudentDetail } from "../../hooks/useStudentDetail";
 import { ROUTES, buildRoute } from "../../routes";
 
@@ -122,7 +123,12 @@ export default function StudentProfile() {
                 }}
               />
             </div>
-            <div data-block="SessionHistoryTable" />
+            <SessionHistoryTable
+              items={d?.session_history ?? []}
+              onRowClick={(it) => {
+                if (it.deck_id) navigate(buildRoute.deckResults(it.deck_id));
+              }}
+            />
           </>
         )}
       </div>
