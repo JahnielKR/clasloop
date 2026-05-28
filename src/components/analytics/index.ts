@@ -14,3 +14,4 @@ export { default as MostMissedList } from "./MostMissedList";
 export { default as RosterTable } from "./RosterTable";
 export { default as StudentKpiBand } from "./StudentKpiBand";
 export { default as CleoStudentStrip } from "./CleoStudentStrip";
+export { default as TrajectoryPanel } from "./TrajectoryPanel";

@@ -8,6 +8,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { StudioShell } from "../../components/analytics";
 import StudentKpiBand from "../../components/analytics/StudentKpiBand";
 import CleoStudentStrip from "../../components/analytics/CleoStudentStrip";
+import TrajectoryPanel from "../../components/analytics/TrajectoryPanel";
 import { useStudentDetail } from "../../hooks/useStudentDetail";
 import { ROUTES } from "../../routes";
 
@@ -104,7 +105,7 @@ export default function StudentProfile() {
                   : null
               }
             />
-            <div data-block="TrajectoryPanel" />
+            <TrajectoryPanel data={d?.trajectory ?? []} loading={loading && !d} />
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
               <div data-block="TopicBarListPanel" data-variant="student-mastery" />
               <div data-block="StudentMostFailedList" />
