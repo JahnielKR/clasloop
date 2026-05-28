@@ -131,7 +131,10 @@ export default function ClassDetail() {
                 }}
               />
             </div>
-            <RosterTable students={students} />
+            <RosterTable
+              students={students}
+              onRowClick={(s) => navigate(buildRoute.analyticsStudent(classId, s.name))}
+            />
           </>
         )}
       </div>

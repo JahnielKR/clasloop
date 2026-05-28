@@ -1,0 +1,43 @@
+// src/components/analytics/TrajectoryPanel.jsx
+//
+// F2 Analytics Studio: trayectoria temporal del Student Profile.
+// Bar chart semanal del % correcto. F5 agrega forecast + comparar.
+
+import { TrendBarChart } from "../charts";
+import { formatPercent } from "../../lib/analytics/formatters";
+
+export default function TrajectoryPanel({ data = [], loading = false }) {
+  return (
+    <div
+      style={{
+        background: "#fff",
+        border: "1px solid #e4e4e7",
+        borderRadius: 8,
+        padding: 12,
+        margin: "10px 0",
+      }}
+    >
+      <div style={{ display: "flex", gap: 12, fontSize: 13, marginBottom: 8 }}>
+        <b>Trayectoria · % correcto semanal</b>
+        <span style={{ marginLeft: "auto", opacity: 0.65, fontSize: 11 }}>
+          — pronóstico y comparar llegan en F4/F5
+        </span>
+      </div>
+      {loading ? (
+        <div style={{ height: 180, opacity: 0.45, fontSize: 13, padding: 12 }}>
+          Cargando…
+        </div>
+      ) : data.length === 0 ? (
+        <div style={{ height: 180, opacity: 0.45, fontSize: 13, padding: 12 }}>
+          Sin datos en esta ventana.
+        </div>
+      ) : (
+        <TrendBarChart
+          data={data}
+          yLabel="% correcto"
+          yFormatter={(v) => formatPercent(v)}
+        />
+      )}
+    </div>
+  );
+}

@@ -116,6 +116,10 @@ export const buildRoute = {
   // Analytics Studio — Class Detail page (F1+). Lives under /school/ because
   // it's accessed from Director's class roster, not from MyClasses.
   analyticsClass: (classId: string) => `/school/class/${enc(classId)}`,
+  // Analytics Studio — Student Profile (F2+). Identidad del alumno:
+  // student_name (F5+ podría introducir dual-lookup con student_id).
+  analyticsStudent: (classId: string, studentRef: string) =>
+    `/school/student/${enc(classId)}/${enc(studentRef)}`,
   // Class report — Cleo-opened printable snapshot (KPIs + charts)
   classReport: (classId: string) => `/classes/${enc(classId)}/report`,
   // Student-facing per-session results page — landed from a "graded"
@@ -146,6 +150,7 @@ export const ROUTE_PATTERNS = {
 
   SCHOOL: "/school",
   ANALYTICS_CLASS: "/school/class/:classId",
+  ANALYTICS_STUDENT: "/school/student/:classId/:studentRef",
   COMMUNITY: "/community",
   SCAN: "/scan",
   TEACHER: "/teacher/:teacherId",
@@ -235,6 +240,9 @@ export function pathToPage(pathname: string | null | undefined): string | null {
   // user lands on the deck list with the URL still saying /results.
   if (/^\/decks\/[^/]+\/results\/?$/.test(pathname)) return "deckResults";
   if (pathname.startsWith("/decks"))       return "decks";
+  // /school/student/:classId/:studentRef → Analytics Studio Student Profile (F2).
+  // MUST come before /school/class/* and /school equality (more specific first).
+  if (/^\/school\/student\/[^/]+\/[^/]+\/?$/.test(pathname)) return "analyticsStudentProfile";
   // /school/class/:classId → Analytics Studio Class Detail (F1). MUST come
   // before the /school equality below, otherwise more specific paths would
   // either fall through or — worse — match "director".
@@ -301,6 +309,7 @@ const TEACHER_ONLY_PAGES = new Set([
   "decks",
   "director",       // /school — analytics dashboard, accessible from MyClasses header
   "analyticsClassDetail", // F1: /school/class/:classId — Analytics Studio Class Detail page
+  "analyticsStudentProfile", // F2: /school/student/:classId/:studentRef — Analytics Studio Student Profile
   "adminAIStats",   // additionally requires is_admin, checked at the page level
   "scan",           // PR 49: Scanner — only teachers grade exams
 ]);

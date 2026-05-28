@@ -36,13 +36,17 @@ export default function StudioShell({
   const effectivePeriod = onPeriodChange ? period : internalPeriod;
   const handlePeriod = onPeriodChange || setInternalPeriod;
 
-  // Per-render enablement: in F1, 'class' is enabled only when we're already
-  // on a class detail page (so the sidebar item highlights). You don't reach
-  // class detail from the sidebar — you click a class card in Director
-  // (Task 12). The other 5 items stay disabled until their F1+ tasks land.
+  // Per-render enablement: 'class' (F1) y 'student' (F2) se prenden cuando
+  // ya estamos en sus respectivas vistas — para que el sidebar los destaque.
+  // No se navegan desde el sidebar: se llega vía click en una card/row
+  // del Director (Clase) o del roster (Estudiante). Los otros 4 items
+  // siguen disabled hasta sus fases (F3+).
   const items = NAV_ITEMS.map((item) => ({
     ...item,
-    enabled: item.staticEnabled || (item.id === "class" && view === "class"),
+    enabled:
+      item.staticEnabled ||
+      (item.id === "class" && view === "class") ||
+      (item.id === "student" && view === "student"),
   }));
 
   return (
