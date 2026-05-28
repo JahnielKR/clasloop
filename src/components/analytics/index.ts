@@ -12,3 +12,5 @@ export { default as ResponseCompositionPanel } from "./ResponseCompositionPanel"
 export { default as TopicBarListPanel } from "./TopicBarListPanel";
 export { default as MostMissedList } from "./MostMissedList";
 export { default as RosterTable } from "./RosterTable";
+export { default as StudentKpiBand } from "./StudentKpiBand";
+export { default as CleoStudentStrip } from "./CleoStudentStrip";
