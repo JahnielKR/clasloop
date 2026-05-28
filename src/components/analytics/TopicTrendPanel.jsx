@@ -5,6 +5,7 @@
 
 import { TrendBarChart } from "../charts";
 import { formatPercent } from "../../lib/analytics/formatters";
+import { forecastPoints } from "../../lib/analytics/forecast";
 
 export default function TopicTrendPanel({
   topic,
@@ -12,6 +13,7 @@ export default function TopicTrendPanel({
   compareData = null,
   loading = false,
 }) {
+  const forecast = forecastPoints(data, 2, { clampMin: 0, clampMax: 100 });
   return (
     <div
       style={{
@@ -25,7 +27,7 @@ export default function TopicTrendPanel({
       <div style={{ display: "flex", gap: 12, fontSize: 13, marginBottom: 8 }}>
         <b>Tendencia semanal · {topic}</b>
         <span style={{ marginLeft: "auto", opacity: 0.65, fontSize: 11 }}>
-          % correcto · pronóstico en F5
+          % correcto
         </span>
       </div>
       {loading ? (
@@ -38,6 +40,7 @@ export default function TopicTrendPanel({
         <TrendBarChart
           data={data}
           compareData={compareData}
+          forecast={forecast}
           yLabel="% correcto"
           yFormatter={(v) => formatPercent(v)}
         />
