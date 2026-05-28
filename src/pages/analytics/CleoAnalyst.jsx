@@ -29,6 +29,10 @@ export default function CleoAnalyst() {
       role: "model",
       text:
         "Hola, soy Cleo. Elegí una clase arriba y preguntame lo que quieras de tus datos — quiénes vienen flojos, qué reenseñar, qué deck armar.",
+      // ui: true marks this as a client-only greeting that must NOT be
+      // sent to Gemini — its API rejects requests where the first turn
+      // is role:"model". Mirrors the pattern in CleoChat.jsx.
+      ui: true,
     },
   ]);
   const [input, setInput] = useState("");
@@ -60,7 +64,12 @@ export default function CleoAnalyst() {
           authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          messages: next.map((m) => ({ role: m.role === "model" ? "model" : "user", text: m.text })),
+          // Filter out client-only ui messages (initial greeting). Gemini
+          // requires the first turn to be role:"user"; including the
+          // greeting causes every first send to fail with 502.
+          messages: next
+            .filter((m) => !m.ui)
+            .map((m) => ({ role: m.role === "model" ? "model" : "user", text: m.text })),
           lang: "es",
           context: { page: "analyticsAsk", analyticsClassId: classId || undefined },
         }),
