@@ -11,3 +11,4 @@ export { default as TrendPanel } from "./TrendPanel";
 export { default as ResponseCompositionPanel } from "./ResponseCompositionPanel";
 export { default as TopicBarListPanel } from "./TopicBarListPanel";
 export { default as MostMissedList } from "./MostMissedList";
+export { default as RosterTable } from "./RosterTable";
