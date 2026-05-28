@@ -8,9 +8,11 @@ import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { StudioShell } from "../../components/analytics";
 import TopicMatrix from "../../components/analytics/TopicMatrix";
 import TopicTrendPanel from "../../components/analytics/TopicTrendPanel";
+import MisconceptionPanel from "../../components/analytics/MisconceptionPanel";
+import TopicQuestionsList from "../../components/analytics/TopicQuestionsList";
 import { useClassAnalytics } from "../../hooks/useClassAnalytics";
 import { useTopicDetail } from "../../hooks/useTopicDetail";
-import { ROUTES } from "../../routes";
+import { ROUTES, buildRoute } from "../../routes";
 
 function periodToRange(period) {
   const now = new Date();
@@ -93,8 +95,16 @@ export default function TopicMastery() {
                   loading={topicQ.isPending && !detail}
                 />
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                  <div data-block="MisconceptionPanel" />
-                  <div data-block="QuestionsList" />
+                  <MisconceptionPanel
+                    question={(detail?.questions ?? [])[0]}
+                    onDrillDeck={(deckId) => navigate(buildRoute.deckResults(deckId))}
+                  />
+                  <TopicQuestionsList
+                    questions={detail?.questions ?? []}
+                    onItemClick={(it) => {
+                      if (it.deck_id) navigate(buildRoute.deckResults(it.deck_id));
+                    }}
+                  />
                 </div>
               </>
             )}

@@ -19,3 +19,5 @@ export { default as StudentMostFailedList } from "./StudentMostFailedList";
 export { default as SessionHistoryTable } from "./SessionHistoryTable";
 export { default as TopicMatrix } from "./TopicMatrix";
 export { default as TopicTrendPanel } from "./TopicTrendPanel";
+export { default as MisconceptionPanel } from "./MisconceptionPanel";
+export { default as TopicQuestionsList } from "./TopicQuestionsList";
