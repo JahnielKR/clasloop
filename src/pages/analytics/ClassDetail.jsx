@@ -9,6 +9,7 @@ import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { StudioShell } from "../../components/analytics";
 import KpiBand from "../../components/analytics/KpiBand";
+import CleoStrip from "../../components/analytics/CleoStrip";
 import { useClassAnalytics } from "../../hooks/useClassAnalytics";
 import { useClassTimeseries } from "../../hooks/useClassTimeseries";
 import { ROUTES } from "../../routes";
@@ -90,7 +91,13 @@ export default function ClassDetail() {
               timeseries={ts}
               topicMastery={a?.topic_mastery ?? []}
             />
-            <div data-block="CleoStrip" />
+            <CleoStrip
+              classId={classId}
+              weakTopics={(a?.topic_mastery ?? [])
+                .filter((t) => (t.retention_score ?? 0) < 40)
+                .slice(0, 3)
+                .map((t) => t.topic)}
+            />
             <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 10 }}>
               <div data-block="TrendPanel" />
               <div data-block="ResponseCompositionPanel" />
