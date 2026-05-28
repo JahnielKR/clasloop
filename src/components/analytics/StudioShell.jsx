@@ -30,6 +30,7 @@ export default function StudioShell({
   title = "Analytics",
   period = "d30",
   onPeriodChange,
+  toolbarExtras,  // F4: optional ReactNode rendered alongside PeriodChips
   children,
 }) {
   const [internalPeriod, setInternalPeriod] = useState(period);
@@ -115,7 +116,8 @@ export default function StudioShell({
           <h1 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>{title}</h1>
           <div style={{ marginLeft: "auto", display: "flex", gap: 8, alignItems: "center" }}>
             <PeriodChips value={effectivePeriod} onChange={handlePeriod} />
-            {/* Compare + Export viven acá en F4/F7 */}
+            {toolbarExtras}
+            {/* Export vive acá en F7 */}
           </div>
         </header>
         <main style={{ flex: 1, minWidth: 0 }}>{children}</main>
