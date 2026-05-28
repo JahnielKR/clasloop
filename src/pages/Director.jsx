@@ -9,7 +9,7 @@ import { StudioShell } from "../components/analytics";
 import { C as BASE_C, MONO } from "../components/tokens";
 import { useDensity } from "../components/ui/density";
 import { selectableChip } from "../components/ui/selectable";
-import { ROUTES } from "../routes";
+import { ROUTES, buildRoute } from "../routes";
 // PR 74: i18n centralizado
 import { useT } from "../i18n";
 
@@ -265,7 +265,15 @@ export default function Director({ lang: pageLang = "en", setLang: pageSetLang, 
                   const mc = memberCounts[cls.id] || 0;
                   const avg = ret ? ret.average : 0;
                   return (
-                    <div key={i} className="sd-card" style={{ background: C.bg, borderRadius: 12, border: `1px solid ${C.border}`, padding: space.lg }}>
+                    <div
+                      key={i}
+                      className="sd-card"
+                      onClick={() => navigate(buildRoute.analyticsClass(cls.id))}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); navigate(buildRoute.analyticsClass(cls.id)); } }}
+                      style={{ background: C.bg, borderRadius: 12, border: `1px solid ${C.border}`, padding: space.lg, cursor: "pointer" }}
+                    >
                       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
                         <div>
                           <div style={{ fontSize: 16, fontWeight: 600 }}>{cls.name}</div>
