@@ -121,8 +121,20 @@ export default function ClassDetail() {
               <ResponseCompositionPanel kpis={a?.kpis ?? {}} />
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
-              <TopicBarListPanel variant="dominated" topicMastery={a?.topic_mastery ?? []} />
-              <TopicBarListPanel variant="critical" topicMastery={a?.topic_mastery ?? []} />
+              <TopicBarListPanel
+                variant="dominated"
+                topicMastery={a?.topic_mastery ?? []}
+                onTopicClick={(item) =>
+                  navigate(`${buildRoute.analyticsTopics(classId)}?topic=${encodeURIComponent(item.label)}`)
+                }
+              />
+              <TopicBarListPanel
+                variant="critical"
+                topicMastery={a?.topic_mastery ?? []}
+                onTopicClick={(item) =>
+                  navigate(`${buildRoute.analyticsTopics(classId)}?topic=${encodeURIComponent(item.label)}`)
+                }
+              />
               <MostMissedList
                 classId={classId}
                 items={a?.most_missed ?? []}
