@@ -21,3 +21,4 @@ export { default as TopicMatrix } from "./TopicMatrix";
 export { default as TopicTrendPanel } from "./TopicTrendPanel";
 export { default as MisconceptionPanel } from "./MisconceptionPanel";
 export { default as TopicQuestionsList } from "./TopicQuestionsList";
+export { default as CompareToggle } from "./CompareToggle";
