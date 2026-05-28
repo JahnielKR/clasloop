@@ -6,14 +6,15 @@
 // SQL al mínimo — un solo source of truth para la matemática.)
 //
 // Factores:
-//   • recentPctCorrect (0-100): bajo desempeño suma riesgo. 50- = +20.
-//   • slope (vía weeklyPctCorrect[]): cae rápido = +20. Sube = 0.
-//   • recentParticipation (0-100): < 50% = +20.
+//   • recentPctCorrect (0-100): < 30% = +40 (con boost zona crítica),
+//     < 50% = +20, < 70% = +10.
+//   • slope (vía weeklyPctCorrect[]): cae rápido (≤ -5) = +20, cae leve
+//     (≤ -2) = +10. Sube = 0.
+//   • recentParticipation (0-100): < 30% = +20, < 60% = +10.
 //   • daysSinceLastActivity (días): > 14 = +20, > 7 = +10.
 //
-// Tope: 80 puntos en el caso pésimo (los 4 al máx). Sumamos un 5to "boost"
-// de hasta 20 si recentPctCorrect < 30 (estudiantes en zona crítica), así
-// el score llega a 100 en el caso real más extremo.
+// Tope: 80 puntos en el caso típico pésimo (los 4 al máx) + 20 extra del
+// boost de zona crítica → score llega a 100 en el caso real más extremo.
 
 import { trendSlope } from "./metrics";
 
@@ -46,12 +47,13 @@ export function riskScore(inputs: RiskInputs): RiskResult {
   const reasons: string[] = [];
   let score = 0;
 
-  // (a) Bajo % correcto reciente
+  // (a) Bajo % correcto reciente — la zona crítica (< 30%) recibe un boost
+  // de +20 extra encima del +20 base para llegar a +40, así un alumno
+  // realmente en problemas se acerca al tope sin necesitar las 4 señales.
   const recent = inputs.recentPctCorrect;
   if (recent != null && Number.isFinite(recent)) {
     if (recent < 30) {
-      score += 20;
-      score += 20; // boost zona crítica (ver header)
+      score += 40;
       reasons.push(`Rendimiento muy bajo (${Math.round(recent)}% correcto).`);
     } else if (recent < 50) {
       score += 20;
