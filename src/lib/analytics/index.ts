@@ -5,3 +5,4 @@ export * from "./formatters";
 export * from "./misconceptions";
 export * from "./benchmark";
 export * from "./forecast";
+export * from "./risk";
