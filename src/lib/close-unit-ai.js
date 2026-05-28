@@ -336,6 +336,216 @@ export async function findExistingReviewDeck({ unit, classObj }) {
   }
 }
 
+// ─── F5: class-level + student-level review generators ────────────────
+//
+// El generator unit-level (generateSuggestedReviewQuestions) requiere
+// {unit, classObj, summary} — y `summary` es el output del
+// getUnitRetentionSummary, que solo existe en el flow de cerrar unidad.
+// Las acciones de CleoStrip / MostMissedList son class-scoped (no hay
+// unit cerrándose); las de CleoStudentStrip / StudentMostFailedList
+// son student-scoped. Estos dos wrappers construyen contexts mínimos
+// equivalentes y reusan el mismo /api/generate pipeline.
+
+function buildClassReviewMessages({ classObj, weakTopics, lang }) {
+  const topicsList =
+    (weakTopics || []).map((t) => `- ${t}`).join('\n') ||
+    '- (sin temas críticos identificados)';
+  const langName =
+    lang === 'es' ? 'Spanish' : lang === 'ko' ? 'Korean' : 'English';
+  return [
+    {
+      role: 'user',
+      content: [
+        {
+          type: 'text',
+          text: `Build a 7-question review deck (no unit context, class-level only) for class "${classObj?.name || ''}" (subject: ${classObj?.subject || 'general'}, grade: ${classObj?.grade || 'unspecified'}).\n\nWEAK TOPICS (focus the deck here):\n${topicsList}\n\nLanguage: ${langName}.\n\nMix question types (MCQ, true/false, fill-blank). Difficulty: recap-level. Return a valid JSON array of question objects (or {questions: [...]}). Do NOT wrap in markdown.`,
+        },
+      ],
+    },
+  ];
+}
+
+function buildStudentReviewMessages({ classObj, studentName, weakTopics, mostFailed, lang }) {
+  const topicsList =
+    (weakTopics || []).map((t) => `- ${t}`).join('\n') ||
+    '- (no critical topics)';
+  const missedList =
+    (mostFailed || [])
+      .map(
+        (m) =>
+          `- Q${m.question_index + 1} (${m.topic || 'topic?'}, ${Math.round(m.error_rate)}% error)`,
+      )
+      .join('\n') || '- (no missed questions data)';
+  const langName =
+    lang === 'es' ? 'Spanish' : lang === 'ko' ? 'Korean' : 'English';
+  return [
+    {
+      role: 'user',
+      content: [
+        {
+          type: 'text',
+          text: `Build a 7-question targeted review deck for STUDENT "${studentName}" in class "${classObj?.name || ''}" (subject: ${classObj?.subject || 'general'}, grade: ${classObj?.grade || 'unspecified'}).\n\nSTUDENT'S WEAK TOPICS:\n${topicsList}\n\nMOST-MISSED QUESTIONS:\n${missedList}\n\nLanguage: ${langName}.\n\nMix question types. Difficulty: recap-level, scaffolded. Return a valid JSON array (or {questions: [...]}). Do NOT wrap in markdown.`,
+        },
+      ],
+    },
+  ];
+}
+
+async function callGenerateApi({ accessToken, system, messages, classObj, activity }) {
+  let resp;
+  try {
+    resp = await fetch('/api/generate', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({
+        model: 'primary',
+        system,
+        messages,
+        max_tokens: 5000,
+        validate: true,
+        activity_type: activity,
+        num_questions: 7,
+        input_type: activity,
+        grade: classObj?.grade || null,
+        subject: classObj?.subject || null,
+      }),
+    });
+  } catch {
+    return { ok: false, error: 'network' };
+  }
+  if (!resp.ok) {
+    let errMsg = `http_${resp.status}`;
+    try {
+      const body = await resp.json();
+      errMsg = body.error || body.message || errMsg;
+    } catch {}
+    return { ok: false, error: errMsg };
+  }
+  const data = await resp.json();
+  const text = (data?.content || [])
+    .filter((c) => c.type === 'text')
+    .map((c) => c.text)
+    .join('\n');
+  let parsed;
+  try {
+    let cleaned = text.trim();
+    if (cleaned.startsWith('```'))
+      cleaned = cleaned.replace(/^```(json)?\s*/i, '').replace(/```\s*$/i, '');
+    parsed = JSON.parse(cleaned);
+  } catch {
+    return { ok: false, error: 'parse_failed' };
+  }
+  const questions = Array.isArray(parsed)
+    ? parsed
+    : Array.isArray(parsed?.questions)
+      ? parsed.questions
+      : null;
+  if (!questions || questions.length === 0)
+    return { ok: false, error: 'no_questions_returned' };
+  return { ok: true, questions };
+}
+
+export async function generateClassReviewQuestions({
+  classObj,
+  weakTopics = [],
+  lang = 'es',
+}) {
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  const accessToken = session?.access_token;
+  if (!accessToken) return { ok: false, error: 'not_authenticated' };
+  const messages = buildClassReviewMessages({ classObj, weakTopics, lang });
+  const r = await callGenerateApi({
+    accessToken,
+    system: REVIEW_DECK_SYSTEM,
+    messages,
+    classObj,
+    activity: 'general_review',
+  });
+  if (r.ok) r.inferredLang = lang;
+  return r;
+}
+
+export async function generateStudentReviewQuestions({
+  classObj,
+  studentName,
+  weakTopics = [],
+  mostFailed = [],
+  lang = 'es',
+}) {
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  const accessToken = session?.access_token;
+  if (!accessToken) return { ok: false, error: 'not_authenticated' };
+  const messages = buildStudentReviewMessages({
+    classObj,
+    studentName,
+    weakTopics,
+    mostFailed,
+    lang,
+  });
+  const r = await callGenerateApi({
+    accessToken,
+    system: REVIEW_DECK_SYSTEM,
+    messages,
+    classObj,
+    activity: 'general_review',
+  });
+  if (r.ok) r.inferredLang = lang;
+  return r;
+}
+
+/**
+ * F5: save the generated deck as a stand-alone class-scoped review deck.
+ * Same as saveReviewDeck but accepts no unit (title comes from a static
+ * label + class name). Returns {ok, deckId}.
+ */
+export async function saveClassReviewDeck({
+  classObj,
+  questions,
+  lang = 'es',
+  authorId,
+  studentName = null,
+}) {
+  const titlePrefix =
+    lang === 'es' ? 'Repaso de clase' : lang === 'ko' ? '학급 복습' : 'Class review';
+  const className = classObj?.name || '';
+  const studentTag = studentName ? ` — ${studentName}` : '';
+  const title = `${titlePrefix}: ${className}${studentTag}`;
+  const description = studentName
+    ? lang === 'es'
+      ? `Repaso enfocado en ${studentName}.`
+      : `Targeted review for ${studentName}.`
+    : lang === 'es'
+      ? `Repaso de los temas más débiles de la clase.`
+      : "Review of the class's weakest topics.";
+
+  const { data, error } = await supabase
+    .from('decks')
+    .insert({
+      title,
+      description,
+      class_id: classObj?.id || null,
+      unit_id: null,
+      section: 'general_review',
+      author_id: authorId,
+      subject: classObj?.subject || '',
+      grade: classObj?.grade || '',
+      language: lang,
+      questions,
+      is_public: false,
+    })
+    .select('id')
+    .single();
+  if (error) return { ok: false, error: error.message };
+  return { ok: true, deckId: data.id };
+}
+
 function buildReviewTitle(unit, lang) {
   const name = unit?.name || '';
   switch (lang) {
