@@ -17,7 +17,7 @@
 //          [{ question_index, deck_id, topic, total_responses, incorrect_count, error_rate }]
 //   onItemClick: (item) => void — drill al DeckResults; lo enchufa el padre.
 
-export default function MostMissedList({ classId, items = [], onItemClick }) {
+export default function MostMissedList({ classId, items = [], onItemClick, onGenerateReview, generating = false }) {
   const show = items.slice(0, 3);
 
   return (
@@ -75,22 +75,26 @@ export default function MostMissedList({ classId, items = [], onItemClick }) {
           ))}
         </div>
       )}
-      {/* Stub action — class-level review generator vive en F5. */}
-      <span
-        title="Llega en F5 (Cleo + generator class-level)"
+      <button
+        onClick={onGenerateReview}
+        disabled={!onGenerateReview || generating}
+        title={generating ? "Generando…" : "Crear deck de repaso de lo más fallado"}
         style={{
           display: "inline-block",
           marginTop: 8,
-          border: "1px solid #d4d4d8",
-          color: "#71717a",
-          padding: "2px 9px",
+          border: "1px solid #c4b5fd",
+          color: "#5b21b6",
+          background: "#f5f3ff",
+          padding: "3px 10px",
           borderRadius: 6,
           fontSize: 12,
-          cursor: "not-allowed",
+          fontWeight: 500,
+          cursor: onGenerateReview ? (generating ? "wait" : "pointer") : "not-allowed",
+          opacity: onGenerateReview ? 1 : 0.55,
         }}
       >
-        Generar repaso · pronto
-      </span>
+        {generating ? "Generando…" : "Generar repaso"}
+      </button>
     </div>
   );
 }

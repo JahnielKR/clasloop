@@ -4,7 +4,7 @@
 // (paralelo a MostMissedList de F1, pero scoped a un alumno).
 // Drill a DeckResults funciona; "Asignar repaso" es stub (F5).
 
-export default function StudentMostFailedList({ classId, studentRef, items = [], onItemClick }) {
+export default function StudentMostFailedList({ classId, studentRef, items = [], onItemClick, onAssignReview, generating = false }) {
   const show = items.slice(0, 5);
 
   return (
@@ -63,21 +63,26 @@ export default function StudentMostFailedList({ classId, studentRef, items = [],
           ))}
         </div>
       )}
-      <span
-        title="Llega en F5 (Cleo + generator student-level)"
+      <button
+        onClick={onAssignReview}
+        disabled={!onAssignReview || generating}
+        title={generating ? "Generando…" : "Crear deck de repaso enfocado en este alumno"}
         style={{
           display: "inline-block",
           marginTop: 8,
-          border: "1px solid #d4d4d8",
-          color: "#71717a",
-          padding: "2px 9px",
+          border: "1px solid #c4b5fd",
+          color: "#5b21b6",
+          background: "#f5f3ff",
+          padding: "3px 10px",
           borderRadius: 6,
           fontSize: 12,
-          cursor: "not-allowed",
+          fontWeight: 500,
+          cursor: onAssignReview ? (generating ? "wait" : "pointer") : "not-allowed",
+          opacity: onAssignReview ? 1 : 0.55,
         }}
       >
-        Asignar repaso · pronto
-      </span>
+        {generating ? "Generando…" : "Asignar repaso"}
+      </button>
     </div>
   );
 }

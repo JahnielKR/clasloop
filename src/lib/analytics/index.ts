@@ -4,3 +4,6 @@ export * from "./metrics";
 export * from "./formatters";
 export * from "./misconceptions";
 export * from "./benchmark";
+export * from "./forecast";
+export * from "./risk";
+export * from "./cleo-analytics";

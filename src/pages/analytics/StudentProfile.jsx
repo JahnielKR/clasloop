@@ -15,6 +15,10 @@ import SessionHistoryTable from "../../components/analytics/SessionHistoryTable"
 import CompareToggle from "../../components/analytics/CompareToggle";
 import { previousPeriod } from "../../lib/analytics/benchmark";
 import { useStudentDetail } from "../../hooks/useStudentDetail";
+import StudentRiskCard from "../../components/analytics/StudentRiskCard";
+import { useStudentRisk } from "../../hooks/useStudentRisk";
+import { useAnalyticsOverview } from "../../hooks/useAnalyticsOverview";
+import { generateStudentReviewQuestions, saveClassReviewDeck } from "../../lib/close-unit-ai";
 import { ROUTES, buildRoute } from "../../routes";
 
 function periodToRange(period) {
@@ -55,6 +59,22 @@ export default function StudentProfile() {
     { from: compareRange.from, to: compareRange.to },
   );
 
+  const riskQ = useStudentRisk(classId);
+  const myRisk = (riskQ.data?.students ?? []).find((s) => s.student_name === studentRef);
+  const riskInputs = myRisk
+    ? {
+        recentPctCorrect: myRisk.recent_pct_correct,
+        weeklyPctCorrect: Array.isArray(myRisk.weekly_pct_correct) ? myRisk.weekly_pct_correct : [],
+        recentParticipation: myRisk.recent_participation,
+        daysSinceLastActivity: myRisk.days_since_last_activity,
+      }
+    : null;
+
+  const overviewQ = useAnalyticsOverview();
+  const classRow = (overviewQ.data ?? []).find((c) => c.class_id === classId) || null;
+
+  const [generatingReview, setGeneratingReview] = useState(false);
+
   useEffect(() => {
     if (!classId || !studentRef) navigate(ROUTES.SCHOOL, { replace: true });
   }, [classId, studentRef, navigate]);
@@ -62,6 +82,53 @@ export default function StudentProfile() {
   if (!classId || !studentRef) return null;
 
   const d = detailQ.data;
+
+  // F5: classObj resolved from overview (has subject + grade for generator)
+  const classObj = classRow
+    ? {
+        id: classRow.class_id,
+        name: classRow.class_name || "",
+        subject: classRow.class_subject || "",
+        grade: classRow.class_grade || "",
+      }
+    : { id: classId, name: "", subject: "", grade: "" };
+
+  const topicMastery = d?.topic_mastery ?? [];
+  const studentAvg =
+    topicMastery.length > 0
+      ? topicMastery.reduce((s, t) => s + (Number(t.retention_score) || 0), 0) /
+        topicMastery.length
+      : null;
+  const classAvg =
+    d?.class_avg_retention != null ? Number(d.class_avg_retention) : null;
+  const deltaVsClass =
+    studentAvg != null && classAvg != null ? Math.round(studentAvg - classAvg) : null;
+  const weakTopics = topicMastery
+    .filter((t) => (t.retention_score ?? 0) < 40)
+    .slice(0, 3)
+    .map((t) => t.topic);
+
+  async function handleAssignStudentReview() {
+    if (generatingReview) return;
+    setGeneratingReview(true);
+    const gen = await generateStudentReviewQuestions({
+      classObj,
+      studentName: studentRef,
+      weakTopics,
+      mostFailed: d?.most_failed || [],
+      lang: "es",
+    });
+    if (!gen.ok) { setGeneratingReview(false); return; }
+    const save = await saveClassReviewDeck({
+      classObj,
+      questions: gen.questions,
+      lang: gen.inferredLang || "es",
+      authorId: null,
+      studentName: studentRef,
+    });
+    setGeneratingReview(false);
+    if (save.ok) navigate(buildRoute.deckEdit(save.deckId));
+  }
   const loading = detailQ.isPending;
   const error = detailQ.error;
 
@@ -107,24 +174,16 @@ export default function StudentProfile() {
                   : null
               }
             />
+            <StudentRiskCard inputs={riskInputs} loading={riskQ.isPending && !riskQ.data} studentName={studentRef} />
             <CleoStudentStrip
               studentRef={studentRef}
-              weakTopics={(d?.topic_mastery ?? [])
-                .filter((t) => (t.retention_score ?? 0) < 40)
-                .slice(0, 3)
-                .map((t) => t.topic)}
-              deltaVsClass={
-                (d?.topic_mastery ?? []).length > 0
-                  ? Math.round(
-                      d.topic_mastery.reduce(
-                        (s, t) => s + (Number(t.retention_score) || 0),
-                        0,
-                      ) /
-                        d.topic_mastery.length -
-                        Number(d?.class_avg_retention ?? 0),
-                    )
-                  : null
-              }
+              weakTopics={weakTopics}
+              deltaVsClass={deltaVsClass}
+              detail={d}
+              classObj={classObj}
+              profile={null}
+              lang="es"
+              onReviewCreated={(deckId) => navigate(buildRoute.deckEdit(deckId))}
             />
             <TrajectoryPanel
               data={d?.trajectory ?? []}
@@ -147,6 +206,8 @@ export default function StudentProfile() {
                 onItemClick={(it) => {
                   if (it.deck_id) navigate(buildRoute.deckResults(it.deck_id));
                 }}
+                onAssignReview={handleAssignStudentReview}
+                generating={generatingReview}
               />
             </div>
             <SessionHistoryTable

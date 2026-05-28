@@ -1,28 +1,21 @@
 // src/components/analytics/TrendPanel.jsx
 //
 // F1 Analytics Studio: tendencia temporal del Class Detail.
-// Tabs de métrica (pct_correct | avg_time | participation), bar chart
-// con tooltips ricos. Forecast band + compare overlay quedan para F4/F5.
-//
-// Props:
-//   metric, onMetricChange — controlado por el padre (que también
-//   re-fetches via useClassTimeseries con el nuevo metric).
-//   data: array del hook, [{ bucket, value, responses_total, unique_participants }]
-//   loading: boolean
+// F4: compare overlay.
+// F5: forecast band — proyección Cleo de los próximos 3 buckets.
 
 import { TrendBarChart } from "../charts";
-// Import explícito: el barrel `../../lib/analytics` choca con
-// `src/lib/analytics.ts` (PostHog wrapper, PR 69). Ver KpiBand.jsx.
 import {
   formatPercent,
   formatNumber,
   formatDurationShort,
 } from "../../lib/analytics/formatters";
+import { forecastPoints } from "../../lib/analytics/forecast";
 
 const METRICS = [
-  { id: "pct_correct", label: "% correcto", formatter: (v) => formatPercent(v) },
-  { id: "avg_time", label: "Tiempo medio", formatter: (v) => formatDurationShort(v) },
-  { id: "participation", label: "Participación", formatter: (v) => formatNumber(v) },
+  { id: "pct_correct", label: "% correcto", formatter: (v) => formatPercent(v), clampMin: 0, clampMax: 100 },
+  { id: "avg_time", label: "Tiempo medio", formatter: (v) => formatDurationShort(v), clampMin: 0 },
+  { id: "participation", label: "Participación", formatter: (v) => formatNumber(v), clampMin: 0 },
 ];
 
 export default function TrendPanel({
@@ -33,6 +26,13 @@ export default function TrendPanel({
   loading = false,
 }) {
   const def = METRICS.find((m) => m.id === metric) || METRICS[0];
+  // F5: forecast los próximos 3 días (mismo granularity que el chart).
+  // Se omite cuando hay <3 puntos (forecastPoints devuelve []).
+  const forecast = forecastPoints(data, 3, {
+    clampMin: def.clampMin,
+    clampMax: def.clampMax,
+  });
+
   return (
     <div style={{ background: "#fff", border: "1px solid #e4e4e7", borderRadius: 8, padding: 12 }}>
       <div style={{ display: "flex", gap: 12, fontSize: 13, marginBottom: 8 }}>
@@ -56,9 +56,6 @@ export default function TrendPanel({
             </button>
           );
         })}
-        <span style={{ marginLeft: "auto", opacity: 0.65, fontSize: 11 }}>
-          — pronóstico llega en F5
-        </span>
       </div>
       {loading ? (
         <div style={{ height: 180, opacity: 0.45, fontSize: 13, padding: 12 }}>
@@ -72,6 +69,7 @@ export default function TrendPanel({
         <TrendBarChart
           data={data}
           compareData={compareData}
+          forecast={forecast}
           yLabel={def.label}
           yFormatter={def.formatter}
         />
