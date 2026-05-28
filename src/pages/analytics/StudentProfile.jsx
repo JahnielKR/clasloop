@@ -12,6 +12,8 @@ import TrajectoryPanel from "../../components/analytics/TrajectoryPanel";
 import TopicBarListPanel from "../../components/analytics/TopicBarListPanel";
 import StudentMostFailedList from "../../components/analytics/StudentMostFailedList";
 import SessionHistoryTable from "../../components/analytics/SessionHistoryTable";
+import CompareToggle from "../../components/analytics/CompareToggle";
+import { previousPeriod } from "../../lib/analytics/benchmark";
 import { useStudentDetail } from "../../hooks/useStudentDetail";
 import { ROUTES, buildRoute } from "../../routes";
 
@@ -39,9 +41,19 @@ export default function StudentProfile() {
   const studentRef = match ? decodeURIComponent(match[2]) : null;
 
   const [period, setPeriod] = useState("d90");
+  const [compareMode, setCompareMode] = useState("off");
   const { from, to } = periodToRange(period);
+  const compareRange =
+    compareMode === "prev" ? previousPeriod(from, to) : { from: null, to: null };
 
   const detailQ = useStudentDetail(classId, studentRef, { from, to });
+  // F4: 2nd fetch shifted to previous period. `enabled: !!classId && !!studentRef`
+  // gating means passing null disables the query entirely when compareMode === 'off'.
+  const compareDetailQ = useStudentDetail(
+    compareMode === "prev" ? classId : null,
+    compareMode === "prev" ? studentRef : null,
+    { from: compareRange.from, to: compareRange.to },
+  );
 
   useEffect(() => {
     if (!classId || !studentRef) navigate(ROUTES.SCHOOL, { replace: true });
@@ -59,6 +71,7 @@ export default function StudentProfile() {
       title={`Estudiante: ${studentRef}`}
       period={period}
       onPeriodChange={setPeriod}
+      toolbarExtras={<CompareToggle value={compareMode} onChange={setCompareMode} />}
     >
       <div style={{ padding: 18, background: "#fafafa", minHeight: "100%" }}>
         {error && (
@@ -88,6 +101,11 @@ export default function StudentProfile() {
               trajectory={d?.trajectory ?? []}
               topicMastery={d?.topic_mastery ?? []}
               classAvgRetention={d?.class_avg_retention ?? 0}
+              compareKpis={
+                compareMode === "prev"
+                  ? compareDetailQ.data?.kpis ?? null
+                  : null
+              }
             />
             <CleoStudentStrip
               studentRef={studentRef}
@@ -108,7 +126,15 @@ export default function StudentProfile() {
                   : null
               }
             />
-            <TrajectoryPanel data={d?.trajectory ?? []} loading={loading && !d} />
+            <TrajectoryPanel
+              data={d?.trajectory ?? []}
+              compareData={
+                compareMode === "prev"
+                  ? compareDetailQ.data?.trajectory ?? null
+                  : null
+              }
+              loading={loading && !d}
+            />
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
               <TopicBarListPanel
                 variant="critical"
