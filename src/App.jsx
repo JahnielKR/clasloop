@@ -70,6 +70,7 @@ const importFavorites      = () => import('./pages/Favorites');
 const importScanner        = () => import('./pages/Scanner');
 const importClassDetail    = () => import('./pages/analytics/ClassDetail');
 const importStudentProfile = () => import('./pages/analytics/StudentProfile');
+const importTopicMastery   = () => import('./pages/analytics/TopicMastery');
 
 const SessionFlow      = lazy(importSessionFlow);
 const StudentJoin      = lazy(importStudentJoin);
@@ -94,6 +95,7 @@ const Favorites        = lazy(importFavorites);
 const Scanner          = lazy(importScanner);
 const ClassDetail      = lazy(importClassDetail);
 const StudentProfile   = lazy(importStudentProfile);
+const TopicMastery     = lazy(importTopicMastery);
 import { useIsMobile } from './components/MobileMenuButton';
 import { countVisibleNotifications, countPendingReviewsForTeacher } from './lib/notifications';
 import { C } from './components/tokens';
@@ -128,11 +130,11 @@ function MyClassesByRole(props) {
   return <MyClasses {...props} />;
 }
 
-const COMPONENTS = { sessions: SessionFlow, studentJoin: StudentJoin, community: Community, achievements: Achievements, settings: Settings, director: Director, notifications: Notifications, decks: Decks, myClasses: MyClassesByRole, teacherProfile: TeacherProfile, adminAIStats: AdminAIStats, review: Review, deckResults: DeckResults, classInsights: ClassInsights, classReport: ClassReport, myResults: MyResults, sessionRecap: SessionRecap, favorites: Favorites, scan: Scanner, analyticsClassDetail: ClassDetail, analyticsStudentProfile: StudentProfile };
+const COMPONENTS = { sessions: SessionFlow, studentJoin: StudentJoin, community: Community, achievements: Achievements, settings: Settings, director: Director, notifications: Notifications, decks: Decks, myClasses: MyClassesByRole, teacherProfile: TeacherProfile, adminAIStats: AdminAIStats, review: Review, deckResults: DeckResults, classInsights: ClassInsights, classReport: ClassReport, myResults: MyResults, sessionRecap: SessionRecap, favorites: Favorites, scan: Scanner, analyticsClassDetail: ClassDetail, analyticsStudentProfile: StudentProfile, analyticsTopicMastery: TopicMastery };
 
 // Data-dense surfaces render in "compact" density (TradingView/Sheets-like);
 // everything else stays "comfortable" (Notion-like). One system, two rhythms.
-const COMPACT_PAGES = new Set(["director", "classInsights", "notifications", "adminAIStats", "analyticsClassDetail", "analyticsStudentProfile"]);
+const COMPACT_PAGES = new Set(["director", "classInsights", "notifications", "adminAIStats", "analyticsClassDetail", "analyticsStudentProfile", "analyticsTopicMastery"]);
 
 
 // PR 28.17.3: MobileBlockedScreen extracted to src/components so GuestJoin

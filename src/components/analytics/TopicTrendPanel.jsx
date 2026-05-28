@@ -1,12 +1,13 @@
-// src/components/analytics/TrajectoryPanel.jsx
+// src/components/analytics/TopicTrendPanel.jsx
 //
-// F2 Analytics Studio: trayectoria temporal del Student Profile.
-// Bar chart semanal del % correcto. F5 agrega forecast + comparar.
+// F3 Analytics Studio: tendencia semanal del tema seleccionado en
+// TopicMastery. Reusa TrendBarChart sobre topic_detail.weekly_trend.
 
 import { TrendBarChart } from "../charts";
 import { formatPercent } from "../../lib/analytics/formatters";
 
-export default function TrajectoryPanel({
+export default function TopicTrendPanel({
+  topic,
   data = [],
   compareData = null,
   loading = false,
@@ -22,18 +23,16 @@ export default function TrajectoryPanel({
       }}
     >
       <div style={{ display: "flex", gap: 12, fontSize: 13, marginBottom: 8 }}>
-        <b>Trayectoria · % correcto semanal</b>
+        <b>Tendencia semanal · {topic}</b>
         <span style={{ marginLeft: "auto", opacity: 0.65, fontSize: 11 }}>
-          — pronóstico llega en F5
+          % correcto · pronóstico en F5
         </span>
       </div>
       {loading ? (
-        <div style={{ height: 180, opacity: 0.45, fontSize: 13, padding: 12 }}>
-          Cargando…
-        </div>
+        <div style={{ height: 180, opacity: 0.45, fontSize: 13, padding: 12 }}>Cargando…</div>
       ) : data.length === 0 ? (
         <div style={{ height: 180, opacity: 0.45, fontSize: 13, padding: 12 }}>
-          Sin datos en esta ventana.
+          Sin datos semanales para este tema en la ventana.
         </div>
       ) : (
         <TrendBarChart

@@ -30,23 +30,26 @@ export default function StudioShell({
   title = "Analytics",
   period = "d30",
   onPeriodChange,
+  toolbarExtras,  // F4: optional ReactNode rendered alongside PeriodChips
   children,
 }) {
   const [internalPeriod, setInternalPeriod] = useState(period);
   const effectivePeriod = onPeriodChange ? period : internalPeriod;
   const handlePeriod = onPeriodChange || setInternalPeriod;
 
-  // Per-render enablement: 'class' (F1) y 'student' (F2) se prenden cuando
-  // ya estamos en sus respectivas vistas — para que el sidebar los destaque.
-  // No se navegan desde el sidebar: se llega vía click en una card/row
-  // del Director (Clase) o del roster (Estudiante). Los otros 4 items
-  // siguen disabled hasta sus fases (F3+).
+  // Per-render enablement: 'class' (F1), 'student' (F2), 'topics' (F3) se
+  // prenden cuando ya estamos en sus respectivas vistas — para que el
+  // sidebar los destaque. No se navegan desde el sidebar: se llega vía click
+  // en una card/row del Director (Clase) o del roster (Estudiante) o de
+  // TopicBarListPanel en ClassDetail (Tema). Los otros 3 items (live,
+  // reports, ask) siguen disabled hasta sus fases (F5+).
   const items = NAV_ITEMS.map((item) => ({
     ...item,
     enabled:
       item.staticEnabled ||
       (item.id === "class" && view === "class") ||
-      (item.id === "student" && view === "student"),
+      (item.id === "student" && view === "student") ||
+      (item.id === "topics" && view === "topics"),
   }));
 
   return (
@@ -113,7 +116,8 @@ export default function StudioShell({
           <h1 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>{title}</h1>
           <div style={{ marginLeft: "auto", display: "flex", gap: 8, alignItems: "center" }}>
             <PeriodChips value={effectivePeriod} onChange={handlePeriod} />
-            {/* Compare + Export viven acá en F4/F7 */}
+            {toolbarExtras}
+            {/* Export vive acá en F7 */}
           </div>
         </header>
         <main style={{ flex: 1, minWidth: 0 }}>{children}</main>
