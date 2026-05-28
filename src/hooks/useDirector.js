@@ -1,22 +1,46 @@
-// PR 170 (M1): React Query data layer for the Director ("school analysis") page.
+// PR 170 (M1) → F0 Analytics Studio (2026-05-28):
+// Reemplazado el for-loop N+1 (4-6 queries por clase) por una sola
+// llamada a la RPC analytics_overview. Misma forma de retorno
+// (classes, retentionData, studentData, sessionCounts, memberCounts)
+// para que Director.jsx no cambie.
 //
-// `useDirector()` wraps the old loadData: the teacher's classes + per-class
-// retention / student progress / session & unique-student counts. Read-only
-// (no mutations) — analytics dashboard.
-//
-// NOTE vs the old loadData: it did incremental setState inside the per-class
-// loop (the UI filled in class-by-class); the query builds the full maps then
-// returns once (loads all-at-once). Also DROPPED a dead query — the old code
-// fetched `session_participants` by `session_id = class_id` into `parts` and
-// never used it (the unique-student count comes from `allParts` below).
-//
-// Untyped supabase client (no generated Database type — see PR 134).
+// El hook nuevo y "limpio" es useAnalyticsOverview (mismo dato, forma
+// nativa). Cuando F1 reescriba el Director como ClassDetail, useDirector
+// se retira; este shim solo existe para mantener la página vieja viva
+// durante la transición.
 
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "../lib/supabase";
-import { getClassRetentionOverview, getStudentProgress } from "../lib/spaced-repetition";
 
 export const DIRECTOR_KEY = ["director"];
+
+function adaptRowsToDirectorShape(rows) {
+  const classes = rows.map((r) => ({
+    id: r.class_id,
+    teacher_id: null, // Director no lo usa; lo dejamos null para no traerlo.
+    name: r.class_name,
+    grade: r.class_grade,
+    subject: r.class_subject,
+    class_code: r.class_code,
+    // created_at no es necesario para Director; lo dejamos undefined.
+  }));
+
+  const retentionData = {};
+  const studentData = {};
+  const sessionCounts = {};
+  const memberCounts = {};
+
+  for (const r of rows) {
+    // getClassRetentionOverview devolvía { topics: [...] }; replicamos.
+    retentionData[r.class_id] = { topics: r.topics_snapshot || [] };
+    studentData[r.class_id] = r.students_snapshot || [];
+    sessionCounts[r.class_id] = r.session_count || 0;
+    // memberCounts en el código viejo era max(class_members, unique_participants).
+    memberCounts[r.class_id] = Math.max(r.member_count || 0, r.unique_students || 0);
+  }
+
+  return { classes, retentionData, studentData, sessionCounts, memberCounts };
+}
 
 async function fetchDirector() {
   const empty = {
@@ -26,52 +50,12 @@ async function fetchDirector() {
     sessionCounts: {},
     memberCounts: {},
   };
-
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return empty;
 
-  const { data: cls } = await supabase
-    .from("classes")
-    .select("*")
-    .eq("teacher_id", user.id)
-    .order("created_at", { ascending: false });
-  const classes = cls || [];
-
-  const retentionData = {};
-  const studentData = {};
-  const sessionCounts = {};
-  const memberCounts = {};
-
-  for (const c of classes) {
-    retentionData[c.id] = await getClassRetentionOverview(c.id);
-    studentData[c.id] = await getStudentProgress(c.id);
-
-    const { count } = await supabase
-      .from("sessions")
-      .select("*", { count: "exact", head: true })
-      .eq("class_id", c.id);
-    sessionCounts[c.id] = count || 0;
-
-    const { count: mc } = await supabase
-      .from("class_members")
-      .select("*", { count: "exact", head: true })
-      .eq("class_id", c.id);
-    const { data: sessIds } = await supabase.from("sessions").select("id").eq("class_id", c.id);
-    let uniqueStudents = mc || 0;
-    if (sessIds && sessIds.length > 0) {
-      const { data: allParts } = await supabase
-        .from("session_participants")
-        .select("student_name")
-        .in("session_id", sessIds.map((s) => s.id));
-      if (allParts) {
-        const unique = new Set(allParts.map((p) => p.student_name));
-        uniqueStudents = Math.max(uniqueStudents, unique.size);
-      }
-    }
-    memberCounts[c.id] = uniqueStudents;
-  }
-
-  return { classes, retentionData, studentData, sessionCounts, memberCounts };
+  const { data, error } = await supabase.rpc("analytics_overview");
+  if (error) throw error;
+  return adaptRowsToDirectorShape(data || []);
 }
 
 export function useDirector() {
