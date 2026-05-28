@@ -16,9 +16,10 @@ import TopicBarListPanel from "../../components/analytics/TopicBarListPanel";
 import MostMissedList from "../../components/analytics/MostMissedList";
 import RosterTable from "../../components/analytics/RosterTable";
 import CompareToggle from "../../components/analytics/CompareToggle";
-import { previousPeriod } from "../../lib/analytics/benchmark";
+import { previousPeriod, percentileRank } from "../../lib/analytics/benchmark";
 import { useDirector } from "../../hooks/useDirector";
 import { buildRoute } from "../../routes";
+import { useAnalyticsOverview } from "../../hooks/useAnalyticsOverview";
 import { useClassAnalytics } from "../../hooks/useClassAnalytics";
 import { useClassTimeseries } from "../../hooks/useClassTimeseries";
 import { ROUTES } from "../../routes";
@@ -77,6 +78,16 @@ export default function ClassDetail() {
   const directorQ = useDirector();
   const students = directorQ.data?.studentData?.[classId] ?? [];
 
+  // F4: percentile rank de la retention_avg de la clase actual vs el resto
+  // de las clases del docente. Computado client-side desde useAnalyticsOverview
+  // (cache de F0, sin RPC nueva). Se muestra como chip "P78" en el tile
+  // '% correcto' del KpiBand cuando NO hay compareMode activo.
+  const overviewQ = useAnalyticsOverview();
+  const overviewRows = overviewQ.data ?? [];
+  const allRetentions = overviewRows.map((r) => Number(r.retention_avg));
+  const thisRetention = overviewRows.find((r) => r.class_id === classId)?.retention_avg;
+  const pctile = percentileRank(allRetentions, thisRetention != null ? Number(thisRetention) : null);
+
   useEffect(() => {
     if (!classId) navigate(ROUTES.SCHOOL, { replace: true });
   }, [classId, navigate]);
@@ -129,6 +140,7 @@ export default function ClassDetail() {
                   ? compareAnalyticsQ.data?.kpis ?? null
                   : null
               }
+              percentile={pctile}
             />
             <CleoStrip
               classId={classId}

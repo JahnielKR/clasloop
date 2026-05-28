@@ -31,6 +31,7 @@ export default function KpiBand({
   timeseries = [],
   topicMastery = [],
   compareKpis = null,
+  percentile = null,
 }) {
   const pctSpark = timeseries.map((t) => Number(t.value) || 0);
   const participationSpark = timeseries.map((t) => Number(t.unique_participants) || 0);
@@ -56,13 +57,19 @@ export default function KpiBand({
     };
   }
 
+  // F4: percentile chip falls back into the "% correcto" tile when there's
+  // no compare active. compareKpis wins to avoid double-badging.
+  const pctCorrectDelta =
+    deltaProps("pct_correct") ||
+    (percentile != null ? { label: `P${percentile}`, tone: "neutral" } : null);
+
   return (
     <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 8 }}>
       <StatCardWithSparkline
         label="% correcto"
         value={formatPercent(kpis.pct_correct)}
         sparkPoints={pctSpark}
-        delta={deltaProps("pct_correct")}
+        delta={pctCorrectDelta}
       />
       <StatCardWithSparkline
         label="Participación"
