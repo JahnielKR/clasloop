@@ -15,6 +15,8 @@ import ResponseCompositionPanel from "../../components/analytics/ResponseComposi
 import TopicBarListPanel from "../../components/analytics/TopicBarListPanel";
 import MostMissedList from "../../components/analytics/MostMissedList";
 import RosterTable from "../../components/analytics/RosterTable";
+import CompareToggle from "../../components/analytics/CompareToggle";
+import { previousPeriod } from "../../lib/analytics/benchmark";
 import { useDirector } from "../../hooks/useDirector";
 import { buildRoute } from "../../routes";
 import { useClassAnalytics } from "../../hooks/useClassAnalytics";
@@ -47,7 +49,10 @@ export default function ClassDetail() {
 
   const [period, setPeriod] = useState("d30");
   const [metric, setMetric] = useState("pct_correct");
+  const [compareMode, setCompareMode] = useState("off");
   const { from, to } = periodToRange(period);
+  const compareRange =
+    compareMode === "prev" ? previousPeriod(from, to) : { from: null, to: null };
 
   const analyticsQ = useClassAnalytics(classId, { from, to });
   const timeseriesQ = useClassTimeseries(classId, {
@@ -56,6 +61,16 @@ export default function ClassDetail() {
     from,
     to,
   });
+  // F4: 2nd fetch for the previous period. Disabled when compareMode === 'off'
+  // by passing null as classId — both hooks have `enabled: !!classId` gating.
+  const compareAnalyticsQ = useClassAnalytics(
+    compareMode === "prev" ? classId : null,
+    { from: compareRange.from, to: compareRange.to },
+  );
+  const compareTimeseriesQ = useClassTimeseries(
+    compareMode === "prev" ? classId : null,
+    { metric, granularity: "day", from: compareRange.from, to: compareRange.to },
+  );
   // F1: reuse the cached useDirector to get per-class students_snapshot.
   // React Query caches under DIRECTOR_KEY; si Director ya está cargado es gratis.
   // F2 introduces student_detail RPC y la tabla migra a su propio fetch.
@@ -74,7 +89,13 @@ export default function ClassDetail() {
   const error = analyticsQ.error || timeseriesQ.error;
 
   return (
-    <StudioShell view="class" title="Clase" period={period} onPeriodChange={setPeriod}>
+    <StudioShell
+      view="class"
+      title="Clase"
+      period={period}
+      onPeriodChange={setPeriod}
+      toolbarExtras={<CompareToggle value={compareMode} onChange={setCompareMode} />}
+    >
       <div style={{ padding: 18, background: "#fafafa", minHeight: "100%" }}>
         {error && (
           <div
@@ -103,6 +124,11 @@ export default function ClassDetail() {
               kpis={a?.kpis ?? {}}
               timeseries={ts}
               topicMastery={a?.topic_mastery ?? []}
+              compareKpis={
+                compareMode === "prev"
+                  ? compareAnalyticsQ.data?.kpis ?? null
+                  : null
+              }
             />
             <CleoStrip
               classId={classId}
@@ -116,6 +142,9 @@ export default function ClassDetail() {
                 metric={metric}
                 onMetricChange={setMetric}
                 data={ts}
+                compareData={
+                  compareMode === "prev" ? compareTimeseriesQ.data ?? null : null
+                }
                 loading={timeseriesQ.isPending}
               />
               <ResponseCompositionPanel kpis={a?.kpis ?? {}} />
