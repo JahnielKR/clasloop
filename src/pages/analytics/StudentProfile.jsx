@@ -6,6 +6,8 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { StudioShell } from "../../components/analytics";
+import StudentKpiBand from "../../components/analytics/StudentKpiBand";
+import CleoStudentStrip from "../../components/analytics/CleoStudentStrip";
 import { useStudentDetail } from "../../hooks/useStudentDetail";
 import { ROUTES } from "../../routes";
 
@@ -77,8 +79,31 @@ export default function StudentProfile() {
         ) : (
           <>
             {/* Bloques reales se enchufan en tasks 5-8. */}
-            <div data-block="StudentKpiBand" />
-            <div data-block="CleoStudentStrip" />
+            <StudentKpiBand
+              kpis={d?.kpis ?? {}}
+              trajectory={d?.trajectory ?? []}
+              topicMastery={d?.topic_mastery ?? []}
+              classAvgRetention={d?.class_avg_retention ?? 0}
+            />
+            <CleoStudentStrip
+              studentRef={studentRef}
+              weakTopics={(d?.topic_mastery ?? [])
+                .filter((t) => (t.retention_score ?? 0) < 40)
+                .slice(0, 3)
+                .map((t) => t.topic)}
+              deltaVsClass={
+                (d?.topic_mastery ?? []).length > 0
+                  ? Math.round(
+                      d.topic_mastery.reduce(
+                        (s, t) => s + (Number(t.retention_score) || 0),
+                        0,
+                      ) /
+                        d.topic_mastery.length -
+                        Number(d?.class_avg_retention ?? 0),
+                    )
+                  : null
+              }
+            />
             <div data-block="TrajectoryPanel" />
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
               <div data-block="TopicBarListPanel" data-variant="student-mastery" />
