@@ -10,6 +10,8 @@ import TopicMatrix from "../../components/analytics/TopicMatrix";
 import TopicTrendPanel from "../../components/analytics/TopicTrendPanel";
 import MisconceptionPanel from "../../components/analytics/MisconceptionPanel";
 import TopicQuestionsList from "../../components/analytics/TopicQuestionsList";
+import CompareToggle from "../../components/analytics/CompareToggle";
+import { previousPeriod } from "../../lib/analytics/benchmark";
 import { useClassAnalytics } from "../../hooks/useClassAnalytics";
 import { useTopicDetail } from "../../hooks/useTopicDetail";
 import { ROUTES, buildRoute } from "../../routes";
@@ -39,13 +41,24 @@ export default function TopicMastery() {
   const classId = match ? decodeURIComponent(match[1]) : null;
 
   const [period, setPeriod] = useState("d90");
+  const [compareMode, setCompareMode] = useState("off");
   const { from, to } = periodToRange(period);
+  const compareRange =
+    compareMode === "prev" ? previousPeriod(from, to) : { from: null, to: null };
 
   const initialTopic = searchParams.get("topic") || null;
   const [selectedTopic, setSelectedTopic] = useState(initialTopic);
 
   const classQ = useClassAnalytics(classId, { from, to });
   const topicQ = useTopicDetail(classId, selectedTopic, { from, to });
+  // F4: 2nd fetch shifted to previous period. `enabled: !!classId && !!topic`
+  // gating means passing null disables the query entirely when compareMode === 'off'
+  // or no topic is selected.
+  const compareTopicQ = useTopicDetail(
+    compareMode === "prev" ? classId : null,
+    compareMode === "prev" ? selectedTopic : null,
+    { from: compareRange.from, to: compareRange.to },
+  );
 
   useEffect(() => {
     if (!classId) navigate(ROUTES.SCHOOL, { replace: true });
@@ -70,7 +83,13 @@ export default function TopicMastery() {
   const loading = classQ.isPending;
 
   return (
-    <StudioShell view="topics" title="Temas" period={period} onPeriodChange={setPeriod}>
+    <StudioShell
+      view="topics"
+      title="Temas"
+      period={period}
+      onPeriodChange={setPeriod}
+      toolbarExtras={<CompareToggle value={compareMode} onChange={setCompareMode} />}
+    >
       <div style={{ padding: 18, background: "#fafafa", minHeight: "100%" }}>
         {classQ.error && (
           <div role="alert" style={{ background: "#fee2e2", border: "1px solid #fecaca", color: "#b91c1c", padding: 12, borderRadius: 8, marginBottom: 12, fontSize: 14 }}>
@@ -92,6 +111,11 @@ export default function TopicMastery() {
                 <TopicTrendPanel
                   topic={selectedTopic}
                   data={detail?.weekly_trend ?? []}
+                  compareData={
+                    compareMode === "prev"
+                      ? compareTopicQ.data?.weekly_trend ?? null
+                      : null
+                  }
                   loading={topicQ.isPending && !detail}
                 />
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
