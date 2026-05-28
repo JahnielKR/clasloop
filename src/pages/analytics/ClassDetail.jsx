@@ -5,7 +5,7 @@
 // useClassTimeseries (RPCs de F0). Compone los bloques presentacionales
 // definidos en src/components/analytics/.
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { StudioShell } from "../../components/analytics";
 import KpiBand from "../../components/analytics/KpiBand";
@@ -23,6 +23,7 @@ import { useAnalyticsOverview } from "../../hooks/useAnalyticsOverview";
 import { useClassAnalytics } from "../../hooks/useClassAnalytics";
 import { useClassTimeseries } from "../../hooks/useClassTimeseries";
 import { useStudentRisk } from "../../hooks/useStudentRisk";
+import { generateClassReviewQuestions, saveClassReviewDeck } from "../../lib/close-unit-ai";
 import { ROUTES } from "../../routes";
 
 // Map period chip → from/to timestamps. F1 keeps it simple; Custom no-ops.
@@ -91,6 +92,9 @@ export default function ClassDetail() {
     return acc;
   }, {});
 
+  const mostMissedRef = useRef(null);
+  const [generatingReview, setGeneratingReview] = useState(false);
+
   // F4: percentile rank de la retention_avg de la clase actual vs el resto
   // de las clases del docente. Computado client-side desde useAnalyticsOverview
   // (cache de F0, sin RPC nueva). Se muestra como chip "P78" en el tile
@@ -100,6 +104,34 @@ export default function ClassDetail() {
   const allRetentions = overviewRows.map((r) => Number(r.retention_avg));
   const thisRetention = overviewRows.find((r) => r.class_id === classId)?.retention_avg;
   const pctile = percentileRank(allRetentions, thisRetention != null ? Number(thisRetention) : null);
+
+  async function handleGenerateClassReview() {
+    if (generatingReview) return;
+    setGeneratingReview(true);
+    const weakTopics = (a?.topic_mastery ?? [])
+      .filter((t) => (t.retention_score ?? 0) < 40)
+      .slice(0, 3)
+      .map((t) => t.topic);
+    const row = overviewRows.find((r) => r.class_id === classId);
+    const cObj = row
+      ? {
+          id: row.class_id,
+          name: row.class_name || "",
+          subject: row.class_subject || "",
+          grade: row.class_grade || "",
+        }
+      : { id: classId, name: "", subject: "", grade: "" };
+    const gen = await generateClassReviewQuestions({ classObj: cObj, weakTopics, lang: "es" });
+    if (!gen.ok) { setGeneratingReview(false); return; }
+    const save = await saveClassReviewDeck({
+      classObj: cObj,
+      questions: gen.questions,
+      lang: gen.inferredLang || "es",
+      authorId: null,
+    });
+    setGeneratingReview(false);
+    if (save.ok) navigate(buildRoute.deckEdit(save.deckId));
+  }
 
   useEffect(() => {
     if (!classId) navigate(ROUTES.SCHOOL, { replace: true });
@@ -161,6 +193,25 @@ export default function ClassDetail() {
                 .filter((t) => (t.retention_score ?? 0) < 40)
                 .slice(0, 3)
                 .map((t) => t.topic)}
+              classObj={(() => {
+                const row = overviewRows.find((r) => r.class_id === classId);
+                return row
+                  ? {
+                      id: row.class_id,
+                      name: row.class_name || "",
+                      subject: row.class_subject || "",
+                      grade: row.class_grade || "",
+                    }
+                  : { id: classId, name: "", subject: "", grade: "" };
+              })()}
+              profile={null}
+              classAnalytics={a}
+              timeseries={ts}
+              lang="es"
+              onReviewCreated={(deckId) => navigate(buildRoute.deckEdit(deckId))}
+              onReteachNow={() => {
+                mostMissedRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+              }}
             />
             <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 10 }}>
               <TrendPanel
@@ -189,13 +240,17 @@ export default function ClassDetail() {
                   navigate(`${buildRoute.analyticsTopics(classId)}?topic=${encodeURIComponent(item.label)}`)
                 }
               />
-              <MostMissedList
-                classId={classId}
-                items={a?.most_missed ?? []}
-                onItemClick={(it) => {
-                  if (it.deck_id) navigate(buildRoute.deckResults(it.deck_id));
-                }}
-              />
+              <div ref={mostMissedRef}>
+                <MostMissedList
+                  classId={classId}
+                  items={a?.most_missed ?? []}
+                  onItemClick={(it) => {
+                    if (it.deck_id) navigate(buildRoute.deckResults(it.deck_id));
+                  }}
+                  onGenerateReview={handleGenerateClassReview}
+                  generating={generatingReview}
+                />
+              </div>
             </div>
             <RosterTable
               students={students}
