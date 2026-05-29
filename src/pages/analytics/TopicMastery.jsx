@@ -65,8 +65,10 @@ export default function TopicMastery() {
   );
 
   useEffect(() => {
-    if (!classId) navigate(ROUTES.SCHOOL, { replace: true });
-  }, [classId, navigate]);
+    // See ClassDetail: guard against App's `page`-shadow lag that briefly mounts
+    // this view under another /school/* path → null classId → spurious redirect.
+    if (!classId && pathname.startsWith("/school/topics")) navigate(ROUTES.SCHOOL, { replace: true });
+  }, [classId, pathname, navigate]);
 
   // Sync selectedTopic <-> URL (?topic=...) so deep links work.
   useEffect(() => {
