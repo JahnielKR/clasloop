@@ -27,6 +27,13 @@ const COMPARE = "#bfdbfe";       // azul translúcido para el período comparado
 const FORECAST = "#7c3aed";      // violeta Cleo para el pronóstico
 const AXIS_COLOR = "#94a3b8";
 
+// F9: bajo prefers-reduced-motion, recharts no anima las barras en mount.
+// Se lee una vez a nivel módulo (reduced-motion rara vez cambia mid-sesión).
+const REDUCED_MOTION =
+  typeof window !== "undefined" &&
+  typeof window.matchMedia === "function" &&
+  window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
 function defaultFormatter(v) {
   return typeof v === "number" ? `${v}` : v;
 }
@@ -112,8 +119,10 @@ export default function TrendBarChart({
               <RichTooltip {...props} yFormatter={yFormatter} yLabel={yLabel} rows={merged} />
             )}
           />
-          {compareData && <Bar dataKey="compare_value" fill={COMPARE} radius={[2, 2, 0, 0]} />}
-          <Bar dataKey="value" fill={ACCENT} radius={[3, 3, 0, 0]} />
+          {compareData && (
+            <Bar dataKey="compare_value" fill={COMPARE} radius={[2, 2, 0, 0]} isAnimationActive={!REDUCED_MOTION} />
+          )}
+          <Bar dataKey="value" fill={ACCENT} radius={[3, 3, 0, 0]} isAnimationActive={!REDUCED_MOTION} />
           {forecast && forecast.length > 0 && (
             <Line
               type="monotone"
