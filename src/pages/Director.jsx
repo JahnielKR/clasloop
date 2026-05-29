@@ -44,8 +44,10 @@ export default function Director({ profile = null, lang: pageLang = "en" }) {
 
   const overviewQ = useAnalyticsOverview();
   const tsQ = useOverviewTimeseries({ from, to, granularity: "day" });
-  const overview = overviewQ.data ?? [];
-  const ts = tsQ.data ?? [];
+  // useMemo so the `?? []` fallback doesn't hand a fresh array to the memos
+  // below on every render (react-hooks/exhaustive-deps).
+  const overview = useMemo(() => overviewQ.data ?? [], [overviewQ.data]);
+  const ts = useMemo(() => tsQ.data ?? [], [tsQ.data]);
 
   const classesForRisk = useMemo(
     () => overview.map((r) => ({ id: r.class_id, name: r.class_name })),
