@@ -4,6 +4,7 @@
 // 5 tiles: % correcto · Sesiones · Tiempo medio · Retención media · Δ vs media de clase.
 
 import StatCardWithSparkline from "./StatCardWithSparkline";
+import AnimatedNumber from "./AnimatedNumber";
 import {
   formatPercent,
   formatNumber,
@@ -55,26 +56,26 @@ export default function StudentKpiBand({
   }
 
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 8 }}>
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(132px, 1fr))", gap: 8 }}>
       <StatCardWithSparkline
         label="% correcto"
-        value={formatPercent(kpis.pct_correct)}
+        value={<AnimatedNumber value={kpis.pct_correct} format={formatPercent} />}
         sparkPoints={pctSpark}
         delta={deltaProps("pct_correct")}
       />
       <StatCardWithSparkline
         label="Sesiones"
-        value={formatNumber(kpis.session_count)}
+        value={<AnimatedNumber value={kpis.session_count} format={formatNumber} />}
         delta={deltaProps("session_count")}
       />
       <StatCardWithSparkline
         label="Tiempo medio"
-        value={formatDurationShort(kpis.avg_time_ms)}
+        value={<AnimatedNumber value={kpis.avg_time_ms} format={formatDurationShort} />}
         delta={deltaProps("avg_time_ms")}
       />
       <StatCardWithSparkline
         label="Retención media"
-        value={`${studentAvgRetention}%`}
+        value={<AnimatedNumber value={studentAvgRetention} format={(n) => `${n}%`} />}
       />
       <StatCardWithSparkline
         label="Δ vs clase"
