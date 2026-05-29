@@ -15,6 +15,7 @@
 // anterior vive en F4 (Comparar). Honest placeholder: solo el valor.
 
 import StatCardWithSparkline from "./StatCardWithSparkline";
+import AnimatedNumber from "./AnimatedNumber";
 // Import explícito del archivo: el barrel `../../lib/analytics` choca con
 // `src/lib/analytics.ts` (wrapper PostHog del PR 69). Node/Rollup resuelven
 // el .ts primero. Usamos el path al archivo para evitar la ambigüedad.
@@ -64,33 +65,33 @@ export default function KpiBand({
     (percentile != null ? { label: `P${percentile}`, tone: "neutral" } : null);
 
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 8 }}>
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(132px, 1fr))", gap: 8 }}>
       <StatCardWithSparkline
         label="% correcto"
-        value={formatPercent(kpis.pct_correct)}
+        value={<AnimatedNumber value={kpis.pct_correct} format={formatPercent} />}
         sparkPoints={pctSpark}
         delta={pctCorrectDelta}
       />
       <StatCardWithSparkline
         label="Participación"
-        value={formatNumber(kpis.unique_participants)}
+        value={<AnimatedNumber value={kpis.unique_participants} format={formatNumber} />}
         sparkPoints={participationSpark}
         delta={deltaProps("unique_participants")}
       />
       <StatCardWithSparkline
         label="Respuestas"
-        value={formatNumber(kpis.responses_total)}
+        value={<AnimatedNumber value={kpis.responses_total} format={formatNumber} />}
         sparkPoints={sessionsSpark}
         delta={deltaProps("responses_total")}
       />
       <StatCardWithSparkline
         label="Tiempo promedio"
-        value={formatDurationShort(kpis.avg_time_ms)}
+        value={<AnimatedNumber value={kpis.avg_time_ms} format={formatDurationShort} />}
         delta={deltaProps("avg_time_ms")}
       />
       <StatCardWithSparkline
         label="Temas en riesgo"
-        value={formatNumber(atRiskTopics)}
+        value={<AnimatedNumber value={atRiskTopics} format={formatNumber} />}
         tone={atRiskTopics > 0 ? "danger" : "default"}
       />
     </div>

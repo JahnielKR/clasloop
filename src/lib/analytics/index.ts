@@ -12,3 +12,4 @@ export * from "./report-model";
 export * from "./export-csv";
 export * from "./weekly-digest";
 export * from "./table-sort";
+export * from "./count-up";

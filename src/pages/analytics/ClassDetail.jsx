@@ -7,7 +7,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { StudioShell, ExportMenu } from "../../components/analytics";
+import { StudioShell, ExportMenu, StudioSkeleton } from "../../components/analytics";
 import { buildClassReportModel } from "../../lib/analytics/report-model";
 import KpiBand from "../../components/analytics/KpiBand";
 import CleoStrip from "../../components/analytics/CleoStrip";
@@ -193,7 +193,7 @@ export default function ClassDetail({ profile = null }) {
         )}
 
         {loading && !a ? (
-          <div style={{ opacity: 0.55, fontSize: 14 }}>Cargando análisis de la clase…</div>
+          <StudioSkeleton variant="class" />
         ) : (
           <>
             {/* Bloques reales se enchufan en tasks 6-11. En F1 task 5 el
@@ -235,7 +235,7 @@ export default function ClassDetail({ profile = null }) {
                 mostMissedRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
               }}
             />
-            <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 10 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 10 }}>
               <TrendPanel
                 metric={metric}
                 onMetricChange={setMetric}
@@ -247,7 +247,7 @@ export default function ClassDetail({ profile = null }) {
               />
               <ResponseCompositionPanel kpis={a?.kpis ?? {}} />
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 10 }}>
               <TopicBarListPanel
                 variant="dominated"
                 topicMastery={a?.topic_mastery ?? []}

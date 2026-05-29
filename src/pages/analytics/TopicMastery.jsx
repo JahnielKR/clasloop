@@ -5,7 +5,7 @@
 
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
-import { StudioShell } from "../../components/analytics";
+import { StudioShell, StudioSkeleton } from "../../components/analytics";
 import TopicMatrix from "../../components/analytics/TopicMatrix";
 import TopicTrendPanel from "../../components/analytics/TopicTrendPanel";
 import MisconceptionPanel from "../../components/analytics/MisconceptionPanel";
@@ -98,7 +98,7 @@ export default function TopicMastery() {
         )}
 
         {loading && topics.length === 0 ? (
-          <div style={{ opacity: 0.55, fontSize: 14 }}>Cargando temas…</div>
+          <StudioSkeleton variant="topic" />
         ) : (
           <>
             <TopicMatrix

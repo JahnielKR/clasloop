@@ -5,7 +5,7 @@
 
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { StudioShell } from "../../components/analytics";
+import { StudioShell, StudioSkeleton } from "../../components/analytics";
 import StudentKpiBand from "../../components/analytics/StudentKpiBand";
 import CleoStudentStrip from "../../components/analytics/CleoStudentStrip";
 import TrajectoryPanel from "../../components/analytics/TrajectoryPanel";
@@ -159,7 +159,7 @@ export default function StudentProfile({ profile = null }) {
         )}
 
         {loading && !d ? (
-          <div style={{ opacity: 0.55, fontSize: 14 }}>Cargando perfil del estudiante…</div>
+          <StudioSkeleton variant="student" />
         ) : (
           <>
             {/* Bloques reales se enchufan en tasks 5-8. */}
@@ -194,7 +194,7 @@ export default function StudentProfile({ profile = null }) {
               }
               loading={loading && !d}
             />
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 10 }}>
               <TopicBarListPanel
                 variant="critical"
                 topicMastery={d?.topic_mastery ?? []}

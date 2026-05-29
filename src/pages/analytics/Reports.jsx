@@ -6,6 +6,7 @@
 
 import { useState } from "react";
 import { StudioShell } from "../../components/analytics";
+import Skeleton from "../../components/ui/Skeleton";
 import ReportComposer from "../../components/analytics/ReportComposer";
 import ReportList from "../../components/analytics/ReportList";
 import { useAnalyticsOverview } from "../../hooks/useAnalyticsOverview";
@@ -103,8 +104,10 @@ export default function Reports() {
             Reportes guardados
           </div>
           {reportsQ.isPending ? (
-            <div style={{ opacity: 0.55, fontSize: 13 }}>
-              Cargando reportes…
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <Skeleton height={56} radius={8} />
+              <Skeleton height={56} radius={8} />
+              <Skeleton height={56} radius={8} />
             </div>
           ) : (
             <ReportList
