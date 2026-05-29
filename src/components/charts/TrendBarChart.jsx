@@ -31,6 +31,40 @@ function defaultFormatter(v) {
   return typeof v === "number" ? `${v}` : v;
 }
 
+// F8: tooltip rico — valor + delta vs el bucket anterior de la misma serie.
+function RichTooltip({ active, payload, label, yFormatter, yLabel, rows }) {
+  if (!active || !payload || payload.length === 0) return null;
+  const idx = rows.findIndex((r) => r.bucket === label);
+  const cur = rows[idx];
+  const prev = idx > 0 ? rows[idx - 1] : null;
+  const mainEntry = payload.find((p) => p.dataKey === "value") || payload[0];
+  const v = mainEntry?.value;
+  let deltaNode = null;
+  if (cur && prev && typeof cur.value === "number" && typeof prev.value === "number") {
+    const d = Math.round((cur.value - prev.value) * 10) / 10;
+    const tone = d > 0 ? "#15803d" : d < 0 ? "#b91c1c" : "#71717a";
+    const sign = d > 0 ? "▲ +" : d < 0 ? "▼ " : "→ ";
+    deltaNode = (
+      <div style={{ color: tone, fontSize: 11, marginTop: 2 }}>
+        {sign}{Math.abs(d)} vs bucket anterior
+      </div>
+    );
+  }
+  const compareEntry = payload.find((p) => p.dataKey === "compare_value");
+  return (
+    <div style={{ background: "#fff", border: "1px solid #e4e4e7", borderRadius: 6, fontSize: 12, padding: "6px 10px" }}>
+      <div style={{ fontWeight: 600 }}>{label}</div>
+      <div>{yLabel}: <b>{yFormatter(v)}</b></div>
+      {compareEntry && (
+        <div style={{ color: "#2563eb", fontSize: 11 }}>
+          Período anterior: {yFormatter(compareEntry.value)}
+        </div>
+      )}
+      {deltaNode}
+    </div>
+  );
+}
+
 export default function TrendBarChart({
   data = [],
   compareData = null,
@@ -74,18 +108,9 @@ export default function TrendBarChart({
           />
           <Tooltip
             cursor={{ fill: "#eff6ff" }}
-            contentStyle={{
-              border: "1px solid #e4e4e7",
-              borderRadius: 6,
-              fontSize: 12,
-              padding: "6px 10px",
-            }}
-            formatter={(value, name) => {
-              if (name === "compare_value") return [yFormatter(value), "Período anterior"];
-              if (name === "forecast_value") return [yFormatter(value), "Pronóstico Cleo"];
-              return [yFormatter(value), yLabel];
-            }}
-            labelFormatter={(label) => `${label}`}
+            content={(props) => (
+              <RichTooltip {...props} yFormatter={yFormatter} yLabel={yLabel} rows={merged} />
+            )}
           />
           {compareData && <Bar dataKey="compare_value" fill={COMPARE} radius={[2, 2, 0, 0]} />}
           <Bar dataKey="value" fill={ACCENT} radius={[3, 3, 0, 0]} />
