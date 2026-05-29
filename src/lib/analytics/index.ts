@@ -10,3 +10,4 @@ export * from "./cleo-analytics";
 export * from "./pulse-of-today";
 export * from "./report-model";
 export * from "./export-csv";
+export * from "./weekly-digest";
