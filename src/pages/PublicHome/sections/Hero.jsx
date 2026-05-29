@@ -185,7 +185,7 @@ export default function Hero({ t, lang, onSignUp, onOpenCode, onSeeHow }) {
             className="ph-cta-primary ph-btn-primary"
             onClick={() => onSignUp?.()}
             style={{
-              background: C.accent, color: "#fff",
+              background: C.brandGradient, color: "#fff",
               padding: "18px 42px", borderRadius: 12,
               fontSize: 20, fontWeight: 600,
               border: "none", cursor: "pointer",
