@@ -24,7 +24,11 @@ function prefersReducedMotion() {
 
 export default function AnimatedNumber({ value, format = (n) => String(n), duration = 650 }) {
   const target = Number(value);
-  const finite = Number.isFinite(target);
+  // null/undefined NO son "finite" para nosotros aunque Number(null)===0:
+  // así un KPI vacío renderiza format(null) → "—" (no "0%"), preservando
+  // el empty state. (El guard va acá, no como early-return: los hooks de
+  // abajo deben llamarse siempre — rules-of-hooks.)
+  const finite = value != null && Number.isFinite(target);
   const prevRef = useRef(finite ? target : 0);
   const [display, setDisplay] = useState(finite ? target : 0);
 
