@@ -1,29 +1,39 @@
 // src/components/analytics/StudioShell.jsx
 //
 // F0 Analytics Studio: el shell de la sección.
-// - Sub-navegación de 7 items (solo "Resumen" navegable en F0; los demás
-//   muestran "Próximamente — F1+" disabled).
-// - Toolbar persistente arriba: title + PeriodChips + (slots vacíos
-//   para Compare/Export que F4/F7 llenan).
+// - Sub-navegación de 7 items. Los 4 sin params (Resumen / En vivo /
+//   Reportes / Analista Cleo) son navegables directo desde el sidebar.
+//   Los 3 contextuales (Clase / Estudiante / Tema) necesitan un id, así
+//   que se llega a ellos por click en una card/row/chip y acá solo se
+//   resaltan cuando estás en su vista.
+// - Toolbar persistente arriba: title + PeriodChips + slot toolbarExtras
+//   (Compare en F4, Export en F7).
 // - El contenido de la vista se pasa por children.
-//
-// En F0 se monta envolviendo Director.jsx (la vista Resumen). En F1+ las
-// otras vistas (ClassDetail, etc.) usarán el mismo shell con view="class"|...
 
 // React 17+ automatic JSX runtime: no React default import needed.
 // (Project lint disables react/react-in-jsx-scope; see eslint.config.js.)
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import PeriodChips from "./PeriodChips";
+import { ROUTES, buildRoute } from "../../routes";
 
+// `route` => navegable desde el sidebar (rutas sin params). Sin `route` =>
+// contextual: se abre con un id desde otra vista; el sidebar solo lo resalta.
 const NAV_ITEMS = [
-  { id: "overview", label: "Resumen", staticEnabled: true },
-  { id: "class", label: "Clase", staticEnabled: false },
-  { id: "student", label: "Estudiante", staticEnabled: false },
-  { id: "topics", label: "Temas", staticEnabled: false },
-  { id: "live", label: "En vivo", staticEnabled: false },
-  { id: "reports", label: "Reportes", staticEnabled: false },
-  { id: "ask", label: "Analista Cleo", staticEnabled: false },
+  { id: "overview", label: "Resumen", route: ROUTES.SCHOOL },
+  { id: "class", label: "Clase" },
+  { id: "student", label: "Estudiante" },
+  { id: "topics", label: "Temas" },
+  { id: "live", label: "En vivo", route: buildRoute.analyticsLive() },
+  { id: "reports", label: "Reportes", route: buildRoute.analyticsReports() },
+  { id: "ask", label: "Analista Cleo", route: buildRoute.analyticsAsk() },
 ];
+
+const CONTEXTUAL_HINT = {
+  class: "Se abre desde una clase del Resumen",
+  student: "Se abre desde un alumno del roster",
+  topics: "Se abre desde un tema del detalle de clase",
+};
 
 export default function StudioShell({
   view = "overview",
@@ -33,27 +43,10 @@ export default function StudioShell({
   toolbarExtras,  // F4: optional ReactNode rendered alongside PeriodChips
   children,
 }) {
+  const navigate = useNavigate();
   const [internalPeriod, setInternalPeriod] = useState(period);
   const effectivePeriod = onPeriodChange ? period : internalPeriod;
   const handlePeriod = onPeriodChange || setInternalPeriod;
-
-  // Per-render enablement: cada item se prende cuando ya estamos en su
-  // vista — para que el sidebar lo destaque. No se navegan desde el sidebar:
-  // se llega vía click en una card/row del Director (Clase), el roster
-  // (Estudiante), TopicBarListPanel (Tema), el chip "En vivo" del Pulso
-  // (Live, F6), un link de reportes (Reportes, F7) o el lanzador de Cleo
-  // (Analista Cleo, F5). 'overview' es staticEnabled (siempre navegable).
-  const items = NAV_ITEMS.map((item) => ({
-    ...item,
-    enabled:
-      item.staticEnabled ||
-      (item.id === "class" && view === "class") ||
-      (item.id === "student" && view === "student") ||
-      (item.id === "topics" && view === "topics") ||
-      (item.id === "live" && view === "live") ||
-      (item.id === "reports" && view === "reports") ||
-      (item.id === "ask" && view === "ask"),
-  }));
 
   return (
     <div style={{ display: "flex", minHeight: "100%" }}>
@@ -78,27 +71,43 @@ export default function StudioShell({
         >
           Analytics
         </div>
-        {items.map((item) => {
+        {NAV_ITEMS.map((item) => {
           const active = item.id === view;
+          const navigable = !!item.route;
+          const go = () => {
+            if (navigable && !active) navigate(item.route);
+          };
           return (
             <div
               key={item.id}
-              aria-disabled={!item.enabled}
-              title={item.enabled ? "" : "Próximamente — F1+"}
+              role={navigable ? "link" : undefined}
+              tabIndex={navigable ? 0 : undefined}
+              aria-current={active ? "page" : undefined}
+              onClick={navigable ? go : undefined}
+              onKeyDown={
+                navigable
+                  ? (e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        go();
+                      }
+                    }
+                  : undefined
+              }
+              title={navigable ? "" : CONTEXTUAL_HINT[item.id] || ""}
               style={{
                 padding: "8px 16px",
                 fontWeight: active ? 600 : 400,
-                color: !item.enabled ? "#a1a1aa" : active ? "#2563eb" : "inherit",
+                // Navegables: color normal (azul si activo). Contextuales
+                // inactivos: atenuados (se abren desde otra vista).
+                color: active ? "#2563eb" : navigable ? "inherit" : "#a1a1aa",
                 background: active ? "#eff6ff" : "transparent",
                 borderLeft: active ? "3px solid #2563eb" : "3px solid transparent",
-                cursor: item.enabled ? "pointer" : "not-allowed",
+                cursor: navigable && !active ? "pointer" : "default",
                 fontSize: 14,
               }}
             >
               {item.label}
-              {!item.enabled && (
-                <span style={{ marginLeft: 6, fontSize: 10, opacity: 0.7 }}>· pronto</span>
-              )}
             </div>
           );
         })}

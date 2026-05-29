@@ -291,7 +291,7 @@ export default function Settings({ lang: pageLang = "en", setLang: pageSetLang, 
     if (!profile?.id) return;
     const next = { ...notifs, [key]: value };
     setNotifs(next);
-    await supabase.from("notification_settings").upsert(
+    const { error } = await supabase.from("notification_settings").upsert(
       {
         user_id: profile.id,
         email_notifs: next.email,
@@ -303,6 +303,10 @@ export default function Settings({ lang: pageLang = "en", setLang: pageSetLang, 
       },
       { onConflict: "user_id" },
     );
+    // El flip optimista ya corrió; si el upsert falla (red/RLS) lo dejamos
+    // en consola (la prefe se re-hidrata de la DB en el próximo mount, así
+    // que no queda en un estado mentiroso permanente).
+    if (error) console.error("[settings] notif upsert failed:", error.message);
   };
 
   const updatePassword = async () => {
