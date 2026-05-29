@@ -87,3 +87,37 @@ export function buildClassReportModel(args: {
     sections,
   };
 }
+
+export function buildOverviewReportModel(args: {
+  period: string;
+  stats: { avgRetention: number; classes: number; students: number; sessions: number };
+  perClass?: { name: string; retention: number }[];
+}): ReportModel {
+  const s = args.stats;
+  const sections: ReportSection[] = [
+    {
+      type: "kpis",
+      title: "Resumen general",
+      rows: [
+        { label: "Retención promedio", value: `${s.avgRetention}%` },
+        { label: "Clases activas", value: s.classes },
+        { label: "Estudiantes", value: s.students },
+        { label: "Sesiones", value: s.sessions },
+      ],
+    },
+  ];
+  if (args.perClass?.length) {
+    sections.push({
+      type: "topics",
+      title: "Retención por clase",
+      columns: ["Clase", "Retención"],
+      data: args.perClass.map((c) => [c.name, c.retention]),
+    });
+  }
+  return {
+    title: `Reporte general (${args.period})`,
+    scope: "overview",
+    period: args.period,
+    sections,
+  };
+}
