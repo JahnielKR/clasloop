@@ -49,7 +49,10 @@ export default function StudioShell({
       item.staticEnabled ||
       (item.id === "class" && view === "class") ||
       (item.id === "student" && view === "student") ||
-      (item.id === "topics" && view === "topics"),
+      (item.id === "topics" && view === "topics") ||
+      (item.id === "live" && view === "live") ||
+      (item.id === "reports" && view === "reports") ||
+      (item.id === "ask" && view === "ask"),
   }));
 
   return (
