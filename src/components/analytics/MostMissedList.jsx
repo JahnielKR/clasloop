@@ -1,23 +1,17 @@
 // src/components/analytics/MostMissedList.jsx
 //
 // F1 Analytics Studio: Top preguntas más falladas del Class Detail.
-// Recibe most_missed de class_analytics (top 10, ya ordenado por error_rate).
-//
-// Desviación del plan F1 (misma razón que CleoStrip):
-//   El botón "Generar repaso" iba a reusar close-unit-ai, pero ese módulo
-//   está diseñado para flujo unit-level ({unit, classObj, summary}), no
-//   class-level. Class-scoped review generator es F5. En F1 el botón
-//   queda visible pero stub "pronto · F5".
-//
-//   El drill-down (click en una fila → DeckResults) SÍ funciona en F1.
+// F5: botón "Generar repaso" (class-scoped generator).
+// F8: crossfilter — cuando hay un tema seleccionado (TopicBarListPanel),
+// resalta las preguntas de ese tema y atenúa el resto. Filas keyboard-nav.
 //
 // Props:
-//   classId: string  — preservado para que F5 no rompa el call site
-//   items: most_missed array de class_analytics
-//          [{ question_index, deck_id, topic, total_responses, incorrect_count, error_rate }]
-//   onItemClick: (item) => void — drill al DeckResults; lo enchufa el padre.
+//   classId, items, onItemClick (F1) · onGenerateReview, generating (F5)
+
+import { useCrossfilter } from "../../hooks/useCrossfilter";
 
 export default function MostMissedList({ classId, items = [], onItemClick, onGenerateReview, generating = false }) {
+  const { selectedTopic } = useCrossfilter();
   const show = items.slice(0, 3);
 
   return (
@@ -25,54 +19,62 @@ export default function MostMissedList({ classId, items = [], onItemClick, onGen
       style={{ background: "#fff", border: "1px solid #e4e4e7", borderRadius: 8, padding: 12 }}
       data-class-id={classId}
     >
-      <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>
-        Más falladas
-      </div>
-      {show.length === 0 ? (
-        <div style={{ opacity: 0.45, fontSize: 13, padding: 4 }}>
-          Sin datos suficientes.
+      <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>Más falladas</div>
+      {selectedTopic && (
+        <div style={{ fontSize: 11, color: "#2563eb", marginBottom: 4 }}>
+          Resaltando: {selectedTopic}
         </div>
+      )}
+      {show.length === 0 ? (
+        <div style={{ opacity: 0.45, fontSize: 13, padding: 4 }}>Sin datos suficientes.</div>
       ) : (
         <div style={{ fontSize: 13, lineHeight: 1.65 }}>
-          {show.map((it, i) => (
-            <div
-              key={`${it.deck_id}-${it.question_index}`}
-              onClick={onItemClick ? () => onItemClick(it) : undefined}
-              style={{
-                borderBottom: i < show.length - 1 ? "1px solid #f4f4f5" : "none",
-                padding: "3px 0",
-                cursor: onItemClick ? "pointer" : "default",
-                display: "flex",
-                justifyContent: "space-between",
-                gap: 8,
-              }}
-            >
-              <span
+          {show.map((it, i) => {
+            const dimmed = selectedTopic != null && it.topic !== selectedTopic;
+            const match = selectedTopic != null && it.topic === selectedTopic;
+            const drill = onItemClick ? () => onItemClick(it) : undefined;
+            return (
+              <div
+                key={`${it.deck_id}-${it.question_index}`}
+                onClick={drill}
+                onKeyDown={
+                  onItemClick
+                    ? (e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          drill();
+                        }
+                      }
+                    : undefined
+                }
+                tabIndex={onItemClick ? 0 : undefined}
+                role={onItemClick ? "button" : undefined}
                 style={{
-                  flex: 1,
-                  minWidth: 0,
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
+                  borderBottom: i < show.length - 1 ? "1px solid #f4f4f5" : "none",
+                  borderLeft: match ? "3px solid #2563eb" : "3px solid transparent",
+                  padding: "3px 0 3px 6px",
+                  cursor: onItemClick ? "pointer" : "default",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  gap: 8,
+                  opacity: dimmed ? 0.35 : 1,
+                  transition: "opacity .15s ease",
                 }}
               >
-                P. {it.question_index + 1}
-                {it.topic ? ` · ${it.topic}` : ""}
-              </span>
-              <b
-                style={{
-                  color:
-                    it.error_rate >= 60
-                      ? "#dc2626"
-                      : it.error_rate >= 40
-                        ? "#eab308"
-                        : "#16a34a",
-                }}
-              >
-                {Math.round(it.error_rate)}% err
-              </b>
-            </div>
-          ))}
+                <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  P. {it.question_index + 1}
+                  {it.topic ? ` · ${it.topic}` : ""}
+                </span>
+                <b
+                  style={{
+                    color: it.error_rate >= 60 ? "#dc2626" : it.error_rate >= 40 ? "#eab308" : "#16a34a",
+                  }}
+                >
+                  {Math.round(it.error_rate)}% err
+                </b>
+              </div>
+            );
+          })}
         </div>
       )}
       <button

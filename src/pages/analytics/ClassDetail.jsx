@@ -16,9 +16,11 @@ import ResponseCompositionPanel from "../../components/analytics/ResponseComposi
 import TopicBarListPanel from "../../components/analytics/TopicBarListPanel";
 import MostMissedList from "../../components/analytics/MostMissedList";
 import RosterTable from "../../components/analytics/RosterTable";
+import StudentDrawer from "../../components/analytics/StudentDrawer";
 import CompareToggle from "../../components/analytics/CompareToggle";
 import { previousPeriod, percentileRank } from "../../lib/analytics/benchmark";
 import { useDirector } from "../../hooks/useDirector";
+import { CrossfilterProvider } from "../../hooks/useCrossfilter";
 import { buildRoute } from "../../routes";
 import { useAnalyticsOverview } from "../../hooks/useAnalyticsOverview";
 import { useClassAnalytics } from "../../hooks/useClassAnalytics";
@@ -54,6 +56,7 @@ export default function ClassDetail({ profile = null }) {
   const [period, setPeriod] = useState("d30");
   const [metric, setMetric] = useState("pct_correct");
   const [compareMode, setCompareMode] = useState("off");
+  const [peekStudent, setPeekStudent] = useState(null);
   const { from, to } = periodToRange(period);
   const compareRange =
     compareMode === "prev" ? previousPeriod(from, to) : { from: null, to: null };
@@ -170,6 +173,7 @@ export default function ClassDetail({ profile = null }) {
         </>
       }
     >
+      <CrossfilterProvider>
       <div style={{ padding: 18, background: "#fafafa", minHeight: "100%" }}>
         {error && (
           <div
@@ -273,11 +277,18 @@ export default function ClassDetail({ profile = null }) {
             <RosterTable
               students={students}
               riskInputsByName={riskInputsByName}
-              onRowClick={(s) => navigate(buildRoute.analyticsStudent(classId, s.name))}
+              onRowClick={(s) => setPeekStudent(s)}
+            />
+            <StudentDrawer
+              student={peekStudent}
+              riskInputs={peekStudent ? riskInputsByName[peekStudent.name] : null}
+              onClose={() => setPeekStudent(null)}
+              onOpenFull={(s) => navigate(buildRoute.analyticsStudent(classId, s.name))}
             />
           </>
         )}
       </div>
+      </CrossfilterProvider>
     </StudioShell>
   );
 }

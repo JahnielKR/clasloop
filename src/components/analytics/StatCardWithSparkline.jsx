@@ -31,6 +31,7 @@ export default function StatCardWithSparkline({
   sparkPoints,
   sparkTrend,
   tone = "default",
+  hint = null,
 }) {
   return (
     <div
@@ -56,7 +57,7 @@ export default function StatCardWithSparkline({
         {label}
       </div>
       <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginTop: 4 }}>
-        <span style={{ fontSize: 24, fontWeight: 700 }}>{value}</span>
+        <span style={{ fontSize: 24, fontWeight: 700 }} title={hint || undefined}>{value}</span>
         {delta && (
           <span
             style={{
