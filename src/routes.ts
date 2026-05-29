@@ -53,6 +53,7 @@ export const ROUTES = {
   SCHOOL: "/school",                    // Director (label en sidebar dice "School")
   ANALYTICS_ASK: "/school/ask",         // F5: Analista Cleo chat view
   ANALYTICS_LIVE: "/school/live",       // F6: Live Command Center
+  ANALYTICS_REPORTS: "/school/reports", // F7: Reports page
   COMMUNITY: "/community",
   SCAN: "/scan",                        // PR 49: Scanner — teacher only
   // TEACHER: "/teacher/:teacherId"      → buildRoute.teacher(id)
@@ -132,6 +133,9 @@ export const buildRoute = {
   // Analytics Studio — Live Command Center (F6). Realtime tiles
   // when a session is active; pulse-of-today expanded otherwise.
   analyticsLive: () => `/school/live`,
+  // Analytics Studio — Reports page (F7). Cleo-generated downloadable
+  // summaries and per-class snapshots.
+  analyticsReports: () => `/school/reports`,
   // Class report — Cleo-opened printable snapshot (KPIs + charts)
   classReport: (classId: string) => `/classes/${enc(classId)}/report`,
   // Student-facing per-session results page — landed from a "graded"
@@ -163,6 +167,7 @@ export const ROUTE_PATTERNS = {
   SCHOOL: "/school",
   ANALYTICS_ASK: "/school/ask",
   ANALYTICS_LIVE: "/school/live",
+  ANALYTICS_REPORTS: "/school/reports",
   ANALYTICS_CLASS: "/school/class/:classId",
   ANALYTICS_STUDENT: "/school/student/:classId/:studentRef",
   ANALYTICS_TOPICS: "/school/topics/:classId",
@@ -266,6 +271,9 @@ export function pathToPage(pathname: string | null | undefined): string | null {
   // /school/live → Analytics Studio Live Command Center (F6). MUST come before
   // the /school equality below.
   if (pathname === "/school/live") return "analyticsLive";
+  // /school/reports → Analytics Studio Reports page (F7). MUST come before
+  // the /school equality below.
+  if (pathname === "/school/reports") return "analyticsReports";
   // /school/class/:classId → Analytics Studio Class Detail (F1). MUST come
   // before the /school equality below, otherwise more specific paths would
   // either fall through or — worse — match "director".
@@ -334,8 +342,9 @@ const TEACHER_ONLY_PAGES = new Set([
   "analyticsClassDetail", // F1: /school/class/:classId — Analytics Studio Class Detail page
   "analyticsStudentProfile", // F2: /school/student/:classId/:studentRef — Analytics Studio Student Profile
   "analyticsTopicMastery", // F3: /school/topics/:classId — Analytics Studio Topic Mastery
-  "analyticsAsk",   // F5: /school/ask — Analista Cleo chat view
-  "analyticsLive",  // F6: /school/live — Live Command Center
+  "analyticsAsk",     // F5: /school/ask — Analista Cleo chat view
+  "analyticsLive",    // F6: /school/live — Live Command Center
+  "analyticsReports", // F7: /school/reports — Reports page
   "adminAIStats",   // additionally requires is_admin, checked at the page level
   "scan",           // PR 49: Scanner — only teachers grade exams
 ]);

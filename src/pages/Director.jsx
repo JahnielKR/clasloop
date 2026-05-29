@@ -5,7 +5,8 @@ import { CIcon } from "../components/Icons";
 import { useIsMobile } from "../components/MobileMenuButton";
 import PageHeader from "../components/PageHeader";
 import Skeleton from "../components/ui/Skeleton";
-import { StudioShell, PulseStrip } from "../components/analytics";
+import { StudioShell, PulseStrip, ExportMenu } from "../components/analytics";
+import { buildOverviewReportModel } from "../lib/analytics/report-model";
 import { C as BASE_C, MONO } from "../components/tokens";
 import { useDensity } from "../components/ui/density";
 import { selectableChip } from "../components/ui/selectable";
@@ -161,7 +162,26 @@ export default function Director({ lang: pageLang = "en", setLang: pageSetLang, 
   const alertCount = atRiskStudents.length + lowTopics.length;
 
   return (
-    <StudioShell view="overview" title="Analytics">
+    <StudioShell
+      view="overview"
+      title="Analytics"
+      toolbarExtras={
+        <ExportMenu
+          baseName="reporte-general"
+          disabled={classes.length === 0}
+          buildModel={() =>
+            buildOverviewReportModel({
+              period: "actual",
+              stats: { avgRetention, classes: classes.length, students: totalStudents, sessions: totalSessions },
+              perClass: classes.map((c) => ({
+                name: c.name,
+                retention: retentionData[c.id]?.average ?? 0,
+              })),
+            })
+          }
+        />
+      }
+    >
       <div style={{ padding: "28px 20px" }}>
         <style>{css}</style>
         {backBar}

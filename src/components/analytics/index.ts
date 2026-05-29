@@ -26,3 +26,6 @@ export { default as TopicQuestionsList } from "./TopicQuestionsList";
 export { default as CompareToggle } from "./CompareToggle";
 export { default as RiskBadge } from "./RiskBadge";
 export { default as StudentRiskCard } from "./StudentRiskCard";
+export { default as ExportMenu } from "./ExportMenu";
+export { default as ReportComposer } from "./ReportComposer";
+export { default as ReportList } from "./ReportList";

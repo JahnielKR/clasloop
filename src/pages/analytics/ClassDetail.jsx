@@ -7,7 +7,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { StudioShell } from "../../components/analytics";
+import { StudioShell, ExportMenu } from "../../components/analytics";
+import { buildClassReportModel } from "../../lib/analytics/report-model";
 import KpiBand from "../../components/analytics/KpiBand";
 import CleoStrip from "../../components/analytics/CleoStrip";
 import TrendPanel from "../../components/analytics/TrendPanel";
@@ -150,7 +151,24 @@ export default function ClassDetail({ profile = null }) {
       title="Clase"
       period={period}
       onPeriodChange={setPeriod}
-      toolbarExtras={<CompareToggle value={compareMode} onChange={setCompareMode} />}
+      toolbarExtras={
+        <>
+          <CompareToggle value={compareMode} onChange={setCompareMode} />
+          <ExportMenu
+            baseName="reporte-clase"
+            disabled={!a}
+            buildModel={() =>
+              buildClassReportModel({
+                className:
+                  overviewRows.find((r) => r.class_id === classId)?.class_name || "Clase",
+                period,
+                classAnalytics: a,
+                sections: ["kpis", "topics", "most_missed"],
+              })
+            }
+          />
+        </>
+      }
     >
       <div style={{ padding: 18, background: "#fafafa", minHeight: "100%" }}>
         {error && (
