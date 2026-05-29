@@ -40,11 +40,13 @@ export default function StudentDrawer({ student, riskInputs = null, onClose, onO
   return (
     <>
       <div
+        className="sd-drawer-backdrop"
         onClick={onClose}
         style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.28)", zIndex: 60, animation: "fadeIn .15s ease-out" }}
       />
       <aside
         role="dialog"
+        aria-modal="true"
         aria-label={`Resumen de ${student.name}`}
         style={{
           position: "fixed",
@@ -66,7 +68,10 @@ export default function StudentDrawer({ student, riskInputs = null, onClose, onO
       >
         <style>{`
           @keyframes drawerIn { from { transform: translateX(20px); opacity: .6 } to { transform: none; opacity: 1 } }
-          @media (prefers-reduced-motion: reduce) { aside[role=dialog] { animation: none !important } }
+          @media (prefers-reduced-motion: reduce) {
+            aside[role=dialog] { animation: none !important }
+            .sd-drawer-backdrop { animation: none !important }
+          }
         `}</style>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <div style={{ fontSize: 16, fontWeight: 700, flex: 1, minWidth: 0 }}>{student.name}</div>
