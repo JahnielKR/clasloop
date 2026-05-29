@@ -235,7 +235,7 @@ export default function ClassDetail({ profile = null }) {
                 mostMissedRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
               }}
             />
-            <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 10 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 10 }}>
               <TrendPanel
                 metric={metric}
                 onMetricChange={setMetric}
@@ -247,7 +247,7 @@ export default function ClassDetail({ profile = null }) {
               />
               <ResponseCompositionPanel kpis={a?.kpis ?? {}} />
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 10 }}>
               <TopicBarListPanel
                 variant="dominated"
                 topicMastery={a?.topic_mastery ?? []}

@@ -194,7 +194,7 @@ export default function StudentProfile({ profile = null }) {
               }
               loading={loading && !d}
             />
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 10 }}>
               <TopicBarListPanel
                 variant="critical"
                 topicMastery={d?.topic_mastery ?? []}

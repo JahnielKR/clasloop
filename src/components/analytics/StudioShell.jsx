@@ -16,6 +16,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import PeriodChips from "./PeriodChips";
 import { ROUTES, buildRoute } from "../../routes";
+import { useIsMobile } from "../MobileMenuButton";
 
 // `route` => navegable desde el sidebar (rutas sin params). Sin `route` =>
 // contextual: se abre con un id desde otra vista; el sidebar solo lo resalta.
@@ -44,33 +45,35 @@ export default function StudioShell({
   children,
 }) {
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const [internalPeriod, setInternalPeriod] = useState(period);
   const effectivePeriod = onPeriodChange ? period : internalPeriod;
   const handlePeriod = onPeriodChange || setInternalPeriod;
 
   return (
-    <div style={{ display: "flex", minHeight: "100%" }}>
+    <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", minHeight: "100%" }}>
       {/* Sub-navegación lateral */}
       <nav
         aria-label="Analytics Studio"
-        style={{
-          flex: "0 0 168px",
-          padding: "16px 0",
-          borderRight: "1px solid #e4e4e7",
-          background: "#fafafa",
-        }}
+        style={
+          isMobile
+            ? { display: "flex", gap: 4, overflowX: "auto", padding: "8px 12px", borderBottom: "1px solid #e4e4e7", background: "#fafafa", WebkitOverflowScrolling: "touch" }
+            : { flex: "0 0 168px", padding: "16px 0", borderRight: "1px solid #e4e4e7", background: "#fafafa" }
+        }
       >
-        <div
-          style={{
-            padding: "0 16px 12px",
-            fontSize: 11,
-            textTransform: "uppercase",
-            letterSpacing: ".08em",
-            opacity: 0.55,
-          }}
-        >
-          Analytics
-        </div>
+        {!isMobile && (
+          <div
+            style={{
+              padding: "0 16px 12px",
+              fontSize: 11,
+              textTransform: "uppercase",
+              letterSpacing: ".08em",
+              opacity: 0.55,
+            }}
+          >
+            Analytics
+          </div>
+        )}
         {NAV_ITEMS.map((item) => {
           const active = item.id === view;
           const navigable = !!item.route;
@@ -95,17 +98,32 @@ export default function StudioShell({
                   : undefined
               }
               title={navigable ? "" : CONTEXTUAL_HINT[item.id] || ""}
-              style={{
-                padding: "8px 16px",
-                fontWeight: active ? 600 : 400,
-                // Navegables: color normal (azul si activo). Contextuales
-                // inactivos: atenuados (se abren desde otra vista).
-                color: active ? "#2563eb" : navigable ? "inherit" : "#a1a1aa",
-                background: active ? "#eff6ff" : "transparent",
-                borderLeft: active ? "3px solid #2563eb" : "3px solid transparent",
-                cursor: navigable && !active ? "pointer" : "default",
-                fontSize: 14,
-              }}
+              style={
+                isMobile
+                  ? {
+                      padding: "6px 12px",
+                      whiteSpace: "nowrap",
+                      flexShrink: 0,
+                      fontWeight: active ? 600 : 400,
+                      color: active ? "#2563eb" : navigable ? "inherit" : "#a1a1aa",
+                      background: active ? "#eff6ff" : "transparent",
+                      borderRadius: 6,
+                      borderBottom: active ? "2px solid #2563eb" : "2px solid transparent",
+                      cursor: navigable && !active ? "pointer" : "default",
+                      fontSize: 13,
+                    }
+                  : {
+                      padding: "8px 16px",
+                      fontWeight: active ? 600 : 400,
+                      // Navegables: color normal (azul si activo). Contextuales
+                      // inactivos: atenuados (se abren desde otra vista).
+                      color: active ? "#2563eb" : navigable ? "inherit" : "#a1a1aa",
+                      background: active ? "#eff6ff" : "transparent",
+                      borderLeft: active ? "3px solid #2563eb" : "3px solid transparent",
+                      cursor: navigable && !active ? "pointer" : "default",
+                      fontSize: 14,
+                    }
+              }
             >
               {item.label}
             </div>
@@ -126,7 +144,7 @@ export default function StudioShell({
           }}
         >
           <h1 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>{title}</h1>
-          <div style={{ marginLeft: "auto", display: "flex", gap: 8, alignItems: "center" }}>
+          <div style={{ marginLeft: "auto", display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
             <PeriodChips value={effectivePeriod} onChange={handlePeriod} />
             {toolbarExtras}
             {/* Export vive acá en F7 */}
