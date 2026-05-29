@@ -52,6 +52,7 @@ export const ROUTES = {
 
   SCHOOL: "/school",                    // Director (label en sidebar dice "School")
   ANALYTICS_ASK: "/school/ask",         // F5: Analista Cleo chat view
+  ANALYTICS_LIVE: "/school/live",       // F6: Live Command Center
   COMMUNITY: "/community",
   SCAN: "/scan",                        // PR 49: Scanner — teacher only
   // TEACHER: "/teacher/:teacherId"      → buildRoute.teacher(id)
@@ -161,6 +162,7 @@ export const ROUTE_PATTERNS = {
 
   SCHOOL: "/school",
   ANALYTICS_ASK: "/school/ask",
+  ANALYTICS_LIVE: "/school/live",
   ANALYTICS_CLASS: "/school/class/:classId",
   ANALYTICS_STUDENT: "/school/student/:classId/:studentRef",
   ANALYTICS_TOPICS: "/school/topics/:classId",
@@ -261,6 +263,9 @@ export function pathToPage(pathname: string | null | undefined): string | null {
   // /school/ask → Analytics Studio Analista Cleo (F5). MUST come before
   // the /school equality below.
   if (pathname === "/school/ask") return "analyticsAsk";
+  // /school/live → Analytics Studio Live Command Center (F6). MUST come before
+  // the /school equality below.
+  if (pathname === "/school/live") return "analyticsLive";
   // /school/class/:classId → Analytics Studio Class Detail (F1). MUST come
   // before the /school equality below, otherwise more specific paths would
   // either fall through or — worse — match "director".
@@ -330,6 +335,7 @@ const TEACHER_ONLY_PAGES = new Set([
   "analyticsStudentProfile", // F2: /school/student/:classId/:studentRef — Analytics Studio Student Profile
   "analyticsTopicMastery", // F3: /school/topics/:classId — Analytics Studio Topic Mastery
   "analyticsAsk",   // F5: /school/ask — Analista Cleo chat view
+  "analyticsLive",  // F6: /school/live — Live Command Center
   "adminAIStats",   // additionally requires is_admin, checked at the page level
   "scan",           // PR 49: Scanner — only teachers grade exams
 ]);
