@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { globalKpis, classTrend, criticalTopics, topRiskStudents } from "../overview-aggregate";
+import { globalKpis, classTrend, criticalTopics, topRiskStudents, type PerClassRisk } from "../overview-aggregate";
 
 describe("globalKpis", () => {
   it("weights % correct by responses_total across rows", () => {
@@ -60,7 +60,7 @@ describe("criticalTopics", () => {
 
 describe("topRiskStudents", () => {
   it("flattens per-class risk, sorts by score desc, takes top n", () => {
-    const perClass = [
+    const perClass: PerClassRisk[] = [
       { classId: "a", className: "Math", students: [
         { name: "Ana", risk: { score: 70, level: "high", reasons: ["x"] } },
         { name: "Ben", risk: { score: 10, level: "low", reasons: [] } },
