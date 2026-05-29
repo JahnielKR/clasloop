@@ -5,9 +5,11 @@
 export { default as StudioShell } from "./StudioShell";
 export { default as PeriodChips } from "./PeriodChips";
 export { default as KpiBand } from "./KpiBand";
+export { default as LiveTile } from "./LiveTile";
 export { default as StatCardWithSparkline } from "./StatCardWithSparkline";
 export { default as CleoStrip } from "./CleoStrip";
 export { default as TrendPanel } from "./TrendPanel";
+export { default as PulseStrip } from "./PulseStrip";
 export { default as ResponseCompositionPanel } from "./ResponseCompositionPanel";
 export { default as TopicBarListPanel } from "./TopicBarListPanel";
 export { default as MostMissedList } from "./MostMissedList";

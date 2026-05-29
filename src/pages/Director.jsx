@@ -5,7 +5,7 @@ import { CIcon } from "../components/Icons";
 import { useIsMobile } from "../components/MobileMenuButton";
 import PageHeader from "../components/PageHeader";
 import Skeleton from "../components/ui/Skeleton";
-import { StudioShell } from "../components/analytics";
+import { StudioShell, PulseStrip } from "../components/analytics";
 import { C as BASE_C, MONO } from "../components/tokens";
 import { useDensity } from "../components/ui/density";
 import { selectableChip } from "../components/ui/selectable";
@@ -198,6 +198,7 @@ export default function Director({ lang: pageLang = "en", setLang: pageSetLang, 
             {/* Overview */}
             {tab === "overview" && (
               <div className="fade-up">
+                <PulseStrip />
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 10, marginBottom: 20 }}>
                   {[
                     [t.avgRetention, avgRetention > 0 ? `${avgRetention}%` : "—", retCol(avgRetention), "chart"],
