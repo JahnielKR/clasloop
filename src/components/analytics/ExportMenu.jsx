@@ -8,7 +8,7 @@
 // NOTA: buildModel puede ser sync o async (await lo cubre los dos casos —
 // el caller del Reports page re-fetcha y devuelve una Promise).
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { downloadCsv } from "../../lib/analytics/export-csv";
 import { downloadPdf } from "../../lib/analytics/export-pdf";
 import { downloadXlsx } from "../../lib/analytics/export-xlsx";
@@ -16,6 +16,24 @@ import { downloadXlsx } from "../../lib/analytics/export-xlsx";
 export default function ExportMenu({ buildModel, baseName = "reporte", disabled = false }) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
+  const rootRef = useRef(null);
+
+  // Click-outside + Esc cierran el dropdown.
+  useEffect(() => {
+    if (!open) return undefined;
+    const onDown = (e) => {
+      if (rootRef.current && !rootRef.current.contains(e.target)) setOpen(false);
+    };
+    const onKey = (e) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
 
   async function run(kind) {
     if (busy) return;
@@ -33,7 +51,7 @@ export default function ExportMenu({ buildModel, baseName = "reporte", disabled 
   }
 
   return (
-    <div style={{ position: "relative", display: "inline-block" }}>
+    <div ref={rootRef} style={{ position: "relative", display: "inline-block" }}>
       <button
         onClick={() => setOpen((v) => !v)}
         disabled={disabled || busy}
