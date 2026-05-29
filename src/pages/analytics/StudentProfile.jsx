@@ -80,8 +80,10 @@ export default function StudentProfile({ profile = null }) {
   const [generatingReview, setGeneratingReview] = useState(false);
 
   useEffect(() => {
-    if (!classId || !studentRef) navigate(ROUTES.SCHOOL, { replace: true });
-  }, [classId, studentRef, navigate]);
+    // See ClassDetail: guard against App's `page`-shadow lag that briefly mounts
+    // this view under another /school/* path → null ids → spurious redirect.
+    if ((!classId || !studentRef) && pathname.startsWith("/school/student")) navigate(ROUTES.SCHOOL, { replace: true });
+  }, [classId, studentRef, pathname, navigate]);
 
   if (!classId || !studentRef) return null;
 

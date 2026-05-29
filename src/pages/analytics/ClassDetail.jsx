@@ -142,8 +142,14 @@ export default function ClassDetail({ profile = null }) {
   }
 
   useEffect(() => {
-    if (!classId) navigate(ROUTES.SCHOOL, { replace: true });
-  }, [classId, navigate]);
+    // Only bounce to the hub if we're genuinely on THIS view's route without a
+    // valid id — never mid-transition to another /school/* sub-route. App's
+    // `page` shadow lags location.pathname by one render (App.jsx URL→page
+    // effect), so this component stays mounted for a render under a path its
+    // regex doesn't match → classId null. Without the prefix guard that fired a
+    // spurious redirect to /school, breaking client-side drill-down (Clase→Tema/Estudiante).
+    if (!classId && pathname.startsWith("/school/class")) navigate(ROUTES.SCHOOL, { replace: true });
+  }, [classId, pathname, navigate]);
 
   if (!classId) return null;
 
