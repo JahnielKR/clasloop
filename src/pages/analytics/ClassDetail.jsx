@@ -19,6 +19,7 @@ import RosterTable from "../../components/analytics/RosterTable";
 import CompareToggle from "../../components/analytics/CompareToggle";
 import { previousPeriod, percentileRank } from "../../lib/analytics/benchmark";
 import { useDirector } from "../../hooks/useDirector";
+import { CrossfilterProvider } from "../../hooks/useCrossfilter";
 import { buildRoute } from "../../routes";
 import { useAnalyticsOverview } from "../../hooks/useAnalyticsOverview";
 import { useClassAnalytics } from "../../hooks/useClassAnalytics";
@@ -170,6 +171,7 @@ export default function ClassDetail({ profile = null }) {
         </>
       }
     >
+      <CrossfilterProvider>
       <div style={{ padding: 18, background: "#fafafa", minHeight: "100%" }}>
         {error && (
           <div
@@ -278,6 +280,7 @@ export default function ClassDetail({ profile = null }) {
           </>
         )}
       </div>
+      </CrossfilterProvider>
     </StudioShell>
   );
 }

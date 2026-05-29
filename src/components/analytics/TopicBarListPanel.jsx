@@ -1,21 +1,15 @@
 // src/components/analytics/TopicBarListPanel.jsx
 //
-// F1 Analytics Studio: panel con Top-N temas (dominados o críticos)
-// del Class Detail. Reusa HorizontalBarList. Variant = "dominated" | "critical".
-//
-// Props:
-//   variant: "dominated" | "critical"
-//   topicMastery: array — viene de class_analytics.topic_mastery
-//                        [{ topic, retention_score, … }]
-//   limit: number = 5
-//   onTopicClick: (topic) => void  opcional — F1 no se cablea (la página
-//   de Tema entra en F3).
+// F1 Analytics Studio: panel con Top-N temas (dominados o críticos).
+// F8: el panel "crítico" maneja el crossfilter — click en un tema lo
+// selecciona (resalta sus preguntas en MostMissedList) y resalta la barra.
 
 import { HorizontalBarList } from "../charts";
+import { useCrossfilter } from "../../hooks/useCrossfilter";
 
 const COLORS = {
-  dominated: "#dcfce7", // verde claro
-  critical: "#fee2e2",  // rojo claro
+  dominated: "#dcfce7",
+  critical: "#fee2e2",
 };
 
 export default function TopicBarListPanel({
@@ -24,8 +18,8 @@ export default function TopicBarListPanel({
   limit = 5,
   onTopicClick,
 }) {
+  const { selectedTopic, toggleTopic } = useCrossfilter();
   const isDominated = variant === "dominated";
-  // class_analytics ya ordena por retention_score ASC (peor primero).
   const sorted = [...topicMastery].sort((a, b) => {
     const av = a.retention_score ?? 0;
     const bv = b.retention_score ?? 0;
@@ -37,20 +31,29 @@ export default function TopicBarListPanel({
     color: COLORS[variant],
   }));
 
+  const crossfilterActive = variant === "critical";
+
+  function handleItemClick(item) {
+    if (crossfilterActive) toggleTopic(item.label);
+    onTopicClick?.(item);
+  }
+
   return (
     <div style={{ background: "#fff", border: "1px solid #e4e4e7", borderRadius: 8, padding: 12 }}>
       <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>
         {isDominated ? "Top temas dominados" : "Top temas críticos"}
       </div>
       {items.length === 0 ? (
-        <div style={{ opacity: 0.45, fontSize: 13, padding: 6 }}>
-          Sin temas registrados.
-        </div>
+        <div style={{ opacity: 0.45, fontSize: 13, padding: 6 }}>Sin temas registrados.</div>
       ) : (
         <HorizontalBarList
           items={items}
           max={100}
-          onItemClick={onTopicClick}
+          onItemClick={(onTopicClick || crossfilterActive) ? handleItemClick : undefined}
+          activeLabel={crossfilterActive ? selectedTopic : null}
+          titleFormatter={(it) =>
+            `${it.label}: ${it.value}% retención · clic para ${crossfilterActive ? "resaltar sus preguntas" : "ver el tema"}`
+          }
         />
       )}
     </div>
