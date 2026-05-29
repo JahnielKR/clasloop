@@ -37,12 +37,12 @@ export default function StudioShell({
   const effectivePeriod = onPeriodChange ? period : internalPeriod;
   const handlePeriod = onPeriodChange || setInternalPeriod;
 
-  // Per-render enablement: 'class' (F1), 'student' (F2), 'topics' (F3) se
-  // prenden cuando ya estamos en sus respectivas vistas — para que el
-  // sidebar los destaque. No se navegan desde el sidebar: se llega vía click
-  // en una card/row del Director (Clase) o del roster (Estudiante) o de
-  // TopicBarListPanel en ClassDetail (Tema). Los otros 3 items (live,
-  // reports, ask) siguen disabled hasta sus fases (F5+).
+  // Per-render enablement: cada item se prende cuando ya estamos en su
+  // vista — para que el sidebar lo destaque. No se navegan desde el sidebar:
+  // se llega vía click en una card/row del Director (Clase), el roster
+  // (Estudiante), TopicBarListPanel (Tema), el chip "En vivo" del Pulso
+  // (Live, F6), un link de reportes (Reportes, F7) o el lanzador de Cleo
+  // (Analista Cleo, F5). 'overview' es staticEnabled (siempre navegable).
   const items = NAV_ITEMS.map((item) => ({
     ...item,
     enabled:
