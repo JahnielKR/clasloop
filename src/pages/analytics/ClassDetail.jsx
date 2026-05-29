@@ -7,7 +7,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { StudioShell, ExportMenu } from "../../components/analytics";
+import { StudioShell, ExportMenu, StudioSkeleton } from "../../components/analytics";
 import { buildClassReportModel } from "../../lib/analytics/report-model";
 import KpiBand from "../../components/analytics/KpiBand";
 import CleoStrip from "../../components/analytics/CleoStrip";
@@ -193,7 +193,7 @@ export default function ClassDetail({ profile = null }) {
         )}
 
         {loading && !a ? (
-          <div style={{ opacity: 0.55, fontSize: 14 }}>Cargando análisis de la clase…</div>
+          <StudioSkeleton variant="class" />
         ) : (
           <>
             {/* Bloques reales se enchufan en tasks 6-11. En F1 task 5 el

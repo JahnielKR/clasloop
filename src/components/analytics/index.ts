@@ -31,3 +31,4 @@ export { default as ReportComposer } from "./ReportComposer";
 export { default as ReportList } from "./ReportList";
 export { default as StudentDrawer } from "./StudentDrawer";
 export { default as AnimatedNumber } from "./AnimatedNumber";
+export { default as StudioSkeleton } from "./StudioSkeleton";
