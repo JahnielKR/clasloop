@@ -10,7 +10,7 @@
 // Existing imports keep working unchanged — `import { C } from
 // "../components/tokens"` resolves here (tokens/index.js).
 
-export { THEME_CSS, C, MONO } from "./color";
+export { THEME_CSS, C, MONO, withAlpha } from "./color";
 export { getStoredTheme, applyTheme, setStoredTheme, ensureThemeCss } from "./theme";
 export { SPACE, SP, RADIUS, R, SHADOW, SH } from "./scale";
 export { TYPE } from "./typography";

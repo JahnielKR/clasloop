@@ -9,6 +9,10 @@ import { C as BASE_C } from "../../components/tokens";
 // and the favorite-derived border.
 export const C = BASE_C;
 
+// Re-export so editor files importing tokens from "../styles" can use the
+// theme-aware alpha helper without a second import path.
+export { withAlpha } from "../../components/tokens";
+
 export const css = `
   .dk-tab { transition: transform .15s ease, background-color .15s ease, border-color .15s ease, color .15s ease, box-shadow .15s ease, filter .15s ease; cursor: pointer; border: none; font-family: 'Outfit',sans-serif; }
   .dk-tab:hover { background: ${C.accentSoft} !important; border-color: ${C.accent} !important; color: ${C.accent} !important; }

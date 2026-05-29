@@ -17,7 +17,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
-import { C, MONO } from "../components/tokens";
+import { C, MONO, withAlpha } from "../components/tokens";
 import { ROUTES, buildRoute } from "../routes";
 import PageHeader from "../components/PageHeader";
 import SectionBadge from "../components/SectionBadge";
@@ -170,7 +170,7 @@ export default function SessionRecap({ lang = "en", setLang, profile, onOpenMobi
         <div style={{
           marginTop: 40, padding: 24, textAlign: "center",
           color: C.red, background: C.redSoft,
-          border: `1px solid ${C.red}33`, borderRadius: 10,
+          border: `1px solid ${withAlpha(C.red, "33")}`, borderRadius: 10,
         }}>
           {error}
         </div>

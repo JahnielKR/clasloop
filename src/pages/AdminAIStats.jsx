@@ -19,7 +19,7 @@
 
 import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabase";
-import { C } from "../components/tokens";
+import { C, withAlpha } from "../components/tokens";
 
 // Costo aproximado por generación. Sonnet 4.5: $3/$15 per 1M tokens. Por
 // generación típica de 10 preguntas: ~3k input + 5k output = $0.084 + $0.075
@@ -236,7 +236,7 @@ export default function AdminAIStats({ profile, lang, onOpenMobileMenu }) {
       </div>
 
       {error && (
-        <div style={{ padding: "10px 14px", marginBottom: 16, background: C.redSoft, border: `1px solid ${C.red}44`, color: C.red, fontSize: 12, borderRadius: 8 }}>
+        <div style={{ padding: "10px 14px", marginBottom: 16, background: C.redSoft, border: `1px solid ${withAlpha(C.red, "44")}`, color: C.red, fontSize: 12, borderRadius: 8 }}>
           {error}
         </div>
       )}
@@ -296,9 +296,9 @@ const sectionH2 = {
 function Kpi({ label, value, note, accent }) {
   // accent: "good" (green), "warn" (orange), "neutral" (border), "muted" (gris)
   const palette = accent === "good"
-    ? { border: C.green + "44", color: C.green }
+    ? { border: withAlpha(C.green, "44"), color: C.green }
     : accent === "warn"
-    ? { border: C.orange + "44", color: C.orange }
+    ? { border: withAlpha(C.orange, "44"), color: C.orange }
     : accent === "muted"
     ? { border: C.border, color: C.textMuted }
     : { border: C.border, color: C.text };

@@ -20,7 +20,7 @@
 // parent (CleoChat stores it on the chat message), so closing/reopening the
 // panel never re-runs a finished plan.
 import { useState } from "react";
-import { C } from "./tokens";
+import { C, withAlpha } from "./tokens";
 import { buildRoute } from "../routes";
 import { routeForNavigate } from "../lib/cleo-actions";
 import DeckOptionsForm from "./DeckOptionsForm";
@@ -152,7 +152,7 @@ export default function CleoPlanCard({
 
   return (
     <div style={{
-      border: `1px solid ${hasDanger ? `${C.red}55` : C.border}`, borderRadius: 12, background: C.bg,
+      border: `1px solid ${hasDanger ? withAlpha(C.red, "55") : C.border}`, borderRadius: 12, background: C.bg,
       padding: 12, marginTop: 8, maxWidth: "92%",
     }}>
       <div style={{ fontSize: 12.5, fontWeight: 700, color: C.text, marginBottom: 10 }}>{tp.heading}</div>

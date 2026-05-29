@@ -52,7 +52,7 @@ import ConfirmDialog from "./ConfirmDialog";
 import AddToSlotModal from "./AddToSlotModal";
 import DayDateModal from "./DayDateModal";
 import { unitStatusLabel, getDayDate } from "../lib/class-hierarchy";
-import { C, MONO } from "./tokens";
+import { C, MONO, withAlpha } from "./tokens";
 import { buildRoute, ROUTES, QUERY } from "../routes";
 // PR 75: i18n centralizado
 import { useT } from "../i18n";
@@ -857,7 +857,7 @@ function DayBlock({ row, t, lang, onLaunch, onSlotClick, usedDeckIds, onRemove, 
           }}
           onMouseEnter={(e) => {
             if (formattedDate) {
-              e.currentTarget.style.background = C.accent + "22";
+              e.currentTarget.style.background = withAlpha(C.accent, "22");
             } else {
               e.currentTarget.style.background = C.bgSoft;
             }

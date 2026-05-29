@@ -10,7 +10,7 @@ import {
   PRESET_PATTERNS, presetToDataUrl,
   resolveColor,
 } from "../../../lib/deck-cover";
-import { C } from "../styles";
+import { C, withAlpha } from "../styles";
 import { selectableCard } from "../../../components/ui/selectable";
 import { FieldLabel } from "../../../components/forms/FieldLabel";
 import DeckCardPreview from "./DeckCardPreview";
@@ -191,7 +191,7 @@ export default function CustomizeTab({ ed, t }) {
                   disabled={uploading}
                   style={{
                     flex: 1, padding: "10px 14px", borderRadius: 9, fontSize: 13, fontWeight: 600,
-                    background: C.accentSoft, color: C.accent, border: `1px solid ${C.accent}33`,
+                    background: C.accentSoft, color: C.accent, border: `1px solid ${withAlpha(C.accent, "33")}`,
                     cursor: uploading ? "default" : "pointer",
                     display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
                     fontFamily: "'Outfit',sans-serif",

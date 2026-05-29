@@ -18,7 +18,7 @@
 import { useState, useMemo, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { CIcon } from "./Icons";
-import { C } from "./tokens";
+import { C, withAlpha } from "./tokens";
 import Modal from "./Modal";
 import { SUBJECTS } from "../lib/constants";
 
@@ -431,7 +431,7 @@ export default function EditClassModal({
                 fontWeight: 600,
                 background: "transparent",
                 color: C.red,
-                border: `1px solid ${C.red}55`,
+                border: `1px solid ${withAlpha(C.red, "55")}`,
                 cursor: "pointer",
                 fontFamily: "'Outfit',sans-serif",
               }}
@@ -445,7 +445,7 @@ export default function EditClassModal({
               className="ns-fade"
               style={{
                 background: C.bg,
-                border: `1px solid ${C.red}66`,
+                border: `1px solid ${withAlpha(C.red, "66")}`,
                 borderRadius: 10,
                 padding: 14,
                 display: "flex",

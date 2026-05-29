@@ -14,7 +14,7 @@
 
 import { useState, useRef } from "react";
 import { generateQuestions, AIError, SUPPORTED_FILES } from "../../../lib/ai";
-import { C } from "../styles";
+import { C, withAlpha } from "../styles";
 import AIIcon from "../../../components/AIIcon";
 import Button from "../../../components/ui/Button";
 import { inputStyle as inp, selectStyle as sel } from "../../../components/forms/field-styles";
@@ -197,7 +197,7 @@ export default function AIGeneratePanel({
       borderRadius: 12,
       background: C.bg,
       border: `2px solid ${C.accent}`,
-      boxShadow: `0 6px 20px ${C.accent}22`,
+      boxShadow: `0 6px 20px ${withAlpha(C.accent, "22")}`,
     }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
         <h4 style={{ fontSize: 14, fontWeight: 700, margin: 0, color: C.text, display: "flex", alignItems: "center", gap: 6 }}>
@@ -297,7 +297,7 @@ export default function AIGeneratePanel({
         ) : (
           <div style={{
             padding: "10px 12px", borderRadius: 8,
-            background: C.accentSoft, border: `1px solid ${C.accent}44`,
+            background: C.accentSoft, border: `1px solid ${withAlpha(C.accent, "44")}`,
             display: "flex", alignItems: "center", gap: 10,
           }}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true" style={{ flexShrink: 0, color: C.accent }}>

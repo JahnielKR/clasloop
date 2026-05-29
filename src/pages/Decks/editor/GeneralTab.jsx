@@ -9,7 +9,7 @@ import { resolveClassAccent } from "../../../lib/class-hierarchy";
 import { SECTIONS, sectionLabels } from "../../../lib/class-hierarchy";
 import { SUBJECTS } from "../../../lib/constants";
 import { getStrings } from "../../../i18n";
-import { C } from "../styles";
+import { C, withAlpha } from "../styles";
 import { inputStyle as inp, selectStyle as sel } from "../../../components/forms/field-styles";
 import { FieldLabel } from "../../../components/forms/FieldLabel";
 
@@ -204,7 +204,7 @@ export default function GeneralTab({ ed, t, l, userClasses, onNeedClass }) {
               <div style={{
                 padding: "12px 14px", borderRadius: 10,
                 background: blocked ? C.redSoft : C.bgSoft,
-                border: `1px solid ${blocked ? C.red + "44" : C.border}`,
+                border: `1px solid ${blocked ? withAlpha(C.red, "44") : C.border}`,
               }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                   <div style={{ fontSize: 14, fontWeight: 500, color: blocked ? C.red : C.text }}>{t.makePublic}</div>
@@ -226,7 +226,7 @@ export default function GeneralTab({ ed, t, l, userClasses, onNeedClass }) {
 
                 {/* Derivation feedback */}
                 {derivation && (
-                  <div style={{ marginTop: 10, paddingTop: 10, borderTop: `1px solid ${blocked ? C.red + "33" : C.border}` }}>
+                  <div style={{ marginTop: 10, paddingTop: 10, borderTop: `1px solid ${blocked ? withAlpha(C.red, "33") : C.border}` }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 600, marginBottom: 6,
                       color: blocked ? C.red : isAdaptedCase ? C.accent : C.green }}>
                       <CIcon name={blocked ? "warning" : isAdaptedCase ? "sparkle" : "check"} size={13} inline />
