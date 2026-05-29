@@ -9,6 +9,7 @@
 // el caller del Reports page re-fetcha y devuelve una Promise).
 
 import { useEffect, useRef, useState } from "react";
+import { C, SH } from "../tokens";
 import { downloadCsv } from "../../lib/analytics/export-csv";
 import { downloadPdf } from "../../lib/analytics/export-pdf";
 import { downloadXlsx } from "../../lib/analytics/export-xlsx";
@@ -62,8 +63,8 @@ export default function ExportMenu({ buildModel, baseName = "reporte", disabled 
           borderRadius: 6,
           fontSize: 13,
           fontWeight: 500,
-          background: "#fff",
-          border: "1px solid #e4e4e7",
+          background: C.bg,
+          border: `1px solid ${C.border}`,
           cursor: disabled || busy ? "not-allowed" : "pointer",
           opacity: disabled ? 0.6 : 1,
         }}
@@ -77,10 +78,10 @@ export default function ExportMenu({ buildModel, baseName = "reporte", disabled 
             position: "absolute",
             top: "calc(100% + 4px)",
             right: 0,
-            background: "#fff",
-            border: "1px solid #e4e4e7",
+            background: C.bg,
+            border: `1px solid ${C.border}`,
             borderRadius: 8,
-            boxShadow: "0 4px 14px rgba(0,0,0,0.1)",
+            boxShadow: SH.md,
             zIndex: 30,
             minWidth: 120,
             overflow: "hidden",
@@ -105,7 +106,7 @@ export default function ExportMenu({ buildModel, baseName = "reporte", disabled 
                 border: "none",
                 cursor: "pointer",
               }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = "#f4f4f5")}
+              onMouseEnter={(e) => (e.currentTarget.style.background = C.bgSoft)}
               onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
             >
               {label}

@@ -9,16 +9,18 @@
 //   width / height: ints
 //   "trend"?: "up"|"down"|"flat"|"new" — si se pasa, ignora 'color' y pinta verde/rojo/gris.
 
+import { C } from "../tokens";
+
 const TREND_COLORS = {
-  up: "#16a34a",
-  down: "#dc2626",
-  flat: "#94a3b8",
-  new: "#a1a1aa",
+  up: C.green,
+  down: C.red,
+  flat: C.textMuted,
+  new: C.textMuted,
 };
 
 export default function SparklineCell({
   points = [],
-  color = "#2563eb",
+  color = C.accent,
   trend,
   width = 80,
   height = 18,

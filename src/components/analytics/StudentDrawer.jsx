@@ -14,10 +14,11 @@
 //   onOpenFull: (student) => void  — navega al perfil completo.
 
 import { useEffect } from "react";
+import { C, SH } from "../tokens";
 import { riskScore } from "../../lib/analytics/risk";
 import RiskBadge from "./RiskBadge";
 
-const retCol = (v) => (v >= 70 ? "#15803d" : v >= 40 ? "#854d0e" : "#b91c1c");
+const retCol = (v) => (v >= 70 ? C.green : v >= 40 ? C.orange : C.red);
 
 export default function StudentDrawer({ student, riskInputs = null, onClose, onOpenFull }) {
   const open = !!student;
@@ -55,9 +56,9 @@ export default function StudentDrawer({ student, riskInputs = null, onClose, onO
           height: "100vh",
           width: 340,
           maxWidth: "90vw",
-          background: "#fff",
-          borderLeft: "1px solid #e4e4e7",
-          boxShadow: "-8px 0 24px rgba(0,0,0,.10)",
+          background: C.bg,
+          borderLeft: `1px solid ${C.border}`,
+          boxShadow: SH.lg,
           zIndex: 61,
           padding: 18,
           display: "flex",
@@ -78,7 +79,7 @@ export default function StudentDrawer({ student, riskInputs = null, onClose, onO
           <button
             onClick={onClose}
             aria-label="Cerrar"
-            style={{ border: "none", background: "transparent", fontSize: 20, cursor: "pointer", lineHeight: 1, color: "#71717a" }}
+            style={{ border: "none", background: "transparent", fontSize: 20, cursor: "pointer", lineHeight: 1, color: C.textSecondary }}
           >
             ×
           </button>
@@ -113,7 +114,7 @@ export default function StudentDrawer({ student, riskInputs = null, onClose, onO
         {risk && risk.reasons.length > 0 && (
           <div>
             <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 6 }}>Señales de riesgo</div>
-            <ul style={{ margin: 0, padding: "0 0 0 16px", fontSize: 12, lineHeight: 1.5, color: "#52525b" }}>
+            <ul style={{ margin: 0, padding: "0 0 0 16px", fontSize: 12, lineHeight: 1.5, color: C.textSecondary }}>
               {risk.reasons.map((r, i) => <li key={i}>{r}</li>)}
             </ul>
           </div>
@@ -126,7 +127,7 @@ export default function StudentDrawer({ student, riskInputs = null, onClose, onO
             padding: "9px 14px",
             borderRadius: 8,
             border: "none",
-            background: "#2563eb",
+            background: C.accent,
             color: "#fff",
             fontSize: 14,
             fontWeight: 600,

@@ -9,10 +9,11 @@ import { Donut } from "../charts";
 // Import explícito (mismo motivo que KpiBand/TrendPanel — colisión con
 // src/lib/analytics.ts).
 import { formatNumber } from "../../lib/analytics/formatters";
+import { C } from "../tokens";
 
 const PALETTE = {
-  correct: "#16a34a",
-  incorrect: "#dc2626",
+  correct: C.green,
+  incorrect: C.red,
 };
 
 export default function ResponseCompositionPanel({ kpis = {} }) {
@@ -26,7 +27,7 @@ export default function ResponseCompositionPanel({ kpis = {} }) {
   ];
 
   return (
-    <div style={{ background: "#fff", border: "1px solid #e4e4e7", borderRadius: 8, padding: 12 }}>
+    <div style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, padding: 12 }}>
       <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>
         Composición de respuestas
       </div>

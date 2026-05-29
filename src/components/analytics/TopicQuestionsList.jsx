@@ -3,12 +3,14 @@
 // F3 Analytics Studio: lista compacta de las preguntas falladas del tema
 // (las que no son la TOP — esa la come MisconceptionPanel). Click → DeckResults.
 
+import { C } from "../tokens";
+
 export default function TopicQuestionsList({ questions = [], onItemClick }) {
   // El primer item ya lo muestra MisconceptionPanel.
   const rest = questions.slice(1, 8);
 
   return (
-    <div style={{ background: "#fff", border: "1px solid #e4e4e7", borderRadius: 8, padding: 12 }}>
+    <div style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, padding: 12 }}>
       <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>
         Otras preguntas falladas
       </div>
@@ -23,7 +25,7 @@ export default function TopicQuestionsList({ questions = [], onItemClick }) {
               key={`${it.deck_id}-${it.question_index}`}
               onClick={onItemClick ? () => onItemClick(it) : undefined}
               style={{
-                borderBottom: i < rest.length - 1 ? "1px solid #f4f4f5" : "none",
+                borderBottom: i < rest.length - 1 ? `1px solid ${C.bgSoft}` : "none",
                 padding: "3px 0",
                 cursor: onItemClick ? "pointer" : "default",
                 display: "flex",
@@ -46,10 +48,10 @@ export default function TopicQuestionsList({ questions = [], onItemClick }) {
                 style={{
                   color:
                     it.error_rate >= 60
-                      ? "#dc2626"
+                      ? C.red
                       : it.error_rate >= 40
-                        ? "#eab308"
-                        : "#16a34a",
+                        ? C.orange
+                        : C.green,
                 }}
               >
                 {Math.round(it.error_rate)}% err

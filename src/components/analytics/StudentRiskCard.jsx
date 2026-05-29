@@ -14,8 +14,9 @@
 
 import { riskScore } from "../../lib/analytics/risk";
 import RiskBadge from "./RiskBadge";
+import { C } from "../tokens";
 
-const ACCENT = "#7c3aed";
+const ACCENT = C.purple;
 
 export default function StudentRiskCard({ inputs, loading = false, studentName }) {
   if (loading) {
@@ -59,8 +60,8 @@ export default function StudentRiskCard({ inputs, loading = false, studentName }
 }
 
 const cardStyle = {
-  background: "#fff",
-  border: "1px solid #e4e4e7",
+  background: C.bg,
+  border: `1px solid ${C.border}`,
   borderLeft: `3px solid ${ACCENT}`,
   borderRadius: 8,
   padding: "10px 14px",

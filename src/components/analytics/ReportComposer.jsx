@@ -5,6 +5,7 @@
 // incluir + nombre. Al guardar, persiste el model en analytics_reports.
 
 import { useState } from "react";
+import { C } from "../tokens";
 import { SECTION_TYPES } from "../../lib/analytics/report-model";
 
 const PERIODS = [
@@ -35,8 +36,8 @@ export default function ReportComposer({ classes = [], onSave, saving = false })
   return (
     <div
       style={{
-        background: "#fff",
-        border: "1px solid #e4e4e7",
+        background: C.bg,
+        border: `1px solid ${C.border}`,
         borderRadius: 8,
         padding: 16,
       }}
@@ -76,8 +77,8 @@ export default function ReportComposer({ classes = [], onSave, saving = false })
               padding: "4px 11px",
               borderRadius: 6,
               fontSize: 13,
-              border: "1px solid #e4e4e7",
-              background: period === p.id ? "#2563eb" : "#fff",
+              border: `1px solid ${C.border}`,
+              background: period === p.id ? C.accent : C.bg,
               color: period === p.id ? "#fff" : "inherit",
               cursor: "pointer",
             }}
@@ -124,8 +125,8 @@ export default function ReportComposer({ classes = [], onSave, saving = false })
           padding: "8px 16px",
           borderRadius: 8,
           border: "none",
-          background: valid ? "#2563eb" : "#e4e4e7",
-          color: valid ? "#fff" : "#a1a1aa",
+          background: valid ? C.accent : C.border,
+          color: valid ? "#fff" : C.textMuted,
           fontSize: 14,
           fontWeight: 600,
           cursor: valid && !saving ? "pointer" : "not-allowed",
@@ -141,7 +142,7 @@ const labelStyle = {
   display: "block",
   fontSize: 12,
   fontWeight: 600,
-  color: "#71717a",
+  color: C.textSecondary,
   marginBottom: 4,
   marginTop: 8,
 };
@@ -150,7 +151,7 @@ const inputStyle = {
   padding: "6px 10px",
   fontSize: 13,
   borderRadius: 6,
-  border: "1px solid #e4e4e7",
+  border: `1px solid ${C.border}`,
   marginBottom: 8,
   boxSizing: "border-box",
 };

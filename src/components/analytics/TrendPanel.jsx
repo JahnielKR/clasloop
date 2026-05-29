@@ -11,6 +11,7 @@ import {
   formatDurationShort,
 } from "../../lib/analytics/formatters";
 import { forecastPoints } from "../../lib/analytics/forecast";
+import { C } from "../tokens";
 
 const METRICS = [
   { id: "pct_correct", label: "% correcto", formatter: (v) => formatPercent(v), clampMin: 0, clampMax: 100 },
@@ -34,7 +35,7 @@ export default function TrendPanel({
   });
 
   return (
-    <div style={{ background: "#fff", border: "1px solid #e4e4e7", borderRadius: 8, padding: 12 }}>
+    <div style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, padding: 12 }}>
       <div style={{ display: "flex", gap: 12, fontSize: 13, marginBottom: 8 }}>
         {METRICS.map((m) => {
           const active = m.id === metric;
@@ -46,7 +47,7 @@ export default function TrendPanel({
                 background: "transparent",
                 border: "none",
                 padding: "2px 0",
-                borderBottom: active ? "2px solid #2563eb" : "2px solid transparent",
+                borderBottom: active ? `2px solid ${C.accent}` : "2px solid transparent",
                 fontWeight: active ? 700 : 400,
                 opacity: active ? 1 : 0.55,
                 cursor: "pointer",

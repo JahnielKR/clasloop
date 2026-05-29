@@ -25,7 +25,7 @@ import SectionBadge, { sectionAccent } from "../components/SectionBadge";
 import PlanView from "../components/PlanView";
 import Skeleton from "../components/ui/Skeleton";
 import { CloseUnitConfirmModal, CloseUnitSummary, ReopenUnitModal } from "../components/CloseUnitFlow";
-import { C, R, MONO } from "../components/tokens";
+import { C, R, MONO, SH } from "../components/tokens";
 import CleoTour from "../onboarding/CleoTour";
 import Confetti from "../components/Confetti";
 import { useJourney } from "../onboarding/useJourney";
@@ -101,7 +101,7 @@ function ColorPickerPopover({ classObj, onPick, onClose, t, accent }) {
         borderRadius: 12,
         padding: 12,
         width: 200,
-        boxShadow: "0 8px 24px rgba(0,0,0,0.10)",
+        boxShadow: SH.md,
         zIndex: 50,
         fontFamily: "'Outfit',sans-serif",
       }}
@@ -304,7 +304,7 @@ function DeckCard({
         padding: 12,
         cursor: isOverlay ? "grabbing" : (dragListeners ? "grab" : "pointer"),
         boxShadow: isOverlay
-          ? "0 12px 28px rgba(0,0,0,.18), 0 4px 10px rgba(0,0,0,.10)"
+          ? SH.lg
           : undefined,
         transition: "opacity .12s ease",
         fontFamily: "'Outfit',sans-serif",
@@ -1057,7 +1057,7 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
               flexShrink: 0,
               transition: "background .15s ease",
             }}
-            onMouseEnter={(e) => { e.currentTarget.style.background = "#1A6FCE"; }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = C.accent; }}
             onMouseLeave={(e) => { e.currentTarget.style.background = C.accent; }}
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -1335,7 +1335,7 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
                       background: C.bg,
                       border: `1px solid ${C.border}`,
                       borderRadius: 8,
-                      boxShadow: "0 6px 24px rgba(0,0,0,0.12)",
+                      boxShadow: SH.md,
                       padding: 10,
                       display: "flex",
                       gap: 6,
@@ -2094,7 +2094,7 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
       <style>{`
         .cl-deck-row:hover {
           transform: translateY(-1px);
-          box-shadow: 0 3px 10px rgba(0,0,0,.05);
+          box-shadow: ${SH.sm};
         }
         /* Color picker swatches: subtle lift on hover so it's clear which one
            the cursor is over. The ring expands to a soft shadow so it works
@@ -2104,7 +2104,7 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
         }
         .cl-color-swatch:hover {
           transform: translateY(-1px);
-          box-shadow: 0 2px 6px rgba(0,0,0,.18);
+          box-shadow: ${SH.sm};
           filter: brightness(1.08);
         }
         .cl-color-swatch:active {
@@ -2129,7 +2129,7 @@ export default function ClassPage({ lang = "en", profile, classId, onLaunchPract
         /* Group toggle button: subtle background tint on hover so the
            whole header row feels clickable, not just the chevron. */
         .cl-unit-group-toggle:hover {
-          background: rgba(0,0,0,.03) !important;
+          background: ${C.bgSoft} !important;
         }
         @keyframes ns-fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
         .ns-fade { animation: ns-fadeIn .25s ease; }

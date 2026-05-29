@@ -215,7 +215,7 @@ function NavItem({ item, active, showLabels, badgeCount, onClick }) {
         position: "relative",
       }}
       onMouseEnter={(e) => {
-        if (!active) e.currentTarget.style.background = "rgba(0,0,0,0.035)";
+        if (!active) e.currentTarget.style.background = C.bgSoft;
       }}
       onMouseLeave={(e) => {
         if (!active) e.currentTarget.style.background = "transparent";
@@ -648,7 +648,7 @@ export default function Sidebar({
                 transition: "background .12s ease",
               }}
               onMouseEnter={(e) => {
-                if (page !== "settings") e.currentTarget.style.background = "rgba(0,0,0,0.035)";
+                if (page !== "settings") e.currentTarget.style.background = C.bgSoft;
               }}
               onMouseLeave={(e) => {
                 if (page !== "settings") e.currentTarget.style.background = "transparent";

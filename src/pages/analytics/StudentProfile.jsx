@@ -20,6 +20,7 @@ import { useStudentRisk } from "../../hooks/useStudentRisk";
 import { useAnalyticsOverview } from "../../hooks/useAnalyticsOverview";
 import { generateStudentReviewQuestions, saveClassReviewDeck } from "../../lib/close-unit-ai";
 import { ROUTES, buildRoute } from "../../routes";
+import { C } from "../../components/tokens";
 
 function periodToRange(period) {
   const now = new Date();
@@ -140,14 +141,14 @@ export default function StudentProfile({ profile = null }) {
       onPeriodChange={setPeriod}
       toolbarExtras={<CompareToggle value={compareMode} onChange={setCompareMode} />}
     >
-      <div style={{ padding: 18, background: "#fafafa", minHeight: "100%" }}>
+      <div style={{ padding: 18, background: C.bgSoft, minHeight: "100%" }}>
         {error && (
           <div
             role="alert"
             style={{
-              background: "#fee2e2",
-              border: "1px solid #fecaca",
-              color: "#b91c1c",
+              background: C.redSoft,
+              border: `1px solid ${C.red}`,
+              color: C.red,
               padding: 12,
               borderRadius: 8,
               marginBottom: 12,

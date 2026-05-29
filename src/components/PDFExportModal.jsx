@@ -51,6 +51,7 @@ import { useToast } from "../lib/toast";
 // Landing PR B: the style thumbnails moved to their own dep-free module so the
 // marketing landing can reuse the exact same SVGs without importing jsPDF.
 import { STYLE_THUMBS } from "./PdfStyleThumbs";
+import { SH } from "./tokens";
 import Button from "./ui/Button";
 import Modal from "./Modal";
 import CleoTour from "../onboarding/CleoTour";
@@ -288,7 +289,7 @@ export default function PDFExportModal({
         maxWidth: 760, width: "100%",
         maxHeight: "92vh",
         display: "flex", flexDirection: "column",
-        boxShadow: "0 20px 50px rgba(0,0,0,0.18)",
+        boxShadow: SH.lg,
         overflow: "hidden",
       }}
     >
@@ -507,7 +508,7 @@ export default function PDFExportModal({
               position: "relative",
               border: `1px solid ${C.border}`,
               borderRadius: 8,
-              background: "#f7f7f5",
+              background: C.bgSoft,
               height: 360,
               overflow: "hidden",
             }}>
@@ -523,7 +524,7 @@ export default function PDFExportModal({
                   position: "absolute", inset: 0,
                   display: "flex", alignItems: "center", justifyContent: "center",
                   fontSize: 13, color: C.textMuted,
-                  background: previewURL ? "rgba(247,247,245,0.8)" : "transparent",
+                  background: previewURL ? C.bgSoft : "transparent",
                 }}>
                   {t.previewLoading}
                 </div>

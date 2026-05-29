@@ -9,10 +9,12 @@
 //   selectedTopic: string | null
 //   onSelect: (topic: string) => void
 
+import { C } from "../tokens";
+
 function tierColor(score) {
-  if (score >= 70) return { bg: "#dcfce7", color: "#15803d", label: "fuerte" };
-  if (score >= 40) return { bg: "#fef3c7", color: "#854d0e", label: "flojo" };
-  return { bg: "#fee2e2", color: "#b91c1c", label: "crítico" };
+  if (score >= 70) return { bg: C.greenSoft, color: C.green, label: "fuerte" };
+  if (score >= 40) return { bg: C.orangeSoft, color: C.orange, label: "flojo" };
+  return { bg: C.redSoft, color: C.red, label: "crítico" };
 }
 
 export default function TopicMatrix({ topics = [], selectedTopic = null, onSelect }) {
@@ -20,8 +22,8 @@ export default function TopicMatrix({ topics = [], selectedTopic = null, onSelec
     return (
       <div
         style={{
-          background: "#fff",
-          border: "1px solid #e4e4e7",
+          background: C.bg,
+          border: `1px solid ${C.border}`,
           borderRadius: 8,
           padding: 16,
           opacity: 0.55,
@@ -34,7 +36,7 @@ export default function TopicMatrix({ topics = [], selectedTopic = null, onSelec
   }
 
   return (
-    <div style={{ background: "#fff", border: "1px solid #e4e4e7", borderRadius: 8, padding: 14 }}>
+    <div style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, padding: 14 }}>
       <div style={{ display: "flex", alignItems: "baseline", gap: 12, marginBottom: 10 }}>
         <b style={{ fontSize: 13 }}>Matriz de dominio</b>
         <span style={{ fontSize: 11, opacity: 0.6 }}>
@@ -60,7 +62,7 @@ export default function TopicMatrix({ topics = [], selectedTopic = null, onSelec
               style={{
                 background: tier.bg,
                 color: tier.color,
-                border: active ? "2px solid #2563eb" : "1px solid transparent",
+                border: active ? `2px solid ${C.accent}` : "1px solid transparent",
                 borderRadius: 8,
                 padding: "10px 12px",
                 textAlign: "left",

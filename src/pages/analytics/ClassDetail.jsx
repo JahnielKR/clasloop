@@ -28,6 +28,7 @@ import { useClassTimeseries } from "../../hooks/useClassTimeseries";
 import { useStudentRisk } from "../../hooks/useStudentRisk";
 import { generateClassReviewQuestions, saveClassReviewDeck } from "../../lib/close-unit-ai";
 import { ROUTES } from "../../routes";
+import { C } from "../../components/tokens";
 
 // Map period chip → from/to timestamps. F1 keeps it simple; Custom no-ops.
 function periodToRange(period) {
@@ -174,14 +175,14 @@ export default function ClassDetail({ profile = null }) {
       }
     >
       <CrossfilterProvider>
-      <div style={{ padding: 18, background: "#fafafa", minHeight: "100%" }}>
+      <div style={{ padding: 18, background: C.bgSoft, minHeight: "100%" }}>
         {error && (
           <div
             role="alert"
             style={{
-              background: "#fee2e2",
-              border: "1px solid #fecaca",
-              color: "#b91c1c",
+              background: C.redSoft,
+              border: `1px solid ${C.red}`,
+              color: C.red,
               padding: 12,
               borderRadius: 8,
               marginBottom: 12,

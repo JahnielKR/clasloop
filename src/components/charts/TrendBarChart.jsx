@@ -21,11 +21,12 @@ import {
   CartesianGrid,
   Legend,
 } from "recharts";
+import { C } from "../tokens";
 
-const ACCENT = "#2563eb";
-const COMPARE = "#bfdbfe";       // azul translúcido para el período comparado
-const FORECAST = "#7c3aed";      // violeta Cleo para el pronóstico
-const AXIS_COLOR = "#94a3b8";
+const ACCENT = C.accent;
+const COMPARE = C.accentSoft;    // azul translúcido para el período comparado
+const FORECAST = C.purple;       // violeta Cleo para el pronóstico
+const AXIS_COLOR = C.textMuted;
 
 // F9: bajo prefers-reduced-motion, recharts no anima las barras en mount.
 // Se lee una vez a nivel módulo (reduced-motion rara vez cambia mid-sesión).
@@ -49,7 +50,7 @@ function RichTooltip({ active, payload, label, yFormatter, yLabel, rows }) {
   let deltaNode = null;
   if (cur && prev && typeof cur.value === "number" && typeof prev.value === "number") {
     const d = Math.round((cur.value - prev.value) * 10) / 10;
-    const tone = d > 0 ? "#15803d" : d < 0 ? "#b91c1c" : "#71717a";
+    const tone = d > 0 ? C.green : d < 0 ? C.red : C.textMuted;
     const sign = d > 0 ? "▲ +" : d < 0 ? "▼ " : "→ ";
     deltaNode = (
       <div style={{ color: tone, fontSize: 11, marginTop: 2 }}>
@@ -59,11 +60,11 @@ function RichTooltip({ active, payload, label, yFormatter, yLabel, rows }) {
   }
   const compareEntry = payload.find((p) => p.dataKey === "compare_value");
   return (
-    <div style={{ background: "#fff", border: "1px solid #e4e4e7", borderRadius: 6, fontSize: 12, padding: "6px 10px" }}>
+    <div style={{ background: C.bg, color: C.text, border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 12, padding: "6px 10px" }}>
       <div style={{ fontWeight: 600 }}>{label}</div>
       <div>{yLabel}: <b>{yFormatter(v)}</b></div>
       {compareEntry && (
-        <div style={{ color: "#2563eb", fontSize: 11 }}>
+        <div style={{ color: C.accent, fontSize: 11 }}>
           Período anterior: {yFormatter(compareEntry.value)}
         </div>
       )}
@@ -99,11 +100,11 @@ export default function TrendBarChart({
     <div style={{ width: "100%", height }}>
       <ResponsiveContainer width="100%" height="100%">
         <ComposedChart data={merged} margin={{ top: 8, right: 4, bottom: 4, left: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#eef2f7" vertical={false} />
+          <CartesianGrid strokeDasharray="3 3" stroke={C.border} vertical={false} />
           <XAxis
             dataKey="bucket"
             tick={{ fill: AXIS_COLOR, fontSize: 11 }}
-            axisLine={{ stroke: "#e4e4e7" }}
+            axisLine={{ stroke: C.border }}
             tickLine={false}
           />
           <YAxis
@@ -114,7 +115,7 @@ export default function TrendBarChart({
             width={42}
           />
           <Tooltip
-            cursor={{ fill: "#eff6ff" }}
+            cursor={{ fill: C.accentSoft }}
             content={(props) => (
               <RichTooltip {...props} yFormatter={yFormatter} yLabel={yLabel} rows={merged} />
             )}

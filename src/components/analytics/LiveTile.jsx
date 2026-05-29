@@ -5,6 +5,7 @@
 // realtime. Usado por PulseStrip (Director) y LiveCommandCenter.
 
 import { useEffect, useRef, useState } from "react";
+import { C, MONO } from "../tokens";
 
 const cssId = "live-tile-css";
 
@@ -54,12 +55,12 @@ export default function LiveTile({
   }, [value]);
 
   const toneColor = {
-    default: "#1f2937",
-    good: "#15803d",
-    warn: "#a16207",
-    bad: "#b91c1c",
-    live: "#7c3aed",
-  }[tone] || "#1f2937";
+    default: C.text,
+    good: C.green,
+    warn: C.orange,
+    bad: C.red,
+    live: C.purple,
+  }[tone] || C.text;
 
   return (
     <div
@@ -77,8 +78,8 @@ export default function LiveTile({
       role={onClick ? "button" : undefined}
       tabIndex={onClick ? 0 : undefined}
       style={{
-        background: "#fff",
-        border: "1px solid #e4e4e7",
+        background: C.bg,
+        border: `1px solid ${C.border}`,
         borderRadius: 10,
         padding: "12px 14px",
         cursor: onClick ? "pointer" : "default",
@@ -97,7 +98,7 @@ export default function LiveTile({
             width: 8,
             height: 8,
             borderRadius: "50%",
-            background: "#7c3aed",
+            background: C.purple,
           }}
         />
       )}
@@ -107,7 +108,7 @@ export default function LiveTile({
           fontSize: 28,
           fontWeight: 700,
           color: toneColor,
-          fontFamily: "ui-monospace, SFMono-Regular, monospace",
+          fontFamily: MONO,
           lineHeight: 1.1,
           display: "inline-flex",
           gap: 4,
@@ -117,7 +118,7 @@ export default function LiveTile({
         {value}
         {unit && <span style={{ fontSize: 14, fontWeight: 500, opacity: 0.7 }}>{unit}</span>}
       </div>
-      <div style={{ fontSize: 11, color: "#71717a", marginTop: 6 }}>{label}</div>
+      <div style={{ fontSize: 11, color: C.textSecondary, marginTop: 6 }}>{label}</div>
     </div>
   );
 }

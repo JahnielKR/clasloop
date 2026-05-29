@@ -320,7 +320,7 @@ export default function AIGeneratePanel({
             >{"×"}</button>
           </div>
         )}
-        {fileError && <p style={{ fontSize: 11, color: "#d23", margin: "6px 0 0" }}>{fileError}</p>}
+        {fileError && <p style={{ fontSize: 11, color: C.red, margin: "6px 0 0" }}>{fileError}</p>}
       </div>
 
       {/* Track A (A-img-3): two-axis image control. Source = where pictures
@@ -504,8 +504,8 @@ export default function AIGeneratePanel({
       {error && (
         <div style={{
           padding: "10px 12px", marginBottom: 12, borderRadius: 8,
-          background: "#fdebea", border: "1px solid #f5c6c4",
-          color: "#922", fontSize: 12, lineHeight: 1.5,
+          background: C.redSoft, border: `1px solid ${C.red}`,
+          color: C.red, fontSize: 12, lineHeight: 1.5,
         }}>
           {error}
         </div>
@@ -517,8 +517,8 @@ export default function AIGeneratePanel({
       {!error && dropReport && dropReport.kept === 0 && dropReport.dropped > 0 && (
         <div style={{
           padding: "10px 12px", marginBottom: 12, borderRadius: 8,
-          background: "#fff8e6", border: "1px solid #f0d090",
-          color: "#7a5500", fontSize: 12, lineHeight: 1.5,
+          background: C.orangeSoft, border: `1px solid ${C.orange}`,
+          color: C.orange, fontSize: 12, lineHeight: 1.5,
         }}>
           {(t.aiAllDroppedMsg || "All {dropped} questions came back incomplete. Try generating again, change the source, or pick a single type.")
             .replace("{dropped}", String(dropReport.dropped))}

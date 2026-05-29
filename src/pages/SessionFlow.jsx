@@ -9,7 +9,7 @@ import { DeckCover, resolveColor } from "../lib/deck-cover";
 import MobileMenuButton, { useIsMobile } from "../components/MobileMenuButton";
 import PageHeader from "../components/PageHeader";
 import SectionBadge, { sectionAccent } from "../components/SectionBadge";
-import { C, MONO } from "../components/tokens";
+import { C, MONO, SH } from "../components/tokens";
 import { estimateDeckSeconds, formatDeckDuration } from "../lib/time-limits";
 import { ROUTES, QUERY, buildRoute } from "../routes";
 // PR 79: i18n centralizado
@@ -341,7 +341,7 @@ function SessionOptions({ deck, classes, t, lang = "en", onLaunch, onBack }) {
             style={{
               background: C.bg, borderRadius: 16, padding: 24,
               maxWidth: 380, width: "100%",
-              boxShadow: "0 20px 60px rgba(0,0,0,0.3)",
+              boxShadow: SH.lg,
             }}
           >
             <div style={{ fontSize: 32, marginBottom: 12 }}>💻</div>
@@ -395,7 +395,7 @@ function Toggle({ label, hint, value, onChange }) {
             flexShrink: 0,
           }}
         >
-          <span style={{ width: 16, height: 16, borderRadius: "50%", background: "#fff", boxShadow: "0 1px 2px rgba(0,0,0,0.2)" }} />
+          <span style={{ width: 16, height: 16, borderRadius: "50%", background: "#fff", boxShadow: SH.lg }} />
         </button>
         <span onClick={() => onChange(!value)} style={{ fontSize: 13, color: C.text, fontWeight: 500, cursor: "pointer" }}>{label}</span>
       </div>
@@ -1271,7 +1271,7 @@ function LiveResults({ session, t, onEnd }) {
                       fontSize: 10,
                       fontWeight: 600,
                       color: C.green,
-                      background: (C.greenSoft || "#E6F4EA"),
+                      background: C.greenSoft,
                       padding: "1px 7px",
                       borderRadius: 6,
                       display: "inline-flex",
@@ -2595,7 +2595,7 @@ export default function SessionFlow({ lang = "en", setLang, onNavigateToDecks, o
             background: C.green, color: "#fff",
             padding: "10px 16px", borderRadius: 10,
             fontSize: 13, fontWeight: 600, fontFamily: "'Outfit',sans-serif",
-            boxShadow: "0 6px 20px rgba(0,0,0,0.15)",
+            boxShadow: SH.md,
             display: "flex", alignItems: "center", gap: 8,
           }}
         >

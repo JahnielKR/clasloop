@@ -9,6 +9,7 @@
 //   classId, items, onItemClick (F1) · onGenerateReview, generating (F5)
 
 import { useCrossfilter } from "../../hooks/useCrossfilter";
+import { C } from "../tokens";
 
 export default function MostMissedList({ classId, items = [], onItemClick, onGenerateReview, generating = false }) {
   const { selectedTopic } = useCrossfilter();
@@ -16,12 +17,12 @@ export default function MostMissedList({ classId, items = [], onItemClick, onGen
 
   return (
     <div
-      style={{ background: "#fff", border: "1px solid #e4e4e7", borderRadius: 8, padding: 12 }}
+      style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, padding: 12 }}
       data-class-id={classId}
     >
       <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>Más falladas</div>
       {selectedTopic && (
-        <div style={{ fontSize: 11, color: "#2563eb", marginBottom: 4 }}>
+        <div style={{ fontSize: 11, color: C.accent, marginBottom: 4 }}>
           Resaltando: {selectedTopic}
         </div>
       )}
@@ -50,8 +51,8 @@ export default function MostMissedList({ classId, items = [], onItemClick, onGen
                 tabIndex={onItemClick ? 0 : undefined}
                 role={onItemClick ? "button" : undefined}
                 style={{
-                  borderBottom: i < show.length - 1 ? "1px solid #f4f4f5" : "none",
-                  borderLeft: match ? "3px solid #2563eb" : "3px solid transparent",
+                  borderBottom: i < show.length - 1 ? `1px solid ${C.bgSoft}` : "none",
+                  borderLeft: match ? `3px solid ${C.accent}` : "3px solid transparent",
                   padding: "3px 0 3px 6px",
                   cursor: onItemClick ? "pointer" : "default",
                   display: "flex",
@@ -67,7 +68,7 @@ export default function MostMissedList({ classId, items = [], onItemClick, onGen
                 </span>
                 <b
                   style={{
-                    color: it.error_rate >= 60 ? "#dc2626" : it.error_rate >= 40 ? "#eab308" : "#16a34a",
+                    color: it.error_rate >= 60 ? C.red : it.error_rate >= 40 ? C.orange : C.green,
                   }}
                 >
                   {Math.round(it.error_rate)}% err
@@ -84,9 +85,9 @@ export default function MostMissedList({ classId, items = [], onItemClick, onGen
         style={{
           display: "inline-block",
           marginTop: 8,
-          border: "1px solid #c4b5fd",
-          color: "#5b21b6",
-          background: "#f5f3ff",
+          border: `1px solid ${C.purple}`,
+          color: C.purple,
+          background: C.purpleSoft,
           padding: "3px 10px",
           borderRadius: 6,
           fontSize: 12,

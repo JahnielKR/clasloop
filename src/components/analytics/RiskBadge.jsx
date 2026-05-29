@@ -4,10 +4,12 @@
 // Color sigue el patrón retention tier de scoring-thresholds.ts pero
 // orientado a riesgo (verde = bajo, rojo = alto).
 
+import { C } from "../tokens";
+
 const COLOR_BY_LEVEL = {
-  low:  { bg: "#dcfce7", fg: "#15803d", label: "Bajo" },
-  med:  { bg: "#fef3c7", fg: "#a16207", label: "Medio" },
-  high: { bg: "#fee2e2", fg: "#b91c1c", label: "Alto" },
+  low:  { bg: C.greenSoft,  fg: C.green,  label: "Bajo" },
+  med:  { bg: C.orangeSoft, fg: C.orange, label: "Medio" },
+  high: { bg: C.redSoft,    fg: C.red,    label: "Alto" },
 };
 
 export default function RiskBadge({ level = "low", score = null, compact = false }) {

@@ -61,7 +61,7 @@ function AttentionRow({ name, reason, onClick }) {
         color: C.textSecondary,
         transition: "background .12s ease",
       }}
-      onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(0,0,0,0.035)"; }}
+      onMouseEnter={(e) => { e.currentTarget.style.background = C.bgSoft; }}
       onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
     >
       <span style={{

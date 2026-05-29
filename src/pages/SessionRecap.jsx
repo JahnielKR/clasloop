@@ -169,7 +169,7 @@ export default function SessionRecap({ lang = "en", setLang, profile, onOpenMobi
         <PageHeader title={t.pageTitle} lang={lang} setLang={setLang} onOpenMobileMenu={onOpenMobileMenu} />
         <div style={{
           marginTop: 40, padding: 24, textAlign: "center",
-          color: C.red, background: C.redSoft || "#FEE",
+          color: C.red, background: C.redSoft,
           border: `1px solid ${C.red}33`, borderRadius: 10,
         }}>
           {error}
@@ -179,7 +179,7 @@ export default function SessionRecap({ lang = "en", setLang, profile, onOpenMobi
             onClick={() => navigate(ROUTES.SESSIONS)}
             style={{
               padding: "10px 16px", borderRadius: 7,
-              background: "#000", color: "#fff",
+              background: C.accent, color: "#fff",
               border: "none", fontSize: 13, fontWeight: 600,
               fontFamily: "'Outfit', sans-serif", cursor: "pointer",
             }}
@@ -300,7 +300,7 @@ export default function SessionRecap({ lang = "en", setLang, profile, onOpenMobi
           style={{
             padding: "9px 16px",
             borderRadius: 7,
-            background: "#000",
+            background: C.accent,
             color: "#fff",
             border: "none",
             fontSize: 13,

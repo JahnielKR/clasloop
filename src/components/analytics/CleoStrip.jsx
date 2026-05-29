@@ -15,12 +15,13 @@
 //   lang: 'es' | 'en' | 'ko'
 
 import { useEffect, useState } from "react";
+import { C } from "../tokens";
 import { supabase } from "../../lib/supabase";
 import { generateClassReviewQuestions, saveClassReviewDeck } from "../../lib/close-unit-ai";
 import { buildClassNarrativeContext } from "../../lib/analytics/cleo-analytics";
 
-const ACCENT = "#7c3aed";
-const ACCENT_BG = "#ede9fe";
+const ACCENT = C.purple;
+const ACCENT_BG = C.purpleSoft;
 
 function ActionChip({ label, onClick, disabled = false, stub = false, title }) {
   return (
@@ -29,9 +30,9 @@ function ActionChip({ label, onClick, disabled = false, stub = false, title }) {
       disabled={disabled || stub}
       title={title}
       style={{
-        border: `1px solid ${stub ? "#d4d4d8" : "#c4b5fd"}`,
-        color: stub ? "#71717a" : "#5b21b6",
-        background: stub ? "transparent" : "#f5f3ff",
+        border: `1px solid ${stub ? C.border : C.purple}`,
+        color: stub ? C.textSecondary : C.purple,
+        background: stub ? "transparent" : C.purpleSoft,
         padding: "3px 10px",
         borderRadius: 20,
         fontSize: 12,
@@ -144,8 +145,8 @@ export default function CleoStrip({
         display: "flex",
         gap: 10,
         alignItems: "flex-start",
-        background: "#fff",
-        border: "1px solid #e4e4e7",
+        background: C.bg,
+        border: `1px solid ${C.border}`,
         borderLeft: `3px solid ${ACCENT}`,
         borderRadius: 8,
         padding: "12px 14px",
@@ -171,7 +172,7 @@ export default function CleoStrip({
       <div style={{ flex: 1, fontSize: 14 }}>
         <b>Cleo:</b> {display}
         {error && (
-          <div style={{ color: "#b91c1c", fontSize: 12, marginTop: 6 }}>
+          <div style={{ color: C.red, fontSize: 12, marginTop: 6 }}>
             No pude generar el repaso ({error}). Intentá de nuevo.
           </div>
         )}

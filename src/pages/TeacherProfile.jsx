@@ -27,10 +27,10 @@ const css = `
   @keyframes tp-fade { from { opacity:0; transform:translateY(6px) } to { opacity:1; transform:translateY(0) } }
   .tp-fade { animation: tp-fade .3s ease both }
   .tp-card { transition: transform .15s ease, box-shadow .15s ease; cursor: pointer; }
-  .tp-card:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(0,0,0,0.06); }
+  .tp-card:hover { transform: translateY(-1px); box-shadow: var(--c-shadow); }
   .tp-back:hover { background: ${C.accentSoft} !important; }
   .tp-fav-circle { transition: all .15s ease; }
-  .tp-fav-circle:hover { transform: translateY(-1px); box-shadow: 0 3px 10px rgba(217,115,13,.18); border-color: #D9730D !important; }
+  .tp-fav-circle:hover { transform: translateY(-1px); box-shadow: var(--c-shadow); border-color: #D9730D !important; }
   .tp-fav-circle:active { transform: translateY(0) scale(.95); }
 `;
 

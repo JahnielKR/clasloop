@@ -353,8 +353,8 @@ export default function MyClasses({ lang: pageLang = "en", setLang: pageSetLang,
               padding: "2px 0 12px",
               fontFamily: "'Outfit',sans-serif",
             }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="#EF9F27" aria-hidden="true"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-              <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase", color: "#BA7517" }}>{t.favorites}</span>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill={C.orange} aria-hidden="true"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+              <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase", color: C.yellow }}>{t.favorites}</span>
               <span style={{ fontSize: 11, color: C.textMuted, fontFamily: MONO }}>· {allFavorites.length}</span>
               <span style={{ flex: 1 }} />
               <button
@@ -560,7 +560,7 @@ export function SavedDeckCard({ deck, t, lang, onPractice, onToggleFavorite, onU
             zIndex: 1,
           }}
         >
-          <svg width="15" height="15" viewBox="0 0 24 24" fill={isFav ? "#EF9F27" : "none"} stroke={isFav ? "#EF9F27" : "#5A5A5A"} strokeWidth="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill={isFav ? C.orange : "none"} stroke={isFav ? C.orange : C.textMuted} strokeWidth="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
         </button>
         {/* Practice timer toggle — top-right. Decision happens BEFORE entering
             the deck (more intuitive than discovering the small button inside
@@ -588,15 +588,15 @@ export function SavedDeckCard({ deck, t, lang, onPractice, onToggleFavorite, onU
               When ON: body filled with C.accent, hands in white. When OFF:
               outline only in muted gray. Matches the star's "on/off" visual
               with a real shape that fills, not just a stroke color change. */}
-          <svg width="18" height="18" viewBox="0 0 24 24" fill={timerOn ? C.accent : "none"} stroke={timerOn ? C.accent : "#5A5A5A"} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill={timerOn ? C.accent : "none"} stroke={timerOn ? C.accent : C.textMuted} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
             {/* Crown (top button) */}
             <line x1="10" y1="2" x2="14" y2="2" />
             <line x1="12" y1="2" x2="12" y2="5" />
             {/* Body (filled circle when ON) */}
             <circle cx="12" cy="14" r="7.5" />
             {/* Hands — white when ON (visible against accent fill), gray when OFF */}
-            <line x1="12" y1="14" x2="12" y2="9.5" stroke={timerOn ? "#fff" : "#5A5A5A"} />
-            <line x1="12" y1="14" x2="15.2" y2="14" stroke={timerOn ? "#fff" : "#5A5A5A"} />
+            <line x1="12" y1="14" x2="12" y2="9.5" stroke={timerOn ? "#fff" : C.textMuted} />
+            <line x1="12" y1="14" x2="15.2" y2="14" stroke={timerOn ? "#fff" : C.textMuted} />
           </svg>
         </button>
       </div>

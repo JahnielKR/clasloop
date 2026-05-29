@@ -6,10 +6,11 @@
 
 import { HorizontalBarList } from "../charts";
 import { useCrossfilter } from "../../hooks/useCrossfilter";
+import { C } from "../tokens";
 
 const COLORS = {
-  dominated: "#dcfce7",
-  critical: "#fee2e2",
+  dominated: C.greenSoft,
+  critical: C.redSoft,
 };
 
 export default function TopicBarListPanel({
@@ -39,7 +40,7 @@ export default function TopicBarListPanel({
   }
 
   return (
-    <div style={{ background: "#fff", border: "1px solid #e4e4e7", borderRadius: 8, padding: 12 }}>
+    <div style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, padding: 12 }}>
       <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>
         {isDominated ? "Top temas dominados" : "Top temas críticos"}
       </div>

@@ -5,6 +5,7 @@
 // el model con las secciones guardadas (el model guardado es la receta;
 // los datos se traen al vuelo para que el reporte siempre sea actual).
 
+import { C } from "../tokens";
 import ExportMenu from "./ExportMenu";
 
 export default function ReportList({
@@ -17,8 +18,8 @@ export default function ReportList({
     return (
       <div
         style={{
-          background: "#fff",
-          border: "1px solid #e4e4e7",
+          background: C.bg,
+          border: `1px solid ${C.border}`,
           borderRadius: 8,
           padding: 16,
           opacity: 0.6,
@@ -35,8 +36,8 @@ export default function ReportList({
         <div
           key={r.id}
           style={{
-            background: "#fff",
-            border: "1px solid #e4e4e7",
+            background: C.bg,
+            border: `1px solid ${C.border}`,
             borderRadius: 8,
             padding: "10px 14px",
             display: "flex",
@@ -46,7 +47,7 @@ export default function ReportList({
         >
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 14, fontWeight: 600 }}>{r.name}</div>
-            <div style={{ fontSize: 12, color: "#71717a" }}>
+            <div style={{ fontSize: 12, color: C.textSecondary }}>
               {(r.model?.sections?.length ?? 0)} secciones · {r.period || "—"}
             </div>
           </div>
@@ -61,9 +62,9 @@ export default function ReportList({
             disabled={deletingId === r.id}
             title="Eliminar"
             style={{
-              border: "1px solid #fecaca",
-              background: "#fef2f2",
-              color: "#b91c1c",
+              border: `1px solid ${C.redSoft}`,
+              background: C.redSoft,
+              color: C.red,
               borderRadius: 6,
               padding: "4px 10px",
               fontSize: 12,

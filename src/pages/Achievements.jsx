@@ -5,7 +5,7 @@ import { Avatar as CatalogAvatar, AVATARS } from "../components/Avatars";
 import { getStudentStats } from "../lib/unlock-checker";
 import { useIsMobile } from "../components/MobileMenuButton";
 import PageHeader from "../components/PageHeader";
-import { C as BASE_C, MONO } from "../components/tokens";
+import { C as BASE_C, MONO, SH } from "../components/tokens";
 // PR 75: i18n centralizado
 import { useT } from "../i18n";
 
@@ -24,10 +24,10 @@ const RARITY = {
 
 const css = `
   .ach-card { transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease; cursor: pointer; }
-  .ach-card:hover { transform: translateY(-2px); box-shadow: 0 4px 14px rgba(0,0,0,0.08); }
+  .ach-card:hover { transform: translateY(-2px); box-shadow: var(--c-shadow); }
   .ach-filter { transition: all .15s ease; cursor: pointer; }
   .ach-stat { transition: all .15s ease; }
-  .ach-stat:hover { transform: translateY(-1px); box-shadow: 0 2px 8px rgba(0,0,0,.06); }
+  .ach-stat:hover { transform: translateY(-1px); box-shadow: var(--c-shadow); }
   @keyframes ach-fade { from { opacity:0; transform:translateY(6px) } to { opacity:1; transform:translateY(0) } }
   .ach-fade { animation: ach-fade .3s ease both }
   @keyframes ach-pop { 0% { opacity:0; transform:scale(.9) } 100% { opacity:1; transform:scale(1) } }
@@ -165,7 +165,7 @@ function AchModal({ avatar, unlocked, progress, lang, t, onClose }) {
       <div onClick={e => e.stopPropagation()} className="ach-pop" style={{
         background: C.bg, borderRadius: 16, border: `1px solid ${unlocked ? rarity.border : C.border}`,
         padding: 32, maxWidth: 380, width: "100%", textAlign: "center",
-        boxShadow: "0 12px 40px rgba(0,0,0,0.18)",
+        boxShadow: SH.lg,
       }}>
         <div style={{
           display: "inline-flex", marginBottom: 12,

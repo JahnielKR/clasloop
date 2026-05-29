@@ -10,6 +10,8 @@
 //                           activeLabel, las demás se atenúan.
 //   titleFormatter?: (item) => string  — texto del title nativo en hover.
 
+import { C } from "../tokens";
+
 export default function HorizontalBarList({
   items = [],
   max,
@@ -23,7 +25,7 @@ export default function HorizontalBarList({
     <div style={{ fontSize: 13, lineHeight: 1.7 }}>
       {items.map((item, idx) => {
         const pct = Math.min(100, ((item.value || 0) / cap) * 100);
-        const color = item.color || "#dbeafe";
+        const color = item.color || C.accentSoft;
         const clickable = !!onItemClick;
         const isActive = activeLabel != null && item.label === activeLabel;
         const dimmed = activeLabel != null && !isActive;
@@ -56,8 +58,8 @@ export default function HorizontalBarList({
               transition: "opacity .15s ease",
             }}
           >
-            <span style={{ flex: "0 0 90px", color: "#111" }}>{item.label}</span>
-            <span aria-hidden style={{ flex: 1, height: 6, background: "#f4f4f5", borderRadius: 3, overflow: "hidden" }}>
+            <span style={{ flex: "0 0 90px", color: C.text }}>{item.label}</span>
+            <span aria-hidden style={{ flex: 1, height: 6, background: C.bgSoft, borderRadius: 3, overflow: "hidden" }}>
               <span style={{ display: "block", height: "100%", width: `${pct}%`, background: color, borderRadius: 3 }} />
             </span>
             <span style={{ flex: "0 0 48px", textAlign: "right", fontWeight: 600 }}>

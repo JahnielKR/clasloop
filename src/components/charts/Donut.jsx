@@ -9,6 +9,7 @@
 //   height: number (default 160)
 
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from "recharts";
+import { C } from "../tokens";
 
 export default function Donut({
   data = [],
@@ -38,7 +39,9 @@ export default function Donut({
           </Pie>
           <Tooltip
             contentStyle={{
-              border: "1px solid #e4e4e7",
+              background: C.bg,
+              color: C.text,
+              border: `1px solid ${C.border}`,
               borderRadius: 6,
               fontSize: 12,
               padding: "6px 10px",
