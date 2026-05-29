@@ -33,7 +33,7 @@ export default function FinalCTA({ t, onSignUp }) {
           className="ph-cta-primary ph-btn-primary"
           onClick={() => onSignUp?.()}
           style={{
-            background: C.accent, color: "#fff",
+            background: C.brandGradient, color: "#fff",
             padding: "20px 48px", borderRadius: 12,
             fontSize: 21, fontWeight: 600,
             border: "none", cursor: "pointer",
