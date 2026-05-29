@@ -4,12 +4,14 @@
 // (paralelo a MostMissedList de F1, pero scoped a un alumno).
 // Drill a DeckResults funciona; "Asignar repaso" es stub (F5).
 
+import { C } from "../tokens";
+
 export default function StudentMostFailedList({ classId, studentRef, items = [], onItemClick, onAssignReview, generating = false }) {
   const show = items.slice(0, 5);
 
   return (
     <div
-      style={{ background: "#fff", border: "1px solid #e4e4e7", borderRadius: 8, padding: 12 }}
+      style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, padding: 12 }}
       data-class-id={classId}
       data-student-ref={studentRef}
     >
@@ -27,7 +29,7 @@ export default function StudentMostFailedList({ classId, studentRef, items = [],
               key={`${it.deck_id}-${it.question_index}`}
               onClick={onItemClick ? () => onItemClick(it) : undefined}
               style={{
-                borderBottom: i < show.length - 1 ? "1px solid #f4f4f5" : "none",
+                borderBottom: i < show.length - 1 ? `1px solid ${C.bgSoft}` : "none",
                 padding: "3px 0",
                 cursor: onItemClick ? "pointer" : "default",
                 display: "flex",
@@ -51,10 +53,10 @@ export default function StudentMostFailedList({ classId, studentRef, items = [],
                 style={{
                   color:
                     it.error_rate >= 60
-                      ? "#dc2626"
+                      ? C.red
                       : it.error_rate >= 40
-                        ? "#eab308"
-                        : "#16a34a",
+                        ? C.orange
+                        : C.green,
                 }}
               >
                 {Math.round(it.error_rate)}% err
@@ -70,9 +72,9 @@ export default function StudentMostFailedList({ classId, studentRef, items = [],
         style={{
           display: "inline-block",
           marginTop: 8,
-          border: "1px solid #c4b5fd",
-          color: "#5b21b6",
-          background: "#f5f3ff",
+          border: `1px solid ${C.purple}`,
+          color: C.purple,
+          background: C.purpleSoft,
           padding: "3px 10px",
           borderRadius: 6,
           fontSize: 12,

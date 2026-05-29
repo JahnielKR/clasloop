@@ -8,7 +8,7 @@ import CreateClassModal from "../components/CreateClassModal";
 import ImportClassModal from "../components/ImportClassModal";
 // PR 22: theme selector modal launched from each class card
 import LobbyThemeSelector from "../components/LobbyThemeSelector";
-import { C, MONO } from "../components/tokens";
+import { C, MONO, SH } from "../components/tokens";
 import Button from "../components/ui/Button";
 import Card from "../components/ui/Card";
 import Skeleton from "../components/ui/Skeleton";
@@ -653,7 +653,7 @@ export default function MyClassesTeacher({ lang = "en", profile, onNavigateToSes
             background: C.green, color: "#fff",
             padding: "10px 16px", borderRadius: 10,
             fontSize: 13, fontWeight: 600, fontFamily: "'Outfit',sans-serif",
-            boxShadow: "0 6px 20px rgba(0,0,0,0.15)",
+            boxShadow: SH.md,
             display: "flex", alignItems: "center", gap: 8,
             maxWidth: "calc(100vw - 48px)",
           }}

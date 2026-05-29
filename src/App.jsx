@@ -104,7 +104,7 @@ const LiveCommandCenter = lazy(importLiveCommandCenter);
 const ReportsPage      = lazy(importReportsPage);
 import { useIsMobile } from './components/MobileMenuButton';
 import { countVisibleNotifications, countPendingReviewsForTeacher } from './lib/notifications';
-import { C } from './components/tokens';
+import { C, SH } from './components/tokens';
 import Sidebar from './components/Sidebar';
 import { DensityProvider } from './components/ui/density';
 import ClassCodeModal from './components/ClassCodeModal';
@@ -1161,7 +1161,7 @@ export default function App() {
               fontSize: 14,
               fontWeight: 600,
               fontFamily: "'Outfit',sans-serif",
-              boxShadow: "0 8px 24px rgba(0,0,0,0.18)",
+              boxShadow: SH.lg,
               display: "flex",
               alignItems: "center",
               gap: 10,

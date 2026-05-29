@@ -6,6 +6,7 @@
 import { TrendBarChart } from "../charts";
 import { formatPercent } from "../../lib/analytics/formatters";
 import { forecastPoints } from "../../lib/analytics/forecast";
+import { C } from "../tokens";
 
 export default function TopicTrendPanel({
   topic,
@@ -17,8 +18,8 @@ export default function TopicTrendPanel({
   return (
     <div
       style={{
-        background: "#fff",
-        border: "1px solid #e4e4e7",
+        background: C.bg,
+        border: `1px solid ${C.border}`,
         borderRadius: 8,
         padding: 12,
         margin: "10px 0",

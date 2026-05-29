@@ -17,6 +17,7 @@ import {
   pickTopMisconception,
   decorateDistribution,
 } from "../../lib/analytics/misconceptions";
+import { C } from "../tokens";
 
 function correctKeyFor(q) {
   if (!q) return null;
@@ -43,7 +44,7 @@ function optionLabel(q, key) {
 export default function MisconceptionPanel({ question, onDrillDeck }) {
   if (!question) {
     return (
-      <div style={{ background: "#fff", border: "1px solid #e4e4e7", borderRadius: 8, padding: 12 }}>
+      <div style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, padding: 12 }}>
         <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 6 }}>Concepto errado</div>
         <div style={{ opacity: 0.45, fontSize: 13 }}>Sin pregunta destacada en este tema.</div>
       </div>
@@ -57,21 +58,21 @@ export default function MisconceptionPanel({ question, onDrillDeck }) {
   const totalCount = entries.reduce((s, e) => s + e.count, 0) || 1;
 
   return (
-    <div style={{ background: "#fff", border: "1px solid #e4e4e7", borderRadius: 8, padding: 12 }}>
+    <div style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, padding: 12 }}>
       <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 8 }}>
         <b style={{ fontSize: 13 }}>Concepto errado · pregunta más fallada</b>
-        <span style={{ marginLeft: "auto", fontSize: 11, color: "#dc2626", fontWeight: 600 }}>
+        <span style={{ marginLeft: "auto", fontSize: 11, color: C.red, fontWeight: 600 }}>
           {Math.round(question.error_rate)}% err
         </span>
       </div>
-      <div style={{ fontSize: 13, marginBottom: 10, color: "#111" }}>
+      <div style={{ fontSize: 13, marginBottom: 10, color: C.text }}>
         {q?.q || `P. ${question.question_index + 1}`}
       </div>
       {topMis && (
         <div
           style={{
-            background: "#fff7ed",
-            border: "1px solid #fed7aa",
+            background: C.orangeSoft,
+            border: `1px solid ${C.orange}`,
             borderRadius: 6,
             padding: "6px 9px",
             fontSize: 12,
@@ -88,17 +89,17 @@ export default function MisconceptionPanel({ question, onDrillDeck }) {
           const isWrongTop = topMis && e.key === topMis.key;
           return (
             <div key={e.key} style={{ display: "flex", alignItems: "center", gap: 6, padding: "2px 0" }}>
-              <span style={{ flex: "0 0 130px", color: e.isCorrect ? "#15803d" : isWrongTop ? "#b91c1c" : "#111" }}>
+              <span style={{ flex: "0 0 130px", color: e.isCorrect ? C.green : isWrongTop ? C.red : C.text }}>
                 {optionLabel(q, e.key)}
                 {e.isCorrect && <span style={{ marginLeft: 4, fontSize: 10, fontWeight: 700 }}>✓ correcta</span>}
               </span>
-              <span aria-hidden style={{ flex: 1, height: 6, background: "#f4f4f5", borderRadius: 3, overflow: "hidden" }}>
+              <span aria-hidden style={{ flex: 1, height: 6, background: C.bgSoft, borderRadius: 3, overflow: "hidden" }}>
                 <span
                   style={{
                     display: "block",
                     height: "100%",
                     width: `${pct}%`,
-                    background: e.isCorrect ? "#16a34a" : isWrongTop ? "#dc2626" : "#94a3b8",
+                    background: e.isCorrect ? C.green : isWrongTop ? C.red : C.textMuted,
                     borderRadius: 3,
                   }}
                 />
@@ -115,8 +116,8 @@ export default function MisconceptionPanel({ question, onDrillDeck }) {
           onClick={() => onDrillDeck?.(question.deck_id)}
           style={{
             marginTop: 10,
-            border: "1px solid #2563eb",
-            color: "#2563eb",
+            border: `1px solid ${C.accent}`,
+            color: C.accent,
             background: "transparent",
             padding: "2px 9px",
             borderRadius: 6,

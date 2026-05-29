@@ -776,9 +776,9 @@ export default function QuestionsTab({ ed, t, l }) {
         {!showAIPanel && aiGenerationWarnings.length > 0 && (
           <div style={{
             marginTop: 10, padding: "10px 14px", borderRadius: 8,
-            background: "#fff8e6", border: "1px solid #f0d090",
+            background: C.orangeSoft, border: `1px solid ${C.orange}`,
             display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12,
-            fontSize: 12, color: "#7a5500", lineHeight: 1.5,
+            fontSize: 12, color: C.orange, lineHeight: 1.5,
           }}>
             <div style={{ flex: 1 }}>
               {aiGenerationWarnings.map((w, i) => {
@@ -852,7 +852,7 @@ export default function QuestionsTab({ ed, t, l }) {
             <button
               onClick={() => setAiGenerationWarnings([])}
               style={{
-                background: "transparent", border: "none", color: "#7a5500",
+                background: "transparent", border: "none", color: C.orange,
                 fontSize: 16, cursor: "pointer", padding: "0 4px", lineHeight: 1,
                 flexShrink: 0,
               }}

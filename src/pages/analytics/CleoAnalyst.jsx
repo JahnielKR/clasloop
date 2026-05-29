@@ -14,8 +14,9 @@ import { useSearchParams } from "react-router-dom";
 import { StudioShell } from "../../components/analytics";
 import { useAnalyticsOverview } from "../../hooks/useAnalyticsOverview";
 import { supabase } from "../../lib/supabase";
+import { C } from "../../components/tokens";
 
-const ACCENT = "#7c3aed";
+const ACCENT = C.purple;
 
 export default function CleoAnalyst() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -96,13 +97,13 @@ export default function CleoAnalyst() {
 
   return (
     <StudioShell view="ask" title="Analista Cleo">
-      <div style={{ padding: 18, background: "#fafafa", minHeight: "100%", display: "flex", flexDirection: "column", gap: 12 }}>
-        <div style={{ background: "#fff", border: "1px solid #e4e4e7", borderRadius: 8, padding: "10px 12px", display: "flex", gap: 12, alignItems: "center" }}>
+      <div style={{ padding: 18, background: C.bgSoft, minHeight: "100%", display: "flex", flexDirection: "column", gap: 12 }}>
+        <div style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 12px", display: "flex", gap: 12, alignItems: "center" }}>
           <span style={{ fontSize: 13, fontWeight: 600 }}>Clase:</span>
           <select
             value={classId || ""}
             onChange={handleClassChange}
-            style={{ padding: "4px 8px", fontSize: 13, borderRadius: 6, border: "1px solid #e4e4e7" }}
+            style={{ padding: "4px 8px", fontSize: 13, borderRadius: 6, border: `1px solid ${C.border}` }}
           >
             <option value="">— Selecciona —</option>
             {classes.map((c) => (
@@ -110,7 +111,7 @@ export default function CleoAnalyst() {
             ))}
           </select>
           {!classId && (
-            <span style={{ fontSize: 12, color: "#a16207" }}>
+            <span style={{ fontSize: 12, color: C.textSecondary }}>
               Sin clase seleccionada Cleo responde general; con clase puede leer tus números reales.
             </span>
           )}
@@ -119,8 +120,8 @@ export default function CleoAnalyst() {
           ref={threadRef}
           style={{
             flex: 1,
-            background: "#fff",
-            border: "1px solid #e4e4e7",
+            background: C.bg,
+            border: `1px solid ${C.border}`,
             borderRadius: 8,
             padding: 12,
             overflowY: "auto",
@@ -136,8 +137,8 @@ export default function CleoAnalyst() {
               key={i}
               style={{
                 alignSelf: m.role === "user" ? "flex-end" : "flex-start",
-                background: m.role === "user" ? "#2563eb" : "#f5f3ff",
-                color: m.role === "user" ? "#fff" : "#1e1b4b",
+                background: m.role === "user" ? C.accent : C.purpleSoft,
+                color: m.role === "user" ? "#fff" : C.text,
                 padding: "8px 12px",
                 borderRadius: 12,
                 maxWidth: "78%",
@@ -167,7 +168,7 @@ export default function CleoAnalyst() {
               padding: "8px 12px",
               fontSize: 14,
               borderRadius: 8,
-              border: "1px solid #e4e4e7",
+              border: `1px solid ${C.border}`,
             }}
           />
           <button

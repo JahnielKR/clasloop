@@ -10,6 +10,8 @@
 // React 17+ automatic JSX runtime: no need to import React.
 // (Project lint disables react/react-in-jsx-scope; see eslint.config.js.)
 
+import { C } from "../tokens";
+
 const PERIODS = [
   { id: "d7", label: "7d" },
   { id: "d30", label: "30d" },
@@ -25,8 +27,8 @@ export default function PeriodChips({ value = "d30", onChange }) {
       style={{
         display: "inline-flex",
         gap: 4,
-        background: "#fff",
-        border: "1px solid #e4e4e7",
+        background: C.bg,
+        border: `1px solid ${C.border}`,
         borderRadius: 8,
         padding: 3,
       }}
@@ -44,7 +46,7 @@ export default function PeriodChips({ value = "d30", onChange }) {
               borderRadius: 6,
               fontSize: 13,
               fontWeight: active ? 600 : 400,
-              background: active ? "#2563eb" : "transparent",
+              background: active ? C.accent : "transparent",
               color: active ? "#fff" : "inherit",
               border: "none",
               cursor: "pointer",

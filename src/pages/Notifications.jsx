@@ -25,7 +25,7 @@ const css = `
   .nt-filter { transition: all .15s ease; cursor: pointer; border: none; font-family: 'Outfit',sans-serif; }
   .nt-filter:hover { background: ${C.accentSoft} !important; border-color: ${C.accent} !important; color: ${C.accent} !important; }
   .nt-card { transition: all .2s ease; }
-  .nt-card:hover { border-color: ${C.accent} !important; background: ${C.bgSoft} !important; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+  .nt-card:hover { border-color: ${C.accent} !important; background: ${C.bgSoft} !important; box-shadow: var(--c-shadow); }
   .nt-action { transition: all .15s ease; cursor: pointer; border: none; font-family: 'Outfit',sans-serif; }
   .nt-action:hover { filter: brightness(.9); transform: translateX(2px); }
   .nt-lang { transition: all .12s ease; cursor: pointer; }

@@ -27,7 +27,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { CIcon } from "../components/Icons";
 import PageHeader from "../components/PageHeader";
-import { C } from "../components/tokens";
+import { C, SH } from "../components/tokens";
 import { teacherGradeToPoints, describeCorrectAnswer } from "../lib/scoring";
 // PR 76: i18n centralizado
 import { useT } from "../i18n";
@@ -1127,7 +1127,7 @@ export default function Review({ profile, lang = "en", onOpenMobileMenu }) {
             borderRadius: 10,
             fontSize: 13,
             fontWeight: 500,
-            boxShadow: "0 8px 24px rgba(0,0,0,.25)",
+            boxShadow: SH.lg,
             display: "flex",
             alignItems: "center",
             gap: 12,

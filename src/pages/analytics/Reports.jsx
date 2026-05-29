@@ -17,6 +17,7 @@ import {
 } from "../../hooks/useReports";
 import { buildClassReportModel } from "../../lib/analytics/report-model";
 import { supabase } from "../../lib/supabase";
+import { C } from "../../components/tokens";
 
 const PERIOD_LABEL = { d7: "7 días", d30: "30 días", d90: "90 días" };
 
@@ -86,7 +87,7 @@ export default function Reports() {
       <div
         style={{
           padding: 18,
-          background: "#fafafa",
+          background: C.bgSoft,
           minHeight: "100%",
           display: "grid",
           gridTemplateColumns: "320px 1fr",

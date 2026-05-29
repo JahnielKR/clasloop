@@ -53,7 +53,7 @@ function ClassRow({ label, count, active, onClick }) {
         color: active ? C.accent : C.textSecondary,
         transition: "background .12s ease, color .12s ease",
       }}
-      onMouseEnter={(e) => { if (!active) e.currentTarget.style.background = "rgba(0,0,0,0.035)"; }}
+      onMouseEnter={(e) => { if (!active) e.currentTarget.style.background = C.bgSoft; }}
       onMouseLeave={(e) => { if (!active) e.currentTarget.style.background = "transparent"; }}
     >
       <span style={{

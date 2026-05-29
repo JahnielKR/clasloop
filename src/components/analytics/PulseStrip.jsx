@@ -9,8 +9,9 @@ import { useTodayPulse } from "../../hooks/useTodayPulse";
 import { computeTodayPulse } from "../../lib/analytics/pulse-of-today";
 import LiveTile from "./LiveTile";
 import { buildRoute } from "../../routes";
+import { C } from "../tokens";
 
-const ACCENT = "#7c3aed";
+const ACCENT = C.purple;
 
 export default function PulseStrip() {
   const navigate = useNavigate();
@@ -28,8 +29,8 @@ export default function PulseStrip() {
     return (
       <div
         style={{
-          background: "#fff",
-          border: "1px solid #e4e4e7",
+          background: C.bg,
+          border: `1px solid ${C.border}`,
           borderRadius: 10,
           padding: 12,
           marginBottom: 16,
@@ -103,9 +104,9 @@ export default function PulseStrip() {
           <button
             onClick={() => navigate(buildRoute.analyticsLive())}
             style={{
-              border: "1px solid #c4b5fd",
-              background: "#f5f3ff",
-              color: "#5b21b6",
+              border: `1px solid ${C.purple}`,
+              background: C.purpleSoft,
+              color: C.purple,
               borderRadius: 999,
               padding: "2px 9px",
               fontSize: 11,
@@ -121,7 +122,7 @@ export default function PulseStrip() {
                 width: 6,
                 height: 6,
                 borderRadius: "50%",
-                background: "#7c3aed",
+                background: C.purple,
                 display: "inline-block",
               }}
             />

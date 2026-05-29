@@ -10,6 +10,8 @@
 // Future modes ('class-vs-class', 'student-vs-class-avg') quedan para
 // iteraciones posteriores.
 
+import { C } from "../tokens";
+
 export default function CompareToggle({ value = "off", onChange }) {
   const active = value === "prev";
   return (
@@ -21,9 +23,9 @@ export default function CompareToggle({ value = "off", onChange }) {
         borderRadius: 6,
         fontSize: 13,
         fontWeight: active ? 600 : 400,
-        background: active ? "#2563eb" : "#fff",
+        background: active ? C.accent : C.bg,
         color: active ? "#fff" : "inherit",
-        border: "1px solid #e4e4e7",
+        border: `1px solid ${C.border}`,
         cursor: "pointer",
         display: "inline-flex",
         alignItems: "center",

@@ -15,6 +15,7 @@ import { previousPeriod } from "../../lib/analytics/benchmark";
 import { useClassAnalytics } from "../../hooks/useClassAnalytics";
 import { useTopicDetail } from "../../hooks/useTopicDetail";
 import { ROUTES, buildRoute } from "../../routes";
+import { C } from "../../components/tokens";
 
 function periodToRange(period) {
   const now = new Date();
@@ -90,9 +91,9 @@ export default function TopicMastery() {
       onPeriodChange={setPeriod}
       toolbarExtras={<CompareToggle value={compareMode} onChange={setCompareMode} />}
     >
-      <div style={{ padding: 18, background: "#fafafa", minHeight: "100%" }}>
+      <div style={{ padding: 18, background: C.bgSoft, minHeight: "100%" }}>
         {classQ.error && (
-          <div role="alert" style={{ background: "#fee2e2", border: "1px solid #fecaca", color: "#b91c1c", padding: 12, borderRadius: 8, marginBottom: 12, fontSize: 14 }}>
+          <div role="alert" style={{ background: C.redSoft, border: `1px solid ${C.red}`, color: C.red, padding: 12, borderRadius: 8, marginBottom: 12, fontSize: 14 }}>
             Error: {String(classQ.error.message || classQ.error)}
           </div>
         )}

@@ -618,14 +618,15 @@ function ResultStage({
   }, [imageUri]);
 
   const isPerfect = score === total;
-  const scoreColor = isPerfect ? "#22c55e" : score >= total * 0.7 ? "#fbbf24" : "#ef4444";
+  const scoreColor = isPerfect ? C.green : score >= total * 0.7 ? C.orange : C.red;
+  const scoreBg = isPerfect ? C.greenSoft : score >= total * 0.7 ? C.orangeSoft : C.redSoft;
 
   return (
     <div>
       {/* Big score */}
       <div style={{
         padding: 24, borderRadius: 16,
-        background: scoreColor + "12",
+        background: scoreBg,
         border: `2px solid ${scoreColor}`,
         textAlign: "center", marginBottom: 20,
       }}>
@@ -672,9 +673,9 @@ function ResultStage({
           {answers.map(ans => {
             const isBlank = !ans.marked || ans.marked.length === 0;
             const markedText = isBlank ? null : ans.marked.join("/");
-            const bg = ans.is_correct ? "#22c55e22" : (isBlank ? "#94a3b822" : "#ef444422");
-            const border = ans.is_correct ? "#22c55e" : (isBlank ? "#94a3b8" : "#ef4444");
-            const color = ans.is_correct ? "#16a34a" : (isBlank ? "#64748b" : "#dc2626");
+            const bg = ans.is_correct ? C.greenSoft : (isBlank ? C.bgSoft : C.redSoft);
+            const border = ans.is_correct ? C.green : (isBlank ? C.textMuted : C.red);
+            const color = ans.is_correct ? C.green : (isBlank ? C.textMuted : C.red);
             return (
               <div
                 key={ans.question_id}

@@ -12,6 +12,7 @@ import { formatRelativeDay } from "../../lib/analytics/formatters";
 import { sortRows, nextSortDir } from "../../lib/analytics/table-sort";
 import RiskBadge from "./RiskBadge";
 import { riskScore } from "../../lib/analytics/risk";
+import { C } from "../tokens";
 
 function badgeStyle(tone) {
   return {
@@ -19,9 +20,9 @@ function badgeStyle(tone) {
     borderRadius: 10,
     fontSize: 11,
     background:
-      tone === "good" ? "#dcfce7" : tone === "warn" ? "#fef3c7" : tone === "bad" ? "#fee2e2" : "#f4f4f5",
+      tone === "good" ? C.greenSoft : tone === "warn" ? C.orangeSoft : tone === "bad" ? C.redSoft : C.bgSoft,
     color:
-      tone === "good" ? "#15803d" : tone === "warn" ? "#854d0e" : tone === "bad" ? "#b91c1c" : "#52525b",
+      tone === "good" ? C.green : tone === "warn" ? C.orange : tone === "bad" ? C.red : C.textSecondary,
   };
 }
 
@@ -103,7 +104,7 @@ export default function RosterTable({ students = [], riskInputsByName = {}, onRo
   };
 
   return (
-    <div style={{ background: "#fff", border: "1px solid #e4e4e7", borderRadius: 8, padding: 12 }}>
+    <div style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, padding: 12 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
         <div style={{ fontSize: 13, fontWeight: 600 }}>Roster</div>
         <input
@@ -116,7 +117,7 @@ export default function RosterTable({ students = [], riskInputsByName = {}, onRo
             padding: "4px 9px",
             fontSize: 12,
             borderRadius: 6,
-            border: "1px solid #e4e4e7",
+            border: `1px solid ${C.border}`,
             width: 170,
           }}
         />
@@ -163,14 +164,14 @@ export default function RosterTable({ students = [], riskInputsByName = {}, onRo
                   }
                   tabIndex={clickable ? 0 : undefined}
                   role={clickable ? "button" : undefined}
-                  style={{ borderTop: "1px solid #f4f4f5", cursor: clickable ? "pointer" : "default" }}
+                  style={{ borderTop: `1px solid ${C.bgSoft}`, cursor: clickable ? "pointer" : "default" }}
                 >
                   <td style={{ padding: "7px 0" }}>{s.name}</td>
                   <td>
                     <div style={{ display: "inline-block", width: 80, marginRight: 6 }}>
                       <div
                         style={{
-                          background: s.avgRetention >= 70 ? "#dcfce7" : s.avgRetention >= 40 ? "#fef3c7" : "#fee2e2",
+                          background: s.avgRetention >= 70 ? C.greenSoft : s.avgRetention >= 40 ? C.orangeSoft : C.redSoft,
                           height: 6,
                           width: `${Math.min(100, s.avgRetention)}%`,
                           borderRadius: 3,

@@ -12,16 +12,17 @@
 //   tone: "default" | "danger" (cambia el borde de la card)
 
 import { SparklineCell } from "../charts";
+import { C } from "../tokens";
 
 const TONE_BG = {
-  good: "#dcfce7",
-  bad: "#fee2e2",
-  neutral: "#f4f4f5",
+  good: C.greenSoft,
+  bad: C.redSoft,
+  neutral: C.bgSoft,
 };
 const TONE_COLOR = {
-  good: "#15803d",
-  bad: "#b91c1c",
-  neutral: "#52525b",
+  good: C.green,
+  bad: C.red,
+  neutral: C.textSecondary,
 };
 
 export default function StatCardWithSparkline({
@@ -37,11 +38,11 @@ export default function StatCardWithSparkline({
     <div
       style={{
         flex: 1,
-        background: "#fff",
+        background: C.bg,
         border:
           tone === "danger"
-            ? "1px solid #fecaca"
-            : "1px solid #e4e4e7",
+            ? `1px solid ${C.red}`
+            : `1px solid ${C.border}`,
         borderRadius: 8,
         padding: 14,
       }}

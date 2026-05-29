@@ -17,6 +17,7 @@ import { useNavigate } from "react-router-dom";
 import PeriodChips from "./PeriodChips";
 import { ROUTES, buildRoute } from "../../routes";
 import { useIsMobile } from "../MobileMenuButton";
+import { C } from "../tokens";
 
 // `route` => navegable desde el sidebar (rutas sin params). Sin `route` =>
 // contextual: se abre con un id desde otra vista; el sidebar solo lo resalta.
@@ -57,8 +58,8 @@ export default function StudioShell({
         aria-label="Analytics Studio"
         style={
           isMobile
-            ? { display: "flex", gap: 4, overflowX: "auto", padding: "8px 12px", borderBottom: "1px solid #e4e4e7", background: "#fafafa", WebkitOverflowScrolling: "touch" }
-            : { flex: "0 0 168px", padding: "16px 0", borderRight: "1px solid #e4e4e7", background: "#fafafa" }
+            ? { display: "flex", gap: 4, overflowX: "auto", padding: "8px 12px", borderBottom: `1px solid ${C.border}`, background: C.bgSoft, WebkitOverflowScrolling: "touch" }
+            : { flex: "0 0 168px", padding: "16px 0", borderRight: `1px solid ${C.border}`, background: C.bgSoft }
         }
       >
         {!isMobile && (
@@ -105,10 +106,10 @@ export default function StudioShell({
                       whiteSpace: "nowrap",
                       flexShrink: 0,
                       fontWeight: active ? 600 : 400,
-                      color: active ? "#2563eb" : navigable ? "inherit" : "#a1a1aa",
-                      background: active ? "#eff6ff" : "transparent",
+                      color: active ? C.accent : navigable ? C.text : C.textMuted,
+                      background: active ? C.accentSoft : "transparent",
                       borderRadius: 6,
-                      borderBottom: active ? "2px solid #2563eb" : "2px solid transparent",
+                      borderBottom: active ? `2px solid ${C.accent}` : "2px solid transparent",
                       cursor: navigable && !active ? "pointer" : "default",
                       fontSize: 13,
                     }
@@ -117,9 +118,9 @@ export default function StudioShell({
                       fontWeight: active ? 600 : 400,
                       // Navegables: color normal (azul si activo). Contextuales
                       // inactivos: atenuados (se abren desde otra vista).
-                      color: active ? "#2563eb" : navigable ? "inherit" : "#a1a1aa",
-                      background: active ? "#eff6ff" : "transparent",
-                      borderLeft: active ? "3px solid #2563eb" : "3px solid transparent",
+                      color: active ? C.accent : navigable ? C.text : C.textMuted,
+                      background: active ? C.accentSoft : "transparent",
+                      borderLeft: active ? `3px solid ${C.accent}` : "3px solid transparent",
                       cursor: navigable && !active ? "pointer" : "default",
                       fontSize: 14,
                     }
@@ -139,8 +140,8 @@ export default function StudioShell({
             alignItems: "center",
             gap: 12,
             padding: "12px 18px",
-            borderBottom: "1px solid #e4e4e7",
-            background: "#fff",
+            borderBottom: `1px solid ${C.border}`,
+            background: C.bg,
           }}
         >
           <h1 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>{title}</h1>

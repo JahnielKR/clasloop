@@ -5,7 +5,7 @@ import { LogoMark, CIcon } from "../components/Icons";
 import { Avatar } from "../components/Avatars";
 import { checkAndGrantUnlocks } from "../lib/unlock-checker";
 import { generateGuestToken, saveGuestSession, clearGuestSession } from "../lib/guest-session";
-import { C, MONO } from "../components/tokens";
+import { C, MONO, SH } from "../components/tokens";
 import { resolveTimeLimit } from "../lib/time-limits";
 import { getPracticeTimerPref, setPracticeTimerPref } from "../lib/practice-timer-pref";
 import { evaluateAnswer, describeCorrectAnswer, formatStudentAnswer } from "../lib/scoring";
@@ -4070,16 +4070,16 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
             padding: 20,
           }}>
             <div className="sj-unlock-card" style={{
-              background: "#FFFFFF", borderRadius: 20,
+              background: C.bg, borderRadius: 20,
               padding: "40px 28px 28px",
               maxWidth: 360, width: "100%",
               textAlign: "center",
-              boxShadow: "0 20px 60px rgba(0,0,0,0.4)",
+              boxShadow: SH.lg,
             }}>
               <div style={{
                 fontSize: 11, fontWeight: 700, letterSpacing: "0.12em",
                 textTransform: "uppercase",
-                color: showingUnlock.rarity === "legendary" ? "#BA7517" : showingUnlock.rarity === "rare" ? "#534AB7" : "#888780",
+                color: showingUnlock.rarity === "legendary" ? C.yellow : showingUnlock.rarity === "rare" ? C.purple : C.textMuted,
                 marginBottom: 6,
               }}>
                 {showingUnlock.rarity === "legendary" ? "✦ Legendary unlocked ✦"
@@ -4089,7 +4089,7 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
               <h2 style={{
                 fontSize: 24, fontWeight: 700, fontFamily: "'Outfit'",
                 margin: "0 0 24px",
-                color: "#191919",
+                color: C.text,
               }}>{t.youUnlocked}</h2>
               <div style={{ display: "flex", justifyContent: "center", marginBottom: 18 }}>
                 <Avatar id={showingUnlock.id} size={140} />

@@ -21,7 +21,7 @@ const css = `
   .st-tab { transition: all .15s ease; cursor: pointer; border: none; font-family: 'Outfit',sans-serif; }
   .st-tab:hover { background: ${C.accentSoft} !important; border-color: ${C.accent} !important; color: ${C.accent} !important; }
   .st-section { transition: all .2s ease; }
-  .st-section:hover { border-color: ${C.accent} !important; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+  .st-section:hover { border-color: ${C.accent} !important; box-shadow: var(--c-shadow); }
   .st-row { transition: all .15s ease; }
   .st-row:hover { background: ${C.bgSoft} !important; }
   .st-btn { transition: all .15s ease; cursor: pointer; border: none; font-family: 'Outfit',sans-serif; }

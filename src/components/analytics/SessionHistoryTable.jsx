@@ -10,12 +10,13 @@ import {
   formatRelativeDay,
 } from "../../lib/analytics/formatters";
 import { sortRows, nextSortDir } from "../../lib/analytics/table-sort";
+import { C } from "../tokens";
 
 function pctColor(pct) {
-  if (pct == null) return "#71717a";
-  if (pct >= 70) return "#15803d";
-  if (pct >= 40) return "#854d0e";
-  return "#b91c1c";
+  if (pct == null) return C.textSecondary;
+  if (pct >= 70) return C.green;
+  if (pct >= 40) return C.orange;
+  return C.red;
 }
 
 const TYPE_LABEL = { warmup: "Warmup", exitTicket: "Exit ticket" };
@@ -62,7 +63,7 @@ export default function SessionHistoryTable({ items = [], onRowClick }) {
   );
 
   return (
-    <div style={{ background: "#fff", border: "1px solid #e4e4e7", borderRadius: 8, padding: 12 }}>
+    <div style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, padding: 12 }}>
       <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Historial por sesión</div>
       {items.length === 0 ? (
         <div style={{ opacity: 0.45, fontSize: 13, padding: 6 }}>
@@ -100,7 +101,7 @@ export default function SessionHistoryTable({ items = [], onRowClick }) {
                   }
                   tabIndex={clickable ? 0 : undefined}
                   role={clickable ? "button" : undefined}
-                  style={{ borderTop: "1px solid #f4f4f5", cursor: clickable ? "pointer" : "default" }}
+                  style={{ borderTop: `1px solid ${C.bgSoft}`, cursor: clickable ? "pointer" : "default" }}
                 >
                   <td style={{ padding: "7px 0" }}>{formatRelativeDay(it.session_completed_at)}</td>
                   <td>{it.session_topic || "—"}</td>

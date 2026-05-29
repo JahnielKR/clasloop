@@ -18,8 +18,9 @@ import {
   saveClassReviewDeck,
 } from "../../lib/close-unit-ai";
 import { buildRoute, ROUTES } from "../../routes";
+import { C } from "../../components/tokens";
 
-const ACCENT = "#7c3aed";
+const ACCENT = C.purple;
 
 export default function LiveCommandCenter({ profile = null }) {
   const navigate = useNavigate();
@@ -106,13 +107,13 @@ export default function LiveCommandCenter({ profile = null }) {
 
   return (
     <StudioShell view="live" title="En vivo">
-      <div style={{ padding: 18, background: "#fafafa", minHeight: "100%" }}>
+      <div style={{ padding: 18, background: C.bgSoft, minHeight: "100%" }}>
         {sessionId ? (
           <>
             <div
               style={{
-                background: "#fff",
-                border: "1px solid #e4e4e7",
+                background: C.bg,
+                border: `1px solid ${C.border}`,
                 borderLeft: `3px solid ${ACCENT}`,
                 borderRadius: 8,
                 padding: "10px 14px",
@@ -128,21 +129,21 @@ export default function LiveCommandCenter({ profile = null }) {
                   width: 8,
                   height: 8,
                   borderRadius: "50%",
-                  background: live.isLive ? "#7c3aed" : "#a1a1aa",
+                  background: live.isLive ? C.purple : C.textMuted,
                   display: "inline-block",
                 }}
               />
               <b>{activeQ.data?.topic || "Sesión activa"}</b>
-              <span style={{ color: "#71717a" }}>
+              <span style={{ color: C.textSecondary }}>
                 · {live.isLive ? "recibiendo updates en vivo" : "conectando…"}
               </span>
               <button
                 onClick={() => navigate(buildRoute.sessionsLive(sessionId))}
                 style={{
                   marginLeft: "auto",
-                  border: "1px solid #c4b5fd",
-                  background: "#f5f3ff",
-                  color: "#5b21b6",
+                  border: `1px solid ${C.purple}`,
+                  background: C.purpleSoft,
+                  color: C.purple,
                   borderRadius: 6,
                   padding: "4px 10px",
                   fontSize: 12,
@@ -185,9 +186,9 @@ export default function LiveCommandCenter({ profile = null }) {
             {alertQuestions.length > 0 && (
               <div
                 style={{
-                  background: "#fff",
-                  border: "1px solid #e4e4e7",
-                  borderLeft: "3px solid #dc2626",
+                  background: C.bg,
+                  border: `1px solid ${C.border}`,
+                  borderLeft: `3px solid ${C.red}`,
                   borderRadius: 8,
                   padding: "12px 14px",
                   marginBottom: 12,
@@ -208,9 +209,9 @@ export default function LiveCommandCenter({ profile = null }) {
                     onClick={handleQuickReview}
                     disabled={generating}
                     style={{
-                      border: "1px solid #c4b5fd",
-                      background: "#f5f3ff",
-                      color: "#5b21b6",
+                      border: `1px solid ${C.purple}`,
+                      background: C.purpleSoft,
+                      color: C.purple,
                       borderRadius: 6,
                       padding: "4px 10px",
                       fontSize: 12,
@@ -228,13 +229,13 @@ export default function LiveCommandCenter({ profile = null }) {
           <>
             <div
               style={{
-                background: "#fff",
-                border: "1px solid #e4e4e7",
+                background: C.bg,
+                border: `1px solid ${C.border}`,
                 borderRadius: 8,
                 padding: "12px 14px",
                 marginBottom: 12,
                 fontSize: 14,
-                color: "#52525b",
+                color: C.textSecondary,
               }}
             >
               Sin sesiones activas ahora mismo. Lanzá una desde{" "}
@@ -243,7 +244,7 @@ export default function LiveCommandCenter({ profile = null }) {
                 style={{
                   background: "transparent",
                   border: "none",
-                  color: "#2563eb",
+                  color: C.accent,
                   textDecoration: "underline",
                   cursor: "pointer",
                   padding: 0,
