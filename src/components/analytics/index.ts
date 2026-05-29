@@ -32,3 +32,6 @@ export { default as ReportList } from "./ReportList";
 export { default as StudentDrawer } from "./StudentDrawer";
 export { default as AnimatedNumber } from "./AnimatedNumber";
 export { default as StudioSkeleton } from "./StudioSkeleton";
+export { default as ClassTable } from "./ClassTable";
+export { default as RiskOverviewList } from "./RiskOverviewList";
+export { default as CriticalTopicsList } from "./CriticalTopicsList";
