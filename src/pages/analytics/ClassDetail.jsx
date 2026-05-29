@@ -5,7 +5,7 @@
 // useClassTimeseries (RPCs de F0). Compone los bloques presentacionales
 // definidos en src/components/analytics/.
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { StudioShell, ExportMenu, StudioSkeleton } from "../../components/analytics";
 import { buildClassReportModel } from "../../lib/analytics/report-model";
@@ -58,7 +58,10 @@ export default function ClassDetail({ profile = null }) {
   const [metric, setMetric] = useState("pct_correct");
   const [compareMode, setCompareMode] = useState("off");
   const [peekStudent, setPeekStudent] = useState(null);
-  const { from, to } = periodToRange(period);
+  // Hotfix: memoize so from/to stay STABLE across renders. periodToRange()
+  // calls new Date() every render → unstable from/to → the React Query
+  // queryKey changes each render → infinite refetch loop. Recompute on period only.
+  const { from, to } = useMemo(() => periodToRange(period), [period]);
   const compareRange =
     compareMode === "prev" ? previousPeriod(from, to) : { from: null, to: null };
 

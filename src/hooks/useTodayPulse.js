@@ -28,11 +28,12 @@ async function fetchTodayPulse() {
     .or(`created_at.gte.${sinceIso},status.in.(active,lobby)`);
   if (sErr) throw sErr;
 
-  // Responses: creadas hoy. Para limitar payload, solo las columnas que
-  // pulse-of-today.ts consume.
+  // Responses: creadas hoy. OJO: `responses` NO tiene `student_name` (esa
+  // columna vive en session_participants) — pedirla daba 400. Traemos
+  // `participant_id` y resolvemos el nombre abajo. Mismo patrón que useLiveSession.
   const { data: responses, error: rErr } = await supabase
     .from("responses")
-    .select("session_id, student_name, is_correct, points, max_points, created_at")
+    .select("session_id, participant_id, is_correct, points, max_points, created_at")
     .gte("created_at", sinceIso);
   if (rErr) throw rErr;
 
@@ -42,12 +43,32 @@ async function fetchTodayPulse() {
     .select("id, name");
   if (cErr) throw cErr;
 
-  // Enriquecer responses con class_id derivado de la sesión correspondiente
-  // (responses no tiene class_id directo).
+  // Resolver participant_id → student_name: pulse-of-today.ts agrupa el top
+  // student por nombre. Solo los participantes referenciados por las respuestas
+  // de hoy (lista acotada → un único .in()).
+  const participantIds = [
+    ...new Set((responses || []).map((r) => r.participant_id).filter(Boolean)),
+  ];
+  let nameByParticipant = new Map();
+  if (participantIds.length > 0) {
+    const { data: parts, error: pErr } = await supabase
+      .from("session_participants")
+      .select("id, student_name")
+      .in("id", participantIds);
+    if (pErr) throw pErr;
+    nameByParticipant = new Map((parts || []).map((p) => [p.id, p.student_name]));
+  }
+
+  // Enriquecer responses con class_id (derivado de la sesión) + student_name
+  // (derivado del participante). responses no trae ninguno de los dos directo.
   const sessionById = new Map((sessions || []).map((s) => [s.id, s]));
   const enriched = (responses || []).map((r) => {
     const s = sessionById.get(r.session_id);
-    return { ...r, class_id: s?.class_id || null };
+    return {
+      ...r,
+      class_id: s?.class_id || null,
+      student_name: nameByParticipant.get(r.participant_id) || null,
+    };
   });
 
   return { sessions: sessions || [], responses: enriched, classes: classes || [] };
