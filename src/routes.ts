@@ -128,6 +128,9 @@ export const buildRoute = {
   // preseleccionar la clase al abrir la vista chat.
   analyticsAsk: (classId?: string) =>
     classId ? `/school/ask?class=${enc(classId)}` : `/school/ask`,
+  // Analytics Studio — Live Command Center (F6). Realtime tiles
+  // when a session is active; pulse-of-today expanded otherwise.
+  analyticsLive: () => `/school/live`,
   // Class report — Cleo-opened printable snapshot (KPIs + charts)
   classReport: (classId: string) => `/classes/${enc(classId)}/report`,
   // Student-facing per-session results page — landed from a "graded"
