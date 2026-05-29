@@ -37,7 +37,7 @@ function periodToRange(period) {
   }
 }
 
-export default function StudentProfile() {
+export default function StudentProfile({ profile = null }) {
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const match = /^\/school\/student\/([^/]+)\/([^/]+)\/?$/.exec(pathname);
@@ -123,7 +123,7 @@ export default function StudentProfile() {
       classObj,
       questions: gen.questions,
       lang: gen.inferredLang || "es",
-      authorId: null,
+      authorId: profile?.id ?? null,
       studentName: studentRef,
     });
     setGeneratingReview(false);
@@ -181,7 +181,7 @@ export default function StudentProfile() {
               deltaVsClass={deltaVsClass}
               detail={d}
               classObj={classObj}
-              profile={null}
+              profile={profile}
               lang="es"
               onReviewCreated={(deckId) => navigate(buildRoute.deckEdit(deckId))}
             />

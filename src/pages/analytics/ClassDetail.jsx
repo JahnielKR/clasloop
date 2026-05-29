@@ -43,7 +43,7 @@ function periodToRange(period) {
   }
 }
 
-export default function ClassDetail() {
+export default function ClassDetail({ profile = null }) {
   const navigate = useNavigate();
   const { pathname } = useLocation();
   // Pull :classId from /school/class/:classId
@@ -127,7 +127,7 @@ export default function ClassDetail() {
       classObj: cObj,
       questions: gen.questions,
       lang: gen.inferredLang || "es",
-      authorId: null,
+      authorId: profile?.id ?? null,
     });
     setGeneratingReview(false);
     if (save.ok) navigate(buildRoute.deckEdit(save.deckId));
@@ -204,7 +204,7 @@ export default function ClassDetail() {
                     }
                   : { id: classId, name: "", subject: "", grade: "" };
               })()}
-              profile={null}
+              profile={profile}
               classAnalytics={a}
               timeseries={ts}
               lang="es"
