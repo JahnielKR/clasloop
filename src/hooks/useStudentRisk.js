@@ -10,7 +10,7 @@ import { supabase } from "../lib/supabase";
 export const studentRiskKey = (classId, windowDays) =>
   ["analytics", "studentRisk", classId, windowDays || 30];
 
-async function fetchStudentRisk(classId, windowDays) {
+export async function fetchStudentRisk(classId, windowDays) {
   const { data, error } = await supabase.rpc("student_risk", {
     p_class_id: classId,
     p_window_days: windowDays || 30,
