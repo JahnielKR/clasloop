@@ -92,7 +92,7 @@ export default function Settings({ lang: pageLang = "en", setLang: pageSetLang, 
   const [confirmPass, setConfirmPass] = useState("");
   const [passStatus, setPassStatus] = useState(null); // null | updating | updated | error | mismatch | short
 
-  // Notifications (stored locally for now)
+  // Notifications — persisted to notification_settings (F7)
   const [notifs, setNotifs] = useState({ email: true, push: true, weekly: true, studyRemind: true, streakRemind: true });
 
   // PR 28: irreversible account deletion modal
@@ -116,6 +116,29 @@ export default function Settings({ lang: pageLang = "en", setLang: pageSetLang, 
   const isTeacher = profile?.role === "teacher";
 
   useEffect(() => { loadProfile(); }, []);
+
+  // F7: hydrate notif prefs from notification_settings (replaces the
+  // "stored locally for now" placeholder). Falls back to defaults if no row.
+  useEffect(() => {
+    if (!profile?.id) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("notification_settings")
+        .select("email_notifs, push_notifs, weekly_digest, study_reminders, streak_reminders")
+        .eq("user_id", profile.id)
+        .maybeSingle();
+      if (cancelled || !data) return;
+      setNotifs({
+        email: data.email_notifs,
+        push: data.push_notifs,
+        weekly: data.weekly_digest,
+        studyRemind: data.study_reminders,
+        streakRemind: data.streak_reminders,
+      });
+    })();
+    return () => { cancelled = true; };
+  }, [profile?.id]);
 
   const loadProfile = async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -261,6 +284,25 @@ export default function Settings({ lang: pageLang = "en", setLang: pageSetLang, 
       return;
     }
     if (refreshProfile) refreshProfile();
+  };
+
+  // F7: optimistic flip + upsert. Maps local keys → DB columns.
+  const persistNotif = async (key, value) => {
+    if (!profile?.id) return;
+    const next = { ...notifs, [key]: value };
+    setNotifs(next);
+    await supabase.from("notification_settings").upsert(
+      {
+        user_id: profile.id,
+        email_notifs: next.email,
+        push_notifs: next.push,
+        weekly_digest: next.weekly,
+        study_reminders: next.studyRemind,
+        streak_reminders: next.streakRemind,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "user_id" },
+    );
   };
 
   const updatePassword = async () => {
@@ -557,14 +599,14 @@ export default function Settings({ lang: pageLang = "en", setLang: pageSetLang, 
             <Section title={t.notifications} icon="bell">
               {isTeacher ? (
                 <>
-                  <SettingRow label={t.emailNotifs} desc={t.emailNotifsDesc} right={<Toggle on={notifs.email} onToggle={() => setNotifs(p => ({ ...p, email: !p.email }))} />} />
-                  <SettingRow label={t.pushNotifs} desc={t.pushNotifsDesc} right={<Toggle on={notifs.push} onToggle={() => setNotifs(p => ({ ...p, push: !p.push }))} />} />
-                  <SettingRow label={t.weeklyReport} desc={t.weeklyReportDesc} right={<Toggle on={notifs.weekly} onToggle={() => setNotifs(p => ({ ...p, weekly: !p.weekly }))} />} />
+                  <SettingRow label={t.emailNotifs} desc={t.emailNotifsDesc} right={<Toggle on={notifs.email} onToggle={() => persistNotif("email", !notifs.email)} />} />
+                  <SettingRow label={t.pushNotifs} desc={t.pushNotifsDesc} right={<Toggle on={notifs.push} onToggle={() => persistNotif("push", !notifs.push)} />} />
+                  <SettingRow label={t.weeklyReport} desc={t.weeklyReportDesc} right={<Toggle on={notifs.weekly} onToggle={() => persistNotif("weekly", !notifs.weekly)} />} />
                 </>
               ) : (
                 <>
-                  <SettingRow label={t.studyReminders} desc={t.studyRemindersDesc} right={<Toggle on={notifs.studyRemind} onToggle={() => setNotifs(p => ({ ...p, studyRemind: !p.studyRemind }))} />} />
-                  <SettingRow label={t.streakReminder} desc={t.streakReminderDesc} right={<Toggle on={notifs.streakRemind} onToggle={() => setNotifs(p => ({ ...p, streakRemind: !p.streakRemind }))} />} />
+                  <SettingRow label={t.studyReminders} desc={t.studyRemindersDesc} right={<Toggle on={notifs.studyRemind} onToggle={() => persistNotif("studyRemind", !notifs.studyRemind)} />} />
+                  <SettingRow label={t.streakReminder} desc={t.streakReminderDesc} right={<Toggle on={notifs.streakRemind} onToggle={() => persistNotif("streakRemind", !notifs.streakRemind)} />} />
                 </>
               )}
             </Section>
