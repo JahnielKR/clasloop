@@ -27,7 +27,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { CIcon } from "../components/Icons";
 import PageHeader from "../components/PageHeader";
-import { C, SH } from "../components/tokens";
+import { C, SH, withAlpha } from "../components/tokens";
 import { teacherGradeToPoints, describeCorrectAnswer } from "../lib/scoring";
 // PR 76: i18n centralizado
 import { useT } from "../i18n";
@@ -815,7 +815,7 @@ export default function Review({ profile, lang = "en", onOpenMobileMenu }) {
                   transition: "border-color .15s ease, background .15s ease",
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.borderColor = C.accent + "66";
+                  e.currentTarget.style.borderColor = withAlpha(C.accent, "66");
                   e.currentTarget.style.background = C.bgSoft;
                 }}
                 onMouseLeave={(e) => {
@@ -895,7 +895,7 @@ export default function Review({ profile, lang = "en", onOpenMobileMenu }) {
                   transition: "border-color .15s ease, background .15s ease",
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.borderColor = C.accent + "66";
+                  e.currentTarget.style.borderColor = withAlpha(C.accent, "66");
                   e.currentTarget.style.background = C.bgSoft;
                 }}
                 onMouseLeave={(e) => {
@@ -954,12 +954,12 @@ export default function Review({ profile, lang = "en", onOpenMobileMenu }) {
             className={`rv-card ${isLeaving ? "rv-leaving" : ""}`}
             style={{
               background: C.bg,
-              border: `1px solid ${isActive ? C.accent + "55" : C.border}`,
+              border: `1px solid ${isActive ? withAlpha(C.accent, "55") : C.border}`,
               borderLeft: `3px solid ${C.accent}`,
               borderRadius: 12,
               padding: 16,
               marginBottom: 12,
-              boxShadow: isActive ? `0 0 0 2px ${C.accent}1a` : "none",
+              boxShadow: isActive ? `0 0 0 2px ${withAlpha(C.accent, "1a")}` : "none",
               transition: "border-color .15s ease, box-shadow .15s ease",
             }}
           >

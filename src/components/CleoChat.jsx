@@ -7,7 +7,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import Cleo from "./Cleo";
-import { C } from "./tokens";
+import { C, withAlpha } from "./tokens";
 import { CIcon } from "./Icons";
 import { useT } from "../i18n";
 import { supabase } from "../lib/supabase";
@@ -447,7 +447,7 @@ export default function CleoChat({ lang = "en", profile = null }) {
                   <div style={{
                     display: "inline-flex", alignItems: "center", gap: 8, maxWidth: "100%",
                     padding: "6px 10px", borderRadius: 10,
-                    background: C.accentSoft, border: `1px solid ${C.accent}33`,
+                    background: C.accentSoft, border: `1px solid ${withAlpha(C.accent, "33")}`,
                     color: C.text, fontSize: 12.5,
                   }}>
                     <AttachIcon size={14} />

@@ -31,7 +31,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { getUnitRetentionSummary } from "../lib/spaced-repetition";
-import { C, MONO } from "./tokens";
+import { C, MONO, withAlpha } from "./tokens";
 import Modal from "./Modal";
 import SectionBadge, { sectionAccent } from "./SectionBadge";
 import { buildRoute } from "../routes";
@@ -514,7 +514,7 @@ export function CloseUnitSummary({ unit, classObj, userId, lang = "en", onBack, 
           <div style={{
             padding: "14px 16px",
             background: C.redSoft || "#FEE",
-            border: `1px solid ${C.red}33`,
+            border: `1px solid ${withAlpha(C.red, "33")}`,
             borderRadius: 8,
             display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12,
             fontSize: 13, color: C.red,
@@ -526,7 +526,7 @@ export function CloseUnitSummary({ unit, classObj, userId, lang = "en", onBack, 
                 padding: "6px 12px",
                 borderRadius: 6,
                 background: C.bg,
-                border: `1px solid ${C.red}55`,
+                border: `1px solid ${withAlpha(C.red, "55")}`,
                 color: C.red,
                 fontSize: 12, fontWeight: 600,
                 cursor: "pointer",

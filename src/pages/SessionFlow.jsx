@@ -9,7 +9,7 @@ import { DeckCover, resolveColor } from "../lib/deck-cover";
 import MobileMenuButton, { useIsMobile } from "../components/MobileMenuButton";
 import PageHeader from "../components/PageHeader";
 import SectionBadge, { sectionAccent } from "../components/SectionBadge";
-import { C, MONO, SH } from "../components/tokens";
+import { C, MONO, SH, withAlpha } from "../components/tokens";
 import { estimateDeckSeconds, formatDeckDuration } from "../lib/time-limits";
 import { ROUTES, QUERY, buildRoute } from "../routes";
 // PR 79: i18n centralizado
@@ -249,7 +249,7 @@ function SessionOptions({ deck, classes, t, lang = "en", onLaunch, onBack }) {
                 padding: "8px 14px", borderRadius: 8, fontSize: 13, fontWeight: 500,
                 background: timeMode === "per_question" ? C.accentSoft : C.bg,
                 color: timeMode === "per_question" ? C.accent : C.textSecondary,
-                border: `1px solid ${timeMode === "per_question" ? C.accent + "33" : C.border}`,
+                border: `1px solid ${timeMode === "per_question" ? withAlpha(C.accent, "33") : C.border}`,
                 cursor: "pointer", fontFamily: "'Outfit',sans-serif",
               }}
             >{t.timerModePerQuestion}</button>
@@ -259,7 +259,7 @@ function SessionOptions({ deck, classes, t, lang = "en", onLaunch, onBack }) {
                 padding: "8px 14px", borderRadius: 8, fontSize: 13, fontWeight: 500,
                 background: timeMode === "total" ? C.accentSoft : C.bg,
                 color: timeMode === "total" ? C.accent : C.textSecondary,
-                border: `1px solid ${timeMode === "total" ? C.accent + "33" : C.border}`,
+                border: `1px solid ${timeMode === "total" ? withAlpha(C.accent, "33") : C.border}`,
                 cursor: "pointer", fontFamily: "'Outfit',sans-serif",
               }}
             >{t.timerModeTotal}</button>
@@ -805,7 +805,7 @@ function ParticipantChip({ p, t, onKick }) {
         padding: "5px 10px", borderRadius: 16, fontSize: 12,
         background: p.is_guest ? C.orangeSoft : C.bgSoft,
         color: p.is_guest ? C.orange : C.textSecondary,
-        border: `1px solid ${p.is_guest ? C.orange + "33" : C.border}`,
+        border: `1px solid ${p.is_guest ? withAlpha(C.orange, "33") : C.border}`,
         fontFamily: "'Outfit',sans-serif",
       }}
     >

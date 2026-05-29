@@ -104,7 +104,7 @@ const LiveCommandCenter = lazy(importLiveCommandCenter);
 const ReportsPage      = lazy(importReportsPage);
 import { useIsMobile } from './components/MobileMenuButton';
 import { countVisibleNotifications, countPendingReviewsForTeacher } from './lib/notifications';
-import { C, SH } from './components/tokens';
+import { C, SH, withAlpha } from './components/tokens';
 import Sidebar from './components/Sidebar';
 import { DensityProvider } from './components/ui/density';
 import ClassCodeModal from './components/ClassCodeModal';
@@ -958,8 +958,8 @@ export default function App() {
     .cl-profile-chip:active { transform: scale(.98); }
     /* PR 23.13: pulsing dot for the active-session button */
     @keyframes cl-pulse {
-      0%, 100% { box-shadow: 0 0 0 0 ${C.red}88; }
-      50%      { box-shadow: 0 0 0 6px ${C.red}00; }
+      0%, 100% { box-shadow: 0 0 0 0 ${withAlpha(C.red, "88")}; }
+      50%      { box-shadow: 0 0 0 6px ${withAlpha(C.red, "00")}; }
     }
   `;
 

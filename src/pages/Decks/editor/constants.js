@@ -4,7 +4,7 @@
 // importing the orchestrator. (CSS classes still live in Decks/styles.js;
 // these are the inline-style objects that have no class equivalent.)
 
-import { C } from "../styles";
+import { C, withAlpha } from "../styles";
 
 // Question type catalog — drives the type-selector grid and the per-question
 // header icon + label. `short` is the compact label for the "+ MCQ" / "+ T/F"
@@ -24,7 +24,7 @@ export const addMiniBtn = {
   display: "inline-flex", alignItems: "center", gap: 5,
   padding: "6px 12px", borderRadius: 7, fontSize: 12, fontWeight: 600,
   background: "transparent", color: C.accent,
-  border: `1px dashed ${C.accent}66`, cursor: "pointer",
+  border: `1px dashed ${withAlpha(C.accent, "66")}`, cursor: "pointer",
   fontFamily: "'Outfit',sans-serif",
 };
 

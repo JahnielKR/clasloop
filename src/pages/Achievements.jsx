@@ -5,7 +5,7 @@ import { Avatar as CatalogAvatar, AVATARS } from "../components/Avatars";
 import { getStudentStats } from "../lib/unlock-checker";
 import { useIsMobile } from "../components/MobileMenuButton";
 import PageHeader from "../components/PageHeader";
-import { C as BASE_C, MONO, SH } from "../components/tokens";
+import { C as BASE_C, MONO, SH, withAlpha } from "../components/tokens";
 // PR 75: i18n centralizado
 import { useT } from "../i18n";
 
@@ -15,8 +15,8 @@ const C = BASE_C;
 
 const RARITY = {
   common:    { bg: C.bgSoft,    border: C.border,        text: C.textSecondary, label: { en: "Common",    es: "Común",      ko: "일반"   } },
-  rare:      { bg: C.accentSoft, border: C.accent + "44", text: C.accent,        label: { en: "Rare",      es: "Raro",       ko: "레어"   } },
-  legendary: { bg: C.orangeSoft, border: C.orange + "44", text: C.orange,        label: { en: "Legendary", es: "Legendario", ko: "전설"   } },
+  rare:      { bg: C.accentSoft, border: withAlpha(C.accent, "44"), text: C.accent,        label: { en: "Rare",      es: "Raro",       ko: "레어"   } },
+  legendary: { bg: C.orangeSoft, border: withAlpha(C.orange, "44"), text: C.orange,        label: { en: "Legendary", es: "Legendario", ko: "전설"   } },
 };
 
 // PR 75: el bloque i18n local fue movido a src/i18n/{en,es,ko}.js
@@ -386,7 +386,7 @@ export default function Achievements({ lang = "en", setLang, profile = null, onO
             style={{
               width: "100%", padding: "14px 18px", borderRadius: 10, marginBottom: 20,
               background: `linear-gradient(135deg, ${C.accentSoft}, ${C.purpleSoft})`,
-              border: `1px solid ${C.accent}22`,
+              border: `1px solid ${withAlpha(C.accent, "22")}`,
               cursor: "pointer", fontFamily: "'Outfit',sans-serif",
               display: "flex", alignItems: "center", gap: 12, textAlign: "left",
             }}
@@ -420,7 +420,7 @@ export default function Achievements({ lang = "en", setLang, profile = null, onO
                 padding: "7px 14px", borderRadius: 8, fontSize: 12, fontWeight: 600,
                 background: filter === f ? C.accentSoft : C.bg,
                 color: filter === f ? C.accent : C.textSecondary,
-                border: `1px solid ${filter === f ? C.accent + "44" : C.border}`,
+                border: `1px solid ${filter === f ? withAlpha(C.accent, "44") : C.border}`,
                 fontFamily: "'Outfit',sans-serif",
               }}
             >{t[f]}</button>
@@ -435,7 +435,7 @@ export default function Achievements({ lang = "en", setLang, profile = null, onO
                 padding: "7px 14px", borderRadius: 8, fontSize: 12, fontWeight: 600,
                 background: rarityFilter === r ? (RARITY[r]?.bg || C.accentSoft) : C.bg,
                 color: rarityFilter === r ? (RARITY[r]?.text || C.accent) : C.textSecondary,
-                border: `1px solid ${rarityFilter === r ? (RARITY[r]?.border || C.accent + "44") : C.border}`,
+                border: `1px solid ${rarityFilter === r ? (RARITY[r]?.border || withAlpha(C.accent, "44")) : C.border}`,
                 fontFamily: "'Outfit',sans-serif",
               }}
             >{t[r] || t.all}</button>

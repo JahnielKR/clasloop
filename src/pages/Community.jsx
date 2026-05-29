@@ -6,7 +6,7 @@ import { DeckCover, colorTint } from "../lib/deck-cover";
 import PageHeader from "../components/PageHeader";
 import Skeleton from "../components/ui/Skeleton";
 import SectionBadge from "../components/SectionBadge";
-import { C as BASE_C } from "../components/tokens";
+import { C as BASE_C, withAlpha } from "../components/tokens";
 // PR 73: i18n centralizado — strings en src/i18n/{en,es,ko}.js
 // bajo el namespace "community".
 import { useT } from "../i18n";
@@ -177,7 +177,7 @@ export default function Community({ lang: pageLang = "en", setLang: pageSetLang,
                   padding: "3px 8px", borderRadius: 6, marginBottom: 12,
                   background: C.purpleSoft, color: C.purple,
                   fontSize: 11, fontWeight: 600,
-                  border: `1px solid ${C.purple}33`,
+                  border: `1px solid ${withAlpha(C.purple, "33")}`,
                 }}>
                   <CIcon name="sparkle" size={11} inline />
                   {t.adaptedFrom}{" "}
@@ -197,7 +197,7 @@ export default function Community({ lang: pageLang = "en", setLang: pageSetLang,
                   width: "100%", padding: 14, borderRadius: 10, fontSize: 15, fontWeight: 600,
                   background: saved[dk.id] ? C.greenSoft : `linear-gradient(135deg, ${C.accent}, ${C.purple})`,
                   color: saved[dk.id] ? C.green : "#fff",
-                  border: saved[dk.id] ? `1px solid ${C.green}33` : "none",
+                  border: saved[dk.id] ? `1px solid ${withAlpha(C.green, "33")}` : "none",
                   display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
                   cursor: "pointer",
                 }}>
@@ -359,7 +359,7 @@ export default function Community({ lang: pageLang = "en", setLang: pageSetLang,
                         padding: "1px 7px", borderRadius: 5, marginBottom: 8,
                         background: C.purpleSoft, color: C.purple,
                         fontSize: 10, fontWeight: 600,
-                        border: `1px solid ${C.purple}33`,
+                        border: `1px solid ${withAlpha(C.purple, "33")}`,
                       }}>
                         <CIcon name="sparkle" size={10} inline />
                         {t.adaptedFrom} {dk.originals.profiles.full_name}

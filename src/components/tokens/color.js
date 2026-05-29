@@ -180,3 +180,22 @@ export const C = {
 
 // Mono font stack — used for deck PINs, codes, code-like values.
 export const MONO = "'JetBrains Mono', monospace";
+
+// ─── withAlpha — theme-aware translucent tint of a token color ───────────
+// Fixes a latent bug: `C.accent + "33"` produced the string
+// "var(--c-accent)33", which is INVALID CSS — the var() resolves to a hex and
+// the trailing "33" is a separate token, so the border/background silently
+// dropped (broken in BOTH light and dark). color-mix keeps the value
+// theme-aware AND renders the exact intended alpha.
+//
+//   border: `1px solid ${withAlpha(C.accent, "33")}`   // "33" hex ≈ 20% alpha
+//   background: withAlpha(C.green, "14")                // "14" hex ≈ 8% alpha
+//
+// `hexAlpha` is the old 2-digit hex alpha suffix (e.g. "33"); a number is
+// treated as a raw 0–255 alpha. color-mix(in srgb, … transparent) is supported
+// across the app's modern browser + Android WebView targets.
+export function withAlpha(color, hexAlpha) {
+  const a = typeof hexAlpha === "number" ? hexAlpha : parseInt(hexAlpha, 16);
+  const pct = Math.max(0, Math.min(100, Math.round((a / 255) * 100)));
+  return `color-mix(in srgb, ${color} ${pct}%, transparent)`;
+}

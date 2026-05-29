@@ -7,7 +7,7 @@ import { loadDismissed, saveDismissed, fetchGradedSessionsForStudent } from "../
 import { CIcon } from "../components/Icons";
 import PageHeader from "../components/PageHeader";
 import Skeleton from "../components/ui/Skeleton";
-import { C } from "../components/tokens";
+import { C, withAlpha } from "../components/tokens";
 // PR 74: i18n centralizado
 import { useT } from "../i18n";
 import TwoColPage from "../components/TwoColPage";
@@ -291,7 +291,7 @@ export default function Notifications({ lang: pageLang = "en", setLang: pageSetL
                 padding: "6px 14px", borderRadius: 20, fontSize: 12, fontWeight: 500,
                 background: filter === k ? C.accentSoft : C.bg,
                 color: filter === k ? C.accent : C.textSecondary,
-                border: `1px solid ${filter === k ? C.accent + "33" : C.border}`,
+                border: `1px solid ${filter === k ? withAlpha(C.accent, "33") : C.border}`,
               }}>{label}</button>
             ))}
           </div>

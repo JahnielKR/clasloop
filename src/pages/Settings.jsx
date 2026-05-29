@@ -4,7 +4,7 @@ import { CIcon } from "../components/Icons";
 import { Avatar, AvatarPicker, getAvatarById } from "../components/Avatars";
 import { uploadProfileAvatar, deleteProfileAvatar } from "../lib/avatar-storage";
 import PageHeader from "../components/PageHeader";
-import { C } from "../components/tokens";
+import { C, withAlpha } from "../components/tokens";
 import DeleteAccountModal from "../components/DeleteAccountModal";
 import useTheme from "../hooks/useTheme";
 import { soundEnabled, setSoundEnabled } from "../lib/sound";
@@ -372,7 +372,7 @@ export default function Settings({ lang: pageLang = "en", setLang: pageSetLang, 
               padding: "8px 16px", borderRadius: 8, fontSize: 13, fontWeight: 500,
               background: tab === id ? C.accentSoft : C.bg,
               color: tab === id ? C.accent : C.textSecondary,
-              border: `1px solid ${tab === id ? C.accent + "33" : C.border}`,
+              border: `1px solid ${tab === id ? withAlpha(C.accent, "33") : C.border}`,
               display: "flex", alignItems: "center", gap: 6,
             }}>
               <CIcon name={icon} size={16} inline /> {label}
@@ -628,7 +628,7 @@ export default function Settings({ lang: pageLang = "en", setLang: pageSetLang, 
                       padding: "6px 12px", borderRadius: 6, fontSize: 12, fontWeight: 600,
                       background: l === c ? C.accentSoft : C.bgSoft,
                       color: l === c ? C.accent : C.textMuted,
-                      border: `1px solid ${l === c ? C.accent + "33" : C.border}`, cursor: "pointer",
+                      border: `1px solid ${l === c ? withAlpha(C.accent, "33") : C.border}`, cursor: "pointer",
                     }}>{lb}</button>
                   ))}
                 </div>
@@ -642,7 +642,7 @@ export default function Settings({ lang: pageLang = "en", setLang: pageSetLang, 
                         padding: "6px 12px", borderRadius: 6, fontSize: 12, fontWeight: 600,
                         background: active ? C.accentSoft : C.bgSoft,
                         color: active ? C.accent : C.textMuted,
-                        border: `1px solid ${active ? C.accent + "33" : C.border}`,
+                        border: `1px solid ${active ? withAlpha(C.accent, "33") : C.border}`,
                         cursor: "pointer",
                       }}>{lb}</button>
                     );
@@ -696,7 +696,7 @@ export default function Settings({ lang: pageLang = "en", setLang: pageSetLang, 
               } />
             </Section>
 
-            <Section title={t.dangerZone} icon="alert" style={{ borderColor: C.red + "33" }}>
+            <Section title={t.dangerZone} icon="alert" style={{ borderColor: withAlpha(C.red, "33") }}>
               <SettingRow label={t.deleteAccount} desc={t.deleteAccountDesc} right={
                 <button
                   className="st-btn-danger"

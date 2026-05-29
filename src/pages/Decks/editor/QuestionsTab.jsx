@@ -10,7 +10,7 @@ import { CIcon } from "../../../components/Icons";
 import { MONO } from "../../../components/tokens";
 import AIIcon from "../../../components/AIIcon";
 import MathText from "../../../components/MathText";
-import { C } from "../styles";
+import { C, withAlpha } from "../styles";
 import AutoResizeTextarea from "./AutoResizeTextarea";
 import AIGeneratePanel from "./AIGeneratePanel";
 import { ACTIVITY_TYPES, addMiniBtn, miniDeleteBtn, iconOverImageBtn } from "./constants";
@@ -466,7 +466,7 @@ export default function QuestionsTab({ ed, t, l }) {
                                     value={optText}
                                     onChange={e => updateOption(qi, oi, e.target.value)}
                                     placeholder={`${t.option} ${oi + 1}`}
-                                    style={{ ...inp, paddingLeft: 36, paddingRight: q.options.length > 2 ? 36 : 14, background: correct ? C.greenSoft : C.bg, borderColor: correct ? C.green + "44" : C.border }}
+                                    style={{ ...inp, paddingLeft: 36, paddingRight: q.options.length > 2 ? 36 : 14, background: correct ? C.greenSoft : C.bg, borderColor: correct ? withAlpha(C.green, "44") : C.border }}
                                   />
                                   <button
                                     onClick={() => toggleMcqCorrect(qi, oi)}
@@ -519,7 +519,7 @@ export default function QuestionsTab({ ed, t, l }) {
                               flex: 1, padding: "10px 14px", borderRadius: 8, fontSize: 14, fontWeight: 600,
                               background: q.correct === v ? C.greenSoft : C.bg,
                               color: q.correct === v ? C.green : C.textMuted,
-                              border: `1px solid ${q.correct === v ? C.green + "44" : C.border}`,
+                              border: `1px solid ${q.correct === v ? withAlpha(C.green, "44") : C.border}`,
                               cursor: "pointer", fontFamily: "'Outfit',sans-serif",
                             }}>{v ? "True" : "False"}</button>
                           ))}
@@ -529,7 +529,7 @@ export default function QuestionsTab({ ed, t, l }) {
                       {/* Fill */}
                       {(q.type === "fill" || (!q.type && activityType === "fill")) && (
                         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                          <input className="dk-input" value={q.answer || ""} onChange={e => updateQ(qi, "answer", e.target.value)} placeholder={t.correctAnswer} style={{ ...inp, background: C.greenSoft, borderColor: C.green + "44" }} />
+                          <input className="dk-input" value={q.answer || ""} onChange={e => updateQ(qi, "answer", e.target.value)} placeholder={t.correctAnswer} style={{ ...inp, background: C.greenSoft, borderColor: withAlpha(C.green, "44") }} />
                           <div>
                             <FieldLabel dense>{t.acceptedAlts}</FieldLabel>
                             <input
@@ -607,7 +607,7 @@ export default function QuestionsTab({ ed, t, l }) {
                               value={q.required_word || ""}
                               onChange={e => updateQ(qi, "required_word", e.target.value)}
                               placeholder={t.requiredWordPlaceholder}
-                              style={{ ...inp, fontFamily: MONO, fontWeight: 600, background: C.accentSoft, borderColor: C.accent + "44" }}
+                              style={{ ...inp, fontFamily: MONO, fontWeight: 600, background: C.accentSoft, borderColor: withAlpha(C.accent, "44") }}
                             />
                           </div>
                           <div>
@@ -661,7 +661,7 @@ export default function QuestionsTab({ ed, t, l }) {
                                 type="number"
                                 value={q.correct ?? 50}
                                 onChange={e => updateQ(qi, "correct", Number(e.target.value))}
-                                style={{ ...inp, fontFamily: MONO, background: C.greenSoft, borderColor: C.green + "44" }}
+                                style={{ ...inp, fontFamily: MONO, background: C.greenSoft, borderColor: withAlpha(C.green, "44") }}
                               />
                             </div>
                             <div>
@@ -735,7 +735,7 @@ export default function QuestionsTab({ ed, t, l }) {
                   fontWeight: 600,
                   background: "transparent",
                   color: C.accent,
-                  border: `1px dashed ${C.accent}55`,
+                  border: `1px dashed ${withAlpha(C.accent, "55")}`,
                   cursor: "pointer",
                   fontFamily: "'Outfit',sans-serif",
                   display: "inline-flex",
@@ -744,7 +744,7 @@ export default function QuestionsTab({ ed, t, l }) {
                   transition: "background .12s ease, border-color .12s ease",
                 }}
                 onMouseEnter={(e) => { e.currentTarget.style.background = C.accentSoft; e.currentTarget.style.borderColor = C.accent; }}
-                onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.borderColor = `${C.accent}55`; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.borderColor = `${withAlpha(C.accent, "55")}`; }}
               >
                 + {shortLabel}
               </button>
@@ -869,7 +869,7 @@ export default function QuestionsTab({ ed, t, l }) {
             borderRadius: 12,
             background: C.bg,
             border: `2px solid ${C.accent}`,
-            boxShadow: `0 6px 20px ${C.accent}22`,
+            boxShadow: `0 6px 20px ${withAlpha(C.accent, "22")}`,
           }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
               <h4 style={{ fontSize: 14, fontWeight: 700, margin: 0, color: C.text }}>{t.chooseType}</h4>
@@ -942,7 +942,7 @@ export default function QuestionsTab({ ed, t, l }) {
                 fontSize: 18,
                 fontWeight: 600,
                 background: C.bg, color: C.accent,
-                border: `1.5px dashed ${C.accent}66`,
+                border: `1.5px dashed ${withAlpha(C.accent, "66")}`,
                 cursor: "pointer",
                 fontFamily: "'Outfit',sans-serif",
                 display: "flex", alignItems: "center", justifyContent: "center",
@@ -960,7 +960,7 @@ export default function QuestionsTab({ ed, t, l }) {
                 borderRadius: 10,
                 fontSize: 14, fontWeight: 600,
                 background: C.bg, color: C.accent,
-                border: `1.5px dashed ${C.accent}66`,
+                border: `1.5px dashed ${withAlpha(C.accent, "66")}`,
                 cursor: "pointer",
                 fontFamily: "'Outfit',sans-serif",
                 display: "flex", alignItems: "center", justifyContent: "center", gap: 8,

@@ -10,7 +10,7 @@
 // as one system. (If a third rail appears, factor these shared card/stat
 // styles into a small kit — not worth the abstraction for two.)
 
-import { C, MONO } from "../components/tokens";
+import { C, MONO, withAlpha } from "../components/tokens";
 
 const card = {
   background: C.bg,
@@ -114,7 +114,7 @@ export default function MyClassesRail({
               fontFamily: "'Outfit', sans-serif", color: C.text,
               transition: "border-color .12s ease",
             }}
-            onMouseEnter={(e) => { e.currentTarget.style.borderColor = C.accent + "66"; }}
+            onMouseEnter={(e) => { e.currentTarget.style.borderColor = withAlpha(C.accent, "66"); }}
             onMouseLeave={(e) => { e.currentTarget.style.borderColor = C.border; }}
           >
             <span style={{ fontSize: 12.5, color: C.textSecondary }}>{t.railPending}</span>

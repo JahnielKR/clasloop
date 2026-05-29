@@ -14,7 +14,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
-import { C, MONO } from "../components/tokens";
+import { C, MONO, withAlpha } from "../components/tokens";
 import { ROUTES } from "../routes";
 import PageHeader from "../components/PageHeader";
 import {
@@ -260,7 +260,7 @@ export default function MyResults({ profile, lang = "en", setLang, onOpenMobileM
                   <div style={{
                     fontSize: 13, color: C.green, lineHeight: 1.5,
                     padding: "8px 10px", background: C.greenSoft,
-                    borderRadius: 7, border: `1px solid ${C.green}33`,
+                    borderRadius: 7, border: `1px solid ${withAlpha(C.green, "33")}`,
                     fontFamily: MONO,
                     whiteSpace: "pre-wrap", wordBreak: "break-word",
                   }}>
@@ -301,7 +301,7 @@ export default function MyResults({ profile, lang = "en", setLang, onOpenMobileM
                     padding: "10px 12px",
                     background: C.accentSoft,
                     borderRadius: 7,
-                    border: `1px solid ${C.accent}33`,
+                    border: `1px solid ${withAlpha(C.accent, "33")}`,
                     borderLeft: `3px solid ${C.accent}`,
                     whiteSpace: "pre-wrap", wordBreak: "break-word",
                   }}>

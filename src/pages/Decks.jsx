@@ -15,7 +15,7 @@ import Skeleton from "../components/ui/Skeleton";
 import Button from "../components/ui/Button";
 import ConfirmDialog from "../components/ConfirmDialog";
 import { MONO } from "../components/tokens";
-import { C, css } from "./Decks/styles";
+import { C, css, withAlpha } from "./Decks/styles";
 import CreateDeckEditor from "./Decks/CreateDeckEditor";
 // PR 113: draggable deck-card family extracted to Decks/DeckTiles.jsx.
 // Only DeckRow is consumed here (by ClassDecksView).
@@ -640,7 +640,7 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
                   style={{
                     padding: "6px 12px", borderRadius: 6, fontSize: 12, fontWeight: 600,
                     background: C.accentSoft, color: C.accent,
-                    border: `1px solid ${C.accent}33`, cursor: "pointer",
+                    border: `1px solid ${withAlpha(C.accent, "33")}`, cursor: "pointer",
                     fontFamily: "'Outfit',sans-serif",
                     display: "inline-flex", alignItems: "center", gap: 5,
                   }}

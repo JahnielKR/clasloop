@@ -17,7 +17,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
-import { C, MONO } from "../components/tokens";
+import { C, MONO, withAlpha } from "../components/tokens";
 import PageHeader from "../components/PageHeader";
 import { ROUTES } from "../routes";
 import {
@@ -266,7 +266,7 @@ export default function DeckResults({ profile, lang = "en", setLang, onOpenMobil
           {/* CTA when there's pending review across this deck */}
           {totalPending > 0 && (
             <div className="ds-card" style={{
-              background: C.accentSoft, border: `1px solid ${C.accent}55`,
+              background: C.accentSoft, border: `1px solid ${withAlpha(C.accent, "55")}`,
               padding: "12px 14px", borderRadius: 10, marginBottom: 16,
               display: "flex", alignItems: "center", justifyContent: "space-between",
               gap: 10, flexWrap: "wrap",

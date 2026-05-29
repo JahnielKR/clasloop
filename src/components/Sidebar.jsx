@@ -34,7 +34,7 @@
 import { LogoMark, TeacherAvatar, StudentAvatar } from "./Icons";
 import { Avatar as ProfileAvatar } from "./Avatars";
 import NavGlyph from "./NavIcons";
-import { C } from "./tokens";
+import { C, withAlpha } from "./tokens";
 import { useNavigate } from "react-router-dom";
 import { buildRoute } from "../routes";
 import { useT } from "../i18n";
@@ -617,7 +617,7 @@ export default function Sidebar({
                     fontWeight: 600,
                     background: lang === code ? C.accentSoft : "transparent",
                     color: lang === code ? C.accent : C.textMuted,
-                    border: `1px solid ${lang === code ? C.accent + "33" : C.border}`,
+                    border: `1px solid ${lang === code ? withAlpha(C.accent, "33") : C.border}`,
                     cursor: "pointer",
                     fontFamily: "'Outfit', sans-serif",
                   }}

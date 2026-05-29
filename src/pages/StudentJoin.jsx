@@ -5,7 +5,7 @@ import { LogoMark, CIcon } from "../components/Icons";
 import { Avatar } from "../components/Avatars";
 import { checkAndGrantUnlocks } from "../lib/unlock-checker";
 import { generateGuestToken, saveGuestSession, clearGuestSession } from "../lib/guest-session";
-import { C, MONO, SH } from "../components/tokens";
+import { C, MONO, SH, withAlpha } from "../components/tokens";
 import { resolveTimeLimit } from "../lib/time-limits";
 import { getPracticeTimerPref, setPracticeTimerPref } from "../lib/practice-timer-pref";
 import { evaluateAnswer, describeCorrectAnswer, formatStudentAnswer } from "../lib/scoring";
@@ -2976,7 +2976,7 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
                   style={{
                     width: 32, height: 32, borderRadius: "50%",
                     background: practiceTimerOn ? C.accentSoft : C.bgSoft,
-                    border: `1px solid ${practiceTimerOn ? C.accent + "44" : C.border}`,
+                    border: `1px solid ${practiceTimerOn ? withAlpha(C.accent, "44") : C.border}`,
                     cursor: "pointer", padding: 0,
                     display: "flex", alignItems: "center", justifyContent: "center",
                     transition: "all .15s ease",
@@ -3315,7 +3315,7 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
                       <div key={`${item}-${j}`} className="pop-in" style={{
                         display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", borderRadius: 8,
                         background: showResult ? (ok ? C.greenSoft : C.redSoft) : C.accentSoft,
-                        border: `1px solid ${showResult ? (ok ? C.green + "55" : C.red + "55") : C.accent + "33"}`,
+                        border: `1px solid ${showResult ? (ok ? withAlpha(C.green, "55") : withAlpha(C.red, "55")) : withAlpha(C.accent, "33")}`,
                         fontSize: 14, fontWeight: 500,
                       }}>
                         <span style={{ width: 22, height: 22, borderRadius: 6, background: showResult ? (ok ? C.green : C.red) : C.accent, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, flexShrink: 0 }}>{j + 1}</span>
@@ -3351,11 +3351,11 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
                         const ok = picked === p.right;
                         bg = ok ? C.greenSoft : C.redSoft;
                         color = ok ? C.green : C.red;
-                        border = ok ? C.green + "55" : C.red + "55";
+                        border = ok ? withAlpha(C.green, "55") : withAlpha(C.red, "55");
                       } else if (isActive) {
                         bg = C.accentSoft; color = C.accent; border = C.accent;
                       } else if (picked) {
-                        bg = C.purpleSoft; color = C.purple; border = C.purple + "55";
+                        bg = C.purpleSoft; color = C.purple; border = withAlpha(C.purple, "55");
                       }
                       return (
                         <button
@@ -3389,14 +3389,14 @@ export default function StudentJoin({ lang: pageLang = "en", profile = null, pra
                         if (pairedLeft) {
                           bg = ok ? C.greenSoft : C.redSoft;
                           color = ok ? C.green : C.red;
-                          border = ok ? C.green + "55" : C.red + "55";
+                          border = ok ? withAlpha(C.green, "55") : withAlpha(C.red, "55");
                         } else {
                           op = .4;
                         }
                       } else if (used) {
                         op = .35;
                       } else if (matchActiveLeft) {
-                        border = C.accent + "55";
+                        border = withAlpha(C.accent, "55");
                       }
                       return (
                         <button
