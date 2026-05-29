@@ -7,3 +7,4 @@ export * from "./benchmark";
 export * from "./forecast";
 export * from "./risk";
 export * from "./cleo-analytics";
+export * from "./pulse-of-today";
