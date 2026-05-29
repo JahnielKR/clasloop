@@ -29,3 +29,4 @@ export { default as StudentRiskCard } from "./StudentRiskCard";
 export { default as ExportMenu } from "./ExportMenu";
 export { default as ReportComposer } from "./ReportComposer";
 export { default as ReportList } from "./ReportList";
+export { default as StudentDrawer } from "./StudentDrawer";
