@@ -37,7 +37,7 @@ describe("buildClassReportModel", () => {
       sections: ["kpis"],
     });
     const kpiSection = model.sections.find((s) => s.type === "kpis");
-    expect(kpiSection.rows.find((r) => r.label === "% correcto").value).toBe(72);
+    expect(kpiSection!.rows!.find((r) => r.label === "% correcto")!.value).toBe(72);
   });
 
   it("topics section is tabular (columns + data)", () => {
@@ -48,8 +48,8 @@ describe("buildClassReportModel", () => {
       sections: ["topics"],
     });
     const topics = model.sections.find((s) => s.type === "topics");
-    expect(topics.columns).toEqual(["Tema", "Retención"]);
-    expect(topics.data).toEqual([
+    expect(topics!.columns).toEqual(["Tema", "Retención"]);
+    expect(topics!.data).toEqual([
       ["Fracciones", 30],
       ["Suma", 85],
     ]);
