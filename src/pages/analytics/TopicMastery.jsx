@@ -3,7 +3,7 @@
 // F3 Analytics Studio: Topic Mastery page — matriz de temas + drill al
 // detalle del tema (tendencia semanal + más falladas + misconceptions).
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { StudioShell, StudioSkeleton } from "../../components/analytics";
 import TopicMatrix from "../../components/analytics/TopicMatrix";
@@ -43,7 +43,10 @@ export default function TopicMastery() {
 
   const [period, setPeriod] = useState("d90");
   const [compareMode, setCompareMode] = useState("off");
-  const { from, to } = periodToRange(period);
+  // Hotfix: memoize so from/to stay STABLE across renders. periodToRange()
+  // calls new Date() every render → unstable from/to → the React Query
+  // queryKey changes each render → infinite refetch loop. Recompute on period only.
+  const { from, to } = useMemo(() => periodToRange(period), [period]);
   const compareRange =
     compareMode === "prev" ? previousPeriod(from, to) : { from: null, to: null };
 

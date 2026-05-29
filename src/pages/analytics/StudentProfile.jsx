@@ -3,7 +3,7 @@
 // F2 Analytics Studio: Student Profile page — la página que HOY NO existe.
 // Ruta /school/student/:classId/:studentRef. Fetches via useStudentDetail.
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { StudioShell, StudioSkeleton } from "../../components/analytics";
 import StudentKpiBand from "../../components/analytics/StudentKpiBand";
@@ -47,7 +47,10 @@ export default function StudentProfile({ profile = null }) {
 
   const [period, setPeriod] = useState("d90");
   const [compareMode, setCompareMode] = useState("off");
-  const { from, to } = periodToRange(period);
+  // Hotfix: memoize so from/to stay STABLE across renders. periodToRange()
+  // calls new Date() every render → unstable from/to → the React Query
+  // queryKey changes each render → infinite refetch loop. Recompute on period only.
+  const { from, to } = useMemo(() => periodToRange(period), [period]);
   const compareRange =
     compareMode === "prev" ? previousPeriod(from, to) : { from: null, to: null };
 
