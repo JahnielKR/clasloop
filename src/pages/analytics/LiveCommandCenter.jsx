@@ -33,7 +33,8 @@ export default function LiveCommandCenter({ profile = null }) {
   // Aggregate live counts
   const counts = useMemo(() => {
     const joined = live.participants.filter((p) => !p.is_kicked).length;
-    const done = live.participants.filter((p) => p.completed_at).length;
+    // done también excluye kicked — sino la resta `joined - done` undercount.
+    const done = live.participants.filter((p) => !p.is_kicked && p.completed_at).length;
     const responding = Math.max(0, joined - done);
     let sumPoints = 0;
     let sumMax = 0;

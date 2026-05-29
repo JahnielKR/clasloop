@@ -26,6 +26,12 @@ export function useLiveSession(sessionId) {
       return undefined;
     }
 
+    // Reset arrays synchronously al cambio de sessionId — sino los tiles
+    // muestran brevemente datos de la sesión anterior mientras la nueva
+    // snapshot resuelve.
+    setParticipants([]);
+    setResponses([]);
+
     let cancelled = false;
     // Initial snapshot
     (async () => {
