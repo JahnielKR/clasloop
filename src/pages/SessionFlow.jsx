@@ -5,6 +5,7 @@ import { supabase } from "../lib/supabase";
 import { captureError } from "../lib/sentry";
 import { processSessionResults, getSuggestedDecksForToday, getScheduledPlan, getUpcomingPlan } from "../lib/spaced-repetition";
 import { CIcon } from "../components/Icons";
+import Button from "../components/ui/Button";
 import { DeckCover, resolveColor } from "../lib/deck-cover";
 import MobileMenuButton, { useIsMobile } from "../components/MobileMenuButton";
 import PageHeader from "../components/PageHeader";
@@ -308,22 +309,18 @@ function SessionOptions({ deck, classes, t, lang = "en", onLaunch, onBack }) {
         <Toggle label={t.shuffleQuestions} hint={t.shuffleQuestionsHelp} value={shuffleQuestions} onChange={setShuffleQuestions} />
       </div>
 
-      <button
+      <Button
+        variant="gradient"
+        size="lg"
+        fullWidth
         onClick={handleLaunch}
         disabled={launching || !classId}
-        style={{
-          width: "100%", marginTop: 24, padding: 14, borderRadius: 10,
-          fontSize: 15, fontWeight: 600,
-          background: (launching || !classId) ? C.bgSoft : `linear-gradient(135deg, ${C.accent}, ${C.purple})`,
-          color: (launching || !classId) ? C.textMuted : "#fff",
-          border: "none", cursor: (launching || !classId) ? "default" : "pointer",
-          fontFamily: "'Outfit',sans-serif",
-          display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-        }}
+        loading={launching}
+        leftIcon={<CIcon name="rocket" size={16} inline />}
+        style={{ marginTop: 24 }}
       >
-        <CIcon name="rocket" size={16} inline />
-        {launching ? t.starting : t.launchSession}
-      </button>
+        {t.launchSession}
+      </Button>
 
       {/* PR 56 fix 1: modal de bloqueo cuando teacher intenta lanzar
           sesión desde phone (no tablet, no laptop). */}
@@ -772,21 +769,16 @@ function SessionLobby({ session, deck, t, onStart, onCancel }) {
             cursor: "pointer", fontFamily: "'Outfit',sans-serif",
           }}
         >{t.cancel}</button>
-        <button
+        <Button
+          variant="gradient"
+          size="lg"
           onClick={handleStart}
           disabled={activeParticipants.length === 0}
-          style={{
-            flex: 1, padding: "12px 20px", borderRadius: 10, fontSize: 15, fontWeight: 600,
-            background: activeParticipants.length === 0 ? C.bgSoft : `linear-gradient(135deg, ${C.accent}, ${C.purple})`,
-            color: activeParticipants.length === 0 ? C.textMuted : "#fff",
-            border: "none", cursor: activeParticipants.length === 0 ? "default" : "pointer",
-            fontFamily: "'Outfit',sans-serif",
-            display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-          }}
+          leftIcon={<CIcon name="rocket" size={16} inline />}
+          style={{ flex: 1 }}
         >
-          <CIcon name="rocket" size={16} inline />
           {t.startQuiz} ({activeParticipants.length})
-        </button>
+        </Button>
       </div>
     </div>
   );
