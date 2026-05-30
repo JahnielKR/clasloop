@@ -163,6 +163,16 @@ a {
 .ui-btn--gradient { background: linear-gradient(135deg, var(--c-accent), var(--c-purple)); color: #fff; box-shadow: 0 2px 8px rgba(0,0,0,.12); }
 .ui-btn--gradient:hover:not(:disabled) { filter: brightness(1.05); }
 
+/* Solid semantic tones (Button `tone` prop). Same shape as --primary but a
+   semantic fill — for always-loud semantic actions (e.g. Review's grade
+   buttons: correct / partial / incorrect). Distinct from the outline --danger. */
+.ui-btn--tone-success { background: var(--c-green); color: #fff; }
+.ui-btn--tone-success:hover:not(:disabled) { filter: brightness(1.06); }
+.ui-btn--tone-warning { background: var(--c-orange); color: #fff; }
+.ui-btn--tone-warning:hover:not(:disabled) { filter: brightness(1.06); }
+.ui-btn--tone-danger  { background: var(--c-red); color: #fff; }
+.ui-btn--tone-danger:hover:not(:disabled)  { filter: brightness(1.06); }
+
 /* Button — loading spinner */
 .ui-btn__spinner {
   width: 14px; height: 14px; border-radius: 50%;
