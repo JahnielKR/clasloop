@@ -508,10 +508,12 @@ const arrowBtn = (disabled) => ({
 });
 ```
 
-> **Button API (verified):** `src/components/ui/Button.jsx` signature is
-> `{ tone="primary", size="md", as="button", disabled=false, full=false, style, children, ...rest }`.
-> `onClick` flows through `...rest`. So `<Button onClick={...} disabled={...}>{label}</Button>`
-> is correct (primary tone by default) — no extra props needed.
+> **Button API (verified from `src/components/ui/Button.jsx`):** named props
+> `{ variant="primary", tone, size="md", loading, disabled, leftIcon, rightIcon,
+> fullWidth, type="button", onClick, children, ...rest }`. `onClick` is an
+> explicit named prop. So `<Button onClick={...} disabled={...}>{label}</Button>`
+> is correct (defaults to `variant="primary"`). Do NOT pass `tone="primary"` —
+> `tone` is only for solid semantic fills (success/warning/danger); leave it unset.
 
 - [ ] **Step 4: Run the test to verify it passes**
 
