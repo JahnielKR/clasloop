@@ -21,6 +21,7 @@ import StudentRiskCard from "../StudentRiskCard";
 import TopicMatrix from "../TopicMatrix";
 import CompareToggle from "../CompareToggle";
 import SessionHistoryTable from "../SessionHistoryTable";
+import LiveTile from "../LiveTile";
 
 function en(ui) {
   return render(<LanguageProvider value="en">{ui}</LanguageProvider>);
@@ -106,5 +107,11 @@ describe("Studio i18n render smoke (en)", () => {
     en(<SessionHistoryTable items={[]} />);
     expect(screen.getByText("Session history")).toBeInTheDocument();
     expect(screen.getByText("No sessions yet.")).toBeInTheDocument();
+  });
+
+  it("LiveTile live dot uses English aria-label, not 'en vivo'", () => {
+    en(<LiveTile label="Connected" value={5} live />);
+    expect(screen.getByLabelText("live")).toBeInTheDocument();
+    expect(screen.queryByLabelText("en vivo")).not.toBeInTheDocument();
   });
 });
