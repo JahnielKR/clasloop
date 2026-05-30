@@ -16,6 +16,8 @@ import { useClassAnalytics } from "../../hooks/useClassAnalytics";
 import { useTopicDetail } from "../../hooks/useTopicDetail";
 import { ROUTES, buildRoute } from "../../routes";
 import { C } from "../../components/tokens";
+import { useLang } from "../../i18n/LanguageContext";
+import { useT } from "../../i18n";
 
 function periodToRange(period) {
   const now = new Date();
@@ -35,6 +37,7 @@ function periodToRange(period) {
 
 export default function TopicMastery() {
   const navigate = useNavigate();
+  const t = useT("topicMastery", useLang());
   const { pathname } = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -91,7 +94,7 @@ export default function TopicMastery() {
   return (
     <StudioShell
       view="topics"
-      title="Temas"
+      title={t.title}
       period={period}
       onPeriodChange={setPeriod}
       toolbarExtras={<CompareToggle value={compareMode} onChange={setCompareMode} />}
@@ -99,7 +102,7 @@ export default function TopicMastery() {
       <div style={{ padding: 18, background: C.bgSoft, minHeight: "100%" }}>
         {classQ.error && (
           <div role="alert" style={{ background: C.redSoft, border: `1px solid ${C.red}`, color: C.red, padding: 12, borderRadius: 8, marginBottom: 12, fontSize: 14 }}>
-            Error: {String(classQ.error.message || classQ.error)}
+            {t.error(String(classQ.error.message || classQ.error))}
           </div>
         )}
 
