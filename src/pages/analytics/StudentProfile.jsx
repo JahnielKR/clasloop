@@ -21,6 +21,8 @@ import { useAnalyticsOverview } from "../../hooks/useAnalyticsOverview";
 import { generateStudentReviewQuestions, saveClassReviewDeck } from "../../lib/close-unit-ai";
 import { ROUTES, buildRoute } from "../../routes";
 import { C } from "../../components/tokens";
+import { useLang } from "../../i18n/LanguageContext";
+import { useT } from "../../i18n";
 
 function periodToRange(period) {
   const now = new Date();
@@ -40,6 +42,8 @@ function periodToRange(period) {
 
 export default function StudentProfile({ profile = null }) {
   const navigate = useNavigate();
+  const lang = useLang();
+  const t = useT("studentProfile", lang);
   const { pathname } = useLocation();
   const match = /^\/school\/student\/([^/]+)\/([^/]+)\/?$/.exec(pathname);
   const classId = match ? decodeURIComponent(match[1]) : null;
@@ -122,13 +126,13 @@ export default function StudentProfile({ profile = null }) {
       studentName: studentRef,
       weakTopics,
       mostFailed: d?.most_failed || [],
-      lang: "es",
+      lang,
     });
     if (!gen.ok) { setGeneratingReview(false); return; }
     const save = await saveClassReviewDeck({
       classObj,
       questions: gen.questions,
-      lang: gen.inferredLang || "es",
+      lang: gen.inferredLang || lang,
       authorId: profile?.id ?? null,
       studentName: studentRef,
     });
@@ -141,7 +145,7 @@ export default function StudentProfile({ profile = null }) {
   return (
     <StudioShell
       view="student"
-      title={`Estudiante: ${studentRef}`}
+      title={t.studentTitle(studentRef)}
       period={period}
       onPeriodChange={setPeriod}
       toolbarExtras={<CompareToggle value={compareMode} onChange={setCompareMode} />}
@@ -160,7 +164,7 @@ export default function StudentProfile({ profile = null }) {
               fontSize: 14,
             }}
           >
-            Error cargando el perfil: {String(error.message || error)}
+            {t.errorLoading(String(error.message || error))}
           </div>
         )}
 
@@ -188,7 +192,7 @@ export default function StudentProfile({ profile = null }) {
               detail={d}
               classObj={classObj}
               profile={profile}
-              lang="es"
+              lang={lang}
               onReviewCreated={(deckId) => navigate(buildRoute.deckEdit(deckId))}
             />
             <TrajectoryPanel
