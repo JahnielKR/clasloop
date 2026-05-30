@@ -140,6 +140,11 @@ const en = {
   },
 
   director: {
+    title: "Analytics",
+    calculating: "Calculating…",
+    riskEmpty: "No at-risk students right now.",
+    criticalTitle: "Critical topics",
+    criticalEmpty: "No critical topics right now.",
     pageTitle: "School Dashboard",
     subtitle: "Overview of your classes and student performance",
     backToMyClasses: "Back to My Classes",
@@ -201,6 +206,21 @@ const en = {
     loading: "Loading…",
     periodCustom: "Custom",
     periodRangeLabel: "Period range",
+    colClass: "Class",
+    sessionsToday: "Sessions today",
+    pctCorrectToday: "% correct today",
+    trend: "Trend",
+    participation: "Participation",
+    noClassesRegistered: "No classes registered.",
+    noClassesMatch: (q: string) => `No classes match "${q}".`,
+    sortTitle: "Sort",
+    pulseLoading: "Loading today's pulse…",
+    pulseToday: "Today's pulse",
+    topClass: "Top class",
+    topStudent: "Top student",
+    unitActive: "active",
+    unitResp: "resp.",
+    live: "Live",
   },
 
   notifications: {

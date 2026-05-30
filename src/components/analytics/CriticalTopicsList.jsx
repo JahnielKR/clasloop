@@ -5,17 +5,23 @@
 // onTopicClick(item) → drill a la vista de Temas.
 // onGenerateReview(item) → genera un repaso del tema (lo maneja el orquestador,
 // que tiene el classObj + profile para llamar close-unit-ai).
+// i18n: título via useT("director"); botón via useT("studioCommon").
 
 import { C } from "../tokens";
+import { useLang } from "../../i18n/LanguageContext";
+import { useT } from "../../i18n";
 
 const tierColor = (v) => (v >= 70 ? C.green : v >= 40 ? C.orange : C.red);
 
 export default function CriticalTopicsList({ items = [], onTopicClick, onGenerateReview, generatingKey = null }) {
+  const lang = useLang();
+  const dir = useT("director", lang);
+  const com = useT("studioCommon", lang);
   return (
     <div style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, padding: 12, borderLeft: `3px solid ${C.orange}` }}>
-      <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Temas críticos</div>
+      <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>{dir.criticalTitle}</div>
       {items.length === 0 ? (
-        <div style={{ opacity: 0.45, fontSize: 13, padding: 6 }}>Ningún tema bajo el umbral.</div>
+        <div style={{ opacity: 0.45, fontSize: 13, padding: 6 }}>{dir.criticalEmpty}</div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
           {items.map((t) => {
@@ -38,7 +44,7 @@ export default function CriticalTopicsList({ items = [], onTopicClick, onGenerat
                     onClick={() => onGenerateReview(t)}
                     disabled={busy}
                     style={{ fontSize: 11, padding: "3px 8px", borderRadius: 6, border: `1px solid ${C.border}`, background: C.bg, cursor: busy ? "default" : "pointer", color: C.accent, whiteSpace: "nowrap" }}>
-                    {busy ? "Generando…" : "Generar repaso"}
+                    {busy ? com.generatingReview : com.generateReview}
                   </button>
                 )}
               </div>

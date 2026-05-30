@@ -136,6 +136,11 @@ const es: Locale = {
   },
 
   director: {
+    title: "Analytics",
+    calculating: "Calculando…",
+    riskEmpty: "Ningún alumno en riesgo ahora mismo.",
+    criticalTitle: "Temas críticos",
+    criticalEmpty: "Sin temas críticos ahora mismo.",
     pageTitle: "Panel Escolar",
     subtitle: "Vista general de tus clases y rendimiento estudiantil",
     backToMyClasses: "Volver a Mis clases",
@@ -197,6 +202,21 @@ const es: Locale = {
     loading: "Cargando…",
     periodCustom: "Personalizado",
     periodRangeLabel: "Rango de período",
+    colClass: "Clase",
+    sessionsToday: "Sesiones hoy",
+    pctCorrectToday: "% correcto hoy",
+    trend: "Tendencia",
+    participation: "Participación",
+    noClassesRegistered: "Sin clases registradas.",
+    noClassesMatch: (q) => `Sin clases que coincidan con "${q}".`,
+    sortTitle: "Ordenar",
+    pulseLoading: "Cargando el pulso de hoy…",
+    pulseToday: "Pulso de hoy",
+    topClass: "Top clase",
+    topStudent: "Top alumno",
+    unitActive: "activa",
+    unitResp: "resp.",
+    live: "En vivo",
   },
 
   notifications: {

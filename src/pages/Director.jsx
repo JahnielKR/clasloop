@@ -38,6 +38,7 @@ function periodToRange(period) {
 export default function Director({ profile = null, lang: pageLang = "en" }) {
   const navigate = useNavigate();
   const t = useT("director", pageLang);
+  const c = useT("studioCommon", pageLang);
   const [period, setPeriod] = useState("d30");
   const { from, to } = useMemo(() => periodToRange(period), [period]);
   const [genKey, setGenKey] = useState(null);
@@ -88,9 +89,9 @@ export default function Director({ profile = null, lang: pageLang = "en" }) {
     const classObj = row
       ? { id: row.class_id, name: row.class_name || "", subject: row.class_subject || "", grade: row.class_grade || "" }
       : { id: topic.classId, name: topic.className, subject: "", grade: "" };
-    const gen = await generateClassReviewQuestions({ classObj, weakTopics: [topic.topic], lang: "es" });
+    const gen = await generateClassReviewQuestions({ classObj, weakTopics: [topic.topic], lang: pageLang });
     if (!gen.ok) { setGenKey(null); return; }
-    const save = await saveClassReviewDeck({ classObj, questions: gen.questions, lang: gen.inferredLang || "es", authorId: profile?.id ?? null });
+    const save = await saveClassReviewDeck({ classObj, questions: gen.questions, lang: gen.inferredLang || pageLang, authorId: profile?.id ?? null });
     setGenKey(null);
     if (save.ok) navigate(buildRoute.deckEdit(save.deckId));
   }
@@ -100,7 +101,7 @@ export default function Director({ profile = null, lang: pageLang = "en" }) {
   return (
     <StudioShell
       view="overview"
-      title="Analytics"
+      title={t.title}
       period={period}
       onPeriodChange={setPeriod}
       toolbarExtras={
@@ -124,10 +125,10 @@ export default function Director({ profile = null, lang: pageLang = "en" }) {
           <>
             {/* Banda KPI — % correcto del período + totales */}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 8, marginBottom: 12 }}>
-              <StatCardWithSparkline label="% correcto" value={<AnimatedNumber value={kpis.pctCorrect} format={formatPercent} />} />
-              <StatCardWithSparkline label="Clases" value={<AnimatedNumber value={kpis.classesActive} format={formatNumber} />} />
-              <StatCardWithSparkline label="Alumnos" value={<AnimatedNumber value={kpis.totalStudents} format={formatNumber} />} />
-              <StatCardWithSparkline label="Sesiones" value={<AnimatedNumber value={kpis.totalSessions} format={formatNumber} />} />
+              <StatCardWithSparkline label={c.pctCorrect} value={<AnimatedNumber value={kpis.pctCorrect} format={formatPercent} />} />
+              <StatCardWithSparkline label={c.classes} value={<AnimatedNumber value={kpis.classesActive} format={formatNumber} />} />
+              <StatCardWithSparkline label={c.students} value={<AnimatedNumber value={kpis.totalStudents} format={formatNumber} />} />
+              <StatCardWithSparkline label={c.sessions} value={<AnimatedNumber value={kpis.totalSessions} format={formatNumber} />} />
             </div>
 
             {/* Centro de acción */}
