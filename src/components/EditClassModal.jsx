@@ -19,6 +19,7 @@ import { useState, useMemo, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { CIcon } from "./Icons";
 import { C, withAlpha, SCRIM } from "./tokens";
+import Button from "./ui/Button";
 import Modal from "./Modal";
 import { SUBJECTS } from "../lib/constants";
 
@@ -348,26 +349,15 @@ export default function EditClassModal({
           {error && <p style={{ fontSize: 12, color: C.red, margin: 0 }}>{error}</p>}
 
           <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
-            <button
+            <Button
+              variant="gradient"
               onClick={handleSave}
               disabled={!dirty || saving}
-              style={{
-                flex: 1,
-                padding: "10px 18px",
-                borderRadius: 8,
-                fontSize: 13,
-                fontWeight: 600,
-                background: (!dirty || saving)
-                  ? C.bgSoft
-                  : `linear-gradient(135deg, ${C.accent}, ${C.purple})`,
-                color: (!dirty || saving) ? C.textMuted : "#fff",
-                border: "none",
-                cursor: (!dirty || saving) ? "default" : "pointer",
-                fontFamily: "'Outfit',sans-serif",
-              }}
+              loading={saving}
+              style={{ flex: 1 }}
             >
-              {saving ? L(t, "saving") : (savedFlash ? `✓ ${L(t, "saved")}` : L(t, "save"))}
-            </button>
+              {savedFlash ? `✓ ${L(t, "saved")}` : L(t, "save")}
+            </Button>
           </div>
         </div>
 
