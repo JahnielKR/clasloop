@@ -223,6 +223,16 @@ const en = {
     live: "Live",
   },
 
+  classDetail: {
+    title: "Class",
+    errorLoading: (msg: string) => `Error loading the class: ${msg}`,
+    trendTitle: "Trend",
+    compositionTitle: "Response composition",
+    dominatedTitle: "Strongest topics",
+    criticalTitle: "Topics to reteach",
+    mostMissedTitle: "Most missed",
+  },
+
   cleoUsage: {
     title: "Your Cleo usage",
     generations: "Generations",

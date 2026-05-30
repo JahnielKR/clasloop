@@ -4,6 +4,7 @@
 // Ruta /school/class/:classId. Fetches via useClassAnalytics +
 // useClassTimeseries (RPCs de F0). Compone los bloques presentacionales
 // definidos en src/components/analytics/.
+// i18n: useT("classDetail"); la IA y CleoStrip usan el idioma de la UI.
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -29,6 +30,8 @@ import { useStudentRisk } from "../../hooks/useStudentRisk";
 import { generateClassReviewQuestions, saveClassReviewDeck } from "../../lib/close-unit-ai";
 import { ROUTES } from "../../routes";
 import { C } from "../../components/tokens";
+import { useLang } from "../../i18n/LanguageContext";
+import { useT } from "../../i18n";
 
 // Map period chip → from/to timestamps. F1 keeps it simple; Custom no-ops.
 function periodToRange(period) {
@@ -49,6 +52,8 @@ function periodToRange(period) {
 
 export default function ClassDetail({ profile = null }) {
   const navigate = useNavigate();
+  const lang = useLang();
+  const t = useT("classDetail", lang);
   const { pathname } = useLocation();
   // Pull :classId from /school/class/:classId
   const match = /^\/school\/class\/([^/]+)\/?$/.exec(pathname);
@@ -129,12 +134,12 @@ export default function ClassDetail({ profile = null }) {
           grade: row.class_grade || "",
         }
       : { id: classId, name: "", subject: "", grade: "" };
-    const gen = await generateClassReviewQuestions({ classObj: cObj, weakTopics, lang: "es" });
+    const gen = await generateClassReviewQuestions({ classObj: cObj, weakTopics, lang });
     if (!gen.ok) { setGeneratingReview(false); return; }
     const save = await saveClassReviewDeck({
       classObj: cObj,
       questions: gen.questions,
-      lang: gen.inferredLang || "es",
+      lang: gen.inferredLang || lang,
       authorId: profile?.id ?? null,
     });
     setGeneratingReview(false);
@@ -161,7 +166,7 @@ export default function ClassDetail({ profile = null }) {
   return (
     <StudioShell
       view="class"
-      title="Clase"
+      title={t.title}
       period={period}
       onPeriodChange={setPeriod}
       toolbarExtras={
@@ -173,8 +178,9 @@ export default function ClassDetail({ profile = null }) {
             buildModel={() =>
               buildClassReportModel({
                 className:
-                  overviewRows.find((r) => r.class_id === classId)?.class_name || "Clase",
+                  overviewRows.find((r) => r.class_id === classId)?.class_name || "",
                 period,
+                lang,
                 classAnalytics: a,
                 sections: ["kpis", "topics", "most_missed"],
               })
@@ -198,7 +204,7 @@ export default function ClassDetail({ profile = null }) {
               fontSize: 14,
             }}
           >
-            Error cargando la clase: {String(error.message || error)}
+            {t.errorLoading(String(error.message || error))}
           </div>
         )}
 
@@ -239,7 +245,7 @@ export default function ClassDetail({ profile = null }) {
               profile={profile}
               classAnalytics={a}
               timeseries={ts}
-              lang="es"
+              lang={lang}
               onReviewCreated={(deckId) => navigate(buildRoute.deckEdit(deckId))}
               onReteachNow={() => {
                 mostMissedRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });

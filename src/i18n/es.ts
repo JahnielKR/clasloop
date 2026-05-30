@@ -219,6 +219,16 @@ const es: Locale = {
     live: "En vivo",
   },
 
+  classDetail: {
+    title: "Clase",
+    errorLoading: (msg) => `Error cargando la clase: ${msg}`,
+    trendTitle: "Tendencia",
+    compositionTitle: "Composición de respuestas",
+    dominatedTitle: "Temas dominados",
+    criticalTitle: "Temas a reenseñar",
+    mostMissedTitle: "Más falladas",
+  },
+
   cleoUsage: {
     title: "Tu uso de Cleo",
     generations: "Generaciones",

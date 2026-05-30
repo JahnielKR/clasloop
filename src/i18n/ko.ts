@@ -218,6 +218,16 @@ const ko: Locale = {
     loading: "로딩...",
   },
 
+  classDetail: {
+    title: "학급",
+    errorLoading: (msg) => `학급 로딩 오류: ${msg}`,
+    trendTitle: "추세",
+    compositionTitle: "응답 구성",
+    dominatedTitle: "강한 주제",
+    criticalTitle: "다시 가르칠 주제",
+    mostMissedTitle: "가장 많이 틀림",
+  },
+
   cleoUsage: {
     title: "내 Cleo 사용",
     generations: "생성 횟수",
