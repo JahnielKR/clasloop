@@ -16,10 +16,16 @@
 import { haptics } from "../../lib/haptics";
 
 const VARIANTS = new Set(["primary", "secondary", "ghost", "danger", "gradient"]);
+// Solid semantic fills (success=green, warning=orange, danger=red). When set,
+// `tone` overrides the variant's color — for always-loud semantic actions like
+// Review's correct/partial/incorrect. Note this SOLID fill is distinct from the
+// OUTLINE `variant="danger"` used for destructive/secondary actions.
+const TONES = new Set(["success", "warning", "danger"]);
 const SIZES = new Set(["sm", "md", "lg"]);
 
 export default function Button({
   variant = "primary",
+  tone,
   size = "md",
   loading = false,
   disabled = false,
@@ -35,9 +41,11 @@ export default function Button({
 }) {
   const v = VARIANTS.has(variant) ? variant : "primary";
   const s = SIZES.has(size) ? size : "md";
+  // `tone` (solid semantic fill) overrides the variant's color when valid.
+  const useTone = tone && TONES.has(tone);
   const cls = [
     "ui-btn",
-    `ui-btn--${v}`,
+    useTone ? `ui-btn--tone-${tone}` : `ui-btn--${v}`,
     `ui-btn--${s}`,
     fullWidth ? "ui-btn--block" : "",
     className,

@@ -48,4 +48,18 @@ describe("Button", () => {
     render(<Button fullWidth>W</Button>);
     expect(screen.getByRole("button")).toHaveClass("ui-btn--block");
   });
+
+  it("uses the solid tone class (overriding the variant) when tone is set", () => {
+    render(<Button tone="success" variant="primary">Correct</Button>);
+    const btn = screen.getByRole("button", { name: "Correct" });
+    expect(btn).toHaveClass("ui-btn", "ui-btn--tone-success");
+    expect(btn).not.toHaveClass("ui-btn--primary");
+  });
+
+  it("ignores an unknown tone and keeps the variant", () => {
+    render(<Button tone="bogus" variant="secondary">X</Button>);
+    const btn = screen.getByRole("button", { name: "X" });
+    expect(btn).toHaveClass("ui-btn--secondary");
+    expect(btn).not.toHaveClass("ui-btn--tone-bogus");
+  });
 });

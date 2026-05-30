@@ -27,6 +27,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { CIcon } from "../components/Icons";
 import PageHeader from "../components/PageHeader";
+import Button from "../components/ui/Button";
 import { C, SH, withAlpha } from "../components/tokens";
 import { teacherGradeToPoints, describeCorrectAnswer } from "../lib/scoring";
 // PR 76: i18n centralizado
@@ -1065,48 +1066,18 @@ export default function Review({ profile, lang = "en", onOpenMobileMenu }) {
                 advertised in the UI — the colors and labels carry the
                 meaning, no need to clutter the buttons with kbd badges. */}
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              <button
-                onClick={() => gradeResponse(item, "correct")}
-                style={{
-                  flex: 1, minWidth: 100,
-                  padding: "10px 14px", borderRadius: 8,
-                  fontSize: 13, fontWeight: 600,
-                  background: C.green, color: "#fff",
-                  border: "none", cursor: "pointer",
-                  fontFamily: "'Outfit',sans-serif",
-                  display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6,
-                }}
-              >
+              {/* Ola 2: grade buttons now use the Button primitive's solid
+                  semantic tones (was hand-rolled solid green/orange/red), so
+                  they get the shared hover-lift / focus ring / haptics too. */}
+              <Button tone="success" onClick={() => gradeResponse(item, "correct")} style={{ flex: 1, minWidth: 100 }}>
                 ✓ {t.btnCorrect}
-              </button>
-              <button
-                onClick={() => gradeResponse(item, "partial")}
-                style={{
-                  flex: 1, minWidth: 100,
-                  padding: "10px 14px", borderRadius: 8,
-                  fontSize: 13, fontWeight: 600,
-                  background: C.orange, color: "#fff",
-                  border: "none", cursor: "pointer",
-                  fontFamily: "'Outfit',sans-serif",
-                  display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6,
-                }}
-              >
+              </Button>
+              <Button tone="warning" onClick={() => gradeResponse(item, "partial")} style={{ flex: 1, minWidth: 100 }}>
                 ~ {t.btnPartial}
-              </button>
-              <button
-                onClick={() => gradeResponse(item, "incorrect")}
-                style={{
-                  flex: 1, minWidth: 100,
-                  padding: "10px 14px", borderRadius: 8,
-                  fontSize: 13, fontWeight: 600,
-                  background: C.red, color: "#fff",
-                  border: "none", cursor: "pointer",
-                  fontFamily: "'Outfit',sans-serif",
-                  display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6,
-                }}
-              >
+              </Button>
+              <Button tone="danger" onClick={() => gradeResponse(item, "incorrect")} style={{ flex: 1, minWidth: 100 }}>
                 ✗ {t.btnIncorrect}
-              </button>
+              </Button>
             </div>
           </div>
         );
