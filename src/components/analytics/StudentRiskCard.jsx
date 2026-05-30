@@ -15,14 +15,17 @@
 import { riskScore } from "../../lib/analytics/risk";
 import RiskBadge from "./RiskBadge";
 import { C } from "../tokens";
+import { useLang } from "../../i18n/LanguageContext";
+import { useT } from "../../i18n";
 
 const ACCENT = C.purple;
 
 export default function StudentRiskCard({ inputs, loading = false, studentName }) {
+  const t = useT("studentProfile", useLang());
   if (loading) {
     return (
       <div style={cardStyle}>
-        <div style={{ fontSize: 13, opacity: 0.55 }}>Calculando riesgo…</div>
+        <div style={{ fontSize: 13, opacity: 0.55 }}>{t.calculatingRisk}</div>
       </div>
     );
   }
@@ -30,7 +33,7 @@ export default function StudentRiskCard({ inputs, loading = false, studentName }
     return (
       <div style={cardStyle}>
         <div style={{ fontSize: 13, opacity: 0.55 }}>
-          Sin datos de riesgo para este alumno.
+          {t.noRiskData}
         </div>
       </div>
     );
@@ -40,13 +43,13 @@ export default function StudentRiskCard({ inputs, loading = false, studentName }
     <div style={cardStyle}>
       <div style={{ display: "flex", alignItems: "baseline", gap: 12, marginBottom: 8 }}>
         <div style={{ fontSize: 13, fontWeight: 600 }}>
-          Análisis de riesgo {studentName ? `— ${studentName}` : ""}
+          {t.riskAnalysis(studentName || "")}
         </div>
         <RiskBadge level={r.level} score={r.score} />
       </div>
       {r.reasons.length === 0 ? (
         <div style={{ fontSize: 13, opacity: 0.6 }}>
-          Sin señales de riesgo detectadas en la ventana actual.
+          {t.noRiskSignals}
         </div>
       ) : (
         <ul style={{ margin: 0, padding: "0 0 0 18px", fontSize: 13, lineHeight: 1.55 }}>

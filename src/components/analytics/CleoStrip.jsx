@@ -19,7 +19,6 @@ import { C } from "../tokens";
 import { supabase } from "../../lib/supabase";
 import { generateClassReviewQuestions, saveClassReviewDeck } from "../../lib/close-unit-ai";
 import { buildClassNarrativeContext } from "../../lib/analytics/cleo-analytics";
-import { useLang } from "../../i18n/LanguageContext";
 import { useT } from "../../i18n";
 
 const ACCENT = C.purple;

@@ -7,12 +7,17 @@ import { TrendBarChart } from "../charts";
 import { formatPercent } from "../../lib/analytics/formatters";
 import { forecastPoints } from "../../lib/analytics/forecast";
 import { C } from "../tokens";
+import { useLang } from "../../i18n/LanguageContext";
+import { useT } from "../../i18n";
 
 export default function TrajectoryPanel({
   data = [],
   compareData = null,
   loading = false,
 }) {
+  const lang = useLang();
+  const t = useT("studentProfile", lang);
+  const c = useT("studioCommon", lang);
   const forecast = forecastPoints(data, 3, { clampMin: 0, clampMax: 100 });
   return (
     <div
@@ -25,22 +30,22 @@ export default function TrajectoryPanel({
       }}
     >
       <div style={{ display: "flex", gap: 12, fontSize: 13, marginBottom: 8 }}>
-        <b>Trayectoria · % correcto semanal</b>
+        <b>{t.trajectoryWeekly}</b>
       </div>
       {loading ? (
         <div style={{ height: 180, opacity: 0.45, fontSize: 13, padding: 12 }}>
-          Cargando…
+          {c.loading}
         </div>
       ) : data.length === 0 ? (
         <div style={{ height: 180, opacity: 0.45, fontSize: 13, padding: 12 }}>
-          Sin datos en esta ventana.
+          {t.noDataWindow}
         </div>
       ) : (
         <TrendBarChart
           data={data}
           compareData={compareData}
           forecast={forecast}
-          yLabel="% correcto"
+          yLabel={c.pctCorrect}
           yFormatter={(v) => formatPercent(v)}
         />
       )}

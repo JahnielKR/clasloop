@@ -5,18 +5,25 @@
 // orientado a riesgo (verde = bajo, rojo = alto).
 
 import { C } from "../tokens";
+import { useLang } from "../../i18n/LanguageContext";
+import { useT } from "../../i18n";
 
 const COLOR_BY_LEVEL = {
-  low:  { bg: C.greenSoft,  fg: C.green,  label: "Bajo" },
-  med:  { bg: C.orangeSoft, fg: C.orange, label: "Medio" },
-  high: { bg: C.redSoft,    fg: C.red,    label: "Alto" },
+  low:  { bg: C.greenSoft,  fg: C.green },
+  med:  { bg: C.orangeSoft, fg: C.orange },
+  high: { bg: C.redSoft,    fg: C.red },
 };
 
 export default function RiskBadge({ level = "low", score = null, compact = false }) {
+  const tr = useT("studioCommon", useLang());
+  const labelByLevel = { low: tr.riskLow, med: tr.riskMedium, high: tr.riskHigh };
+  const fullByLevel = { low: tr.riskLevelLow, med: tr.riskLevelMedium, high: tr.riskLevelHigh };
   const c = COLOR_BY_LEVEL[level] || COLOR_BY_LEVEL.low;
+  const label = labelByLevel[level] || labelByLevel.low;
+  const fullLabel = fullByLevel[level] || fullByLevel.low;
   return (
     <span
-      title={score != null ? `Score: ${score}/100` : undefined}
+      title={score != null ? tr.riskScoreTitle(score) : undefined}
       style={{
         display: "inline-flex",
         alignItems: "center",
@@ -30,7 +37,7 @@ export default function RiskBadge({ level = "low", score = null, compact = false
         whiteSpace: "nowrap",
       }}
     >
-      {compact ? c.label : `Riesgo ${c.label.toLowerCase()}`}
+      {compact ? label : fullLabel}
       {!compact && score != null && (
         <span style={{ opacity: 0.65, fontWeight: 400 }}>· {score}</span>
       )}

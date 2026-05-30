@@ -12,6 +12,8 @@ import {
   formatDelta,
 } from "../../lib/analytics/formatters";
 import { pctChangeOrNull } from "../../lib/analytics/benchmark";
+import { useLang } from "../../i18n/LanguageContext";
+import { useT } from "../../i18n";
 
 function tone(delta) {
   if (delta == null) return "neutral";
@@ -27,6 +29,9 @@ export default function StudentKpiBand({
   classAvgRetention = 0,
   compareKpis = null,
 }) {
+  const lang = useLang();
+  const c = useT("studioCommon", lang);
+  const t = useT("studentProfile", lang);
   const studentAvgRetention =
     topicMastery.length > 0
       ? Math.round(
@@ -58,27 +63,27 @@ export default function StudentKpiBand({
   return (
     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(132px, 1fr))", gap: 8 }}>
       <StatCardWithSparkline
-        label="% correcto"
+        label={c.pctCorrect}
         value={<AnimatedNumber value={kpis.pct_correct} format={formatPercent} />}
         sparkPoints={pctSpark}
         delta={deltaProps("pct_correct")}
       />
       <StatCardWithSparkline
-        label="Sesiones"
+        label={c.sessions}
         value={<AnimatedNumber value={kpis.session_count} format={formatNumber} />}
         delta={deltaProps("session_count")}
       />
       <StatCardWithSparkline
-        label="Tiempo medio"
+        label={c.avgTime}
         value={<AnimatedNumber value={kpis.avg_time_ms} format={formatDurationShort} />}
         delta={deltaProps("avg_time_ms")}
       />
       <StatCardWithSparkline
-        label="Retención media"
+        label={t.avgRetention}
         value={<AnimatedNumber value={studentAvgRetention} format={(n) => `${n}%`} />}
       />
       <StatCardWithSparkline
-        label="Δ vs clase"
+        label={t.deltaVsClass}
         value={
           deltaVsClass == null
             ? "—"

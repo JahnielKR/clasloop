@@ -10,14 +10,17 @@
 //   onSelect: (topic: string) => void
 
 import { C } from "../tokens";
+import { useLang } from "../../i18n/LanguageContext";
+import { useT } from "../../i18n";
 
-function tierColor(score) {
-  if (score >= 70) return { bg: C.greenSoft, color: C.green, label: "fuerte" };
-  if (score >= 40) return { bg: C.orangeSoft, color: C.orange, label: "flojo" };
-  return { bg: C.redSoft, color: C.red, label: "crítico" };
+function tierColor(score, t) {
+  if (score >= 70) return { bg: C.greenSoft, color: C.green, label: t.tierStrong };
+  if (score >= 40) return { bg: C.orangeSoft, color: C.orange, label: t.tierWeak };
+  return { bg: C.redSoft, color: C.red, label: t.tierCritical };
 }
 
 export default function TopicMatrix({ topics = [], selectedTopic = null, onSelect }) {
+  const t = useT("studentProfile", useLang());
   if (topics.length === 0) {
     return (
       <div
@@ -30,7 +33,7 @@ export default function TopicMatrix({ topics = [], selectedTopic = null, onSelec
           fontSize: 14,
         }}
       >
-        Sin temas registrados todavía.
+        {t.noTopicsYet}
       </div>
     );
   }
@@ -38,9 +41,9 @@ export default function TopicMatrix({ topics = [], selectedTopic = null, onSelec
   return (
     <div style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, padding: 14 }}>
       <div style={{ display: "flex", alignItems: "baseline", gap: 12, marginBottom: 10 }}>
-        <b style={{ fontSize: 13 }}>Matriz de dominio</b>
+        <b style={{ fontSize: 13 }}>{t.masteryMatrix}</b>
         <span style={{ fontSize: 11, opacity: 0.6 }}>
-          {topics.length} {topics.length === 1 ? "tema" : "temas"} · click selecciona
+          {t.topicCountHint(topics.length, topics.length === 1 ? t.topicWord : t.topicWordPlural)}
         </span>
       </div>
       <div
@@ -50,14 +53,14 @@ export default function TopicMatrix({ topics = [], selectedTopic = null, onSelec
           gap: 8,
         }}
       >
-        {topics.map((t) => {
-          const score = Math.round(Number(t.retention_score) || 0);
-          const tier = tierColor(score);
-          const active = t.topic === selectedTopic;
+        {topics.map((tp) => {
+          const score = Math.round(Number(tp.retention_score) || 0);
+          const tier = tierColor(score, t);
+          const active = tp.topic === selectedTopic;
           return (
             <button
-              key={t.topic}
-              onClick={() => onSelect?.(t.topic)}
+              key={tp.topic}
+              onClick={() => onSelect?.(tp.topic)}
               aria-pressed={active}
               style={{
                 background: tier.bg,
@@ -71,7 +74,7 @@ export default function TopicMatrix({ topics = [], selectedTopic = null, onSelec
                 lineHeight: 1.3,
               }}
             >
-              <div style={{ fontWeight: 700, marginBottom: 2 }}>{t.topic}</div>
+              <div style={{ fontWeight: 700, marginBottom: 2 }}>{tp.topic}</div>
               <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11 }}>
                 <span>{score}%</span>
                 <span style={{ opacity: 0.7 }}>{tier.label}</span>
