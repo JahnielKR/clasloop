@@ -218,6 +218,33 @@ const ko: Locale = {
     loading: "로딩...",
   },
 
+  cleoUsage: {
+    title: "내 Cleo 사용",
+    generations: "생성 횟수",
+    generationsHint: "이 기간에 Cleo로 문제를 생성한 횟수",
+    acceptance: "수락률",
+    acceptanceHint: "Cleo가 생성한 그대로 게시한 문제의 비율",
+    editedPct: "편집 비율",
+    editedHint: "게시 전에 다시 작성한 문제의 비율",
+    ttp: "게시까지 시간",
+    ttpHint: "생성부터 덱 저장까지의 중앙값 시간",
+    goldNote: "수락률, 편집 비율, 게시까지 시간은 Cleo로 생성한 덱을 저장하면 표시됩니다 — 데이터 수집은 5월 30일에 시작되어 이전 생성에는 없습니다. 아래 볼륨과 분포는 모두 집계됩니다.",
+    byType: "문제 유형별",
+    byModel: "모델별",
+    byInput: "입력 유형별",
+    emptyTitle: "이 기간에 아직 Cleo를 사용하지 않았습니다",
+    emptyBody: "Cleo로 웜업이나 시험을 생성하고 다시 오세요: 수락률, 문제를 얼마나 편집하는지, 게시까지 얼마나 걸리는지 확인할 수 있습니다.",
+    errBox: "사용 데이터를 불러올 수 없습니다.",
+    typeLabels: {
+      mix: "혼합", image_generation: "이미지 (AI)", mcq: "객관식",
+      tf: "참/거짓", fill: "빈칸 채우기", order: "순서", match: "연결",
+      poll: "투표", free: "자유 응답",
+    },
+    inputLabels: {
+      text: "텍스트", pdf: "PDF", image: "이미지", docx: "Word", pptx: "PowerPoint",
+    },
+  },
+
   cleoAnalyst: {
     title: "Cleo 분석",
     greeting: "안녕하세요, Cleo예요. 위에서 학급을 선택하고 데이터에 대해 무엇이든 물어보세요 — 누가 뒤처지는지, 무엇을 다시 가르칠지, 어떤 덱을 만들지.",

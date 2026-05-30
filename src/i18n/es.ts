@@ -219,6 +219,33 @@ const es: Locale = {
     live: "En vivo",
   },
 
+  cleoUsage: {
+    title: "Tu uso de Cleo",
+    generations: "Generaciones",
+    generationsHint: "Veces que generaste preguntas con Cleo en este período",
+    acceptance: "Tasa de aceptación",
+    acceptanceHint: "% de preguntas que publicaste tal cual salieron de Cleo",
+    editedPct: "% editado",
+    editedHint: "% de preguntas que reescribiste antes de publicar",
+    ttp: "Time-to-publish",
+    ttpHint: "Mediana del tiempo entre generar y guardar el deck",
+    goldNote: "La tasa de aceptación, el % editado y el time-to-publish aparecen cuando guardes decks generados con Cleo — la captura empezó el 30/05, así que las generaciones anteriores no los tienen. El volumen y las distribuciones de abajo sí cuentan todo.",
+    byType: "Por tipo de pregunta",
+    byModel: "Por modelo",
+    byInput: "Por tipo de entrada",
+    emptyTitle: "Aún no has usado Cleo en este período",
+    emptyBody: "Genera un warmup o examen con Cleo y vuelve aquí: verás tu tasa de aceptación, cuánto editas sus preguntas y cuánto tardas en publicar.",
+    errBox: "No se pudieron cargar tus datos de uso.",
+    typeLabels: {
+      mix: "Mixto", image_generation: "Imagen (IA)", mcq: "Opción múltiple",
+      tf: "Verdadero/Falso", fill: "Completar", order: "Ordenar", match: "Relacionar",
+      poll: "Encuesta", free: "Respuesta libre",
+    },
+    inputLabels: {
+      text: "Texto", pdf: "PDF", image: "Imagen", docx: "Word", pptx: "PowerPoint",
+    },
+  },
+
   cleoAnalyst: {
     title: "Analista Cleo",
     greeting: "Hola, soy Cleo. Elige una clase arriba y pregúntame lo que quieras de tus datos — quiénes vienen flojos, qué reenseñar, qué deck armar.",

@@ -223,6 +223,33 @@ const en = {
     live: "Live",
   },
 
+  cleoUsage: {
+    title: "Your Cleo usage",
+    generations: "Generations",
+    generationsHint: "Times you generated questions with Cleo this period",
+    acceptance: "Acceptance rate",
+    acceptanceHint: "% of questions you published exactly as Cleo produced them",
+    editedPct: "% edited",
+    editedHint: "% of questions you rewrote before publishing",
+    ttp: "Time-to-publish",
+    ttpHint: "Median time between generating and saving the deck",
+    goldNote: "Acceptance rate, % edited and time-to-publish appear once you save Cleo-generated decks — capture started on 05/30, so older generations don't have them. The volume and distributions below count everything.",
+    byType: "By question type",
+    byModel: "By model",
+    byInput: "By input type",
+    emptyTitle: "You haven't used Cleo this period yet",
+    emptyBody: "Generate a warmup or exam with Cleo and come back: you'll see your acceptance rate, how much you edit its questions, and how long you take to publish.",
+    errBox: "We couldn't load your usage data.",
+    typeLabels: {
+      mix: "Mixed", image_generation: "Image (AI)", mcq: "Multiple choice",
+      tf: "True/False", fill: "Fill in", order: "Order", match: "Match",
+      poll: "Poll", free: "Free response",
+    },
+    inputLabels: {
+      text: "Text", pdf: "PDF", image: "Image", docx: "Word", pptx: "PowerPoint",
+    },
+  },
+
   cleoAnalyst: {
     title: "Ask Cleo",
     greeting: "Hi, I'm Cleo. Pick a class above and ask me anything about your data — who's falling behind, what to reteach, what deck to build.",
