@@ -63,8 +63,10 @@ describe("Studio i18n render smoke (en)", () => {
       answer_distribution: { 0: 6, 1: 4 },
     };
     en(<MisconceptionPanel question={question} />);
-    expect(screen.getByText(/most-missed question/i)).toBeInTheDocument();
     expect(screen.getByText("View question in DeckResults")).toBeInTheDocument();
+    // Robust against the "·" middot splitting testing-library's node matcher:
+    expect(document.body.textContent).toContain("most-missed question");
+    expect(document.body.textContent).not.toContain("Concepto errado");
   });
 
   it("TopicQuestionsList (empty) renders English", () => {
