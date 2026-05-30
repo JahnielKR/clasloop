@@ -11,9 +11,18 @@
 // instead of getByText, because testing-library splits on the middot's
 // surrounding nodes and reports a false "unable to find" negative.
 
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { LanguageProvider } from "../../../i18n/LanguageContext";
+
+// ReportPreview pulls class_analytics; mock it so the smoke renders with data.
+// Per-file mock (vitest) — only affects this file's ReportPreview case.
+vi.mock("../../../hooks/useClassAnalytics", () => ({
+  useClassAnalytics: () => ({
+    data: { kpis: { pct_correct: 80, responses_total: 50 }, topic_mastery: [], most_missed: [] },
+    isPending: false,
+  }),
+}));
 
 import ExportMenu from "../ExportMenu";
 import StudentKpiBand from "../StudentKpiBand";
@@ -26,6 +35,8 @@ import TopicMatrix from "../TopicMatrix";
 import CompareToggle from "../CompareToggle";
 import SessionHistoryTable from "../SessionHistoryTable";
 import LiveTile from "../LiveTile";
+import ReportComposer from "../ReportComposer";
+import ReportPreview from "../ReportPreview";
 
 function en(ui) {
   return render(<LanguageProvider value="en">{ui}</LanguageProvider>);
@@ -122,5 +133,17 @@ describe("Studio i18n render smoke (en)", () => {
     en(<LiveTile label="Connected" value={5} live />);
     expect(screen.getByLabelText("live")).toBeInTheDocument();
     expect(screen.queryByLabelText("en vivo")).not.toBeInTheDocument();
+  });
+
+  it("ReportComposer renders English section cards + reorder, not Spanish checkboxes", () => {
+    en(<ReportComposer classes={[{ class_id: "c1", class_name: "S1" }]} onSave={() => {}} onDraftChange={() => {}} />);
+    expect(screen.getByText("Key indicators")).toBeInTheDocument();
+    expect(screen.getAllByLabelText("Move down").length).toBeGreaterThan(0);
+    expect(screen.queryByText("Indicadores clave")).not.toBeInTheDocument();
+  });
+
+  it("ReportPreview renders English no-class prompt", () => {
+    en(<ReportPreview draft={{ classId: "", period: "d30", sections: ["kpis"] }} />);
+    expect(screen.getByText("Pick a class to preview its report.")).toBeInTheDocument();
   });
 });
