@@ -223,6 +223,25 @@ const en = {
     live: "Live",
   },
 
+  liveCenter: {
+    title: "Live",
+    activeSession: "Active session",
+    receivingLive: "receiving live updates",
+    connecting: "connecting…",
+    backToSession: "Back to session",
+    connected: "Connected",
+    responding: "Responding",
+    finished: "Finished",
+    pctLive: "Live % correct",
+    alertsTitle: "Session alerts",
+    alertLine: (n: number, p: number) => `Question ${n}: ${p}% errors.`,
+    launchReview: "Launch review",
+    generating: "Generating review…",
+    noActive: "No active sessions right now. Launch one from",
+    sessionsLink: "Sessions",
+    toSeeTiles: "to see live tiles here.",
+  },
+
   reports: {
     title: "Reports",
     saved: "Saved reports",

@@ -218,6 +218,25 @@ const ko: Locale = {
     loading: "로딩...",
   },
 
+  liveCenter: {
+    title: "실시간",
+    activeSession: "진행 중인 세션",
+    receivingLive: "실시간 업데이트 수신 중",
+    connecting: "연결 중…",
+    backToSession: "세션으로 돌아가기",
+    connected: "접속자",
+    responding: "응답 중",
+    finished: "완료",
+    pctLive: "실시간 정답률",
+    alertsTitle: "세션 알림",
+    alertLine: (n, p) => `${n}번 문제: 오답률 ${p}%.`,
+    launchReview: "복습 시작",
+    generating: "복습 생성 중…",
+    noActive: "지금 진행 중인 세션이 없습니다. 시작하려면",
+    sessionsLink: "세션",
+    toSeeTiles: "여기에 실시간 타일이 표시됩니다.",
+  },
+
   reports: {
     title: "리포트",
     saved: "저장된 리포트",

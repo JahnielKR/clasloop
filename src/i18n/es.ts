@@ -219,6 +219,25 @@ const es: Locale = {
     live: "En vivo",
   },
 
+  liveCenter: {
+    title: "En vivo",
+    activeSession: "Sesión activa",
+    receivingLive: "recibiendo actualizaciones en vivo",
+    connecting: "conectando…",
+    backToSession: "Volver a la sesión",
+    connected: "Conectados",
+    responding: "Respondiendo",
+    finished: "Terminaron",
+    pctLive: "% correcto en vivo",
+    alertsTitle: "Alertas de la sesión",
+    alertLine: (n, p) => `Pregunta ${n}: ${p}% de error.`,
+    launchReview: "Lanzar repaso",
+    generating: "Generando repaso…",
+    noActive: "Sin sesiones activas ahora mismo. Inicia una desde",
+    sessionsLink: "Sesiones",
+    toSeeTiles: "para ver los tiles en vivo aquí.",
+  },
+
   reports: {
     title: "Reportes",
     saved: "Reportes guardados",
