@@ -10,8 +10,13 @@
 
 import { useCrossfilter } from "../../hooks/useCrossfilter";
 import { C } from "../tokens";
+import { useLang } from "../../i18n/LanguageContext";
+import { useT } from "../../i18n";
 
 export default function MostMissedList({ classId, items = [], onItemClick, onGenerateReview, generating = false }) {
+  const lang = useLang();
+  const t = useT("classDetail", lang);
+  const c = useT("studioCommon", lang);
   const { selectedTopic } = useCrossfilter();
   const show = items.slice(0, 3);
 
@@ -20,14 +25,14 @@ export default function MostMissedList({ classId, items = [], onItemClick, onGen
       style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, padding: 12 }}
       data-class-id={classId}
     >
-      <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>Más falladas</div>
+      <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>{t.mostMissedTitle}</div>
       {selectedTopic && (
         <div style={{ fontSize: 11, color: C.accent, marginBottom: 4 }}>
-          Resaltando: {selectedTopic}
+          {t.highlighting(selectedTopic)}
         </div>
       )}
       {show.length === 0 ? (
-        <div style={{ opacity: 0.45, fontSize: 13, padding: 4 }}>Sin datos suficientes.</div>
+        <div style={{ opacity: 0.45, fontSize: 13, padding: 4 }}>{t.notEnoughData}</div>
       ) : (
         <div style={{ fontSize: 13, lineHeight: 1.65 }}>
           {show.map((it, i) => {
@@ -63,7 +68,7 @@ export default function MostMissedList({ classId, items = [], onItemClick, onGen
                 }}
               >
                 <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  P. {it.question_index + 1}
+                  {t.qLabel(it.question_index + 1)}
                   {it.topic ? ` · ${it.topic}` : ""}
                 </span>
                 <b
@@ -71,7 +76,7 @@ export default function MostMissedList({ classId, items = [], onItemClick, onGen
                     color: it.error_rate >= 60 ? C.red : it.error_rate >= 40 ? C.orange : C.green,
                   }}
                 >
-                  {Math.round(it.error_rate)}% err
+                  {t.qErr(Math.round(it.error_rate))}
                 </b>
               </div>
             );
@@ -81,7 +86,7 @@ export default function MostMissedList({ classId, items = [], onItemClick, onGen
       <button
         onClick={onGenerateReview}
         disabled={!onGenerateReview || generating}
-        title={generating ? "Generando…" : "Crear deck de repaso de lo más fallado"}
+        title={generating ? c.generatingReview : t.genReviewTitle}
         style={{
           display: "inline-block",
           marginTop: 8,
@@ -96,7 +101,7 @@ export default function MostMissedList({ classId, items = [], onItemClick, onGen
           opacity: onGenerateReview ? 1 : 0.55,
         }}
       >
-        {generating ? "Generando…" : "Generar repaso"}
+        {generating ? c.generatingReview : c.generateReview}
       </button>
     </div>
   );

@@ -19,11 +19,13 @@ import { C } from "../tokens";
 import { supabase } from "../../lib/supabase";
 import { generateClassReviewQuestions, saveClassReviewDeck } from "../../lib/close-unit-ai";
 import { buildClassNarrativeContext } from "../../lib/analytics/cleo-analytics";
+import { useLang } from "../../i18n/LanguageContext";
+import { useT } from "../../i18n";
 
 const ACCENT = C.purple;
 const ACCENT_BG = C.purpleSoft;
 
-function ActionChip({ label, onClick, disabled = false, stub = false, title }) {
+function ActionChip({ label, onClick, disabled = false, stub = false, title, soonLabel = "" }) {
   return (
     <button
       onClick={disabled || stub ? undefined : onClick}
@@ -41,7 +43,7 @@ function ActionChip({ label, onClick, disabled = false, stub = false, title }) {
         opacity: disabled ? 0.65 : 1,
       }}
     >
-      {label}{stub ? " · pronto" : ""}
+      {label}{stub && soonLabel ? ` · ${soonLabel}` : ""}
     </button>
   );
 }
@@ -57,6 +59,7 @@ export default function CleoStrip({
   onReteachNow,
   lang = "es",
 }) {
+  const tt = useT("classDetail", lang);
   const [narrative, setNarrative] = useState("");
   const [narrativeLoading, setNarrativeLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
@@ -134,10 +137,10 @@ export default function CleoStrip({
 
   // Placeholder narrative fallback (cuando todavía cargamos o no hay datos)
   const display = narrative ||
-    (narrativeLoading ? "Cleo está analizando los datos…" :
+    (narrativeLoading ? tt.cleoAnalyzing :
       (weakTopics.length > 0
-        ? `Los temas con menor retención son: ${weakTopics.slice(0, 3).join(", ")}.`
-        : "Sin datos suficientes en esta ventana de fechas."));
+        ? tt.cleoWeakTopics(weakTopics.slice(0, 3).join(", "))
+        : tt.cleoNoData));
 
   return (
     <div
@@ -170,28 +173,29 @@ export default function CleoStrip({
         C
       </div>
       <div style={{ flex: 1, fontSize: 14 }}>
-        <b>Cleo:</b> {display}
+        <b>{tt.cleoLabel}</b> {display}
         {error && (
           <div style={{ color: C.red, fontSize: 12, marginTop: 6 }}>
-            No pude generar el repaso ({error}). Intentá de nuevo.
+            {tt.cleoGenError(error)}
           </div>
         )}
         <div style={{ marginTop: 8, display: "flex", gap: 6, flexWrap: "wrap" }}>
           <ActionChip
-            label={generating ? "Generando…" : "Generar repaso de lo flojo"}
+            label={generating ? tt.cleoChipGenerating : tt.cleoChipGenerate}
             onClick={handleGenerateReview}
             disabled={generating || weakTopics.length === 0}
-            title="Crea un deck de repaso de 7 preguntas sobre los temas más débiles"
+            title={tt.cleoGenerateTitle}
           />
           <ActionChip
-            label="Reenseñar ahora"
+            label={tt.cleoChipReteach}
             onClick={onReteachNow}
-            title="Salta al panel de preguntas más falladas"
+            title={tt.cleoReteachTitle}
           />
           <ActionChip
-            label="Que vuelva mañana"
+            label={tt.cleoChipTomorrow}
             stub
-            title="Llega cuando se sume el scheduler de tareas (F6+)"
+            soonLabel={tt.cleoChipSoon}
+            title={tt.cleoTomorrowTitle}
           />
         </div>
       </div>

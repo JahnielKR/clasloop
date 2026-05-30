@@ -12,12 +12,8 @@ import {
 } from "../../lib/analytics/formatters";
 import { forecastPoints } from "../../lib/analytics/forecast";
 import { C } from "../tokens";
-
-const METRICS = [
-  { id: "pct_correct", label: "% correcto", formatter: (v) => formatPercent(v), clampMin: 0, clampMax: 100 },
-  { id: "avg_time", label: "Tiempo medio", formatter: (v) => formatDurationShort(v), clampMin: 0 },
-  { id: "participation", label: "Participación", formatter: (v) => formatNumber(v), clampMin: 0 },
-];
+import { useLang } from "../../i18n/LanguageContext";
+import { useT } from "../../i18n";
 
 export default function TrendPanel({
   metric = "pct_correct",
@@ -26,6 +22,14 @@ export default function TrendPanel({
   compareData = null,
   loading = false,
 }) {
+  const lang = useLang();
+  const t = useT("classDetail", lang);
+  const c = useT("studioCommon", lang);
+  const METRICS = [
+    { id: "pct_correct", label: t.metricPctCorrect, formatter: (v) => formatPercent(v), clampMin: 0, clampMax: 100 },
+    { id: "avg_time", label: t.metricAvgTime, formatter: (v) => formatDurationShort(v), clampMin: 0 },
+    { id: "participation", label: t.metricParticipation, formatter: (v) => formatNumber(v), clampMin: 0 },
+  ];
   const def = METRICS.find((m) => m.id === metric) || METRICS[0];
   // F5: forecast los próximos 3 días (mismo granularity que el chart).
   // Se omite cuando hay <3 puntos (forecastPoints devuelve []).
@@ -60,11 +64,11 @@ export default function TrendPanel({
       </div>
       {loading ? (
         <div style={{ height: 180, opacity: 0.45, fontSize: 13, padding: 12 }}>
-          Cargando…
+          {c.loading}
         </div>
       ) : data.length === 0 ? (
         <div style={{ height: 180, opacity: 0.45, fontSize: 13, padding: 12 }}>
-          Sin datos en esta ventana.
+          {t.trendEmpty}
         </div>
       ) : (
         <TrendBarChart

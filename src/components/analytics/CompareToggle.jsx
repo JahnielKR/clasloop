@@ -11,8 +11,11 @@
 // iteraciones posteriores.
 
 import { C } from "../tokens";
+import { useLang } from "../../i18n/LanguageContext";
+import { useT } from "../../i18n";
 
 export default function CompareToggle({ value = "off", onChange }) {
+  const t = useT("classDetail", useLang());
   const active = value === "prev";
   return (
     <button
@@ -33,7 +36,7 @@ export default function CompareToggle({ value = "off", onChange }) {
       }}
     >
       <span aria-hidden style={{ fontSize: 11 }}>{active ? "✓" : "▦"}</span>
-      Comparar
+      {t.compare}
     </button>
   );
 }
