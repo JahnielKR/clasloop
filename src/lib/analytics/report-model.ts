@@ -76,7 +76,7 @@ export function buildClassReportModel(args: {
   sections: string[];
   lang?: string;
 }): ReportModel {
-  const t = getStrings("reportModel", args.lang || "en");
+  const t: any = getStrings("reportModel", args.lang || "en");
   const ca = args.classAnalytics || {};
   const builders: Record<string, () => ReportSection> = {
     kpis: () => kpiSection(ca.kpis, t),
@@ -100,7 +100,7 @@ export function buildOverviewReportModel(args: {
   perClass?: { name: string; retention: number }[];
   lang?: string;
 }): ReportModel {
-  const t = getStrings("reportModel", args.lang || "en");
+  const t: any = getStrings("reportModel", args.lang || "en");
   const s = args.stats;
   const sections: ReportSection[] = [
     {
