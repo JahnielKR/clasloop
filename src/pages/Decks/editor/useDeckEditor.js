@@ -67,6 +67,11 @@ export function useDeckEditor({ t, l, onCreated, userId, userClasses, existingDe
   );
   const [activityType, setActivityType] = useState(existingDeck?.questions?.[0]?.type || "mcq");
   const [questions, setQuestions] = useState(existingDeck?.questions || []);
+  // Área 4: ids de las generaciones de IA que poblaron este deck en esta sesión
+  // de edición — al guardar, se mandan a api/generation-publish para completar
+  // el "oro" (output_final, time_to_publish, accepted/edited). Un deck puede
+  // acumular varias generaciones.
+  const [pendingGenerationIds, setPendingGenerationIds] = useState([]);
   const [saving, setSaving] = useState(false);
   const [coverColor, setCoverColor] = useState(existingDeck?.cover_color || DEFAULT_DECK_COLOR);
   const [coverIcon, setCoverIcon] = useState(existingDeck?.cover_icon || (existingDeck?.subject && SUBJ_ICON[existingDeck.subject]) || DEFAULT_DECK_ICON);
@@ -231,7 +236,7 @@ export function useDeckEditor({ t, l, onCreated, userId, userClasses, existingDe
   // El segundo argumento `warnings` viene de generateQuestions con avisos
   // no bloqueantes (ej. truncado por largo). Los guardamos en state para
   // mostrarlos arriba de la lista.
-  const handleAIGenerated = (newQuestions, warnings = []) => {
+  const handleAIGenerated = (newQuestions, warnings = [], generationId = null) => {
     // 1. Normalización: rellenar campos opcionales que el editor espera.
     const normalized = newQuestions.map(q => {
       const base = { ...q };
@@ -340,6 +345,12 @@ export function useDeckEditor({ t, l, onCreated, userId, userClasses, existingDe
     }
     setAiGenerationWarnings(unifiedWarnings);
     setAiDropReport(null);
+
+    // Área 4: recordar la generación (sólo cuando sus preguntas entran al deck)
+    // para completar su "oro" al guardar.
+    if (generationId) {
+      setPendingGenerationIds(prev => (prev.includes(generationId) ? prev : [...prev, generationId]));
+    }
 
     setQuestions(prev => {
       const startIdx = prev.length;
@@ -877,6 +888,23 @@ export function useDeckEditor({ t, l, onCreated, userId, userClasses, existingDe
   // forced-choice behavior, an empty section must block submission.
   const canSave = title.trim() && subject && grade && questions.length > 0 && !!classId && isValidSection(section);
 
+  // Área 4: al guardar, completar el "oro" de las generaciones que poblaron el
+  // deck. Fire-and-forget: nunca bloquea ni rompe el guardado.
+  const publishGenerations = async (ids, finalQuestions) => {
+    if (!ids || ids.length === 0) return;
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) return;
+      await Promise.all(ids.map(id =>
+        fetch("/api/generation-publish", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+          body: JSON.stringify({ generationId: id, finalQuestions }),
+        }).catch(() => {})
+      ));
+    } catch { /* no-op: la captura del "oro" nunca rompe el guardado */ }
+  };
+
   const handleSave = async () => {
     if (!canSave) return;
 
@@ -928,6 +956,11 @@ export function useDeckEditor({ t, l, onCreated, userId, userClasses, existingDe
     } else {
       const { data } = await supabase.from("decks").insert(payload).select().single();
       if (data) onCreated(data);
+    }
+    // Área 4: completar el "oro" de las generaciones de IA usadas en este deck.
+    if (pendingGenerationIds.length > 0) {
+      publishGenerations(pendingGenerationIds, questions);
+      setPendingGenerationIds([]);
     }
     setSaving(false);
   };

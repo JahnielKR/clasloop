@@ -161,7 +161,7 @@ export default function AIGeneratePanel({
       // Single source of truth: deckLanguage es el idioma del deck. El selector
       // del panel AI escribe directamente con setDeckLanguage, así que no hay
       // que propagar nada — el editor padre ya está actualizado.
-      onGenerated(cleaned, generationWarnings);
+      onGenerated(cleaned, generationWarnings, result?.generationId ?? null);
       // El padre cierra el panel y muestra las preguntas.
     } catch (err) {
       // AIError viene con código; otros errores son network/parse genéricos.
