@@ -512,7 +512,7 @@ git commit -m "feat(i18n): studioShell + studioCommon namespaces; migrate shell 
 - Modify: `src/components/analytics/{ClassTable,RiskOverviewList,CriticalTopicsList,PulseStrip,StatCardWithSparkline}.jsx`
 - Test: `src/pages/__tests__/Director.i18n.test.jsx` (lightweight)
 
-- [ ] **Step 1: Extend the `director` namespace** (keep existing keys `pageTitle/subtitle/noClasses/loading/error`). Add to en / es / ko:
+- [ ] **Step 1: Extend the `director` namespace.** The namespace already has ~30 keys from the legacy tabbed dashboard — **reuse** the ones that fit instead of duplicating: `atRisk` ("At-risk students"), `avgRetention`, `totalStudents`, `totalSessions`, `classesActive`, `retention`, `noClasses`, `loading`. (Leave the other stale keys untouched — the parity test keeps es/ko in sync; cleaning them is out of scope.) Add only the genuinely new keys below to en / es / ko:
 
 | key | en | es |
 |---|---|---|
