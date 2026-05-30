@@ -70,7 +70,10 @@ export default function SessionHistoryTable({ items = [], onRowClick }) {
           Sin sesiones completadas en esta ventana.
         </div>
       ) : (
-        <table style={{ width: "100%", fontSize: 13, borderCollapse: "collapse" }}>
+        <div style={{ overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
+          {/* Ola 6: scroll wrapper so the 6-col history scrolls instead of
+              clipping on phones; minWidth keeps the columns legible. */}
+          <table style={{ width: "100%", minWidth: 480, fontSize: 13, borderCollapse: "collapse" }}>
           <thead style={{ fontSize: 11, textTransform: "uppercase", opacity: 0.55, textAlign: "left" }}>
             <tr>
               {sortableTh("when", "Cuándo", true)}
@@ -118,6 +121,7 @@ export default function SessionHistoryTable({ items = [], onRowClick }) {
             })}
           </tbody>
         </table>
+        </div>
       )}
     </div>
   );

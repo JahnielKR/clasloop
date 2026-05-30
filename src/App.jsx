@@ -1014,7 +1014,7 @@ export default function App() {
         reviewBadgeCount={reviewBadgeCount}
         activeSessionId={activeSessionId}
       />
-      <div style={{ marginLeft: isMobile ? 0 : (open ? 210 : 56), flex: 1, transition: "margin-left .2s", minHeight: "100vh", background: C.bgSoft }}>
+      <div style={{ marginLeft: isMobile ? 0 : (open ? 210 : 56), flex: 1, minWidth: 0, transition: "margin-left .2s", minHeight: "100vh", background: C.bgSoft }}>
         <Suspense fallback={<PageSuspenseFallback />}>
           {/* PR 28.17.2: phone (mobile) blocker for landscape-only flows.
               The themed quiz UI in StudentJoin assumes a wide viewport
