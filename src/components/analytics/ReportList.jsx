@@ -11,6 +11,16 @@ import ExportMenu from "./ExportMenu";
 import { useLang } from "../../i18n/LanguageContext";
 import { useT } from "../../i18n";
 
+// Short localized date for the saved-report sub-line (e.g. "May 30").
+function fmtDate(iso, lang) {
+  if (!iso) return "";
+  try {
+    return new Date(iso).toLocaleDateString(lang === "en" ? "en-US" : lang, { month: "short", day: "numeric" });
+  } catch {
+    return "";
+  }
+}
+
 export default function ReportList({
   reports = [],
   onExportModel,
