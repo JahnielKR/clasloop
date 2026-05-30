@@ -29,6 +29,7 @@ ios/App/build/
 .claude/
 .playwright-mcp/
 .superpowers/
+skills-lock.json
 supabase/.temp/
 
 # AI-session planning / audit docs — generated during agent sessions, kept
