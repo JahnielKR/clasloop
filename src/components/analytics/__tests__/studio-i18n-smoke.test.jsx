@@ -78,10 +78,11 @@ describe("Studio i18n render smoke (en)", () => {
     expect(screen.getByText("Other missed questions")).toBeInTheDocument();
   });
 
-  it("TopicTrendPanel renders localized weekly-trend title, not 'Tendencia'", () => {
+  it("TopicTrendPanel renders localized trend title, not 'Tendencia'", () => {
     en(<TopicTrendPanel topic="Fractions" data={[]} />);
-    // middot-safe: "Weekly trend · Fractions" splits getByText on the middot
-    expect(document.body.textContent).toContain("Weekly trend");
+    // middot-safe: the title "Trend · Fractions" splits getByText on the middot,
+    // so assert against the full body text instead.
+    expect(document.body.textContent).toContain("Trend");
     expect(document.body.textContent).toContain("Fractions");
     expect(document.body.textContent).not.toContain("Tendencia");
   });
