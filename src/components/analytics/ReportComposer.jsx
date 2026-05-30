@@ -1,157 +1,152 @@
 // src/components/analytics/ReportComposer.jsx
 //
-// F7 Analytics Studio: el "composer" de reportes. NO es un drag-drop canvas
-// (ver plan §out-of-scope) — es selección: clase + período + qué secciones
-// incluir + nombre. Al guardar, persiste el model en analytics_reports.
+// Ola B: report composer with the design system. Sections are selectable cards
+// (label + description + ✓) that can be reordered with ↑/↓; period is segmented
+// chips. Lightly controlled — emits the draft on every change for the live
+// preview. i18n: useT("reports").
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { C } from "../tokens";
-import { SECTION_TYPES } from "../../lib/analytics/report-model";
+import { FieldLabel } from "../forms/FieldLabel";
+import { inputStyle, selectStyle } from "../forms/field-styles";
+import { selectableCard, selectableChip, selectedCheckStyle } from "../ui/selectable";
+import Button from "../ui/Button";
+import { REPORT_SECTIONS, moveSection } from "../../lib/analytics/report-sections";
+import { useLang } from "../../i18n/LanguageContext";
+import { useT } from "../../i18n";
 
-const PERIODS = [
-  { id: "d7", label: "7 días" },
-  { id: "d30", label: "30 días" },
-  { id: "d90", label: "90 días" },
-];
+const PERIODS = ["d7", "d30", "d90"];
 
-export default function ReportComposer({ classes = [], onSave, saving = false }) {
+const arrowBtn = (disabled) => ({
+  width: 24, height: 24, borderRadius: 6, border: `1px solid ${C.border}`,
+  background: C.bg, color: disabled ? C.textMuted : C.textSecondary,
+  cursor: disabled ? "not-allowed" : "pointer", fontSize: 12, lineHeight: 1,
+});
+
+export default function ReportComposer({ classes = [], onSave, saving = false, onDraftChange }) {
+  const t = useT("reports", useLang());
   const [name, setName] = useState("");
   const [classId, setClassId] = useState(classes[0]?.class_id || "");
   const [period, setPeriod] = useState("d30");
-  const [sections, setSections] = useState(SECTION_TYPES.map((s) => s.id));
+  // sections = ordered array of included ids; starts with all 3 in catalog order.
+  const [sections, setSections] = useState(REPORT_SECTIONS.map((s) => s.id));
 
-  function toggleSection(id) {
+  const periodLabel = useMemo(
+    () => ({ d7: t.periodD7, d30: t.periodD30, d90: t.periodD90 }),
+    [t],
+  );
+
+  const draft = useMemo(
+    () => ({ name: name.trim(), classId, period, sections }),
+    [name, classId, period, sections],
+  );
+
+  // Emit the draft whenever it changes so the preview can follow.
+  useEffect(() => {
+    onDraftChange?.(draft);
+  }, [draft, onDraftChange]);
+
+  function toggle(id) {
     setSections((prev) =>
-      prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id]
+      prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id],
     );
   }
-
-  function handleSave() {
-    if (!name.trim() || !classId || sections.length === 0) return;
-    onSave?.({ name: name.trim(), classId, period, sections });
+  function move(id, dir) {
+    setSections((prev) => moveSection(prev, id, dir));
   }
 
   const valid = name.trim() && classId && sections.length > 0;
 
-  return (
-    <div
-      style={{
-        background: C.bg,
-        border: `1px solid ${C.border}`,
-        borderRadius: 8,
-        padding: 16,
-      }}
-    >
-      <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>
-        Nuevo reporte
-      </div>
+  // Render the cards in the current section order; excluded ids go after,
+  // in catalog order, so they remain reachable to re-add.
+  const excluded = REPORT_SECTIONS.map((s) => s.id).filter((id) => !sections.includes(id));
+  const renderOrder = [...sections, ...excluded];
+  const meta = (id) => REPORT_SECTIONS.find((s) => s.id === id);
 
-      <label style={labelStyle}>Nombre</label>
+  return (
+    <div style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, padding: 16 }}>
+      <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>{t.newReport}</div>
+
+      <FieldLabel>{t.name}</FieldLabel>
       <input
         value={name}
         onChange={(e) => setName(e.target.value)}
-        placeholder="Ej: Reporte mensual 5to A"
-        style={inputStyle}
+        placeholder={t.namePlaceholder}
+        style={{ ...inputStyle, marginBottom: 12 }}
       />
 
-      <label style={labelStyle}>Clase</label>
-      <select
-        value={classId}
-        onChange={(e) => setClassId(e.target.value)}
-        style={inputStyle}
-      >
+      <FieldLabel>{t.classLabel}</FieldLabel>
+      <select value={classId} onChange={(e) => setClassId(e.target.value)} style={{ ...selectStyle, marginBottom: 12 }}>
         {classes.map((c) => (
-          <option key={c.class_id} value={c.class_id}>
-            {c.class_name || c.class_id}
-          </option>
+          <option key={c.class_id} value={c.class_id}>{c.class_name || c.class_id}</option>
         ))}
       </select>
 
-      <label style={labelStyle}>Período</label>
+      <FieldLabel>{t.period}</FieldLabel>
       <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
         {PERIODS.map((p) => (
           <button
-            key={p.id}
-            onClick={() => setPeriod(p.id)}
-            style={{
-              padding: "4px 11px",
-              borderRadius: 6,
-              fontSize: 13,
-              border: `1px solid ${C.border}`,
-              background: period === p.id ? C.accent : C.bg,
-              color: period === p.id ? "#fff" : "inherit",
-              cursor: "pointer",
-            }}
+            key={p}
+            type="button"
+            className="cl-selectable"
+            onClick={() => setPeriod(p)}
+            aria-pressed={period === p}
+            style={{ padding: "4px 11px", borderRadius: 6, fontSize: 13, cursor: "pointer", ...selectableChip(period === p) }}
           >
-            {p.label}
+            {periodLabel[p]}
           </button>
         ))}
       </div>
 
-      <label style={labelStyle}>Secciones</label>
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          gap: 6,
-          marginBottom: 14,
-        }}
-      >
-        {SECTION_TYPES.map((s) => (
-          <label
-            key={s.id}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              fontSize: 13,
-              cursor: "pointer",
-            }}
-          >
-            <input
-              type="checkbox"
-              checked={sections.includes(s.id)}
-              onChange={() => toggleSection(s.id)}
-            />
-            {s.label}
-          </label>
-        ))}
+      <FieldLabel>{t.sections}</FieldLabel>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 14 }}>
+        {renderOrder.map((id) => {
+          const m = meta(id);
+          const included = sections.includes(id);
+          const pos = sections.indexOf(id);
+          return (
+            <div
+              key={id}
+              className="cl-selectable"
+              onClick={() => toggle(id)}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(id); } }}
+              style={{ position: "relative", borderRadius: 8, padding: "10px 12px", cursor: "pointer", ...selectableCard(included) }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{t[m.labelKey]}</div>
+                  <div style={{ fontSize: 12, color: C.textSecondary, marginTop: 2 }}>{t[m.descKey]}</div>
+                </div>
+                {included && (
+                  <div style={{ display: "flex", gap: 4 }} onClick={(e) => e.stopPropagation()}>
+                    <button
+                      type="button" aria-label={t.moveUp} title={t.moveUp}
+                      disabled={pos <= 0}
+                      onClick={() => move(id, "up")}
+                      style={arrowBtn(pos <= 0)}
+                    >↑</button>
+                    <button
+                      type="button" aria-label={t.moveDown} title={t.moveDown}
+                      disabled={pos >= sections.length - 1}
+                      onClick={() => move(id, "down")}
+                      style={arrowBtn(pos >= sections.length - 1)}
+                    >↓</button>
+                  </div>
+                )}
+                {included && (
+                  <span style={{ ...selectedCheckStyle(), width: 18, height: 18, fontSize: 12, flexShrink: 0 }}>✓</span>
+                )}
+              </div>
+            </div>
+          );
+        })}
       </div>
 
-      <button
-        onClick={handleSave}
-        disabled={!valid || saving}
-        style={{
-          padding: "8px 16px",
-          borderRadius: 8,
-          border: "none",
-          background: valid ? C.accent : C.border,
-          color: valid ? "#fff" : C.textMuted,
-          fontSize: 14,
-          fontWeight: 600,
-          cursor: valid && !saving ? "pointer" : "not-allowed",
-        }}
-      >
-        {saving ? "Guardando…" : "Guardar reporte"}
-      </button>
+      <Button onClick={() => valid && onSave?.(draft)} disabled={!valid || saving}>
+        {saving ? t.saving : t.save}
+      </Button>
     </div>
   );
 }
-
-const labelStyle = {
-  display: "block",
-  fontSize: 12,
-  fontWeight: 600,
-  color: C.textSecondary,
-  marginBottom: 4,
-  marginTop: 8,
-};
-const inputStyle = {
-  width: "100%",
-  padding: "6px 10px",
-  fontSize: 13,
-  borderRadius: 6,
-  border: `1px solid ${C.border}`,
-  marginBottom: 8,
-  boxSizing: "border-box",
-};

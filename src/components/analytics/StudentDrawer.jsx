@@ -17,10 +17,15 @@ import { useEffect } from "react";
 import { C, SH } from "../tokens";
 import { riskScore } from "../../lib/analytics/risk";
 import RiskBadge from "./RiskBadge";
+import { useLang } from "../../i18n/LanguageContext";
+import { useT } from "../../i18n";
 
 const retCol = (v) => (v >= 70 ? C.green : v >= 40 ? C.orange : C.red);
 
 export default function StudentDrawer({ student, riskInputs = null, onClose, onOpenFull }) {
+  const lang = useLang();
+  const t = useT("classDetail", lang);
+  const c = useT("studioCommon", lang);
   const open = !!student;
 
   useEffect(() => {
@@ -48,7 +53,7 @@ export default function StudentDrawer({ student, riskInputs = null, onClose, onO
       <aside
         role="dialog"
         aria-modal="true"
-        aria-label={`Resumen de ${student.name}`}
+        aria-label={t.drawerSummaryOf(student.name)}
         style={{
           position: "fixed",
           top: 0,
@@ -78,7 +83,7 @@ export default function StudentDrawer({ student, riskInputs = null, onClose, onO
           <div style={{ fontSize: 16, fontWeight: 700, flex: 1, minWidth: 0 }}>{student.name}</div>
           <button
             onClick={onClose}
-            aria-label="Cerrar"
+            aria-label={t.close}
             style={{ border: "none", background: "transparent", fontSize: 20, cursor: "pointer", lineHeight: 1, color: C.textSecondary }}
           >
             ×
@@ -87,7 +92,7 @@ export default function StudentDrawer({ student, riskInputs = null, onClose, onO
 
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <div>
-            <div style={{ fontSize: 11, textTransform: "uppercase", opacity: 0.55 }}>Retención</div>
+            <div style={{ fontSize: 11, textTransform: "uppercase", opacity: 0.55 }}>{c.retention}</div>
             <div style={{ fontSize: 26, fontWeight: 700, color: retCol(student.avgRetention) }}>
               {student.avgRetention}%
             </div>
@@ -96,9 +101,9 @@ export default function StudentDrawer({ student, riskInputs = null, onClose, onO
         </div>
 
         <div>
-          <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 6 }}>Temas más flojos</div>
+          <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 6 }}>{t.weakestTopics}</div>
           {weakTopics.length === 0 ? (
-            <div style={{ fontSize: 13, opacity: 0.55 }}>Sin datos de temas.</div>
+            <div style={{ fontSize: 13, opacity: 0.55 }}>{t.noTopicData}</div>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
               {weakTopics.map((t, i) => (
@@ -113,7 +118,7 @@ export default function StudentDrawer({ student, riskInputs = null, onClose, onO
 
         {risk && risk.reasons.length > 0 && (
           <div>
-            <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 6 }}>Señales de riesgo</div>
+            <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 6 }}>{t.riskSignals}</div>
             <ul style={{ margin: 0, padding: "0 0 0 16px", fontSize: 12, lineHeight: 1.5, color: C.textSecondary }}>
               {risk.reasons.map((r, i) => <li key={i}>{r}</li>)}
             </ul>
@@ -134,7 +139,7 @@ export default function StudentDrawer({ student, riskInputs = null, onClose, onO
             cursor: "pointer",
           }}
         >
-          Ver perfil completo →
+          {t.viewFullProfile}
         </button>
       </aside>
     </>

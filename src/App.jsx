@@ -1025,6 +1025,7 @@ export default function App() {
         activeSessionId={activeSessionId}
       />
       <div style={{ marginLeft: isMobile ? 0 : (open ? 210 : 56), flex: 1, minWidth: 0, transition: "margin-left .2s", minHeight: "100vh", background: C.bgSoft, paddingBottom: showBottomNav ? 64 : undefined }}>
+        <LanguageProvider value={lang}>
         <Suspense fallback={<PageSuspenseFallback />}>
           {/* PR 28.17.2: phone (mobile) blocker for landscape-only flows.
               The themed quiz UI in StudentJoin assumes a wide viewport
@@ -1114,6 +1115,7 @@ export default function App() {
             )
           )}
         </Suspense>
+        </LanguageProvider>
       </div>
 
       {/* Ola 3: mobile bottom tab bar — one-tap to the 4 main destinations;

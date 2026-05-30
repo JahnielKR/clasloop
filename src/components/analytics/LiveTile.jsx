@@ -6,6 +6,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { C, MONO } from "../tokens";
+import { useLang } from "../../i18n/LanguageContext";
+import { useT } from "../../i18n";
 
 const cssId = "live-tile-css";
 
@@ -42,6 +44,7 @@ export default function LiveTile({
   onClick = null,
 }) {
   ensureCss();
+  const tc = useT("studioCommon", useLang());
   const prev = useRef(value);
   const [tick, setTick] = useState(false);
   useEffect(() => {
@@ -90,7 +93,7 @@ export default function LiveTile({
       {live && (
         <span
           className="live-tile-dot"
-          aria-label="en vivo"
+          aria-label={tc.liveAria}
           style={{
             position: "absolute",
             top: 8,

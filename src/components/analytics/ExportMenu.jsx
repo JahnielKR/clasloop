@@ -13,8 +13,11 @@ import { C, SH } from "../tokens";
 import { downloadCsv } from "../../lib/analytics/export-csv";
 import { downloadPdf } from "../../lib/analytics/export-pdf";
 import { downloadXlsx } from "../../lib/analytics/export-xlsx";
+import { useLang } from "../../i18n/LanguageContext";
+import { useT } from "../../i18n";
 
 export default function ExportMenu({ buildModel, baseName = "reporte", disabled = false }) {
+  const c = useT("studioCommon", useLang());
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const rootRef = useRef(null);
@@ -69,7 +72,7 @@ export default function ExportMenu({ buildModel, baseName = "reporte", disabled 
           opacity: disabled ? 0.6 : 1,
         }}
       >
-        {busy ? "Exportando…" : "Exportar ▾"}
+        {busy ? c.exporting : `${c.exportLabel} ▾`}
       </button>
       {open && (
         <div

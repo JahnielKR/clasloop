@@ -2,6 +2,8 @@
 // A small donut (Recharts pie) of a class's topic-retention distribution —
 // green (strong) / orange (needs review) / red (weak). Reusable across report
 // surfaces. Animation off so it renders instantly and prints cleanly.
+// No user-facing text of its own — the center label/sub come from props (already
+// localized by the caller), so this component needs no i18n.
 import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
 import { C } from "../tokens";
 

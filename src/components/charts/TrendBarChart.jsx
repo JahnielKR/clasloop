@@ -7,6 +7,7 @@
 // del período comparado.
 // F5: opcional forecast (mismo shape) → puntos futuros (línea punteada al
 // final). Internamente migra a ComposedChart para mezclar Bar + Line.
+// i18n: tooltip/legend strings via useT("studioCommon"); RichTooltip recibe `c`.
 //
 // Back-compat: si forecast y compareData son null, comportamiento idéntico a F1.
 
@@ -22,6 +23,8 @@ import {
   Legend,
 } from "recharts";
 import { C } from "../tokens";
+import { useLang } from "../../i18n/LanguageContext";
+import { useT } from "../../i18n";
 
 const ACCENT = C.accent;
 const COMPARE = C.accentSoft;    // azul translúcido para el período comparado
@@ -29,7 +32,6 @@ const FORECAST = C.purple;       // violeta Cleo para el pronóstico
 const AXIS_COLOR = C.textMuted;
 
 // F9: bajo prefers-reduced-motion, recharts no anima las barras en mount.
-// Se lee una vez a nivel módulo (reduced-motion rara vez cambia mid-sesión).
 const REDUCED_MOTION =
   typeof window !== "undefined" &&
   typeof window.matchMedia === "function" &&
@@ -40,7 +42,7 @@ function defaultFormatter(v) {
 }
 
 // F8: tooltip rico — valor + delta vs el bucket anterior de la misma serie.
-function RichTooltip({ active, payload, label, yFormatter, yLabel, rows }) {
+function RichTooltip({ active, payload, label, yFormatter, yLabel, rows, c }) {
   if (!active || !payload || payload.length === 0) return null;
   const idx = rows.findIndex((r) => r.bucket === label);
   const cur = rows[idx];
@@ -54,7 +56,7 @@ function RichTooltip({ active, payload, label, yFormatter, yLabel, rows }) {
     const sign = d > 0 ? "▲ +" : d < 0 ? "▼ " : "→ ";
     deltaNode = (
       <div style={{ color: tone, fontSize: 11, marginTop: 2 }}>
-        {sign}{Math.abs(d)} vs bucket anterior
+        {sign}{Math.abs(d)} {c.chartVsBucket}
       </div>
     );
   }
@@ -65,7 +67,7 @@ function RichTooltip({ active, payload, label, yFormatter, yLabel, rows }) {
       <div>{yLabel}: <b>{yFormatter(v)}</b></div>
       {compareEntry && (
         <div style={{ color: C.accent, fontSize: 11 }}>
-          Período anterior: {yFormatter(compareEntry.value)}
+          {c.chartPrevPeriod}: {yFormatter(compareEntry.value)}
         </div>
       )}
       {deltaNode}
@@ -81,10 +83,8 @@ export default function TrendBarChart({
   yFormatter = defaultFormatter,
   height = 180,
 }) {
+  const c = useT("studioCommon", useLang());
   // Construir un dataset combinado para que recharts comparta el eje X.
-  //  - Filas históricas: value + compare_value (si aplica).
-  //  - Filas de pronóstico (al final): solo forecast_value.
-  // Cada fila lleva una bandera para que tooltip/legend filtren correctamente.
   const baseRows = data.map((d, i) => {
     const row = { ...d };
     if (compareData) row.compare_value = compareData[i]?.value ?? null;
@@ -117,7 +117,7 @@ export default function TrendBarChart({
           <Tooltip
             cursor={{ fill: C.accentSoft }}
             content={(props) => (
-              <RichTooltip {...props} yFormatter={yFormatter} yLabel={yLabel} rows={merged} />
+              <RichTooltip {...props} yFormatter={yFormatter} yLabel={yLabel} rows={merged} c={c} />
             )}
           />
           {compareData && (
@@ -140,8 +140,8 @@ export default function TrendBarChart({
             <Legend
               wrapperStyle={{ fontSize: 11, paddingTop: 4 }}
               formatter={(value) => {
-                if (value === "compare_value") return "Período anterior";
-                if (value === "forecast_value") return "Pronóstico Cleo";
+                if (value === "compare_value") return c.chartPrevPeriod;
+                if (value === "forecast_value") return c.chartForecast;
                 return yLabel;
               }}
             />

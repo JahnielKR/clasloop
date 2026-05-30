@@ -11,11 +11,12 @@ import {
   saveClassReviewDeck,
 } from "../../lib/close-unit-ai";
 import { buildStudentNarrativeContext } from "../../lib/analytics/cleo-analytics";
+import { useT } from "../../i18n";
 
 const ACCENT = C.purple;
 const ACCENT_BG = C.purpleSoft;
 
-function ActionChip({ label, onClick, disabled = false, stub = false, title }) {
+function ActionChip({ label, onClick, disabled = false, stub = false, title, soonLabel = "" }) {
   return (
     <button
       onClick={disabled || stub ? undefined : onClick}
@@ -33,7 +34,7 @@ function ActionChip({ label, onClick, disabled = false, stub = false, title }) {
         opacity: disabled ? 0.65 : 1,
       }}
     >
-      {label}{stub ? " · pronto" : ""}
+      {label}{stub && soonLabel ? ` · ${soonLabel}` : ""}
     </button>
   );
 }
@@ -48,6 +49,7 @@ export default function CleoStudentStrip({
   onReviewCreated,
   lang = "es",
 }) {
+  const t = useT("studentProfile", lang);
   const [narrative, setNarrative] = useState("");
   const [narrativeLoading, setNarrativeLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
@@ -120,14 +122,14 @@ export default function CleoStudentStrip({
 
   // Fallback narrative
   const parts = [];
-  if (weakTopics.length > 0) parts.push(`Temas a reforzar: ${weakTopics.slice(0, 3).join(", ")}.`);
+  if (weakTopics.length > 0) parts.push(t.cleoReinforce(weakTopics.slice(0, 3).join(", ")));
   if (deltaVsClass != null) {
-    if (deltaVsClass >= 0) parts.push(`Está ${deltaVsClass}% por encima de la media de la clase.`);
-    else parts.push(`Está ${Math.abs(deltaVsClass)}% por debajo de la media de la clase.`);
+    if (deltaVsClass >= 0) parts.push(t.cleoAboveAvg(deltaVsClass));
+    else parts.push(t.cleoBelowAvg(Math.abs(deltaVsClass)));
   }
   const display = narrative ||
-    (narrativeLoading ? "Cleo está analizando al alumno…" :
-      (parts.length > 0 ? parts.join(" ") : "Sin datos suficientes en esta ventana."));
+    (narrativeLoading ? t.cleoAnalyzingStudent :
+      (parts.length > 0 ? parts.join(" ") : t.cleoNoData));
 
   return (
     <div
@@ -160,23 +162,24 @@ export default function CleoStudentStrip({
         C
       </div>
       <div style={{ flex: 1, fontSize: 14 }}>
-        <b>Cleo:</b> {display}
+        <b>{t.cleoLabel}</b> {display}
         {error && (
           <div style={{ color: C.red, fontSize: 12, marginTop: 6 }}>
-            No pude generar el repaso ({error}). Intentá de nuevo.
+            {t.cleoGenError(error)}
           </div>
         )}
         <div style={{ marginTop: 8, display: "flex", gap: 6, flexWrap: "wrap" }}>
           <ActionChip
-            label={generating ? "Generando…" : "Asignarle repaso"}
+            label={generating ? t.generating : t.cleoAssign}
             onClick={handleAssignReview}
             disabled={generating || !classObj}
-            title="Crea un deck de repaso enfocado en este alumno"
+            title={t.cleoAssignTitle}
           />
           <ActionChip
-            label="Mensaje a familia"
+            label={t.cleoFamilyMsg}
             stub
-            title="Llega cuando se sume mensajería a familias"
+            soonLabel={t.soon}
+            title={t.cleoFamilyTitle}
           />
         </div>
       </div>

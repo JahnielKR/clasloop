@@ -3,6 +3,7 @@
 // F6 Analytics Studio: vista En vivo / Command Center en /school/live.
 // - Si hay sesión activa: tiles realtime + alertas accionables.
 // - Si no: pulso de hoy expandido + estado vacío calmo.
+// i18n: useT("liveCenter") + useT("studioCommon"); la IA usa el idioma de la UI.
 
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -19,11 +20,16 @@ import {
 } from "../../lib/close-unit-ai";
 import { buildRoute, ROUTES } from "../../routes";
 import { C } from "../../components/tokens";
+import { useLang } from "../../i18n/LanguageContext";
+import { useT } from "../../i18n";
 
 const ACCENT = C.purple;
 
 export default function LiveCommandCenter({ profile = null }) {
   const navigate = useNavigate();
+  const lang = useLang();
+  const t = useT("liveCenter", lang);
+  const c = useT("studioCommon", lang);
   const activeQ = useActiveSession();
   const pulseQ = useTodayPulse();
   const overviewQ = useAnalyticsOverview();
@@ -85,12 +91,12 @@ export default function LiveCommandCenter({ profile = null }) {
       : { id: activeQ.data.class_id, name: "", subject: "", grade: "" };
     // Use the active session topic as the only weak topic seed for the prompt.
     const weakTopics = activeQ.data.topic ? [activeQ.data.topic] : [];
-    const gen = await generateClassReviewQuestions({ classObj: cObj, weakTopics, lang: "es" });
+    const gen = await generateClassReviewQuestions({ classObj: cObj, weakTopics, lang });
     if (!gen.ok) { setGenerating(false); return; }
     const save = await saveClassReviewDeck({
       classObj: cObj,
       questions: gen.questions,
-      lang: gen.inferredLang || "es",
+      lang: gen.inferredLang || lang,
       authorId: profile?.id ?? null,
     });
     setGenerating(false);
@@ -106,7 +112,7 @@ export default function LiveCommandCenter({ profile = null }) {
     : null;
 
   return (
-    <StudioShell view="live" title="En vivo">
+    <StudioShell view="live" title={t.title}>
       <div style={{ padding: 18, background: C.bgSoft, minHeight: "100%" }}>
         {sessionId ? (
           <>
@@ -133,9 +139,9 @@ export default function LiveCommandCenter({ profile = null }) {
                   display: "inline-block",
                 }}
               />
-              <b>{activeQ.data?.topic || "Sesión activa"}</b>
+              <b>{activeQ.data?.topic || t.activeSession}</b>
               <span style={{ color: C.textSecondary }}>
-                · {live.isLive ? "recibiendo updates en vivo" : "conectando…"}
+                · {live.isLive ? t.receivingLive : t.connecting}
               </span>
               <button
                 onClick={() => navigate(buildRoute.sessionsLive(sessionId))}
@@ -151,7 +157,7 @@ export default function LiveCommandCenter({ profile = null }) {
                   cursor: "pointer",
                 }}
               >
-                Volver a la sesión
+                {t.backToSession}
               </button>
             </div>
 
@@ -163,11 +169,11 @@ export default function LiveCommandCenter({ profile = null }) {
                 marginBottom: 16,
               }}
             >
-              <LiveTile label="Conectados" value={counts.joined} live={live.isLive} tone="live" />
-              <LiveTile label="Respondiendo" value={counts.responding} live={live.isLive} />
-              <LiveTile label="Terminaron" value={counts.done} live={live.isLive} tone="good" />
+              <LiveTile label={t.connected} value={counts.joined} live={live.isLive} tone="live" />
+              <LiveTile label={t.responding} value={counts.responding} live={live.isLive} />
+              <LiveTile label={t.finished} value={counts.done} live={live.isLive} tone="good" />
               <LiveTile
-                label="% correcto en vivo"
+                label={t.pctLive}
                 value={counts.pct != null ? counts.pct : "—"}
                 unit={counts.pct != null ? "%" : ""}
                 live={live.isLive}
@@ -195,12 +201,12 @@ export default function LiveCommandCenter({ profile = null }) {
                 }}
               >
                 <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 6 }}>
-                  Alertas de la sesión
+                  {t.alertsTitle}
                 </div>
                 <ul style={{ margin: 0, padding: "0 0 0 18px", fontSize: 13, lineHeight: 1.6 }}>
                   {alertQuestions.map((a) => (
                     <li key={a.question_index}>
-                      Pregunta {a.question_index + 1}: <b>{a.error_rate}%</b> de error.
+                      {t.alertLine(a.question_index + 1, a.error_rate)}
                     </li>
                   ))}
                 </ul>
@@ -219,7 +225,7 @@ export default function LiveCommandCenter({ profile = null }) {
                       cursor: generating ? "wait" : "pointer",
                     }}
                   >
-                    {generating ? "Generando repaso…" : "Lanzar repaso"}
+                    {generating ? t.generating : t.launchReview}
                   </button>
                 </div>
               </div>
@@ -238,7 +244,7 @@ export default function LiveCommandCenter({ profile = null }) {
                 color: C.textSecondary,
               }}
             >
-              Sin sesiones activas ahora mismo. Lanzá una desde{" "}
+              {t.noActive}{" "}
               <button
                 onClick={() => navigate(ROUTES.SESSIONS)}
                 style={{
@@ -251,9 +257,9 @@ export default function LiveCommandCenter({ profile = null }) {
                   fontSize: 14,
                 }}
               >
-                Sesiones
+                {t.sessionsLink}
               </button>{" "}
-              para ver tiles en vivo acá.
+              {t.toSeeTiles}
             </div>
 
             <div
@@ -264,11 +270,11 @@ export default function LiveCommandCenter({ profile = null }) {
               }}
             >
               <LiveTile
-                label="Sesiones de hoy"
+                label={c.sessionsToday}
                 value={pulse ? pulse.completed_sessions + pulse.active_sessions : "—"}
               />
               <LiveTile
-                label="% correcto hoy"
+                label={c.pctCorrectToday}
                 value={pulse?.pct_correct_today != null ? pulse.pct_correct_today : "—"}
                 unit={pulse?.pct_correct_today != null ? "%" : ""}
                 tone={
@@ -282,12 +288,12 @@ export default function LiveCommandCenter({ profile = null }) {
                 }
               />
               <LiveTile
-                label="Top clase"
+                label={c.topClass}
                 value={pulse?.top_class?.name || "—"}
-                unit={pulse?.top_class ? `${pulse.top_class.response_count} resp.` : ""}
+                unit={pulse?.top_class ? `${pulse.top_class.response_count} ${c.unitResp}` : ""}
               />
               <LiveTile
-                label="Top alumno"
+                label={c.topStudent}
                 value={pulse?.top_student?.name || "—"}
                 unit={pulse?.top_student ? `${pulse.top_student.pct_correct}%` : ""}
                 tone={pulse?.top_student ? "good" : "default"}

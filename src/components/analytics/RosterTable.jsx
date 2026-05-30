@@ -4,6 +4,7 @@
 // F5: columna de riesgo (RiskBadge).
 // F8: headers ordenables (table-sort), filtro por nombre, filas con
 // keyboard nav (tabIndex + Enter/Space → drill).
+// i18n: headers/estados via useT("studioCommon").
 
 import { useMemo, useState } from "react";
 // Import explícito: barrel `../../lib/analytics` choca con
@@ -13,6 +14,8 @@ import { sortRows, nextSortDir } from "../../lib/analytics/table-sort";
 import RiskBadge from "./RiskBadge";
 import { riskScore } from "../../lib/analytics/risk";
 import { C } from "../tokens";
+import { useLang } from "../../i18n/LanguageContext";
+import { useT } from "../../i18n";
 
 function badgeStyle(tone) {
   return {
@@ -26,10 +29,11 @@ function badgeStyle(tone) {
   };
 }
 
+// Returns { tone, key } — the key resolves to a studioCommon status label.
 function statusFor(s) {
-  if (s.weakTopics > s.strongTopics) return { tone: "bad", label: "Riesgo" };
-  if (s.strongTopics > s.weakTopics) return { tone: "good", label: "Subiendo" };
-  return { tone: "warn", label: "Estable" };
+  if (s.weakTopics > s.strongTopics) return { tone: "bad", key: "statusRisk" };
+  if (s.strongTopics > s.weakTopics) return { tone: "good", key: "statusRising" };
+  return { tone: "warn", key: "statusStable" };
 }
 
 function lastReviewedDate(s) {
@@ -43,14 +47,15 @@ function lastReviewedDate(s) {
 }
 
 const COLUMNS = [
-  { key: "name", label: "Alumno", accessor: (r) => r.name },
-  { key: "retention", label: "Retención", accessor: (r) => r.avgRetention },
-  { key: "risk", label: "Riesgo", accessor: (r) => r._riskScore },
-  { key: "lastActivity", label: "Última actividad", accessor: (r) => r._lastTs },
-  { key: "status", label: "Estado", accessor: (r) => r._statusLabel },
+  { key: "name", labelKey: "colStudent", accessor: (r) => r.name },
+  { key: "retention", labelKey: "colRetention", accessor: (r) => r.avgRetention },
+  { key: "risk", labelKey: "colRisk", accessor: (r) => r._riskScore },
+  { key: "lastActivity", labelKey: "colLastActivity", accessor: (r) => r._lastTs },
+  { key: "status", labelKey: "colStatus", accessor: (r) => r._statusKey },
 ];
 
 export default function RosterTable({ students = [], riskInputsByName = {}, onRowClick }) {
+  const t = useT("studioCommon", useLang());
   const [sortKey, setSortKey] = useState("retention");
   const [sortDir, setSortDir] = useState("desc");
   const [filter, setFilter] = useState("");
@@ -66,7 +71,7 @@ export default function RosterTable({ students = [], riskInputsByName = {}, onRo
         _riskScore: risk ? risk.score : null,
         _lastTs: lastDate ? lastDate.getTime() : null,
         _lastDate: lastDate,
-        _statusLabel: statusFor(s).label,
+        _statusKey: statusFor(s).key,
       };
     });
   }, [students, riskInputsByName]);
@@ -106,12 +111,12 @@ export default function RosterTable({ students = [], riskInputsByName = {}, onRo
   return (
     <div style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, padding: 12 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
-        <div style={{ fontSize: 13, fontWeight: 600 }}>Roster</div>
+        <div style={{ fontSize: 13, fontWeight: 600 }}>{t.roster}</div>
         <input
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
-          placeholder="Filtrar por nombre…"
-          aria-label="Filtrar alumnos por nombre"
+          placeholder={t.filterByName}
+          aria-label={t.filterByName}
           style={{
             marginLeft: "auto",
             padding: "4px 9px",
@@ -123,9 +128,9 @@ export default function RosterTable({ students = [], riskInputsByName = {}, onRo
         />
       </div>
       {students.length === 0 ? (
-        <div style={{ opacity: 0.45, fontSize: 13, padding: 6 }}>Sin alumnos registrados.</div>
+        <div style={{ opacity: 0.45, fontSize: 13, padding: 6 }}>{t.noStudents}</div>
       ) : sorted.length === 0 ? (
-        <div style={{ opacity: 0.45, fontSize: 13, padding: 6 }}>Sin alumnos que coincidan con "{filter}".</div>
+        <div style={{ opacity: 0.45, fontSize: 13, padding: 6 }}>{t.noMatch(filter)}</div>
       ) : (
         <div style={{ overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
           {/* Ola 6: scroll wrapper so the 5-col roster scrolls instead of
@@ -139,9 +144,9 @@ export default function RosterTable({ students = [], riskInputsByName = {}, onRo
                   onClick={() => handleSort(c.key)}
                   aria-sort={c.key === sortKey ? (sortDir === "asc" ? "ascending" : sortDir === "desc" ? "descending" : "none") : "none"}
                   style={{ padding: "5px 0", cursor: "pointer", userSelect: "none", whiteSpace: "nowrap" }}
-                  title="Ordenar"
+                  title={t.sortTitle}
                 >
-                  {c.label}{arrow(c.key)}
+                  {t[c.labelKey]}{arrow(c.key)}
                 </th>
               ))}
             </tr>
@@ -192,7 +197,7 @@ export default function RosterTable({ students = [], riskInputsByName = {}, onRo
                   </td>
                   <td>{formatRelativeDay(s._lastDate)}</td>
                   <td>
-                    <span style={badgeStyle(status.tone)}>{status.label}</span>
+                    <span style={badgeStyle(status.tone)}>{t[status.key]}</span>
                   </td>
                 </tr>
               );

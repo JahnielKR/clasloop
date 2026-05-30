@@ -5,8 +5,11 @@
 // Drill a DeckResults funciona; "Asignar repaso" es stub (F5).
 
 import { C } from "../tokens";
+import { useLang } from "../../i18n/LanguageContext";
+import { useT } from "../../i18n";
 
 export default function StudentMostFailedList({ classId, studentRef, items = [], onItemClick, onAssignReview, generating = false }) {
+  const t = useT("studentProfile", useLang());
   const show = items.slice(0, 5);
 
   return (
@@ -16,11 +19,11 @@ export default function StudentMostFailedList({ classId, studentRef, items = [],
       data-student-ref={studentRef}
     >
       <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>
-        Más falladas por el alumno
+        {t.mostFailedTitle}
       </div>
       {show.length === 0 ? (
         <div style={{ opacity: 0.45, fontSize: 13, padding: 4 }}>
-          Sin datos suficientes.
+          {t.notEnoughData}
         </div>
       ) : (
         <div style={{ fontSize: 13, lineHeight: 1.65 }}>
@@ -46,7 +49,7 @@ export default function StudentMostFailedList({ classId, studentRef, items = [],
                   whiteSpace: "nowrap",
                 }}
               >
-                P. {it.question_index + 1}
+                {t.qLabel(it.question_index + 1)}
                 {it.topic ? ` · ${it.topic}` : ""}
               </span>
               <b
@@ -59,7 +62,7 @@ export default function StudentMostFailedList({ classId, studentRef, items = [],
                         : C.green,
                 }}
               >
-                {Math.round(it.error_rate)}% err
+                {t.qErr(Math.round(it.error_rate))}
               </b>
             </div>
           ))}
@@ -68,7 +71,7 @@ export default function StudentMostFailedList({ classId, studentRef, items = [],
       <button
         onClick={onAssignReview}
         disabled={!onAssignReview || generating}
-        title={generating ? "Generando…" : "Crear deck de repaso enfocado en este alumno"}
+        title={generating ? t.generating : t.assignReviewTitle}
         style={{
           display: "inline-block",
           marginTop: 8,
@@ -83,7 +86,7 @@ export default function StudentMostFailedList({ classId, studentRef, items = [],
           opacity: onAssignReview ? 1 : 0.55,
         }}
       >
-        {generating ? "Generando…" : "Asignar repaso"}
+        {generating ? t.generating : t.assignReview}
       </button>
     </div>
   );

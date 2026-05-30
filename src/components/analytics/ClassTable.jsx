@@ -3,12 +3,15 @@
 // Analytics Studio Área 3: tabla de clases del cockpit /school. Modelada en
 // RosterTable (mismo sort/filtro/keyboard). Métrica primaria: % correcto, con
 // sparkline de tendencia del período (overview_timeseries). Fila → ClassDetail.
+// i18n: headers + estados via useT("studioCommon").
 
 import { useMemo, useState } from "react";
 import { sortRows, nextSortDir } from "../../lib/analytics/table-sort";
 import { formatRelativeDay } from "../../lib/analytics/formatters";
 import { SparklineCell } from "../charts";
 import { C } from "../tokens";
+import { useLang } from "../../i18n/LanguageContext";
+import { useT } from "../../i18n";
 
 const tierColor = (v) => (v >= 70 ? C.green : v >= 40 ? C.orange : C.red);
 const tierSoft = (v) => (v >= 70 ? C.greenSoft : v >= 40 ? C.orangeSoft : C.redSoft);
@@ -16,16 +19,17 @@ const tierSoft = (v) => (v >= 70 ? C.greenSoft : v >= 40 ? C.orangeSoft : C.redS
 // rows: [{ class_id, class_name, pctCorrect:number|null, trend:{points,delta,trend},
 //          participation_pct, session_count, member_count, last_activity_at }]
 const COLUMNS = [
-  { key: "name", label: "Clase", accessor: (r) => r.class_name },
-  { key: "pct", label: "% correcto", accessor: (r) => r.pctCorrect },
-  { key: "trend", label: "Tendencia", accessor: (r) => r.trend?.delta ?? null, sortable: false },
-  { key: "part", label: "Participación", accessor: (r) => r.participation_pct },
-  { key: "sessions", label: "Sesiones", accessor: (r) => r.session_count },
-  { key: "students", label: "Alumnos", accessor: (r) => r.member_count },
-  { key: "activity", label: "Última actividad", accessor: (r) => (r.last_activity_at ? new Date(r.last_activity_at).getTime() : null) },
+  { key: "name", labelKey: "colClass", accessor: (r) => r.class_name },
+  { key: "pct", labelKey: "pctCorrect", accessor: (r) => r.pctCorrect },
+  { key: "trend", labelKey: "trend", accessor: (r) => r.trend?.delta ?? null, sortable: false },
+  { key: "part", labelKey: "participation", accessor: (r) => r.participation_pct },
+  { key: "sessions", labelKey: "sessions", accessor: (r) => r.session_count },
+  { key: "students", labelKey: "students", accessor: (r) => r.member_count },
+  { key: "activity", labelKey: "colLastActivity", accessor: (r) => (r.last_activity_at ? new Date(r.last_activity_at).getTime() : null) },
 ];
 
 export default function ClassTable({ rows = [], onRowClick }) {
+  const t = useT("studioCommon", useLang());
   const [sortKey, setSortKey] = useState("pct");
   const [sortDir, setSortDir] = useState("desc");
   const [filter, setFilter] = useState("");
@@ -55,19 +59,19 @@ export default function ClassTable({ rows = [], onRowClick }) {
   return (
     <div style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, padding: 12 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
-        <div style={{ fontSize: 13, fontWeight: 600 }}>Clases</div>
+        <div style={{ fontSize: 13, fontWeight: 600 }}>{t.classes}</div>
         <input
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
-          placeholder="Filtrar por nombre…"
-          aria-label="Filtrar clases por nombre"
+          placeholder={t.filterByName}
+          aria-label={t.filterByName}
           style={{ marginLeft: "auto", padding: "4px 9px", fontSize: 12, borderRadius: 6, border: `1px solid ${C.border}`, width: 170 }}
         />
       </div>
       {rows.length === 0 ? (
-        <div style={{ opacity: 0.45, fontSize: 13, padding: 6 }}>Sin clases registradas.</div>
+        <div style={{ opacity: 0.45, fontSize: 13, padding: 6 }}>{t.noClassesRegistered}</div>
       ) : sorted.length === 0 ? (
-        <div style={{ opacity: 0.45, fontSize: 13, padding: 6 }}>Sin clases que coincidan con "{filter}".</div>
+        <div style={{ opacity: 0.45, fontSize: 13, padding: 6 }}>{t.noClassesMatch(filter)}</div>
       ) : (
         <table style={{ width: "100%", fontSize: 13, borderCollapse: "collapse" }}>
           <thead style={{ fontSize: 11, textTransform: "uppercase", opacity: 0.55, textAlign: "left" }}>
@@ -76,8 +80,8 @@ export default function ClassTable({ rows = [], onRowClick }) {
                 <th key={c.key}
                   onClick={() => handleSort(c.key)}
                   style={{ padding: "5px 0", cursor: c.sortable === false ? "default" : "pointer", userSelect: "none", whiteSpace: "nowrap" }}
-                  title={c.sortable === false ? undefined : "Ordenar"}>
-                  {c.label}{arrow(c.key)}
+                  title={c.sortable === false ? undefined : t.sortTitle}>
+                  {t[c.labelKey]}{arrow(c.key)}
                 </th>
               ))}
             </tr>

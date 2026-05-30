@@ -3,18 +3,22 @@
 // Analytics Studio Área 3: alumnos en riesgo de TODAS las clases (cockpit).
 // items: RankedRiskStudent[] de overview-aggregate.topRiskStudents().
 // onStudentClick(item) → drill al perfil del alumno.
+// i18n: título/estados via useT("director").
 
 import RiskBadge from "./RiskBadge";
 import { C } from "../tokens";
+import { useLang } from "../../i18n/LanguageContext";
+import { useT } from "../../i18n";
 
 export default function RiskOverviewList({ items = [], onStudentClick, loading = false }) {
+  const t = useT("director", useLang());
   return (
     <div style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, padding: 12, borderLeft: `3px solid ${C.red}` }}>
-      <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Alumnos en riesgo</div>
+      <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>{t.atRisk}</div>
       {loading ? (
-        <div style={{ opacity: 0.45, fontSize: 13, padding: 6 }}>Calculando…</div>
+        <div style={{ opacity: 0.45, fontSize: 13, padding: 6 }}>{t.calculating}</div>
       ) : items.length === 0 ? (
-        <div style={{ opacity: 0.45, fontSize: 13, padding: 6 }}>Nadie en riesgo ahora mismo.</div>
+        <div style={{ opacity: 0.45, fontSize: 13, padding: 6 }}>{t.riskEmpty}</div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
           {items.map((s) => {

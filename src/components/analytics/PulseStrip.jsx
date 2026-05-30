@@ -3,6 +3,7 @@
 // F6 Analytics Studio: franja "Pulso de hoy" para el Overview tab del
 // Director. Resumen visual del día con 4 tiles + un link a /school/live
 // cuando hay sesión activa.
+// i18n: labels via useT("studioCommon").
 
 import { useNavigate } from "react-router-dom";
 import { useTodayPulse } from "../../hooks/useTodayPulse";
@@ -10,11 +11,14 @@ import { computeTodayPulse } from "../../lib/analytics/pulse-of-today";
 import LiveTile from "./LiveTile";
 import { buildRoute } from "../../routes";
 import { C } from "../tokens";
+import { useLang } from "../../i18n/LanguageContext";
+import { useT } from "../../i18n";
 
 const ACCENT = C.purple;
 
 export default function PulseStrip() {
   const navigate = useNavigate();
+  const c = useT("studioCommon", useLang());
   const { data, isPending } = useTodayPulse();
 
   const pulse = data
@@ -38,7 +42,7 @@ export default function PulseStrip() {
           fontSize: 13,
         }}
       >
-        Cargando el pulso de hoy…
+        {c.pulseLoading}
       </div>
     );
   }
@@ -47,13 +51,13 @@ export default function PulseStrip() {
 
   const tiles = [
     {
-      label: "Sesiones de hoy",
+      label: c.sessionsToday,
       value: pulse.completed_sessions + pulse.active_sessions,
-      unit: pulse.has_active ? "activa" : "",
+      unit: pulse.has_active ? c.unitActive : "",
       tone: pulse.has_active ? "live" : "default",
     },
     {
-      label: "% correcto hoy",
+      label: c.pctCorrectToday,
       value: pulse.pct_correct_today != null ? pulse.pct_correct_today : "—",
       unit: pulse.pct_correct_today != null ? "%" : "",
       tone:
@@ -66,12 +70,12 @@ export default function PulseStrip() {
               : "bad",
     },
     {
-      label: "Top clase",
+      label: c.topClass,
       value: pulse.top_class?.name || "—",
-      unit: pulse.top_class ? `${pulse.top_class.response_count} resp.` : "",
+      unit: pulse.top_class ? `${pulse.top_class.response_count} ${c.unitResp}` : "",
     },
     {
-      label: "Top alumno",
+      label: c.topStudent,
       value: pulse.top_student?.name || "—",
       unit: pulse.top_student ? `${pulse.top_student.pct_correct}%` : "",
       tone: pulse.top_student ? "good" : "default",
@@ -98,7 +102,7 @@ export default function PulseStrip() {
             gap: 6,
           }}
         >
-          Pulso de hoy
+          {c.pulseToday}
         </div>
         {pulse.has_active && (
           <button
@@ -126,7 +130,7 @@ export default function PulseStrip() {
                 display: "inline-block",
               }}
             />
-            En vivo
+            {c.live}
           </button>
         )}
       </div>

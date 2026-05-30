@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
+import { LanguageProvider } from "../../../i18n/LanguageContext";
 
 // Mock the data hook so the page renders synchronously with controlled rows —
 // no Supabase / QueryClient needed. vi.hoisted lets the factory reference the
@@ -15,7 +16,9 @@ import CleoUsage from "../CleoUsage";
 function renderPage() {
   return render(
     <MemoryRouter>
-      <CleoUsage />
+      <LanguageProvider value="es">
+        <CleoUsage />
+      </LanguageProvider>
     </MemoryRouter>,
   );
 }

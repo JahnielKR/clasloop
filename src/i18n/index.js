@@ -27,9 +27,11 @@
 //
 // Útil en helpers de lib/ que necesitan strings sin React (errores, etc).
 
+import { useContext } from "react";
 import en from "./en";
 import es from "./es";
 import ko from "./ko";
+import LanguageContext from "./LanguageContext";
 
 // ─── Locales registry ──────────────────────────────────────────────────
 // Cada locale exporta UN solo objeto con TODOS los namespaces dentro.
@@ -88,8 +90,13 @@ export function getStrings(namespace, lang = FALLBACK_LANG) {
  * @param {string} lang       - "en" | "es" | "ko"
  * @returns {object}          - Strings del namespace
  */
-export function useT(namespace, lang = FALLBACK_LANG) {
-  return getStrings(namespace, lang);
+export function useT(namespace, lang) {
+  // Hooks must run unconditionally; read the context every render. An explicit
+  // `lang` arg still wins (back-compat for callers that pass lang as a prop:
+  // Settings, PublicHome, ClassReport, Director). Falls back to FALLBACK_LANG
+  // when neither is set (e.g. rendered outside a provider).
+  const ctxLang = useContext(LanguageContext);
+  return getStrings(namespace, lang || ctxLang || FALLBACK_LANG);
 }
 
 /**

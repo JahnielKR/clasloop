@@ -4,9 +4,22 @@
 // + delete. El export re-fetcha los datos frescos de class_analytics y arma
 // el model con las secciones guardadas (el model guardado es la receta;
 // los datos se traen al vuelo para que el reporte siempre sea actual).
+// i18n: useT("reports") + useT("studioCommon").
 
 import { C } from "../tokens";
 import ExportMenu from "./ExportMenu";
+import { useLang } from "../../i18n/LanguageContext";
+import { useT } from "../../i18n";
+
+// Short localized date for the saved-report sub-line (e.g. "May 30").
+function fmtDate(iso, lang) {
+  if (!iso) return "";
+  try {
+    return new Date(iso).toLocaleDateString(lang === "en" ? "en-US" : lang, { month: "short", day: "numeric" });
+  } catch {
+    return "";
+  }
+}
 
 export default function ReportList({
   reports = [],
@@ -14,6 +27,9 @@ export default function ReportList({
   onDelete,
   deletingId = null,
 }) {
+  const lang = useLang();
+  const t = useT("reports", lang);
+  const c = useT("studioCommon", lang);
   if (reports.length === 0) {
     return (
       <div
@@ -26,7 +42,7 @@ export default function ReportList({
           fontSize: 13,
         }}
       >
-        Todavía no guardaste ningún reporte. Creá uno con el formulario.
+        {t.empty}
       </div>
     );
   }
@@ -48,7 +64,7 @@ export default function ReportList({
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 14, fontWeight: 600 }}>{r.name}</div>
             <div style={{ fontSize: 12, color: C.textSecondary }}>
-              {(r.model?.sections?.length ?? 0)} secciones · {r.period || "—"}
+              {t.sectionsCount(r.model?.sections?.length ?? 0)} · {r.period || "—"}
             </div>
           </div>
           <ExportMenu
@@ -60,7 +76,7 @@ export default function ReportList({
           <button
             onClick={() => onDelete?.(r.id)}
             disabled={deletingId === r.id}
-            title="Eliminar"
+            title={c.delete}
             style={{
               border: `1px solid ${C.redSoft}`,
               background: C.redSoft,
@@ -71,7 +87,7 @@ export default function ReportList({
               cursor: deletingId === r.id ? "wait" : "pointer",
             }}
           >
-            {deletingId === r.id ? "…" : "Eliminar"}
+            {deletingId === r.id ? "…" : c.delete}
           </button>
         </div>
       ))}

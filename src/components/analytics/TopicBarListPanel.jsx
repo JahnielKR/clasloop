@@ -7,6 +7,8 @@
 import { HorizontalBarList } from "../charts";
 import { useCrossfilter } from "../../hooks/useCrossfilter";
 import { C } from "../tokens";
+import { useLang } from "../../i18n/LanguageContext";
+import { useT } from "../../i18n";
 
 const COLORS = {
   dominated: C.greenSoft,
@@ -19,6 +21,7 @@ export default function TopicBarListPanel({
   limit = 5,
   onTopicClick,
 }) {
+  const t = useT("classDetail", useLang());
   const { selectedTopic, toggleTopic } = useCrossfilter();
   const isDominated = variant === "dominated";
   const sorted = [...topicMastery].sort((a, b) => {
@@ -42,10 +45,10 @@ export default function TopicBarListPanel({
   return (
     <div style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, padding: 12 }}>
       <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>
-        {isDominated ? "Top temas dominados" : "Top temas críticos"}
+        {isDominated ? t.topDominated : t.topCritical}
       </div>
       {items.length === 0 ? (
-        <div style={{ opacity: 0.45, fontSize: 13, padding: 6 }}>Sin temas registrados.</div>
+        <div style={{ opacity: 0.45, fontSize: 13, padding: 6 }}>{t.noTopics}</div>
       ) : (
         <HorizontalBarList
           items={items}
@@ -53,7 +56,7 @@ export default function TopicBarListPanel({
           onItemClick={(onTopicClick || crossfilterActive) ? handleItemClick : undefined}
           activeLabel={crossfilterActive ? selectedTopic : null}
           titleFormatter={(it) =>
-            `${it.label}: ${it.value}% retención · clic para ${crossfilterActive ? "resaltar sus preguntas" : "ver el tema"}`
+            crossfilterActive ? t.topicTooltipHighlight(it.label, it.value) : t.topicTooltipView(it.label, it.value)
           }
         />
       )}

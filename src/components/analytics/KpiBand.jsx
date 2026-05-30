@@ -26,6 +26,8 @@ import {
   formatDelta,
 } from "../../lib/analytics/formatters";
 import { pctChangeOrNull } from "../../lib/analytics/benchmark";
+import { useLang } from "../../i18n/LanguageContext";
+import { useT } from "../../i18n";
 
 export default function KpiBand({
   kpis = {},
@@ -34,6 +36,9 @@ export default function KpiBand({
   compareKpis = null,
   percentile = null,
 }) {
+  const lang = useLang();
+  const c = useT("studioCommon", lang);
+  const t = useT("classDetail", lang);
   const pctSpark = timeseries.map((t) => Number(t.value) || 0);
   const participationSpark = timeseries.map((t) => Number(t.unique_participants) || 0);
   const sessionsSpark = timeseries.map((t) => Number(t.responses_total) || 0);
@@ -67,30 +72,30 @@ export default function KpiBand({
   return (
     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(132px, 1fr))", gap: 8 }}>
       <StatCardWithSparkline
-        label="% correcto"
+        label={c.pctCorrect}
         value={<AnimatedNumber value={kpis.pct_correct} format={formatPercent} />}
         sparkPoints={pctSpark}
         delta={pctCorrectDelta}
       />
       <StatCardWithSparkline
-        label="Participación"
+        label={t.participationLabel}
         value={<AnimatedNumber value={kpis.unique_participants} format={formatNumber} />}
         sparkPoints={participationSpark}
         delta={deltaProps("unique_participants")}
       />
       <StatCardWithSparkline
-        label="Respuestas"
+        label={c.responses}
         value={<AnimatedNumber value={kpis.responses_total} format={formatNumber} />}
         sparkPoints={sessionsSpark}
         delta={deltaProps("responses_total")}
       />
       <StatCardWithSparkline
-        label="Tiempo promedio"
+        label={t.avgTimeLabel}
         value={<AnimatedNumber value={kpis.avg_time_ms} format={formatDurationShort} />}
         delta={deltaProps("avg_time_ms")}
       />
       <StatCardWithSparkline
-        label="Temas en riesgo"
+        label={t.atRiskTopics}
         value={<AnimatedNumber value={atRiskTopics} format={formatNumber} />}
         tone={atRiskTopics > 0 ? "danger" : "default"}
       />

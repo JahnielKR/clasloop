@@ -1,14 +1,12 @@
 // src/components/analytics/MisconceptionPanel.jsx
 //
-// F3 Analytics Studio: panel de concepto errado. Toma la pregunta TOP
+// F3 Analytics Studio: panel de concepto erróneo. Toma la pregunta TOP
 // (más fallada) del tema y muestra su answer_distribution con la opción
 // CORRECTA resaltada en verde y la opción WRONG-más-popular marcada como
-// "misconception". Permite que el docente vea visualmente la confusión
-// dominante.
+// "misconception". i18n: useT("topicMastery"); optionLabel recibe `t`.
 //
 // Props:
 //   question: la primera entry de topic_detail.questions
-//     (incluye answer_distribution, question (jsonb del deck), error_rate, etc.)
 //   onDrillDeck: (deckId) => void
 
 import {
@@ -18,35 +16,36 @@ import {
   decorateDistribution,
 } from "../../lib/analytics/misconceptions";
 import { C } from "../tokens";
+import { useLang } from "../../i18n/LanguageContext";
+import { useT } from "../../i18n";
 
 function correctKeyFor(q) {
   if (!q) return null;
   return correctKeyForMcq(q) || correctKeyForTf(q);
 }
 
-function optionLabel(q, key) {
+function optionLabel(q, key, t) {
   if (!q) return key;
-  // MCQ: key is the index, label is q.options[index]
   if (q.type === "mcq" && Array.isArray(q.options)) {
     const idx = Number(key);
     if (Number.isInteger(idx) && q.options[idx] != null) {
-      return q.options[idx] || `Opción ${idx + 1}`;
+      return q.options[idx] || t.optionN(idx + 1);
     }
   }
-  // TF: "true"/"false" → "Verdadero"/"Falso"
   if (q.type === "tf") {
-    if (key === "true") return "Verdadero";
-    if (key === "false") return "Falso";
+    if (key === "true") return t.trueLabel;
+    if (key === "false") return t.falseLabel;
   }
   return key;
 }
 
 export default function MisconceptionPanel({ question, onDrillDeck }) {
+  const t = useT("topicMastery", useLang());
   if (!question) {
     return (
       <div style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, padding: 12 }}>
-        <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 6 }}>Concepto errado</div>
-        <div style={{ opacity: 0.45, fontSize: 13 }}>Sin pregunta destacada en este tema.</div>
+        <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 6 }}>{t.misconceptionTitle}</div>
+        <div style={{ opacity: 0.45, fontSize: 13 }}>{t.noFeatured}</div>
       </div>
     );
   }
@@ -60,13 +59,13 @@ export default function MisconceptionPanel({ question, onDrillDeck }) {
   return (
     <div style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, padding: 12 }}>
       <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 8 }}>
-        <b style={{ fontSize: 13 }}>Concepto errado · pregunta más fallada</b>
+        <b style={{ fontSize: 13 }}>{t.misconceptionSubtitle}</b>
         <span style={{ marginLeft: "auto", fontSize: 11, color: C.red, fontWeight: 600 }}>
-          {Math.round(question.error_rate)}% err
+          {t.errShort(Math.round(question.error_rate))}
         </span>
       </div>
       <div style={{ fontSize: 13, marginBottom: 10, color: C.text }}>
-        {q?.q || `P. ${question.question_index + 1}`}
+        {q?.q || t.qLabel(question.question_index + 1)}
       </div>
       {topMis && (
         <div
@@ -79,8 +78,7 @@ export default function MisconceptionPanel({ question, onDrillDeck }) {
             marginBottom: 10,
           }}
         >
-          <b>Misconception dominante:</b> "{optionLabel(q, topMis.key)}" — elegida {topMis.count}{" "}
-          {topMis.count === 1 ? "vez" : "veces"} ({Math.round((topMis.count / totalCount) * 100)}% del total).
+          <b>{t.dominantMis}</b> "{optionLabel(q, topMis.key, t)}" — {t.chosenSentence(topMis.count, Math.round((topMis.count / totalCount) * 100))}
         </div>
       )}
       <div style={{ fontSize: 12, lineHeight: 1.7 }}>
@@ -90,8 +88,8 @@ export default function MisconceptionPanel({ question, onDrillDeck }) {
           return (
             <div key={e.key} style={{ display: "flex", alignItems: "center", gap: 6, padding: "2px 0" }}>
               <span style={{ flex: "0 0 130px", color: e.isCorrect ? C.green : isWrongTop ? C.red : C.text }}>
-                {optionLabel(q, e.key)}
-                {e.isCorrect && <span style={{ marginLeft: 4, fontSize: 10, fontWeight: 700 }}>✓ correcta</span>}
+                {optionLabel(q, e.key, t)}
+                {e.isCorrect && <span style={{ marginLeft: 4, fontSize: 10, fontWeight: 700 }}>{t.correctMark}</span>}
               </span>
               <span aria-hidden style={{ flex: 1, height: 6, background: C.bgSoft, borderRadius: 3, overflow: "hidden" }}>
                 <span
@@ -125,7 +123,7 @@ export default function MisconceptionPanel({ question, onDrillDeck }) {
             cursor: "pointer",
           }}
         >
-          Ver pregunta en DeckResults
+          {t.viewInDeck}
         </button>
       )}
     </div>
