@@ -42,9 +42,11 @@ describe("ReportPreview", () => {
       isPending: false,
     });
     renderPreview({ classId: "c1", period: "d30", sections: ["topics", "kpis"] });
+    // KPI section's % correct label renders (chart internals like the topic name
+    // live inside a Recharts ResponsiveContainer, which is 0px in jsdom — don't
+    // assert on the SVG; assert the section headings + order instead).
     expect(screen.getByText("% correct")).toBeInTheDocument();
-    expect(screen.getByText("Saludos")).toBeInTheDocument();
-    // order: the "topics" section heading appears before the KPI section heading
+    // both section headings present, and "topics" comes before "kpis" (draft order)
     const topicsH = screen.getByText("Mastery by topic");
     const kpisH = screen.getByText("Key indicators");
     expect(topicsH.compareDocumentPosition(kpisH) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
