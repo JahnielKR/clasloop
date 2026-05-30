@@ -21,6 +21,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import PageHeader from "../components/PageHeader";
 import Skeleton from "../components/ui/Skeleton";
+import { CIcon } from "../components/Icons";
 import { C, MONO } from "../components/tokens";
 import { ROUTES } from "../routes";
 import { SavedDeckCard } from "./MyClasses";
@@ -155,7 +156,7 @@ export default function Favorites({
             background: C.bg, border: `1px solid ${C.border}`,
             borderRadius: 12, padding: 36, textAlign: "center",
           }}>
-            <div style={{ fontSize: 36, marginBottom: 10 }}>⭐</div>
+            <div style={{ marginBottom: 10 }}><CIcon name="star" size={44} /></div>
             <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 6, fontFamily: "'Outfit'" }}>{t.empty}</h3>
             <p style={{ fontSize: 13, color: C.textMuted, marginBottom: 0, lineHeight: 1.5 }}>{t.emptySub}</p>
           </div>

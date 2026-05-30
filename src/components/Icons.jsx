@@ -588,6 +588,12 @@ const ICON_DEFS = {
     <path d="M15.6,12.4 c-0.9,-0.5 -0.9,-2.3 0.3,-3 c-0.7,-0.9 -1.7,-1.1 -2.2,-1.1 c-0.9,-0.1 -1.7,0.5 -2.3,0.5 c-0.6,0 -1.3,-0.5 -2.1,-0.5 c-1.2,0 -3,1 -3,3.5 c0,2.9 2.1,6 3.4,6 c0.6,0 1,-0.4 1.8,-0.4 c0.8,0 1.1,0.4 1.8,0.4 c1.3,0 2.7,-2.7 3.1,-4.1 z" fill={c + "22"} stroke={c} strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round"/>
     <path d="M12.6,7.3 c0.1,-1.2 1.1,-2 2.1,-2 c0.1,1.1 -0.6,2.2 -2.1,2 z" fill={c} stroke="none"/>
   </> },
+  // Desktop monitor — used by the "use a bigger screen" live-session block.
+  monitor: { color: D.blue, d: "", extra: (c) => <>
+    <rect x="3" y="4" width="18" height="12" rx="2" fill={c + "14"} stroke={c} strokeWidth="1.8"/>
+    <line x1="12" y1="16" x2="12" y2="19" stroke={c} strokeWidth="1.8"/>
+    <line x1="8.5" y1="20" x2="15.5" y2="20" stroke={c} strokeWidth="1.8" strokeLinecap="round"/>
+  </> },
 };
 
 export function CIcon({ name, size = 24, inline = false, color = null }) {
