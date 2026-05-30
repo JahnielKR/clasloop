@@ -2,11 +2,15 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
 // ─── Vite configuration ─────────────────────────────────────────────────
-// PR 50 (FASE 1 Capacitor): agregado `base: './'` para que el build
-// genere rutas relativas. Capacitor sirve los archivos desde el
-// filesystem nativo (file:// o capacitor:// schemes), donde rutas
-// absolutas (/assets/...) no resuelven. Con './' funciona tanto en
-// el dev server como en el WebView nativo.
+// `base` is CONDITIONAL on the build target (see the `isCapacitorBuild`
+// block below). PR 50 originally hardcoded `base: './'` for Capacitor, but
+// relative asset URLs break the WEB app: a hard refresh / deep-link to a
+// nested route (e.g. /decks/:id/edit) made the browser resolve `./assets/x.js`
+// against `/decks/:id/` → 404 → Vercel's SPA rewrite served index.html
+// (text/html) for a .js request → MIME error → white screen. Web now uses
+// `base: '/'` (absolute, depth-proof); Capacitor keeps `'./'` via the
+// `build:capacitor` script. Full write-up:
+// docs/superpowers/specs/2026-05-30-nested-route-white-screen-fix.md
 //
 // PR 70: agregada sección `test` para Vitest. Los tests viven en
 // src/**/__tests__/*.test.js. Correr con `npm test` (watch mode) o
@@ -18,11 +22,25 @@ import react from '@vitejs/plugin-react'
 //   Resultado medido: chunk principal 984 KB → 414 KB, Decks 1180 → 818 KB.
 // ─────────────────────────────────────────────────────────────────────────
 
+// ─── Build target detection ──────────────────────────────────────────────
+// One `vite build` feeds two artifacts: the web app (Vercel) and the native
+// app (Capacitor). They need different `base` values, so we detect which one
+// we're building. `npm_lifecycle_event` is the npm script name that launched
+// this process (set by npm on every OS → cross-platform, no `cross-env` and
+// no Vite `--mode`, which would have changed import.meta.env.MODE → the Sentry
+// `environment` tag). CAPACITOR_BUILD=1 is an explicit escape hatch.
+//   - `npm run build`            → web    → base '/'   (Vercel)
+//   - `npm run build:capacitor`  → native → base './'  (run before `cap sync`)
+const isCapacitorBuild =
+  process.env.CAPACITOR_BUILD === '1' ||
+  process.env.npm_lifecycle_event === 'build:capacitor'
+
 export default defineConfig({
   plugins: [react()],
-  // Relative paths: required for Capacitor, harmless for web hosting
-  // (Vercel, Netlify, etc. también resuelven bien con ./).
-  base: './',
+  // Web (Vercel) needs ABSOLUTE asset URLs so they resolve from the site root
+  // at any route depth; Capacitor's WebView (HashRouter, localhost/file scheme)
+  // needs RELATIVE URLs. See the header comment + the spec doc.
+  base: isCapacitorBuild ? './' : '/',
   server: {
     port: 3000,
     open: true,

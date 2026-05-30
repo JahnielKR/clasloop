@@ -111,8 +111,14 @@ Si todo va bien, **Ctrl+C** en PowerShell para parar el dev server.
 ### 3. Build para producción
 
 ```powershell
-npm run build
+npm run build:capacitor
 ```
+
+> **Importante:** para Android usá `build:capacitor`, NO `npm run build`.
+> El build nativo necesita rutas de assets **relativas** (`base: './'`), que es
+> lo que activa `build:capacitor`. `npm run build` es el build **web** (Vercel)
+> y usa rutas **absolutas** (`base: '/'`) — si lo usás para Android, los assets
+> pueden no cargar desde el scheme `file://`/localhost del WebView.
 
 Esto genera el directorio `dist\`. Capacitor va a copiar este directorio al wrapper Android en el próximo paso.
 
