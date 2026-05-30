@@ -581,7 +581,8 @@ export async function generateQuestions({
     // Devolvemos questions y los warnings que se acumularon durante la
     // preparación del input (truncado por tamaño, validación, etc.). El
     // panel UI los lee — si nadie los lee, no rompe nada.
-    return { questions: parsed, warnings };
+    // Área 4: generation_id para que el editor complete el "oro" al guardar.
+    return { questions: parsed, warnings, generationId: data.generation_id ?? null };
   } catch (err) {
     console.error("AI generation failed:", err);
     throw err;

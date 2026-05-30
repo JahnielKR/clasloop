@@ -257,8 +257,13 @@ export default async function handler(req, res) {
     // await), Vercel mata la lambda antes de que la promesa se resuelva
     // y el INSERT se pierde. Por eso awaiteamos. El catch evita que un
     // fallo en la DB bloquee la respuesta al profe (ya tiene sus preguntas).
+    // Área 4: capturamos el id de la generación (.select('id')) para
+    // devolverlo al cliente. Al guardar el deck, el editor lo manda a
+    // api/generation-publish para completar el "oro" (output_final,
+    // time_to_publish_ms, accepted/edited). El insert sigue non-blocking.
+    let generationId = null;
     try {
-      const { error: insertErr } = await supabaseAdmin
+      const { data: genRow, error: insertErr } = await supabaseAdmin
         .from('ai_generations')
         .insert({
           teacher_id: userId,
@@ -273,12 +278,16 @@ export default async function handler(req, res) {
           // existe en la tabla, el insert falla pero no rompe (ver catch).
           output_filtered: outputFiltered,
           validation_dropped_count: validationDroppedCount,
-        });
+        })
+        .select('id')
+        .single();
       if (insertErr) console.error('ai_generations insert failed:', insertErr);
+      else generationId = genRow?.id ?? null;
     } catch (logErr) {
       console.error('ai_generations insert threw:', logErr);
     }
 
+    responseData.generation_id = generationId;
     return res.status(200).json(responseData);
   } catch (err) {
     return res.status(500).json({ error: err.message });
