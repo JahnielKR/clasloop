@@ -6,6 +6,10 @@
 // hardcoded Spanish while the gate stayed green. This mounts the prop-only Studio
 // components under LanguageProvider="en" and asserts English renders — the only
 // check that catches an unmigrated component or a missing function-key.
+//
+// Note: assertions that contain the "·" middot use document.body.textContent
+// instead of getByText, because testing-library splits on the middot's
+// surrounding nodes and reports a false "unable to find" negative.
 
 import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
@@ -64,7 +68,7 @@ describe("Studio i18n render smoke (en)", () => {
     };
     en(<MisconceptionPanel question={question} />);
     expect(screen.getByText("View question in DeckResults")).toBeInTheDocument();
-    // Robust against the "·" middot splitting testing-library's node matcher:
+    // middot-safe: assert via full body text
     expect(document.body.textContent).toContain("most-missed question");
     expect(document.body.textContent).not.toContain("Concepto errado");
   });
@@ -76,8 +80,10 @@ describe("Studio i18n render smoke (en)", () => {
 
   it("TopicTrendPanel renders localized weekly-trend title, not 'Tendencia'", () => {
     en(<TopicTrendPanel topic="Fractions" data={[]} />);
-    expect(screen.getByText("Weekly trend · Fractions")).toBeInTheDocument();
-    expect(screen.queryByText(/Tendencia/)).not.toBeInTheDocument();
+    // middot-safe: "Weekly trend · Fractions" splits getByText on the middot
+    expect(document.body.textContent).toContain("Weekly trend");
+    expect(document.body.textContent).toContain("Fractions");
+    expect(document.body.textContent).not.toContain("Tendencia");
   });
 
   it("RiskBadge renders English level label", () => {

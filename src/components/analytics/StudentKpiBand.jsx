@@ -2,6 +2,7 @@
 //
 // F2 Analytics Studio: banda de stat cards del Student Profile.
 // 5 tiles: % correcto · Sesiones · Tiempo medio · Retención media · Δ vs media de clase.
+// i18n: labels via useT("studioCommon") + useT("studentProfile").
 
 import StatCardWithSparkline from "./StatCardWithSparkline";
 import AnimatedNumber from "./AnimatedNumber";
@@ -32,10 +33,11 @@ export default function StudentKpiBand({
   const lang = useLang();
   const c = useT("studioCommon", lang);
   const t = useT("studentProfile", lang);
+
   const studentAvgRetention =
     topicMastery.length > 0
       ? Math.round(
-          topicMastery.reduce((s, t) => s + (Number(t.retention_score) || 0), 0)
+          topicMastery.reduce((s, tp) => s + (Number(tp.retention_score) || 0), 0)
             / topicMastery.length,
         )
       : 0;
@@ -44,11 +46,9 @@ export default function StudentKpiBand({
       ? Math.round(studentAvgRetention - Number(classAvgRetention))
       : null;
 
-  const pctSpark = trajectory.map((t) => Number(t.value) || 0);
+  const pctSpark = trajectory.map((p) => Number(p.value) || 0);
 
   // F4: derive delta chip per tile from compareKpis (period-prev fetch).
-  // Polarity nit: avg_time_ms "more = worse" but F4 keeps "more = good"
-  // universally — documented as out of scope in the plan.
   function deltaProps(field) {
     if (compareKpis == null) return null;
     const pct = pctChangeOrNull(compareKpis[field], kpis[field]);
