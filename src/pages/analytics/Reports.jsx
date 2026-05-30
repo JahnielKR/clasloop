@@ -3,6 +3,7 @@
 // F7 Analytics Studio: vista /school/reports. Composer (crear reporte) +
 // lista de reportes guardados (exportar / eliminar). El export re-fetcha
 // class_analytics fresco y arma el model con las secciones guardadas.
+// i18n: useT("reports").
 
 import { useState } from "react";
 import { StudioShell } from "../../components/analytics";
@@ -18,8 +19,8 @@ import {
 import { buildClassReportModel } from "../../lib/analytics/report-model";
 import { supabase } from "../../lib/supabase";
 import { C } from "../../components/tokens";
-
-const PERIOD_LABEL = { d7: "7 días", d30: "30 días", d90: "90 días" };
+import { useLang } from "../../i18n/LanguageContext";
+import { useT } from "../../i18n";
 
 function periodToRange(period) {
   const now = new Date();
@@ -32,6 +33,9 @@ function periodToRange(period) {
 }
 
 export default function Reports() {
+  const lang = useLang();
+  const t = useT("reports", lang);
+  const PERIOD_LABEL = { d7: t.periodD7, d30: t.periodD30, d90: t.periodD90 };
   const overviewQ = useAnalyticsOverview();
   const classes = overviewQ.data ?? [];
   const reportsQ = useReports();
@@ -66,8 +70,9 @@ export default function Reports() {
       p_to: to,
     });
     return buildClassReportModel({
-      className: m.className || "Clase",
-      period: m.period || report.period || "30 días",
+      className: m.className || "",
+      period: m.period || report.period || "",
+      lang,
       classAnalytics: data || {},
       sections: m.sections || ["kpis", "topics", "most_missed"],
     });
@@ -83,7 +88,7 @@ export default function Reports() {
   }
 
   return (
-    <StudioShell view="reports" title="Reportes">
+    <StudioShell view="reports" title={t.title}>
       <div
         style={{
           padding: 18,
@@ -106,7 +111,7 @@ export default function Reports() {
         />
         <div>
           <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>
-            Reportes guardados
+            {t.saved}
           </div>
           {reportsQ.isPending ? (
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>

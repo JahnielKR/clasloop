@@ -218,6 +218,27 @@ const ko: Locale = {
     loading: "로딩...",
   },
 
+  reports: {
+    title: "리포트",
+    saved: "저장된 리포트",
+    empty: "아직 저장한 리포트가 없습니다. 양식으로 하나 만들어 보세요.",
+    newReport: "새 리포트",
+    name: "이름",
+    namePlaceholder: "예: 5A 월간 리포트",
+    classLabel: "학급",
+    period: "기간",
+    sections: "섹션",
+    save: "리포트 저장",
+    saving: "저장 중…",
+    sectionsCount: (n) => `${n}개 섹션`,
+    secKpis: "핵심 지표",
+    secTopics: "주제별 숙달도",
+    secMostMissed: "가장 많이 틀린 문제",
+    periodD7: "7일",
+    periodD30: "30일",
+    periodD90: "90일",
+  },
+
   notifications: {
     railHeading: "요약", railActive: "활성", railByType: "유형별",
     pageTitle: "알림", all: "전체", review: "복습", sessions: "세션", system: "시스템",

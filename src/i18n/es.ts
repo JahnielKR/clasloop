@@ -219,6 +219,27 @@ const es: Locale = {
     live: "En vivo",
   },
 
+  reports: {
+    title: "Reportes",
+    saved: "Reportes guardados",
+    empty: "Aún no has guardado ningún reporte. Crea uno con el formulario.",
+    newReport: "Nuevo reporte",
+    name: "Nombre",
+    namePlaceholder: "Ej: Reporte mensual 5A",
+    classLabel: "Clase",
+    period: "Período",
+    sections: "Secciones",
+    save: "Guardar reporte",
+    saving: "Guardando…",
+    sectionsCount: (n) => `${n} secciones`,
+    secKpis: "Indicadores clave",
+    secTopics: "Dominio por tema",
+    secMostMissed: "Preguntas más falladas",
+    periodD7: "7 días",
+    periodD30: "30 días",
+    periodD90: "90 días",
+  },
+
   notifications: {
     railHeading: "Resumen", railActive: "activas", railByType: "Por tipo",
     pageTitle: "Notificaciones", all: "Todas", review: "Repaso", sessions: "Sesiones", system: "Sistema",

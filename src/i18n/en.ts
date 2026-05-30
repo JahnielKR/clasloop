@@ -223,6 +223,27 @@ const en = {
     live: "Live",
   },
 
+  reports: {
+    title: "Reports",
+    saved: "Saved reports",
+    empty: "You haven't saved any reports yet. Create one with the form.",
+    newReport: "New report",
+    name: "Name",
+    namePlaceholder: "E.g. Monthly report 5A",
+    classLabel: "Class",
+    period: "Period",
+    sections: "Sections",
+    save: "Save report",
+    saving: "Saving…",
+    sectionsCount: (n: number) => `${n} sections`,
+    secKpis: "Key indicators",
+    secTopics: "Mastery by topic",
+    secMostMissed: "Most missed questions",
+    periodD7: "7 days",
+    periodD30: "30 days",
+    periodD90: "90 days",
+  },
+
   notifications: {
     railHeading: "Summary", railActive: "active", railByType: "By type",
     pageTitle: "Notifications", all: "All", review: "Review", sessions: "Sessions", system: "System",

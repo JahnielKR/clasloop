@@ -3,18 +3,27 @@
 // F7 Analytics Studio: el "composer" de reportes. NO es un drag-drop canvas
 // (ver plan §out-of-scope) — es selección: clase + período + qué secciones
 // incluir + nombre. Al guardar, persiste el model en analytics_reports.
+// i18n: useT("reports"). Las etiquetas de sección se mapean por id (las ids
+// viven en SECTION_TYPES de report-model).
 
 import { useState } from "react";
 import { C } from "../tokens";
 import { SECTION_TYPES } from "../../lib/analytics/report-model";
-
-const PERIODS = [
-  { id: "d7", label: "7 días" },
-  { id: "d30", label: "30 días" },
-  { id: "d90", label: "90 días" },
-];
+import { useLang } from "../../i18n/LanguageContext";
+import { useT } from "../../i18n";
 
 export default function ReportComposer({ classes = [], onSave, saving = false }) {
+  const t = useT("reports", useLang());
+  const PERIODS = [
+    { id: "d7", label: t.periodD7 },
+    { id: "d30", label: t.periodD30 },
+    { id: "d90", label: t.periodD90 },
+  ];
+  const SECTION_LABEL = {
+    kpis: t.secKpis,
+    topics: t.secTopics,
+    most_missed: t.secMostMissed,
+  };
   const [name, setName] = useState("");
   const [classId, setClassId] = useState(classes[0]?.class_id || "");
   const [period, setPeriod] = useState("d30");
@@ -43,18 +52,18 @@ export default function ReportComposer({ classes = [], onSave, saving = false })
       }}
     >
       <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>
-        Nuevo reporte
+        {t.newReport}
       </div>
 
-      <label style={labelStyle}>Nombre</label>
+      <label style={labelStyle}>{t.name}</label>
       <input
         value={name}
         onChange={(e) => setName(e.target.value)}
-        placeholder="Ej: Reporte mensual 5to A"
+        placeholder={t.namePlaceholder}
         style={inputStyle}
       />
 
-      <label style={labelStyle}>Clase</label>
+      <label style={labelStyle}>{t.classLabel}</label>
       <select
         value={classId}
         onChange={(e) => setClassId(e.target.value)}
@@ -67,7 +76,7 @@ export default function ReportComposer({ classes = [], onSave, saving = false })
         ))}
       </select>
 
-      <label style={labelStyle}>Período</label>
+      <label style={labelStyle}>{t.period}</label>
       <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
         {PERIODS.map((p) => (
           <button
@@ -88,7 +97,7 @@ export default function ReportComposer({ classes = [], onSave, saving = false })
         ))}
       </div>
 
-      <label style={labelStyle}>Secciones</label>
+      <label style={labelStyle}>{t.sections}</label>
       <div
         style={{
           display: "flex",
@@ -113,7 +122,7 @@ export default function ReportComposer({ classes = [], onSave, saving = false })
               checked={sections.includes(s.id)}
               onChange={() => toggleSection(s.id)}
             />
-            {s.label}
+            {SECTION_LABEL[s.id] || s.label}
           </label>
         ))}
       </div>
@@ -132,7 +141,7 @@ export default function ReportComposer({ classes = [], onSave, saving = false })
           cursor: valid && !saving ? "pointer" : "not-allowed",
         }}
       >
-        {saving ? "Guardando…" : "Guardar reporte"}
+        {saving ? t.saving : t.save}
       </button>
     </div>
   );
