@@ -33,15 +33,12 @@ ciegas y solo se puede exportar), y la lista de guardados muestra poco.
 - **Datos para preview:** `useClassAnalytics(classId, {from,to})` (RPC
   `class_analytics`) devuelve `{kpis, topic_mastery, most_missed}` — exactamente
   lo que las 3 secciones necesitan.
-- **Primitivos disponibles:** `Button`, `Card`, `FieldLabel` (real),
-  `selectable.js` (`selectableCard`/`selectableChip`/`selectedCheckStyle`),
-  charts `RetentionDonut` / `RetentionBars` / `HorizontalBarList` (ya usados por
-  `ClassReport.jsx`). Tier de color: `scoring-thresholds.retentionTier`.
-  - **OJO:** `src/components/forms/field-styles.js` es un stub roto (se importa a
-    sí mismo, sin exports, nadie lo usa) — **no usarlo**. Los inputs/select se
-    estilizan con estilos inline basados en tokens (`C` de `components/tokens`),
-    igual que el composer actual (`inputStyle`/`labelStyle` locales) y el resto
-    del Studio. Para labels usar el primitivo real `FieldLabel`.
+- **Primitivos disponibles:** `Button`, `Card`, `FieldLabel`,
+  `field-styles.js` (`inputStyle` + `selectStyle`, fuente única ya usada por ~13
+  pantallas), `selectable.js` (`selectableCard`/`selectableChip`/
+  `selectedCheckStyle`), charts `RetentionDonut` / `RetentionBars` /
+  `HorizontalBarList` (ya usados por `ClassReport.jsx`). Tier de color:
+  `scoring-thresholds.retentionTier`.
 
 ## Problema
 
@@ -90,10 +87,10 @@ preview:
 - Estado interno `{ name, classId, period, sections }` (sections = array
   ordenado de ids). En cada cambio llama `onDraftChange(draft)`; `onSave(draft)`
   igual que hoy.
-- **Nombre:** input con estilo inline basado en tokens (reusa el `inputStyle`
-  local del composer, ya consistente) + `FieldLabel`.
-- **Clase:** `<select>` nativo estilizado con el mismo `inputStyle` (no existe
-  primitivo Select; es 1 control, no hace falta crear uno).
+- **Nombre:** input con `inputStyle` de `components/forms/field-styles` +
+  `FieldLabel`.
+- **Clase:** `<select>` con `selectStyle` de `field-styles` (no existe primitivo
+  Select; es 1 control, no hace falta crear uno).
 - **Período:** chips `selectableChip` (d7/d30/d90) — reemplaza los botones ad-hoc.
 - **Secciones (cotejos):** `selectableCard` por cada sección **en el orden
   actual del draft**, con label (`t[labelKey]`) + descripción (`t[descKey]`) +
