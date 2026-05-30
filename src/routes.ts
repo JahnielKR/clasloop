@@ -54,6 +54,7 @@ export const ROUTES = {
   ANALYTICS_ASK: "/school/ask",         // F5: Analista Cleo chat view
   ANALYTICS_LIVE: "/school/live",       // F6: Live Command Center
   ANALYTICS_REPORTS: "/school/reports", // F7: Reports page
+  ANALYTICS_CLEO: "/school/cleo",       // "Tu uso de Cleo" — teacher AI usage analytics
   COMMUNITY: "/community",
   SCAN: "/scan",                        // PR 49: Scanner — teacher only
   // TEACHER: "/teacher/:teacherId"      → buildRoute.teacher(id)
@@ -136,6 +137,8 @@ export const buildRoute = {
   // Analytics Studio — Reports page (F7). Cleo-generated downloadable
   // summaries and per-class snapshots.
   analyticsReports: () => `/school/reports`,
+  // Analytics Studio — "Tu uso de Cleo" (teacher AI usage gold). No params.
+  analyticsCleo: () => `/school/cleo`,
   // Class report — Cleo-opened printable snapshot (KPIs + charts)
   classReport: (classId: string) => `/classes/${enc(classId)}/report`,
   // Student-facing per-session results page — landed from a "graded"
@@ -168,6 +171,7 @@ export const ROUTE_PATTERNS = {
   ANALYTICS_ASK: "/school/ask",
   ANALYTICS_LIVE: "/school/live",
   ANALYTICS_REPORTS: "/school/reports",
+  ANALYTICS_CLEO: "/school/cleo",
   ANALYTICS_CLASS: "/school/class/:classId",
   ANALYTICS_STUDENT: "/school/student/:classId/:studentRef",
   ANALYTICS_TOPICS: "/school/topics/:classId",
@@ -274,6 +278,9 @@ export function pathToPage(pathname: string | null | undefined): string | null {
   // /school/reports → Analytics Studio Reports page (F7). MUST come before
   // the /school equality below.
   if (pathname === "/school/reports") return "analyticsReports";
+  // /school/cleo → Analytics Studio "Tu uso de Cleo". MUST come before the
+  // /school equality below.
+  if (pathname === "/school/cleo") return "analyticsCleo";
   // /school/class/:classId → Analytics Studio Class Detail (F1). MUST come
   // before the /school equality below, otherwise more specific paths would
   // either fall through or — worse — match "director".
@@ -345,6 +352,7 @@ const TEACHER_ONLY_PAGES = new Set([
   "analyticsAsk",     // F5: /school/ask — Analista Cleo chat view
   "analyticsLive",    // F6: /school/live — Live Command Center
   "analyticsReports", // F7: /school/reports — Reports page
+  "analyticsCleo",  // "Tu uso de Cleo" — /school/cleo — teacher AI usage analytics
   "adminAIStats",   // additionally requires is_admin, checked at the page level
   "scan",           // PR 49: Scanner — only teachers grade exams
 ]);

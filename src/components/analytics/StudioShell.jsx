@@ -29,6 +29,7 @@ const NAV_ITEMS = [
   { id: "live", label: "En vivo", route: buildRoute.analyticsLive() },
   { id: "reports", label: "Reportes", route: buildRoute.analyticsReports() },
   { id: "ask", label: "Analista Cleo", route: buildRoute.analyticsAsk() },
+  { id: "cleo", label: "Tu uso de Cleo", route: buildRoute.analyticsCleo() },
 ];
 
 const CONTEXTUAL_HINT = {
