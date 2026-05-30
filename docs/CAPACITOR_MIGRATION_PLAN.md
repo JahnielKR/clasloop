@@ -41,7 +41,7 @@ Pasos:
 2. `npx cap init` con app name "Clasloop", bundle ID `com.clasloop.app`
 3. Modificar `vite.config.js` para que build a `dist/` (default ya es eso)
 4. `npx cap add android`
-5. `npm run build && npx cap sync`
+5. `npm run build:capacitor && npx cap sync`  (build nativo = base relativo `./`; `npm run build` es el build web con base `/`)
 6. `npx cap open android` (abre Android Studio)
 7. Probar app en emulador → debería abrir la web app actual sin cambios
 8. Configurar splash screen + ícono + nombre en `capacitor.config.ts`

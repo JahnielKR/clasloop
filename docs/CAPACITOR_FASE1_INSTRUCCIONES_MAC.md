@@ -49,8 +49,12 @@ Si todo va bien, **Ctrl+C** para parar el dev server.
 ### 3. Build para producción
 
 ```bash
-npm run build
+npm run build:capacitor
 ```
+
+> **Importante:** para Android usá `build:capacitor`, NO `npm run build`.
+> El build nativo necesita rutas de assets **relativas** (`base: './'`); `npm
+> run build` es el build **web** (Vercel) con rutas **absolutas** (`base: '/'`).
 
 Esto genera `dist/`. Capacitor va a copiar este directorio al wrapper Android en el próximo paso.
 
