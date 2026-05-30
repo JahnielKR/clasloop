@@ -108,6 +108,7 @@ import { useIsMobile } from './components/MobileMenuButton';
 import { countVisibleNotifications, countPendingReviewsForTeacher } from './lib/notifications';
 import { C, SH, withAlpha } from './components/tokens';
 import Sidebar from './components/Sidebar';
+import BottomNav from './components/BottomNav';
 import { DensityProvider } from './components/ui/density';
 import ClassCodeModal from './components/ClassCodeModal';
 import MobileBlockedScreen from './components/MobileBlockedScreen';
@@ -975,6 +976,15 @@ export default function App() {
   // it to "teacherProfile" so it counts as known.
   const isNotFound = !inPractice && pathToPage(location.pathname) === null && location.pathname !== "/";
 
+  // Ola 3: mobile bottom tab bar. Shown on the normal shell pages; hidden during
+  // immersive flows — the practice / student-join blocked screens and the
+  // session live/lobby/recap sub-routes (which start with "/sessions/") — so it
+  // never covers a running quiz. The base "/sessions" picker still shows it.
+  const showBottomNav =
+    isMobile && !inPractice && !isNotFound &&
+    page !== "studentJoin" &&
+    !location.pathname.startsWith("/sessions/");
+
   return (
     <TourProvider>
     <div style={{ display: "flex", minHeight: "100vh" }}>
@@ -1014,7 +1024,7 @@ export default function App() {
         reviewBadgeCount={reviewBadgeCount}
         activeSessionId={activeSessionId}
       />
-      <div style={{ marginLeft: isMobile ? 0 : (open ? 210 : 56), flex: 1, minWidth: 0, transition: "margin-left .2s", minHeight: "100vh", background: C.bgSoft }}>
+      <div style={{ marginLeft: isMobile ? 0 : (open ? 210 : 56), flex: 1, minWidth: 0, transition: "margin-left .2s", minHeight: "100vh", background: C.bgSoft, paddingBottom: showBottomNav ? 64 : undefined }}>
         <Suspense fallback={<PageSuspenseFallback />}>
           {/* PR 28.17.2: phone (mobile) blocker for landscape-only flows.
               The themed quiz UI in StudentJoin assumes a wide viewport
@@ -1106,9 +1116,23 @@ export default function App() {
         </Suspense>
       </div>
 
+      {/* Ola 3: mobile bottom tab bar — one-tap to the 4 main destinations;
+          "Más" opens the existing drawer for the overflow. */}
+      {showBottomNav && (
+        <BottomNav
+          role={profile?.role === "student" ? "student" : "teacher"}
+          page={page}
+          lang={lang}
+          onNav={(id) => { setPracticeDeck(null); goToPage(id); }}
+          onMore={() => setMobileDrawerOpen(true)}
+          reviewBadgeCount={reviewBadgeCount}
+          notifsCount={notifsCount}
+        />
+      )}
+
       {/* In-app Cleo help bot — floating "Ask Cleo" for teachers (how things
           work / where to find them). Gated to teachers; the authed shell only. */}
-      {profile?.role === "teacher" && <CleoChat lang={lang} profile={profile} />}
+      {profile?.role === "teacher" && <CleoChat lang={lang} profile={profile} bottomInset={showBottomNav ? 64 : 0} />}
 
       {/* PR 26: gating modal for students with no class membership.
           Renders on top of the dimmed app shell — the student CAN see

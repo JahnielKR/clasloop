@@ -86,7 +86,7 @@ const css = `
   }
 `;
 
-export default function CleoChat({ lang = "en", profile = null }) {
+export default function CleoChat({ lang = "en", profile = null, bottomInset = 0 }) {
   const t = useT("cleoChat", lang);
   // Hide this FAB while a guided tour is on screen — there's only one Cleo, and
   // she's "out" giving the tour. She glides back into this corner when it ends.
@@ -315,7 +315,9 @@ export default function CleoChat({ lang = "en", profile = null }) {
           onClick={() => setOpen(true)}
           aria-label={t.openAria}
           style={{
-            position: "fixed", bottom: 20, right: 20, zIndex: 45,
+            // Ola 3: lift above the mobile bottom-nav when it's present so the
+            // FAB doesn't cover the "Más" tab.
+            position: "fixed", bottom: 20 + bottomInset, right: 20, zIndex: 45,
             width: 64, height: 64,
             background: "transparent", border: "none", boxShadow: "none",
             cursor: "pointer", display: "grid", placeItems: "center",
