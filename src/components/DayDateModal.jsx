@@ -126,7 +126,7 @@ export default function DayDateModal({
       ariaLabelledBy="daydate-title"
       backdropStyle={{
         position: "fixed", inset: 0, zIndex: 100,
-        background: "rgba(0,0,0,0.45)",
+        background: "rgba(0,0,0,0.5)",
         display: "flex", alignItems: "center", justifyContent: "center",
         padding: 16,
       }}

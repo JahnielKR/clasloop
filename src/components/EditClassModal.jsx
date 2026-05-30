@@ -270,7 +270,7 @@ export default function EditClassModal({
       ariaLabelledBy="editclass-title"
       initialFocusRef={nameRef}
       backdropStyle={{
-        position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)",
+        position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)",
         display: "flex", alignItems: "flex-start", justifyContent: "center",
         zIndex: 100, padding: 20, overflowY: "auto",
       }}
