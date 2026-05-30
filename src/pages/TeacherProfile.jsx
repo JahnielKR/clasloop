@@ -6,6 +6,7 @@ import { Avatar as CatalogAvatar } from "../components/Avatars";
 import { DeckCover, resolveColor, colorTint } from "../lib/deck-cover";
 import PageHeader from "../components/PageHeader";
 import SectionBadge from "../components/SectionBadge";
+import Modal from "../components/Modal";
 import { C } from "../components/tokens";
 // PR 74: i18n centralizado
 import { useT } from "../i18n";
@@ -474,8 +475,12 @@ export default function TeacherProfile({ teacherId, profile: viewerProfile, lang
 // ─── Save modal (teacher only) ─────────────────────────────────────────────
 function SaveModal({ t, deck, userClasses, onClose, onSave }) {
   return (
-    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, padding: 20 }}>
-      <div onClick={e => e.stopPropagation()} style={{ background: C.bg, borderRadius: 14, padding: 24, maxWidth: 420, width: "100%", boxShadow: "0 12px 40px rgba(0,0,0,0.15)" }}>
+    <Modal
+      open
+      onClose={onClose}
+      ariaLabel={t.addToWhich}
+      dialogStyle={{ background: C.bg, borderRadius: 14, padding: 24, maxWidth: 420, width: "100%", maxHeight: "90vh", overflowY: "auto", boxShadow: "0 12px 40px rgba(0,0,0,0.15)" }}
+    >
         <h3 style={{ fontSize: 17, fontWeight: 700, marginBottom: 6, fontFamily: "'Outfit',sans-serif" }}>{t.addToWhich}</h3>
         <p style={{ fontSize: 13, color: C.textSecondary, marginBottom: 16 }}>{deck.title}</p>
         {userClasses.length > 0 && (
@@ -508,8 +513,7 @@ function SaveModal({ t, deck, userClasses, onClose, onSave }) {
             fontFamily: "'Outfit',sans-serif",
           }}
         >{t.cancel}</button>
-      </div>
-    </div>
+    </Modal>
   );
 }
 

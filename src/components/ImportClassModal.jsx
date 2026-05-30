@@ -189,7 +189,7 @@ export default function ImportClassModal({ userId, t, onClose, onImported }) {
       ariaLabelledBy="import-class-title"
       initialFocusRef={pickFileBtnRef}
       backdropStyle={{
-        position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)",
+        position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)",
         display: "flex", alignItems: "center", justifyContent: "center",
         zIndex: 100, padding: 20,
       }}
