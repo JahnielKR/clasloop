@@ -16,6 +16,7 @@
 
 import { useRef, useState } from "react";
 import { C, SCRIM } from "./tokens";
+import Button from "./ui/Button";
 import Modal from "./Modal";
 import { importClassFromJson, validateImportJson, IMPORT_LIMITS, ImportError } from "../lib/class-import";
 
@@ -356,43 +357,18 @@ export default function ImportClassModal({ userId, t, onClose, onImported }) {
 
             {/* Actions */}
             <div style={{ display: "flex", gap: 8, marginTop: 18 }}>
-              <button
-                onClick={handleChangeFile}
-                disabled={phase === "importing"}
-                style={{
-                  padding: "10px 14px",
-                  borderRadius: 8,
-                  fontSize: 12,
-                  fontWeight: 500,
-                  background: "transparent",
-                  color: C.textMuted,
-                  border: `1px solid ${C.border}`,
-                  cursor: phase === "importing" ? "default" : "pointer",
-                  fontFamily: "'Outfit',sans-serif",
-                }}
-              >
+              <Button variant="secondary" onClick={handleChangeFile} disabled={phase === "importing"}>
                 {L(t, "changeFile")}
-              </button>
-              <button
+              </Button>
+              <Button
+                variant="gradient"
                 onClick={handleImport}
                 disabled={phase === "importing" || !editedName.trim()}
-                style={{
-                  flex: 1,
-                  padding: "10px 18px",
-                  borderRadius: 8,
-                  fontSize: 13,
-                  fontWeight: 600,
-                  background: phase === "importing" || !editedName.trim()
-                    ? C.bgSoft
-                    : `linear-gradient(135deg, ${C.accent}, ${C.purple})`,
-                  color: phase === "importing" || !editedName.trim() ? C.textMuted : "#fff",
-                  border: "none",
-                  cursor: phase === "importing" || !editedName.trim() ? "default" : "pointer",
-                  fontFamily: "'Outfit',sans-serif",
-                }}
+                loading={phase === "importing"}
+                style={{ flex: 1 }}
               >
-                {phase === "importing" ? L(t, "importing") : L(t, "importButton")}
-              </button>
+                {L(t, "importButton")}
+              </Button>
             </div>
           </div>
         )}

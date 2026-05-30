@@ -12,6 +12,7 @@ import { useState } from "react";
 import { createClass } from "../lib/classes";
 import { CIcon } from "./Icons";
 import { C, SCRIM } from "./tokens";
+import Button from "./ui/Button";
 import { SUBJECTS } from "../lib/constants";
 import Modal from "./Modal";
 
@@ -97,27 +98,10 @@ export default function CreateClassModal({ userId, t, onClose, onCreated }) {
       </div>
 
       <div style={{ display: "flex", gap: 8, marginTop: 20 }}>
-        <button
-          onClick={onClose}
-          style={{
-            padding: "10px 18px", borderRadius: 8, fontSize: 13, fontWeight: 500,
-            background: "transparent", color: C.textMuted,
-            border: `1px solid ${C.border}`, cursor: "pointer",
-            fontFamily: "'Outfit',sans-serif",
-          }}
-        >{t.cancel}</button>
-        <button
-          onClick={handleCreate}
-          disabled={creating}
-          style={{
-            flex: 1,
-            padding: "10px 18px", borderRadius: 8, fontSize: 13, fontWeight: 600,
-            background: creating ? C.bgSoft : `linear-gradient(135deg, ${C.accent}, ${C.purple})`,
-            color: creating ? C.textMuted : "#fff",
-            border: "none", cursor: creating ? "default" : "pointer",
-            fontFamily: "'Outfit',sans-serif",
-          }}
-        >{creating ? t.creating : t.classCreate}</button>
+        <Button variant="secondary" onClick={onClose}>{t.cancel}</Button>
+        <Button variant="gradient" onClick={handleCreate} loading={creating} style={{ flex: 1 }}>
+          {t.classCreate}
+        </Button>
       </div>
     </Modal>
   );

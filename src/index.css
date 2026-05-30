@@ -162,6 +162,12 @@ a {
 /* Gradient = the reserved brand signature. Use at most once per screen. */
 .ui-btn--gradient { background: linear-gradient(135deg, var(--c-accent), var(--c-purple)); color: #fff; box-shadow: 0 2px 8px rgba(0,0,0,.12); }
 .ui-btn--gradient:hover:not(:disabled) { filter: brightness(1.05); }
+/* Disabled gradient: the faded multi-color wash kills label contrast (white on a
+   55%-opacity blue->purple reads as ~1.5:1). Fall back to the neutral soft
+   surface — exactly what the hand-rolled gradient CTAs did before adopting the
+   primitive — so the disabled label stays readable and uniform across every
+   gradient button. */
+.ui-btn--gradient:disabled { background: var(--c-bg-soft); color: var(--c-text-muted); box-shadow: none; opacity: 1; }
 
 /* Solid semantic tones (Button `tone` prop). Same shape as --primary but a
    semantic fill — for always-loud semantic actions (e.g. Review's grade
