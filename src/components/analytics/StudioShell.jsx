@@ -1,42 +1,34 @@
 // src/components/analytics/StudioShell.jsx
 //
 // F0 Analytics Studio: el shell de la sección.
-// - Sub-navegación de 7 items. Los 4 sin params (Resumen / En vivo /
-//   Reportes / Analista Cleo) son navegables directo desde el sidebar.
-//   Los 3 contextuales (Clase / Estudiante / Tema) necesitan un id, así
-//   que se llega a ellos por click en una card/row/chip y acá solo se
-//   resaltan cuando estás en su vista.
-// - Toolbar persistente arriba: title + PeriodChips + slot toolbarExtras
-//   (Compare en F4, Export en F7).
+// - Sub-navegación de 8 items. Los navegables (con `route`) se abren desde el
+//   sidebar; los contextuales (Clase / Estudiante / Tema) necesitan un id, así
+//   que se llega a ellos por click en una card/row/chip y acá solo se resaltan.
+// - Toolbar persistente arriba: title + PeriodChips + slot toolbarExtras.
 // - El contenido de la vista se pasa por children.
+// - i18n: labels via useT("studioShell"); lang del LanguageContext.
 
-// React 17+ automatic JSX runtime: no React default import needed.
-// (Project lint disables react/react-in-jsx-scope; see eslint.config.js.)
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import PeriodChips from "./PeriodChips";
 import { ROUTES, buildRoute } from "../../routes";
 import { useIsMobile } from "../MobileMenuButton";
 import { C } from "../tokens";
+import { useLang } from "../../i18n/LanguageContext";
+import { useT } from "../../i18n";
 
 // `route` => navegable desde el sidebar (rutas sin params). Sin `route` =>
 // contextual: se abre con un id desde otra vista; el sidebar solo lo resalta.
 const NAV_ITEMS = [
-  { id: "overview", label: "Resumen", route: ROUTES.SCHOOL },
-  { id: "class", label: "Clase" },
-  { id: "student", label: "Estudiante" },
-  { id: "topics", label: "Temas" },
-  { id: "live", label: "En vivo", route: buildRoute.analyticsLive() },
-  { id: "reports", label: "Reportes", route: buildRoute.analyticsReports() },
-  { id: "ask", label: "Analista Cleo", route: buildRoute.analyticsAsk() },
-  { id: "cleo", label: "Tu uso de Cleo", route: buildRoute.analyticsCleo() },
+  { id: "overview", labelKey: "navOverview", route: ROUTES.SCHOOL },
+  { id: "class", labelKey: "navClass" },
+  { id: "student", labelKey: "navStudent" },
+  { id: "topics", labelKey: "navTopics" },
+  { id: "live", labelKey: "navLive", route: buildRoute.analyticsLive() },
+  { id: "reports", labelKey: "navReports", route: buildRoute.analyticsReports() },
+  { id: "ask", labelKey: "navAsk", route: buildRoute.analyticsAsk() },
+  { id: "cleo", labelKey: "navCleo", route: buildRoute.analyticsCleo() },
 ];
-
-const CONTEXTUAL_HINT = {
-  class: "Se abre desde una clase del Resumen",
-  student: "Se abre desde un alumno del roster",
-  topics: "Se abre desde un tema del detalle de clase",
-};
 
 export default function StudioShell({
   view = "overview",
@@ -48,9 +40,12 @@ export default function StudioShell({
 }) {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
+  const lang = useLang();
+  const t = useT("studioShell", lang);
   const [internalPeriod, setInternalPeriod] = useState(period);
   const effectivePeriod = onPeriodChange ? period : internalPeriod;
   const handlePeriod = onPeriodChange || setInternalPeriod;
+  const hintFor = { class: t.hintClass, student: t.hintStudent, topics: t.hintTopics };
 
   return (
     <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", minHeight: "100%" }}>
@@ -73,7 +68,7 @@ export default function StudioShell({
               opacity: 0.55,
             }}
           >
-            Analytics
+            {t.eyebrow}
           </div>
         )}
         {NAV_ITEMS.map((item) => {
@@ -99,7 +94,7 @@ export default function StudioShell({
                     }
                   : undefined
               }
-              title={navigable ? "" : CONTEXTUAL_HINT[item.id] || ""}
+              title={navigable ? "" : hintFor[item.id] || ""}
               style={
                 isMobile
                   ? {
@@ -127,7 +122,7 @@ export default function StudioShell({
                     }
               }
             >
-              {item.label}
+              {t[item.labelKey]}
             </div>
           );
         })}

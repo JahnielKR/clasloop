@@ -6,24 +6,24 @@
 // Custom abre un date-range picker en una fase posterior (F4 cuando se
 // active el toggle Comparar con períodos arbitrarios). En F0 solo dispara
 // onChange('custom') y el padre puede ignorarlo.
-
-// React 17+ automatic JSX runtime: no need to import React.
-// (Project lint disables react/react-in-jsx-scope; see eslint.config.js.)
+// i18n: el label "Custom" y el aria-label salen de useT("studioCommon").
 
 import { C } from "../tokens";
-
-const PERIODS = [
-  { id: "d7", label: "7d" },
-  { id: "d30", label: "30d" },
-  { id: "d90", label: "90d" },
-  { id: "custom", label: "Custom" },
-];
+import { useLang } from "../../i18n/LanguageContext";
+import { useT } from "../../i18n";
 
 export default function PeriodChips({ value = "d30", onChange }) {
+  const t = useT("studioCommon", useLang());
+  const PERIODS = [
+    { id: "d7", label: "7d" },
+    { id: "d30", label: "30d" },
+    { id: "d90", label: "90d" },
+    { id: "custom", label: t.periodCustom },
+  ];
   return (
     <div
       role="tablist"
-      aria-label="Rango de período"
+      aria-label={t.periodRangeLabel}
       style={{
         display: "inline-flex",
         gap: 4,
