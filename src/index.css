@@ -214,6 +214,21 @@ summary:focus-visible {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  /* Ola 4 (a11y) — app-wide baseline: neutralize every keyframe animation,
+     transition and smooth-scroll for users who asked for reduced motion.
+     `!important` + the universal selector catch the surfaces that had NO guard
+     of their own: the live-quiz animations (styles/themes.css — the most-used
+     student surface, ~25 keyframes), PlanView's slide-ins, the onboarding
+     keyframes, and every inline page keyframe. 0.01ms (not 0) lets animations
+     still fire `animationend` and settle on their end state. */
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  /* Targeted removals kept from before: these DROP the press/hover transforms
+     entirely (not just make them instant). */
   button, .ui-btn, .ui-card, .cl-selectable { transition: none; }
   button:active, .ui-btn:hover, .ui-btn:active, .ui-card--hover:hover, .ui-card--hover:active { transform: none; }
   .ui-btn__spinner, .ui-skeleton { animation: none; }
