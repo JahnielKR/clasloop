@@ -38,6 +38,7 @@ import { C, withAlpha } from "./tokens";
 import { useNavigate } from "react-router-dom";
 import { buildRoute } from "../routes";
 import { useT } from "../i18n";
+import useTheme from "../hooks/useTheme";
 
 // ─── Nav config ────────────────────────────────────────────────────────
 // Each item names an icon from NavIcons.jsx (today / review / classes /
@@ -302,6 +303,23 @@ function SectionTitle({ children, isFirst = false, divided = false }) {
   );
 }
 
+// Ola 3: light/dark toggle glyphs for the footer (monochrome, currentColor).
+function SunGlyph({ size = 15 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <circle cx="12" cy="12" r="4" stroke="currentColor" strokeWidth="1.8" />
+      <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  );
+}
+function MoonGlyph({ size = 15 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 // ─── Main component ───────────────────────────────────────────────────
 //
 // Props are exactly the same as the previous inline Sidebar so App.jsx
@@ -359,6 +377,7 @@ export default function Sidebar({
   // Mobile drawer: every nav action also closes the drawer so the user
   // doesn't have to tap × after picking a destination.
   const navigate = useNavigate();
+  const [theme, setTheme] = useTheme();
   const handleNav = (id) => {
     setPage(id);
     if (onNavClick) onNavClick();
@@ -605,26 +624,49 @@ export default function Sidebar({
                 deliberately moved this here so it lives with user-prefs,
                 not page chrome). */}
             <div style={{ display: "flex", gap: 4, marginBottom: isMobile ? 6 : 10 }}>
-              {[["en", "EN"], ["es", "ES"], ["ko", "한"]].map(([code, label]) => (
-                <button
-                  key={code}
-                  onClick={() => setLang(code)}
-                  style={{
-                    flex: 1,
-                    padding: "5px 0",
-                    borderRadius: 5,
-                    fontSize: 11,
-                    fontWeight: 600,
-                    background: lang === code ? C.accentSoft : "transparent",
-                    color: lang === code ? C.accent : C.textMuted,
-                    border: `1px solid ${lang === code ? withAlpha(C.accent, "33") : C.border}`,
-                    cursor: "pointer",
-                    fontFamily: "'Outfit', sans-serif",
-                  }}
-                >
-                  {label}
-                </button>
-              ))}
+              <div style={{ display: "flex", gap: 4, flex: 1, minWidth: 0 }}>
+                {[["en", "EN"], ["es", "ES"], ["ko", "한"]].map(([code, label]) => (
+                  <button
+                    key={code}
+                    onClick={() => setLang(code)}
+                    style={{
+                      flex: 1,
+                      padding: "5px 0",
+                      borderRadius: 5,
+                      fontSize: 11,
+                      fontWeight: 600,
+                      background: lang === code ? C.accentSoft : "transparent",
+                      color: lang === code ? C.accent : C.textMuted,
+                      border: `1px solid ${lang === code ? withAlpha(C.accent, "33") : C.border}`,
+                      cursor: "pointer",
+                      fontFamily: "'Outfit', sans-serif",
+                    }}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              {/* Ola 3: light/dark toggle — surfaced here (was buried in
+                  Settings → Appearance). useTheme() syncs it app-wide. */}
+              <button
+                onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+                aria-label={theme === "dark" ? "Cambiar a tema claro" : "Cambiar a tema oscuro"}
+                title={theme === "dark" ? "Tema claro" : "Tema oscuro"}
+                style={{
+                  width: 30,
+                  flexShrink: 0,
+                  borderRadius: 5,
+                  background: "transparent",
+                  color: C.textSecondary,
+                  border: `1px solid ${C.border}`,
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                {theme === "dark" ? <SunGlyph /> : <MoonGlyph />}
+              </button>
             </div>
 
             {/* Profile chip — clicking it opens Settings, matching the
