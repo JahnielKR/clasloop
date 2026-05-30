@@ -24,6 +24,7 @@ import { C } from "../components/tokens";
 import { ROUTES, buildRoute } from "../routes";
 import PageHeader from "../components/PageHeader";
 import Skeleton from "../components/ui/Skeleton";
+import { CIcon } from "../components/Icons";
 import { useDensity } from "../components/ui/density";
 import { fetchClassDecksSummary, groupRowsBySection, pctColor } from "../lib/class-insights";
 import { sectionLabels, resolveClassAccent } from "../lib/class-hierarchy";
@@ -208,7 +209,7 @@ export default function ClassInsights({ profile, lang = "en", setLang, onOpenMob
           background: C.bg, border: `1px dashed ${C.border}`,
           borderRadius: 14,
         }}>
-          <div style={{ fontSize: 48, marginBottom: 12 }}>📊</div>
+          <div style={{ marginBottom: 12 }}><CIcon name="chart" size={52} /></div>
           <h2 style={{ fontSize: 18, fontWeight: 700, margin: "0 0 6px", color: C.text }}>
             {t.emptyTitle}
           </h2>

@@ -344,7 +344,7 @@ function SessionOptions({ deck, classes, t, lang = "en", onLaunch, onBack }) {
             boxShadow: SH.lg,
           }}
         >
-            <div style={{ fontSize: 32, marginBottom: 12 }}>💻</div>
+            <div style={{ marginBottom: 12 }}><CIcon name="monitor" inline size={38} color={C.accent} /></div>
             <h2 id="mobile-block-title" style={{
               fontFamily: "'Outfit',sans-serif",
               fontSize: 20, fontWeight: 600, margin: 0, marginBottom: 12,
