@@ -4,6 +4,11 @@ import { ROUTES, PAGE_TO_ROUTE, pathToPage, defaultRouteForRole, buildRoute, bui
 import { supabase } from './lib/supabase';
 import { useQueryClient } from '@tanstack/react-query';
 import { getStrings } from './i18n';
+// Provides `lang` to the authed page tree via context so analytics/Studio
+// components can call useLang() without prop-drilling. Mounted at <LanguageProvider>
+// below — this import was missing on main, which crashed the authed shell with
+// `ReferenceError: LanguageProvider is not defined` (white screen).
+import { LanguageProvider } from './i18n/LanguageContext';
 import { resolveInitialLang } from './lib/locale';
 import { safeGet, safeSet, safeRemove } from './lib/safe-storage';
 import { LogoMark } from './components/Icons';

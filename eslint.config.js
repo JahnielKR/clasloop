@@ -73,6 +73,12 @@ export default [
       // only referenced inside JSX. The rule reports nothing itself — it just
       // feeds usage info to no-unused-vars.
       'react/jsx-uses-vars': 'error',
+      // Catch JSX components referenced but never imported/defined (e.g. a
+      // missing `import { LanguageProvider }`). Plain `no-undef` does NOT flag
+      // JSX element names, so without this an undefined <Component> sails past
+      // lint AND build (Rollup emits it as a free global) and only throws
+      // `X is not defined` at runtime — a white screen. Guards that regression.
+      'react/jsx-no-undef': 'error',
       // react-hooks enforcement (rules-of-hooks since PR 168; exhaustive-deps
       // tightened to error in PR 143 once all violations were triaged):
       'react-hooks/rules-of-hooks': 'error',
