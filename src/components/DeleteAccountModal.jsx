@@ -17,7 +17,7 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
-import { C } from "./tokens";
+import { C, SCRIM } from "./tokens";
 import Modal from "./Modal";
 // PR 74: i18n centralizado
 import { useT } from "../i18n";
@@ -90,7 +90,7 @@ export default function DeleteAccountModal({
       ariaLabelledBy="delete-account-title"
       backdropStyle={{
         position: "fixed", inset: 0, zIndex: 9999,
-        background: "rgba(15, 18, 25, 0.65)",
+        background: SCRIM,
         display: "flex", alignItems: "center", justifyContent: "center",
         padding: 16,
         fontFamily: "'Outfit', sans-serif",

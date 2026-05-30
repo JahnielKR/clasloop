@@ -16,7 +16,7 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
-import { C } from "./tokens";
+import { C, SCRIM } from "./tokens";
 import Modal from "./Modal";
 import ConfirmDialog from "./ConfirmDialog";
 import { getAvatarById } from "./Avatars";
@@ -205,7 +205,7 @@ export default function StudentsModal({
       ariaLabelledBy="students-modal-title"
       backdropStyle={{
         position: "fixed", inset: 0, zIndex: 200,
-        background: "rgba(15, 18, 25, 0.55)",
+        background: SCRIM,
         display: "flex", alignItems: "center", justifyContent: "center",
         padding: 16,
         fontFamily: "'Outfit', sans-serif",

@@ -9,7 +9,8 @@ import { DeckCover, resolveColor } from "../lib/deck-cover";
 import MobileMenuButton, { useIsMobile } from "../components/MobileMenuButton";
 import PageHeader from "../components/PageHeader";
 import SectionBadge, { sectionAccent } from "../components/SectionBadge";
-import { C, MONO, SH, withAlpha } from "../components/tokens";
+import { C, MONO, SH, withAlpha, SCRIM } from "../components/tokens";
+import Modal from "../components/Modal";
 import { estimateDeckSeconds, formatDeckDuration } from "../lib/time-limits";
 import { ROUTES, QUERY, buildRoute } from "../routes";
 // PR 79: i18n centralizado
@@ -327,25 +328,24 @@ function SessionOptions({ deck, classes, t, lang = "en", onLaunch, onBack }) {
       {/* PR 56 fix 1: modal de bloqueo cuando teacher intenta lanzar
           sesión desde phone (no tablet, no laptop). */}
       {showMobileBlockModal && (
-        <div
-          onClick={() => setShowMobileBlockModal(false)}
-          style={{
+        <Modal
+          open
+          onClose={() => setShowMobileBlockModal(false)}
+          ariaLabelledBy="mobile-block-title"
+          backdropStyle={{
             position: "fixed", inset: 0, zIndex: 1000,
-            background: "rgba(0,0,0,0.5)",
+            background: SCRIM,
             display: "flex", alignItems: "center", justifyContent: "center",
             padding: 20,
           }}
+          dialogStyle={{
+            background: C.bg, borderRadius: 16, padding: 24,
+            maxWidth: 380, width: "100%",
+            boxShadow: SH.lg,
+          }}
         >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              background: C.bg, borderRadius: 16, padding: 24,
-              maxWidth: 380, width: "100%",
-              boxShadow: SH.lg,
-            }}
-          >
             <div style={{ fontSize: 32, marginBottom: 12 }}>💻</div>
-            <h2 style={{
+            <h2 id="mobile-block-title" style={{
               fontFamily: "'Outfit',sans-serif",
               fontSize: 20, fontWeight: 600, margin: 0, marginBottom: 12,
               color: C.text,
@@ -371,8 +371,7 @@ function SessionOptions({ deck, classes, t, lang = "en", onLaunch, onBack }) {
             >
               {t.mobileBlockOK}
             </button>
-          </div>
-        </div>
+        </Modal>
       )}
     </div>
   );

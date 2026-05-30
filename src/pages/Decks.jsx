@@ -14,7 +14,8 @@ import EmptyState from "../components/EmptyState";
 import Skeleton from "../components/ui/Skeleton";
 import Button from "../components/ui/Button";
 import ConfirmDialog from "../components/ConfirmDialog";
-import { MONO } from "../components/tokens";
+import { MONO, SCRIM } from "../components/tokens";
+import Modal from "../components/Modal";
 import { C, css, withAlpha } from "./Decks/styles";
 import CreateDeckEditor from "./Decks/CreateDeckEditor";
 // PR 113: draggable deck-card family extracted to Decks/DeckTiles.jsx.
@@ -901,26 +902,25 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
           editor immediately after picking a class (or "no class"), so this is
           a quick decision rather than a config form. */}
       {customizingFav && (
-        <div
-          onClick={() => setCustomizingFav(null)}
-          style={{
+        <Modal
+          open
+          onClose={() => setCustomizingFav(null)}
+          ariaLabelledBy="decks-customizefav-title"
+          backdropStyle={{
             position: "fixed", inset: 0,
-            background: "rgba(0,0,0,.4)",
+            background: SCRIM,
             display: "flex", alignItems: "center", justifyContent: "center",
             zIndex: 100, padding: 20,
             fontFamily: "'Outfit',sans-serif",
           }}
+          dialogStyle={{
+            background: C.bg, borderRadius: 14, padding: 24,
+            maxWidth: 420, width: "100%",
+            maxHeight: "85vh", overflowY: "auto",
+            boxShadow: "0 12px 40px rgba(0,0,0,0.18)",
+          }}
         >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              background: C.bg, borderRadius: 14, padding: 24,
-              maxWidth: 420, width: "100%",
-              maxHeight: "85vh", overflowY: "auto",
-              boxShadow: "0 12px 40px rgba(0,0,0,0.18)",
-            }}
-          >
-            <h3 style={{ fontSize: 17, fontWeight: 700, marginBottom: 4 }}>{t.addToWhichFav}</h3>
+            <h3 id="decks-customizefav-title" style={{ fontSize: 17, fontWeight: 700, marginBottom: 4 }}>{t.addToWhichFav}</h3>
             <p style={{ fontSize: 13, color: C.textSecondary, marginBottom: 6 }}>{customizingFav.title}</p>
             <p style={{ fontSize: 12, color: C.textMuted, marginBottom: 16 }}>{t.customizeFavHint}</p>
 
@@ -971,9 +971,8 @@ export default function Decks({ lang: pageLang = "en", setLang: pageSetLang, onN
                 fontFamily: "'Outfit',sans-serif",
               }}
             >{t.cancel}</button>
-          </div>
-        </div>
-      )}
+          </Modal>
+        )}
 
       {/* PR 29.1: PDF export modal — appears when handleDownloadPdf is
           called. Single instance, mounted at the root so it can overlay

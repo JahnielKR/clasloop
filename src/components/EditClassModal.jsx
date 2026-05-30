@@ -18,7 +18,7 @@
 import { useState, useMemo, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { CIcon } from "./Icons";
-import { C, withAlpha } from "./tokens";
+import { C, withAlpha, SCRIM } from "./tokens";
 import Modal from "./Modal";
 import { SUBJECTS } from "../lib/constants";
 
@@ -270,7 +270,7 @@ export default function EditClassModal({
       ariaLabelledBy="editclass-title"
       initialFocusRef={nameRef}
       backdropStyle={{
-        position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)",
+        position: "fixed", inset: 0, background: SCRIM,
         display: "flex", alignItems: "flex-start", justifyContent: "center",
         zIndex: 100, padding: 20, overflowY: "auto",
       }}

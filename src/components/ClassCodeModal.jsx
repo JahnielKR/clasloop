@@ -16,7 +16,7 @@
 import { useState } from "react";
 import { joinClass } from "../lib/classes";
 import { supabase } from "../lib/supabase";
-import { C } from "./tokens";
+import { C, SCRIM } from "./tokens";
 import Modal from "./Modal";
 
 // PR 74: i18n centralizado
@@ -87,9 +87,7 @@ export default function ClassCodeModal({ profile, lang = "en", onJoined }) {
         position: "fixed",
         inset: 0,
         zIndex: 9999,
-        background: "rgba(15, 18, 25, 0.55)",
-        backdropFilter: "blur(3px)",
-        WebkitBackdropFilter: "blur(3px)",
+        background: SCRIM,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { C, R } from "./tokens";
+import { C, R, SCRIM } from "./tokens";
 
 // PR 146 (H23): shared accessible modal primitive. Adds the a11y mechanics
 // every modal in the app was missing — focus trap, return focus, role +
@@ -15,7 +15,7 @@ const FOCUSABLE =
 const DEFAULT_BACKDROP = {
   position: "fixed",
   inset: 0,
-  background: "rgba(0,0,0,0.5)",
+  background: SCRIM,
   display: "flex",
   alignItems: "center",
   justifyContent: "center",

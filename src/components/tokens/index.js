@@ -12,6 +12,6 @@
 
 export { THEME_CSS, C, MONO, withAlpha } from "./color";
 export { getStoredTheme, applyTheme, setStoredTheme, ensureThemeCss } from "./theme";
-export { SPACE, SP, RADIUS, R, SHADOW, SH } from "./scale";
+export { SPACE, SP, RADIUS, R, SHADOW, SH, SCRIM } from "./scale";
 export { TYPE } from "./typography";
 export { MOTION } from "./motion";

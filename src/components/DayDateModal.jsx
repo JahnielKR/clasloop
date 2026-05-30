@@ -18,7 +18,7 @@
 // i18n: PR 73 movió las strings a src/i18n/ (namespace "dayDateModal").
 
 import { useEffect, useState, useMemo } from "react";
-import { C } from "./tokens";
+import { C, SCRIM } from "./tokens";
 import Modal from "./Modal";
 import { setDayDate, getDayDate, suggestNextDayDate } from "../lib/class-hierarchy";
 // PR 73: i18n centralizado
@@ -126,7 +126,7 @@ export default function DayDateModal({
       ariaLabelledBy="daydate-title"
       backdropStyle={{
         position: "fixed", inset: 0, zIndex: 100,
-        background: "rgba(0,0,0,0.5)",
+        background: SCRIM,
         display: "flex", alignItems: "center", justifyContent: "center",
         padding: 16,
       }}

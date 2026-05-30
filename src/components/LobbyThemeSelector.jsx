@@ -27,7 +27,7 @@ import { useT } from "../i18n";
 import { useState } from "react";
 import { supabase } from "../lib/supabase";
 import { listThemes } from "../lib/themes";
-import { C } from "./tokens";
+import { C, SCRIM } from "./tokens";
 import { selectableCard, selectedCheckStyle } from "./ui/selectable";
 import Modal from "./Modal";
 
@@ -78,7 +78,7 @@ export default function LobbyThemeSelector({
       ariaLabelledBy="lobbytheme-title"
       backdropStyle={{
         position: "fixed", inset: 0, zIndex: 100,
-        background: "rgba(0,0,0,0.5)",
+        background: SCRIM,
         display: "flex", alignItems: "center", justifyContent: "center",
         padding: 20,
         animation: "cl-fade-in 0.15s ease",

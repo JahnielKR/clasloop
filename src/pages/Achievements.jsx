@@ -5,7 +5,8 @@ import { Avatar as CatalogAvatar, AVATARS } from "../components/Avatars";
 import { getStudentStats } from "../lib/unlock-checker";
 import { useIsMobile } from "../components/MobileMenuButton";
 import PageHeader from "../components/PageHeader";
-import { C as BASE_C, MONO, SH, withAlpha } from "../components/tokens";
+import { C as BASE_C, MONO, SH, withAlpha, SCRIM } from "../components/tokens";
+import Modal from "../components/Modal";
 // PR 75: i18n centralizado
 import { useT } from "../i18n";
 
@@ -158,15 +159,21 @@ function AchModal({ avatar, unlocked, progress, lang, t, onClose }) {
   const name = avatar.name?.[lang] || avatar.name?.en || avatar.id;
 
   return (
-    <div onClick={onClose} style={{
-      position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)",
-      display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, padding: 20,
-    }}>
-      <div onClick={e => e.stopPropagation()} className="ach-pop" style={{
+    <Modal
+      open
+      onClose={onClose}
+      ariaLabelledBy="ach-modal-title"
+      backdropStyle={{
+        position: "fixed", inset: 0, background: SCRIM,
+        display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, padding: 20,
+      }}
+      dialogClassName="ach-pop"
+      dialogStyle={{
         background: C.bg, borderRadius: 16, border: `1px solid ${unlocked ? rarity.border : C.border}`,
         padding: 32, maxWidth: 380, width: "100%", textAlign: "center",
         boxShadow: SH.lg,
-      }}>
+      }}
+    >
         <div style={{
           display: "inline-flex", marginBottom: 12,
           filter: unlocked ? "none" : "grayscale(0.7) opacity(0.7)",
@@ -174,7 +181,7 @@ function AchModal({ avatar, unlocked, progress, lang, t, onClose }) {
           <CatalogAvatar id={avatar.id} size={108} />
         </div>
 
-        <h2 style={{ fontFamily: "'Outfit',sans-serif", fontSize: 22, fontWeight: 700, marginBottom: 4 }}>
+        <h2 id="ach-modal-title" style={{ fontFamily: "'Outfit',sans-serif", fontSize: 22, fontWeight: 700, marginBottom: 4 }}>
           {name}
         </h2>
 
@@ -227,8 +234,7 @@ function AchModal({ avatar, unlocked, progress, lang, t, onClose }) {
           background: C.bgSoft, color: C.textSecondary, border: `1px solid ${C.border}`,
           cursor: "pointer", fontFamily: "'Outfit',sans-serif",
         }}>{t.close}</button>
-      </div>
-    </div>
+    </Modal>
   );
 }
 

@@ -7,6 +7,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import Modal from "../Modal";
+import { SCRIM } from "../tokens";
 
 function renderOpen(props = {}) {
   return render(
@@ -39,6 +40,17 @@ describe("Modal", () => {
   it("honors a custom role (alertdialog)", () => {
     renderOpen({ role: "alertdialog" });
     expect(screen.getByRole("alertdialog")).toBeInTheDocument();
+  });
+
+  // Ola 5 part 2: the default backdrop must resolve to the shared SCRIM token,
+  // so every modal that relies on the default (or references SCRIM in a custom
+  // backdropStyle) shares one overlay tint. Guards against DEFAULT_BACKDROP
+  // drifting back to a hand-eyeballed rgba.
+  it("paints the default backdrop with the shared SCRIM token", () => {
+    renderOpen();
+    const backdrop = screen.getByRole("dialog").parentElement;
+    const norm = (s) => (s || "").replace(/\s/g, "");
+    expect(norm(backdrop.style.background)).toBe(norm(SCRIM));
   });
 
   it("moves initial focus into the dialog", () => {
