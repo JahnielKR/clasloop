@@ -74,6 +74,7 @@ const importTopicMastery   = () => import('./pages/analytics/TopicMastery');
 const importCleoAnalyst    = () => import('./pages/analytics/CleoAnalyst');
 const importLiveCommandCenter = () => import('./pages/analytics/LiveCommandCenter');
 const importReportsPage    = () => import('./pages/analytics/Reports');
+const importCleoUsage      = () => import('./pages/analytics/CleoUsage');
 
 const SessionFlow      = lazy(importSessionFlow);
 const StudentJoin      = lazy(importStudentJoin);
@@ -102,6 +103,7 @@ const TopicMastery     = lazy(importTopicMastery);
 const CleoAnalyst      = lazy(importCleoAnalyst);
 const LiveCommandCenter = lazy(importLiveCommandCenter);
 const ReportsPage      = lazy(importReportsPage);
+const CleoUsage        = lazy(importCleoUsage);
 import { useIsMobile } from './components/MobileMenuButton';
 import { countVisibleNotifications, countPendingReviewsForTeacher } from './lib/notifications';
 import { C, SH, withAlpha } from './components/tokens';
@@ -136,11 +138,11 @@ function MyClassesByRole(props) {
   return <MyClasses {...props} />;
 }
 
-const COMPONENTS = { sessions: SessionFlow, studentJoin: StudentJoin, community: Community, achievements: Achievements, settings: Settings, director: Director, notifications: Notifications, decks: Decks, myClasses: MyClassesByRole, teacherProfile: TeacherProfile, adminAIStats: AdminAIStats, review: Review, deckResults: DeckResults, classInsights: ClassInsights, classReport: ClassReport, myResults: MyResults, sessionRecap: SessionRecap, favorites: Favorites, scan: Scanner, analyticsClassDetail: ClassDetail, analyticsStudentProfile: StudentProfile, analyticsTopicMastery: TopicMastery, analyticsAsk: CleoAnalyst, analyticsLive: LiveCommandCenter, analyticsReports: ReportsPage };
+const COMPONENTS = { sessions: SessionFlow, studentJoin: StudentJoin, community: Community, achievements: Achievements, settings: Settings, director: Director, notifications: Notifications, decks: Decks, myClasses: MyClassesByRole, teacherProfile: TeacherProfile, adminAIStats: AdminAIStats, review: Review, deckResults: DeckResults, classInsights: ClassInsights, classReport: ClassReport, myResults: MyResults, sessionRecap: SessionRecap, favorites: Favorites, scan: Scanner, analyticsClassDetail: ClassDetail, analyticsStudentProfile: StudentProfile, analyticsTopicMastery: TopicMastery, analyticsAsk: CleoAnalyst, analyticsLive: LiveCommandCenter, analyticsReports: ReportsPage, analyticsCleo: CleoUsage };
 
 // Data-dense surfaces render in "compact" density (TradingView/Sheets-like);
 // everything else stays "comfortable" (Notion-like). One system, two rhythms.
-const COMPACT_PAGES = new Set(["director", "classInsights", "notifications", "adminAIStats", "analyticsClassDetail", "analyticsStudentProfile", "analyticsTopicMastery", "analyticsLive", "analyticsReports"]);
+const COMPACT_PAGES = new Set(["director", "classInsights", "notifications", "adminAIStats", "analyticsClassDetail", "analyticsStudentProfile", "analyticsTopicMastery", "analyticsLive", "analyticsReports", "analyticsCleo"]);
 
 
 // PR 28.17.3: MobileBlockedScreen extracted to src/components so GuestJoin
