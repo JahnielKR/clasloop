@@ -218,6 +218,20 @@ const ko: Locale = {
     loading: "로딩...",
   },
 
+  cleoAnalyst: {
+    title: "Cleo 분석",
+    greeting: "안녕하세요, Cleo예요. 위에서 학급을 선택하고 데이터에 대해 무엇이든 물어보세요 — 누가 뒤처지는지, 무엇을 다시 가르칠지, 어떤 덱을 만들지.",
+    classLabel: "학급:",
+    selectPlaceholder: "— 선택 —",
+    noClassHint: "학급을 선택하지 않으면 Cleo가 일반적으로 답하고, 학급을 선택하면 실제 수치를 읽을 수 있습니다.",
+    inputPlaceholder: "이 학급에 대해 Cleo에게 무엇을 물어볼까요?",
+    cleoPrefix: "Cleo: ",
+    thinking: "Cleo가 생각 중이에요…",
+    errReply: "지금은 답할 수 없었어요 — 다시 시도해 주세요.",
+    errNetwork: "네트워크 오류 — 다시 시도해 주세요.",
+    send: "보내기",
+  },
+
   liveCenter: {
     title: "실시간",
     activeSession: "진행 중인 세션",

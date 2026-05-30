@@ -219,6 +219,20 @@ const es: Locale = {
     live: "En vivo",
   },
 
+  cleoAnalyst: {
+    title: "Analista Cleo",
+    greeting: "Hola, soy Cleo. Elige una clase arriba y pregúntame lo que quieras de tus datos — quiénes vienen flojos, qué reenseñar, qué deck armar.",
+    classLabel: "Clase:",
+    selectPlaceholder: "— Selecciona —",
+    noClassHint: "Sin una clase seleccionada Cleo responde en general; con una clase puede leer tus números reales.",
+    inputPlaceholder: "¿Qué le pregunto a Cleo sobre esta clase?",
+    cleoPrefix: "Cleo: ",
+    thinking: "Cleo está pensando…",
+    errReply: "No pude responder ahora — intenta de nuevo.",
+    errNetwork: "Error de red — intenta de nuevo.",
+    send: "Enviar",
+  },
+
   liveCenter: {
     title: "En vivo",
     activeSession: "Sesión activa",

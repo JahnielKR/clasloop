@@ -7,7 +7,7 @@
 //
 // UI: minimalista (no es CleoChat full). Header con selector de clase,
 // hilo de mensajes, input de texto + send. Sin file upload, sin plan
-// confirmation cards.
+// confirmation cards. i18n: useT("cleoAnalyst"); el chat usa el idioma de la UI.
 
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
@@ -15,21 +15,24 @@ import { StudioShell } from "../../components/analytics";
 import { useAnalyticsOverview } from "../../hooks/useAnalyticsOverview";
 import { supabase } from "../../lib/supabase";
 import { C } from "../../components/tokens";
+import { useLang } from "../../i18n/LanguageContext";
+import { useT } from "../../i18n";
 
 const ACCENT = C.purple;
 
 export default function CleoAnalyst() {
+  const lang = useLang();
+  const t = useT("cleoAnalyst", lang);
   const [searchParams, setSearchParams] = useSearchParams();
   const initialClassId = searchParams.get("class") || null;
 
   const overviewQ = useAnalyticsOverview();
   const classes = overviewQ.data ?? [];
   const [classId, setClassId] = useState(initialClassId);
-  const [messages, setMessages] = useState([
+  const [messages, setMessages] = useState(() => [
     {
       role: "model",
-      text:
-        "Hola, soy Cleo. Elegí una clase arriba y preguntame lo que quieras de tus datos — quiénes vienen flojos, qué reenseñar, qué deck armar.",
+      text: t.greeting,
       // ui: true marks this as a client-only greeting that must NOT be
       // sent to Gemini — its API rejects requests where the first turn
       // is role:"model". Mirrors the pattern in CleoChat.jsx.
@@ -71,7 +74,7 @@ export default function CleoAnalyst() {
           messages: next
             .filter((m) => !m.ui)
             .map((m) => ({ role: m.role === "model" ? "model" : "user", text: m.text })),
-          lang: "es",
+          lang,
           context: { page: "analyticsAsk", analyticsClassId: classId || undefined },
         }),
       });
@@ -79,10 +82,10 @@ export default function CleoAnalyst() {
       if (resp.ok && data?.reply) {
         setMessages((m) => [...m, { role: "model", text: data.reply }]);
       } else {
-        setMessages((m) => [...m, { role: "model", text: "No pude responder ahora — probá de nuevo." }]);
+        setMessages((m) => [...m, { role: "model", text: t.errReply }]);
       }
     } catch {
-      setMessages((m) => [...m, { role: "model", text: "Error de red — probá de nuevo." }]);
+      setMessages((m) => [...m, { role: "model", text: t.errNetwork }]);
     } finally {
       setLoading(false);
     }
@@ -96,23 +99,23 @@ export default function CleoAnalyst() {
   }
 
   return (
-    <StudioShell view="ask" title="Analista Cleo">
+    <StudioShell view="ask" title={t.title}>
       <div style={{ padding: 18, background: C.bgSoft, minHeight: "100%", display: "flex", flexDirection: "column", gap: 12 }}>
         <div style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 12px", display: "flex", gap: 12, alignItems: "center" }}>
-          <span style={{ fontSize: 13, fontWeight: 600 }}>Clase:</span>
+          <span style={{ fontSize: 13, fontWeight: 600 }}>{t.classLabel}</span>
           <select
             value={classId || ""}
             onChange={handleClassChange}
             style={{ padding: "4px 8px", fontSize: 13, borderRadius: 6, border: `1px solid ${C.border}` }}
           >
-            <option value="">— Selecciona —</option>
+            <option value="">{t.selectPlaceholder}</option>
             {classes.map((c) => (
               <option key={c.class_id} value={c.class_id}>{c.class_name || c.class_id}</option>
             ))}
           </select>
           {!classId && (
             <span style={{ fontSize: 12, color: C.textSecondary }}>
-              Sin clase seleccionada Cleo responde general; con clase puede leer tus números reales.
+              {t.noClassHint}
             </span>
           )}
         </div>
@@ -146,13 +149,13 @@ export default function CleoAnalyst() {
                 whiteSpace: "pre-wrap",
               }}
             >
-              {m.role === "model" && <b style={{ color: ACCENT }}>Cleo: </b>}
+              {m.role === "model" && <b style={{ color: ACCENT }}>{t.cleoPrefix}</b>}
               {m.text}
             </div>
           ))}
           {loading && (
             <div style={{ alignSelf: "flex-start", opacity: 0.55, fontSize: 13 }}>
-              Cleo está pensando…
+              {t.thinking}
             </div>
           )}
         </div>
@@ -161,7 +164,7 @@ export default function CleoAnalyst() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
-            placeholder="¿Qué le pregunto a Cleo sobre esta clase?"
+            placeholder={t.inputPlaceholder}
             disabled={loading}
             style={{
               flex: 1,
@@ -185,7 +188,7 @@ export default function CleoAnalyst() {
               opacity: loading || !input.trim() ? 0.6 : 1,
             }}
           >
-            Enviar
+            {t.send}
           </button>
         </div>
       </div>

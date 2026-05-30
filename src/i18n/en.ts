@@ -223,6 +223,20 @@ const en = {
     live: "Live",
   },
 
+  cleoAnalyst: {
+    title: "Ask Cleo",
+    greeting: "Hi, I'm Cleo. Pick a class above and ask me anything about your data — who's falling behind, what to reteach, what deck to build.",
+    classLabel: "Class:",
+    selectPlaceholder: "— Select —",
+    noClassHint: "With no class selected Cleo answers generally; with a class it can read your real numbers.",
+    inputPlaceholder: "What should I ask Cleo about this class?",
+    cleoPrefix: "Cleo: ",
+    thinking: "Cleo is thinking…",
+    errReply: "I couldn't answer right now — try again.",
+    errNetwork: "Network error — try again.",
+    send: "Send",
+  },
+
   liveCenter: {
     title: "Live",
     activeSession: "Active session",
