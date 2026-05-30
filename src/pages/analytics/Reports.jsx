@@ -90,7 +90,11 @@ export default function Reports() {
           background: C.bgSoft,
           minHeight: "100%",
           display: "grid",
-          gridTemplateColumns: "320px 1fr",
+          // Responsive without media queries: two columns when there's room,
+          // collapses to one on phones (min(100%, 300px) prevents overflow
+          // below 300px). Ola 6 — was a fixed "320px 1fr" that forced
+          // horizontal scroll on mobile.
+          gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 300px), 1fr))",
           gap: 16,
           alignItems: "start",
         }}

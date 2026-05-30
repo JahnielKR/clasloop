@@ -127,7 +127,10 @@ export default function RosterTable({ students = [], riskInputsByName = {}, onRo
       ) : sorted.length === 0 ? (
         <div style={{ opacity: 0.45, fontSize: 13, padding: 6 }}>Sin alumnos que coincidan con "{filter}".</div>
       ) : (
-        <table style={{ width: "100%", fontSize: 13, borderCollapse: "collapse" }}>
+        <div style={{ overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
+          {/* Ola 6: scroll wrapper so the 5-col roster scrolls instead of
+              clipping on phones; minWidth keeps the columns legible. */}
+          <table style={{ width: "100%", minWidth: 520, fontSize: 13, borderCollapse: "collapse" }}>
           <thead style={{ fontSize: 11, textTransform: "uppercase", opacity: 0.55, textAlign: "left" }}>
             <tr>
               {COLUMNS.map((c) => (
@@ -196,6 +199,7 @@ export default function RosterTable({ students = [], riskInputsByName = {}, onRo
             })}
           </tbody>
         </table>
+        </div>
       )}
     </div>
   );
