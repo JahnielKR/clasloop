@@ -15,7 +15,7 @@
 // usable if a key is missing.
 
 import { useRef, useState } from "react";
-import { C } from "./tokens";
+import { C, SCRIM } from "./tokens";
 import Modal from "./Modal";
 import { importClassFromJson, validateImportJson, IMPORT_LIMITS, ImportError } from "../lib/class-import";
 
@@ -189,7 +189,7 @@ export default function ImportClassModal({ userId, t, onClose, onImported }) {
       ariaLabelledBy="import-class-title"
       initialFocusRef={pickFileBtnRef}
       backdropStyle={{
-        position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)",
+        position: "fixed", inset: 0, background: SCRIM,
         display: "flex", alignItems: "center", justifyContent: "center",
         zIndex: 100, padding: 20,
       }}

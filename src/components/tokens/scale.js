@@ -36,3 +36,15 @@ export const SHADOW = {
   focus: "0 0 0 3px var(--c-accent-soft)",
 };
 export const SH = SHADOW;
+
+// ── Scrim ─────────────────────────────────────────────────────────────────
+// The single overlay tint behind every blocking dialog. One value so modals
+// stop drifting — before this the app had 0.4 (bypasses), 0.5 (Modal default),
+// and rgba(15,18,25,0.55|0.65)+blur (ClassCode/Students/DeleteAccount) all
+// hand-eyeballed per modal. Theme-invariant (black at 50% reads correctly over
+// both light and dark content, like the shadows above). The Modal primitive's
+// DEFAULT_BACKDROP uses this; any caller passing a custom backdropStyle (for a
+// different zIndex/padding) should still reference SCRIM for the background.
+// Non-dialog overlays (the analytics StudentDrawer side-peek, the CleoTour
+// spotlight) intentionally use their own lighter/cut-out treatments.
+export const SCRIM = "rgba(0,0,0,0.5)";

@@ -51,7 +51,7 @@ import { useToast } from "../lib/toast";
 // Landing PR B: the style thumbnails moved to their own dep-free module so the
 // marketing landing can reuse the exact same SVGs without importing jsPDF.
 import { STYLE_THUMBS } from "./PdfStyleThumbs";
-import { SH } from "./tokens";
+import { SH, SCRIM } from "./tokens";
 import Button from "./ui/Button";
 import Modal from "./Modal";
 import CleoTour from "../onboarding/CleoTour";
@@ -278,7 +278,7 @@ export default function PDFExportModal({
       ariaLabelledBy="pdfexport-title"
       backdropStyle={{
         position: "fixed", inset: 0,
-        background: "rgba(0,0,0,0.5)",
+        background: SCRIM,
         display: "flex", alignItems: "center", justifyContent: "center",
         zIndex: 100,
         padding: 20,

@@ -35,7 +35,7 @@ import { useT } from "../i18n";
 
 import { useState, useEffect, useMemo, useRef } from "react";
 import { supabase } from "../lib/supabase";
-import { C } from "./tokens";
+import { C, SCRIM } from "./tokens";
 import Modal from "./Modal";
 import SectionBadge, { sectionAccent } from "./SectionBadge";
 
@@ -249,7 +249,7 @@ export default function AddToSlotModal({
       initialFocusRef={searchRef}
       backdropStyle={{
         position: "fixed", inset: 0,
-        background: "rgba(0,0,0,0.5)",
+        background: SCRIM,
         display: "flex", alignItems: "center", justifyContent: "center",
         zIndex: 200, padding: 20,
       }}

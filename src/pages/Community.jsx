@@ -6,7 +6,8 @@ import { DeckCover, colorTint } from "../lib/deck-cover";
 import PageHeader from "../components/PageHeader";
 import Skeleton from "../components/ui/Skeleton";
 import SectionBadge from "../components/SectionBadge";
-import { C as BASE_C, withAlpha } from "../components/tokens";
+import { C as BASE_C, withAlpha, SCRIM } from "../components/tokens";
+import Modal from "../components/Modal";
 // PR 73: i18n centralizado — strings en src/i18n/{en,es,ko}.js
 // bajo el namespace "community".
 import { useT } from "../i18n";
@@ -243,9 +244,14 @@ export default function Community({ lang: pageLang = "en", setLang: pageSetLang,
 
         {/* Save modal */}
         {savingDeck && (
-          <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, padding: 20 }} onClick={() => setSavingDeck(null)}>
-            <div onClick={e => e.stopPropagation()} style={{ background: C.bg, borderRadius: 14, padding: 24, maxWidth: 400, width: "100%" }}>
-              <h3 style={{ fontSize: 17, fontWeight: 700, marginBottom: 6 }}>{t.addToWhich}</h3>
+          <Modal
+            open
+            onClose={() => setSavingDeck(null)}
+            ariaLabelledBy="community-save-title"
+            backdropStyle={{ position: "fixed", inset: 0, background: SCRIM, display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, padding: 20 }}
+            dialogStyle={{ background: C.bg, borderRadius: 14, padding: 24, maxWidth: 400, width: "100%" }}
+          >
+              <h3 id="community-save-title" style={{ fontSize: 17, fontWeight: 700, marginBottom: 6 }}>{t.addToWhich}</h3>
               <p style={{ fontSize: 13, color: C.textSecondary, marginBottom: 16 }}>{savingDeck.title}</p>
               {userClasses.length === 0 ? (
                 <p style={{ fontSize: 13, color: C.textMuted, padding: 20, textAlign: "center" }}>{t.noClassesYet}</p>
@@ -263,8 +269,7 @@ export default function Community({ lang: pageLang = "en", setLang: pageSetLang,
                 </div>
               )}
               <button onClick={() => setSavingDeck(null)} style={{ width: "100%", padding: 10, borderRadius: 8, fontSize: 13, fontWeight: 500, background: "transparent", color: C.textMuted, border: "none", cursor: "pointer", fontFamily: "'Outfit',sans-serif" }}>{t.cancel}</button>
-            </div>
-          </div>
+          </Modal>
         )}
       </div>
     );

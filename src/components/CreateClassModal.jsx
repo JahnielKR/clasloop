@@ -11,7 +11,7 @@
 import { useState } from "react";
 import { createClass } from "../lib/classes";
 import { CIcon } from "./Icons";
-import { C } from "./tokens";
+import { C, SCRIM } from "./tokens";
 import { SUBJECTS } from "../lib/constants";
 import Modal from "./Modal";
 
@@ -50,7 +50,7 @@ export default function CreateClassModal({ userId, t, onClose, onCreated }) {
       role="dialog"
       ariaLabelledBy="create-class-title"
       backdropStyle={{
-        position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)",
+        position: "fixed", inset: 0, background: SCRIM,
         display: "flex", alignItems: "center", justifyContent: "center",
         zIndex: 100, padding: 20,
       }}
